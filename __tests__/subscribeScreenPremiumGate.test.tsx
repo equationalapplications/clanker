@@ -110,7 +110,7 @@ describe('Subscribe screen monthly_20 button gating (provider-agnostic)', () => 
             tree = create(<SubscribeScreen />)
         })
 
-        expect(tree.root.findAllByProps({ testID: '30,000 Power / month · $20' })).toHaveLength(0)
+        expect(tree.root.findAllByProps({ testID: 'subscribe-monthly' })).toHaveLength(0)
     })
 
     it('shows the monthly_20 button when isPremium is false', async () => {
@@ -122,6 +122,6 @@ describe('Subscribe screen monthly_20 button gating (provider-agnostic)', () => 
             tree = create(<SubscribeScreen />)
         })
 
-        expect(tree.root.findByProps({ testID: '30,000 Power / month · $20' })).toBeTruthy()
+        expect(tree.root.findByProps({ testID: 'subscribe-monthly' })).toBeTruthy()
     })
 })

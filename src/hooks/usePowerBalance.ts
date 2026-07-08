@@ -26,15 +26,16 @@ export function computePowerFill(totalPower: number, grantedPower: number): Powe
 }
 
 export function usePowerBalance() {
-  const { data, isLoading } = useUserCredits()
+  const { data, isLoading: baseIsLoading } = useUserCredits()
   const { grantedTotal } = useAuthCredits()
   const totalPower = data?.totalCredits ?? 0
   const fill = computePowerFill(totalPower, grantedTotal)
-  // useUserCredits().isLoading already covers the transitional bootstrap
-  // window (initializing/signingIn/bootstrapping auth states), so once it
-  // settles a genuinely zero grantedTotal means the user is truly out of
-  // Power, not "still loading" — don't let fill.isUnknown re-trigger the
-  // loading UI and mask the red band / Low Power banner for that user.
+  // grantedTotal === 0 while totalPower > 0 is impossible from the DB query
+  // (a positive balance means live rows exist, so their initial_amount sum
+  // is > 0) — it can only mean the server-side getGrantedTotal lookup
+  // failed or a stale bootstrap cache lacks the field. Treat that as still
+  // loading rather than a genuine empty meter, per spec section 5.
+  const isLoading = baseIsLoading || (fill.isUnknown && totalPower > 0)
   return {
     totalPower,
     grantedPower: grantedTotal,

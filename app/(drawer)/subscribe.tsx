@@ -95,7 +95,7 @@ export default function SubscribeScreen() {
               <View style={styles.creditsStatus}>
                 <Text variant="bodyLarge" style={styles.statusText}>
                   {isPremium
-                    ? 'You receive 30,000 Power each month. Power expires at the end of each billing cycle.'
+                    ? '30,000 Power, refills every month. Power expires at the end of each billing cycle.'
                     : `Current Power: ${totalPower.toLocaleString()}`}
                 </Text>
                 <Text variant="bodyMedium" style={styles.description}>
@@ -116,7 +116,7 @@ export default function SubscribeScreen() {
           <View style={styles.buttonContainer}>
             {!isPremium && (
               <Button
-                testID="30,000 Power / month · $20"
+                testID="subscribe-monthly"
                 mode="contained"
                 onPress={() => handlePurchase('monthly_20')}
                 disabled={inFlightAction !== null}
@@ -215,7 +215,7 @@ export default function SubscribeScreen() {
                 • Document conversion — 200 Power
               </Text>
               <Text variant="bodyMedium" style={styles.pricingRow}>
-                • Voice session — 500 Power / min
+                • Voice session — 500 to connect + 500 / min
               </Text>
               <Text variant="bodyMedium" style={styles.pricingRow}>
                 • Agent turns — 100 Power / loop
@@ -231,7 +231,7 @@ export default function SubscribeScreen() {
             </Text>
             <View style={styles.featuresList}>
               <Text variant="bodyMedium">• Free Tier — 5,000 Power</Text>
-              <Text variant="bodyMedium">• Monthly Plan — 30,000 Power for $20, renews monthly</Text>
+              <Text variant="bodyMedium">• Monthly Plan — 30,000 Power for $20, refills monthly</Text>
               <Text variant="bodyMedium">• One-time Pack — 10,000 Power for $10, valid 31 days</Text>
             </View>
           </Card.Content>

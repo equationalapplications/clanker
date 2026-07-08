@@ -35,8 +35,15 @@ test('assertAgentTurnCredits throws when balance is zero', async () => {
   )
 })
 
-test('assertAgentTurnCredits passes when balance is positive', async () => {
-  await assert.doesNotReject(() => assertAgentTurnCredits('user-1', { getBalance: async () => 3 }))
+test('assertAgentTurnCredits throws when balance is below one loop iteration cost (100)', async () => {
+  await assert.rejects(
+    () => assertAgentTurnCredits('user-1', { getBalance: async () => 99 }),
+    (err: Error) => err instanceof AgentInsufficientCreditsError,
+  )
+})
+
+test('assertAgentTurnCredits passes when balance covers one loop iteration cost (100)', async () => {
+  await assert.doesNotReject(() => assertAgentTurnCredits('user-1', { getBalance: async () => 100 }))
 })
 
 test('assertAgentTurnCredits passes when getBalance throws (graceful degrade)', async () => {

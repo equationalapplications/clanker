@@ -101,8 +101,8 @@ const handler = async (
 
         // Sum of granted credits over currently "live" rows, used by the client to
         // compute a fill percentage for the power meter UI. On failure we return 0,
-        // which the client treats as "unknown/loading" — an intentional UX decision,
-        // not a bug (see task plan).
+        // which the client (usePowerBalance) treats as "unknown/loading" since a
+        // genuinely empty grant total is impossible for a user with balance > 0.
         let grantedTotal = 0;
         try {
             grantedTotal = await deps.creditService.getGrantedTotal(user.id);

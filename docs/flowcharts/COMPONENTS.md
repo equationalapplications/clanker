@@ -9,7 +9,7 @@ graph LR
   ChatComposer.web --> useCharacterWiki
   ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
-  ChatView --> useUserCredits
+  ChatView --> usePowerBalance
   ChatView --> useAIChat
   ChatView --> isSafeHttpUrl
   ChatView --> useMachines
@@ -21,6 +21,7 @@ graph LR
   CookieConsentContext --> analyticsService
   CookiePreferencesModal --> CookieConsentContext
   CreditsDisplay --> useUserCredits
+  CreditsDisplay --> usePowerBalance
   CreditsDisplay --> useBootstrapRefresh
   GroundingHtml --> sanitizeGroundingHtml
   GroundingHtml --> isSafeHttpUrl
