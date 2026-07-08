@@ -9,6 +9,12 @@ graph LR
   ChatComposer.web --> useCharacterWiki
   ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
+  ChatView --> useUserCredits
+  ChatView --> useAIChat
+  ChatView --> isSafeHttpUrl
+  ChatView --> useMachines
+  ChatView --> useCharacters
+  ChatView --> useActiveCharacterId
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext
   CookieConsentContext --> crashlyticsService
