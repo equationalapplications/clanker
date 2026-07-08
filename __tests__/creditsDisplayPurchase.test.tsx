@@ -2,6 +2,7 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 
 const mockUseUserCredits = jest.fn()
+const mockUsePowerBalance = jest.fn()
 const mockMakePackagePurchase = jest.fn()
 const mockAuthServiceSend = jest.fn()
 
@@ -48,6 +49,10 @@ jest.mock('~/hooks/useUserCredits', () => ({
   useUserCredits: (...args: unknown[]) => mockUseUserCredits(...args),
 }))
 
+jest.mock('~/hooks/usePowerBalance', () => ({
+  usePowerBalance: (...args: unknown[]) => mockUsePowerBalance(...args),
+}))
+
 jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: () => ({ send: mockAuthServiceSend }),
 }))
@@ -89,6 +94,14 @@ describe('CreditsDisplay purchase flows', () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
+    })
+    mockUsePowerBalance.mockReturnValue({
+      totalPower: 42,
+      grantedPower: 100,
+      rawFill: 0.42,
+      barFill: 0.4,
+      band: 'normal',
+      isLoading: false,
     })
 
     mockMakePackagePurchase.mockResolvedValue(undefined)

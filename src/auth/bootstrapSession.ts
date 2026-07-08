@@ -1,4 +1,4 @@
-import { exchangeToken, getCurrentUser } from '~/config/firebaseConfig'
+import { appCheckReady, exchangeToken, getCurrentUser } from '~/config/firebaseConfig'
 import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 import { ensureDevSandboxCharacter } from '~/auth/ensureDevSandboxCharacter'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -43,10 +43,17 @@ const mockBootstrapTermsVersion = null
 
 const bootstrapSessionPromises = new Map<string, Promise<BootstrapSessionResult>>()
 
+const BOOTSTRAP_MAX_RETRIES = 2
+const BOOTSTRAP_RETRY_DELAY_MS = 750
+
 function normalizeBootstrapResponse(response: {
   user: any
   subscription: any
 }): BootstrapSessionResult {
+  if (typeof response.user.createdAt !== 'string' || typeof response.user.updatedAt !== 'string') {
+    throw new Error('Invalid bootstrap response: missing or invalid user timestamps')
+  }
+
   const user: any = {
     id: response.user.id,
     firebaseUid: response.user.firebaseUid,
@@ -63,18 +70,11 @@ function normalizeBootstrapResponse(response: {
     planTier: response.subscription.planTier ?? null,
     planStatus: response.subscription.planStatus ?? null,
     currentCredits: response.subscription.currentCredits ?? 0,
+    grantedTotal: response.subscription.grantedTotal ?? 0,
     termsVersion: response.subscription.termsVersion ?? null,
     termsAcceptedAt: response.subscription.termsAcceptedAt ?? null,
-  }
-
-  if ('grantedTotal' in response.subscription) {
-    subscription.grantedTotal = response.subscription.grantedTotal
-  }
-  if ('nextExpiryDate' in response.subscription) {
-    subscription.nextExpiryDate = response.subscription.nextExpiryDate
-  }
-  if ('cancelAtPeriodEnd' in response.subscription) {
-    subscription.cancelAtPeriodEnd = response.subscription.cancelAtPeriodEnd
+    nextExpiryDate: response.subscription.nextExpiryDate ?? null,
+    cancelAtPeriodEnd: response.subscription.cancelAtPeriodEnd ?? false,
   }
 
   return {
@@ -111,7 +111,7 @@ async function buildMockBootstrap(): Promise<BootstrapSessionResult> {
       planTier: mockBootstrapPlanTier,
       planStatus: mockBootstrapPlanStatus,
       currentCredits: mockBootstrapCurrentCredits,
-      grantedTotal: 0,
+      grantedTotal: mockBootstrapCurrentCredits,
       termsVersion: mockBootstrapTermsVersion,
       termsAcceptedAt: null,
       nextExpiryDate: null,
@@ -138,18 +138,35 @@ export async function bootstrapSession(): Promise<BootstrapSessionResult> {
       throw new Error('No authenticated user available for bootstrapSession')
     }
 
-    const response = (await exchangeToken()) as {
-      data: {
-        user: any
-        subscription: any
+    let lastError: unknown
+    for (let attempt = 0; attempt <= BOOTSTRAP_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS * attempt))
+      }
+
+      try {
+        // exchangeToken has enforceAppCheck: true — wait for App Check init
+        // before calling it, same as every other callable-function caller.
+        await appCheckReady
+
+        const response = (await exchangeToken()) as {
+          data: {
+            user: any
+            subscription: any
+          }
+        }
+
+        if (!response?.data?.user || !response?.data?.subscription) {
+          throw new Error('Invalid exchange token response')
+        }
+
+        return normalizeBootstrapResponse(response.data)
+      } catch (err) {
+        lastError = err
       }
     }
 
-    if (!response?.data?.user || !response?.data?.subscription) {
-      throw new Error('Invalid exchange token response')
-    }
-
-    return normalizeBootstrapResponse(response.data)
+    throw lastError instanceof Error ? lastError : new Error(String(lastError))
   })()
 
   bootstrapSessionPromises.set(cacheKey, bootstrapPromise)

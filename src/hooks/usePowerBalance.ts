@@ -30,10 +30,15 @@ export function usePowerBalance() {
   const { grantedTotal } = useAuthCredits()
   const totalPower = data?.totalCredits ?? 0
   const fill = computePowerFill(totalPower, grantedTotal)
+  // useUserCredits().isLoading already covers the transitional bootstrap
+  // window (initializing/signingIn/bootstrapping auth states), so once it
+  // settles a genuinely zero grantedTotal means the user is truly out of
+  // Power, not "still loading" — don't let fill.isUnknown re-trigger the
+  // loading UI and mask the red band / Low Power banner for that user.
   return {
     totalPower,
     grantedPower: grantedTotal,
     ...fill,
-    isLoading: isLoading || fill.isUnknown,
+    isLoading,
   }
 }

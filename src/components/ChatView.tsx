@@ -10,7 +10,7 @@ import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
-import { useUserCredits } from '~/hooks/useUserCredits'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
 import { GroundingHtml } from '~/components/GroundingHtml'
@@ -104,8 +104,7 @@ function ChatViewContent({
   userDisplayName,
   userPhotoUrl,
 }: ChatViewContentProps) {
-  const { data: creditsData } = useUserCredits()
-  const credits = creditsData?.totalCredits || 0
+  const { totalPower: credits } = usePowerBalance()
   const { colors, roundness } = useTheme()
 
   const wikiStatus = useEntityStatus(characterId)

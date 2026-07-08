@@ -124,8 +124,8 @@ jest.mock('~/hooks/useAIChat', () => ({
 }))
 
 let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = { totalCredits: 10, nextExpiryDate: null }
-jest.mock('~/hooks/useUserCredits', () => ({
-  useUserCredits: () => ({ data: mockCreditsData }),
+jest.mock('~/hooks/usePowerBalance', () => ({
+  usePowerBalance: () => ({ totalPower: mockCreditsData.totalCredits }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────

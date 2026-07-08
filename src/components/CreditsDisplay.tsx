@@ -2,6 +2,7 @@ import React from 'react'
 import { View, StyleSheet, Platform } from 'react-native'
 import { Card, Text, Button, Snackbar, useTheme } from 'react-native-paper'
 import { useUserCredits } from '~/hooks/useUserCredits'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
@@ -19,6 +20,7 @@ export default function CreditsDisplay({
   onDismissExpiredMessage,
 }: CreditsDisplayProps) {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
+  const { totalPower } = usePowerBalance()
   const refreshBootstrap = useBootstrapRefresh()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
@@ -149,10 +151,10 @@ export default function CreditsDisplay({
 
           <View style={styles.creditsContainer}>
             <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
-              {credits?.totalCredits || 0}
+              {totalPower}
             </Text>
             <Text variant="bodyMedium">Power Available</Text>
-            {credits?.nextExpiryDate && credits.totalCredits > 0 && (
+            {credits?.nextExpiryDate && totalPower > 0 && (
               <Text variant="bodySmall" style={[styles.expiryText, { color: colors.onSurfaceVariant }]}>
                 Power expires {new Date(credits.nextExpiryDate).toLocaleDateString()}
               </Text>
