@@ -6,6 +6,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {getDb} from "./db/cloudSql.js";
+import {WIKI_CREDIT_COST} from "./constants/credits.js";
 import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, llmWikiOntology, characters} from "./db/schema.js";
 import {
   normalizeSourceTypeForExport,
@@ -782,7 +783,7 @@ export const wikiSyncHandler = async (
     }
   }
 
-  const spendAllocations = await credits.spendCredits(user.id, 1);
+  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }

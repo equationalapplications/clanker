@@ -9,7 +9,7 @@ graph LR
   ChatComposer.web --> useCharacterWiki
   ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
-  ChatView --> useUserCredits
+  ChatView --> usePowerBalance
   ChatView --> useAIChat
   ChatView --> isSafeHttpUrl
   ChatView --> useMachines
@@ -20,8 +20,6 @@ graph LR
   CookieConsentContext --> crashlyticsService
   CookieConsentContext --> analyticsService
   CookiePreferencesModal --> CookieConsentContext
-  CreditCounterIcon --> useCurrentPlan
-  CreditCounterIcon --> useUserCredits
   CreditsDisplay --> useUserCredits
   CreditsDisplay --> useBootstrapRefresh
   GroundingHtml --> sanitizeGroundingHtml
@@ -30,6 +28,10 @@ graph LR
   FeaturesSection --> useFloatingCardAnimation
   HeroSection --> useMachines
   LandingFooter --> CookieConsentContext
+  LowPowerBanner --> usePowerBalance
+  LowPowerBanner --> lowPowerSession
+  PowerMeter --> useCurrentPlan
+  PowerMeter --> usePowerBalance
   SubscribeButton --> useBootstrapRefresh
   ThemeProvider --> SettingsContext
   ConfirmationModal --> confirmationValidation

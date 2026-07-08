@@ -12,7 +12,7 @@ const DEFAULT_REGION = "us-central1";
 const GEMINI_LOCATION = "global";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;
-const SUMMARIZE_TEXT_COST = 1;
+const SUMMARIZE_TEXT_COST = 100;
 
 interface SummarizeTextData {
   text: string;

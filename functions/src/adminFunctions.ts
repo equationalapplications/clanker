@@ -12,7 +12,7 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const DEFAULT_RESET_CREDITS = 50;
+const DEFAULT_RESET_CREDITS = 5000;
 const MAX_SAFE_DB_CREDITS = 2_147_483_647;
 const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
 const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);

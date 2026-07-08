@@ -31,8 +31,8 @@ test('upsertSubscription defaults first insert credits to 50 when omitted', asyn
   const insertedCredits = (insertValues as { currentCredits?: unknown } | null)?.currentCredits;
   const upsertedCredits = (upserted as { currentCredits?: unknown } | null)?.currentCredits;
 
-  assert.equal(insertedCredits, 50);
-  assert.equal(upsertedCredits, 50);
+  assert.equal(insertedCredits, 5000);
+  assert.equal(upsertedCredits, 5000);
 });
 
 test('getOrCreateDefaultSubscription grants signup credits for new user', async () => {
@@ -77,7 +77,7 @@ test('getOrCreateDefaultSubscription grants signup credits for new user', async 
   assert.equal(subscription.currentCredits, 0);
   assert.deepEqual(addedCreditArgs, {
     userId: 'user-1',
-    amount: 50,
+    amount: 5000,
     expiresAt: null,
     transactionType: 'signup',
     referenceId: 'signup',
@@ -126,7 +126,7 @@ test('getOrCreateDefaultSubscription grants signup credits when subscription row
 
   assert.deepEqual(addedCreditArgs, {
     userId: 'user-1',
-    amount: 50,
+    amount: 5000,
     expiresAt: null,
     transactionType: 'signup',
     referenceId: 'signup',

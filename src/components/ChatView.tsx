@@ -10,16 +10,16 @@ import { useCharacter } from '~/hooks/useCharacters'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
-import { useUserCredits } from '~/hooks/useUserCredits'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
 import { GroundingHtml } from '~/components/GroundingHtml'
+import { LowPowerBanner } from '~/components/LowPowerBanner'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
-
 
 function getInitials(name?: string): string {
   return (
@@ -104,8 +104,7 @@ function ChatViewContent({
   userDisplayName,
   userPhotoUrl,
 }: ChatViewContentProps) {
-  const { data: creditsData } = useUserCredits()
-  const credits = creditsData?.totalCredits || 0
+  const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors, roundness } = useTheme()
 
   const wikiStatus = useEntityStatus(characterId)
@@ -173,7 +172,7 @@ function ChatViewContent({
 
   const handleSend = useCallback(
     async (newMessages: IMessage[] = []) => {
-      if (credits <= 0) {
+      if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
         return
       }
@@ -182,7 +181,7 @@ function ChatViewContent({
         await sendMessage(newMessages[0])
       }
     },
-    [sendMessage, credits],
+    [sendMessage, credits, creditsLoading],
   )
 
   const renderBubble = useCallback(
@@ -421,6 +420,7 @@ function ChatViewContent({
           )}
         </View>
       )}
+      <LowPowerBanner />
       <GiftedChat
         messages={displayMessages}
         onSend={handleSend}

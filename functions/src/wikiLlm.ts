@@ -5,6 +5,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
+import {WIKI_CREDIT_COST} from "./constants/credits.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -156,7 +157,7 @@ export const wikiLlmHandler = async (
     throw new HttpsError("internal", "Failed to bootstrap user.");
   }
 
-  const spendAllocations = await credits.spendCredits(user.id, 1);
+  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST);
   if (spendAllocations === null) {
     throw new HttpsError("failed-precondition", "Insufficient credits.");
   }

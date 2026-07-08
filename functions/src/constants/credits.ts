@@ -1,2 +1,9 @@
-export const CREDIT_PACK_AMOUNT = 100;
+export const CREDIT_PACK_AMOUNT = 10000;
 export const CREDIT_PACK_EXPIRY_MS = 31 * 24 * 60 * 60 * 1000;
+export const SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT = 30000;
+export const WIKI_CREDIT_COST = 100;
+export const REPLY_COST_WITH_TOOLS = 100;
+export const REPLY_COST_NO_TOOLS = 300;
+export const MEMORY_ACTION_COST = 100;
+export const IMAGE_GENERATION_COST = 200;
+export const SIGNUP_CREDIT_AMOUNT = 5000;

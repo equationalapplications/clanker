@@ -11,7 +11,7 @@ import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
-import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS} from "./constants/credits.js";
+import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -426,7 +426,7 @@ async function handleCheckoutCompleted(
           if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
             const cycleEnd = new Date(periodEnd * 1000);
             const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-            const granted = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+            const granted = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, cycleEnd, referenceId);
             logger.info(
               granted
                 ? "checkout.session.completed: subscription credits granted"
@@ -520,7 +520,7 @@ export async function handleSubscriptionUpdated(
     if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
       const cycleEnd = new Date(periodEnd * 1000);
       const referenceId = `sub_${sub.id}_${periodEnd}`;
-      const renewed = await deps.renewSubscriptionCredits(user.id, 300, cycleEnd, referenceId);
+      const renewed = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, cycleEnd, referenceId);
       logger.info(
         renewed
           ? "customer.subscription.updated: subscription credits renewed"
@@ -588,7 +588,7 @@ export async function handleInvoicePaymentSucceeded(
         if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
           // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
           const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-          const renewed = await deps.renewSubscriptionCredits(user.id, 300, new Date(periodEnd * 1000), referenceId);
+          const renewed = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, new Date(periodEnd * 1000), referenceId);
           logger.info(
             renewed
               ? 'invoice.payment_succeeded: subscription credits renewed'

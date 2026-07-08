@@ -142,7 +142,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             typeof message === 'string' &&
             message.toLowerCase().includes('insufficient credits')
           ) {
-            setToastMessage('Insufficient credits to convert this document.')
+            setToastMessage('Out of Power — recharge to keep chatting.')
           } else if (firebaseCode === 'functions/invalid-argument') {
             setToastMessage('File too large or unsupported format.')
           } else {
@@ -363,4 +363,3 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 })
-

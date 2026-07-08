@@ -11,8 +11,10 @@ const MODEL_ID = "text-embedding-004";
 const MAX_TEXT_LENGTH = 8_000;
 const EMBEDDING_CHARS_PER_CREDIT = 50_000;
 
+const EMBEDDING_COST_PER_WINDOW = 100;
+
 export function computeEmbeddingCreditCost(textLength: number): number {
-  return Math.ceil(textLength / EMBEDDING_CHARS_PER_CREDIT);
+  return Math.ceil(textLength / EMBEDDING_CHARS_PER_CREDIT) * EMBEDDING_COST_PER_WINDOW;
 }
 // Keep in sync with GenerateEmbeddingTaskType in src/services/apiClient.ts
 export type GenerateEmbeddingTaskType =

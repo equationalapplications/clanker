@@ -1,16 +1,19 @@
-# Billing & Credits
+# Billing & Power
+
+> **All values are expressed in Power units (100× inflation of the previous credit unit).**  
+> 1 old credit = 100 Power.
 
 ## Overview
 
-Credits and subscriptions are shared across platforms. Web uses Stripe for payments; Android and iOS use RevenueCat. Purchases on any platform grant access to credits and subscription benefits across all platforms.
+Power and subscriptions are shared across platforms. Web uses Stripe for payments; Android and iOS use RevenueCat. Purchases on any platform grant access to Power and subscription benefits across all platforms.
 
-### Credit Model Reference
+### Power Model Reference
 
-| Grant type | Amount | Expiry |
+| Grant type | Power amount | Expiry |
 |---|---|---|
-| Free signup | 50 | Never |
-| Monthly subscription | 300/cycle | End of billing cycle |
-| One-time pack | 100 | 31 days from purchase |
+| Free signup | 5 000 | Never |
+| Monthly subscription | 30 000/cycle | End of billing cycle |
+| One-time pack | 10 000 | 31 days from purchase |
 
 ### Refunds
 
@@ -21,25 +24,25 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 - `subscriptions.subscription_provider` (`'stripe' | 'revenuecat' | NULL`) tracks which platform currently owns an active paid subscription. `purchasePackageStripe` rejects a new web subscription checkout if the caller already has an active RevenueCat-owned subscription (`already-exists` error). RevenueCat purchases cannot be blocked before the store charges the user, so a bypass/race is resolved by granting the entitlement anyway and logging a `billing_provider_collision` warning for manual reconciliation.
 - `subscriptions.cancel_at_period_end` (boolean) is `true` when an active subscription will not renew — set directly from Stripe's `cancel_at_period_end` field on `customer.subscription.updated`, and set on RevenueCat `CANCELLATION` for a known product. Exposed to the client via bootstrap/`exchangeToken` as `subscription.cancelAtPeriodEnd`.
 
-### Credit Consumption
+### Power Consumption
 
 Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); cloud-agent text turns charge **per internal tool-call loop iteration, capped at 5**. Live voice is billed separately on a 1-second-grace + 60-second timer. This difference is intentional.
 
-| Action | Path | Cost | Refund on failure |
+| Action | Path | Cost (Power) | Refund on failure |
 |---|---|---|---|
-| Text chat reply (grounded) | `generateReply` (Functions), no explicit `tools` (default googleSearch) | 3 / round-trip | Yes |
-| Text chat reply (standard) | `generateReply` (Functions), explicit `tools` supplied | 1 / round-trip | Yes |
-| Image generation | `generateImage` | 2 | Yes |
-| Document text conversion | `convertDocumentText` | 2 | Yes |
-| Summarization | `summarizeText` | 1 | Yes |
-| Embeddings | `generateEmbedding` | 1 / 50,000 characters (`Math.ceil`) | Yes |
-| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
-| Agent turn (text) | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 1 / internal tool-call loop iteration, max 5 | Yes (only credits actually spent this turn) |
-| Live voice | cloud-agent `/agent/live` | 5 at connect (after 1s grace), then 5 / 60s | Hang-up within 1s of connect is free; partial minute after that is billed |
-| Scheduler trigger | cloud-agent scheduler-trigger | 1 (deduped) | Yes |
-| `browser_action` tool | contextual | Voice: 1; Text: pre-billed (skipped) | See Browser Action Billing |
+| Text chat reply (grounded) | `generateReply` (Functions), no explicit `tools` (default googleSearch) | 300 / round-trip | Yes |
+| Text chat reply (standard) | `generateReply` (Functions), explicit `tools` supplied | 100 / round-trip | Yes |
+| Image generation | `generateImage` | 200 | Yes |
+| Document text conversion | `convertDocumentText` | 200 | Yes |
+| Summarization | `summarizeText` | 100 | Yes |
+| Embeddings | `generateEmbedding` | 100 / 50,000 characters (`Math.ceil`) | Yes |
+| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 100 each | Yes |
+| Agent turn (text) | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 100 / internal tool-call loop iteration, max 5 | Yes (only Power actually spent this turn) |
+| Live voice | cloud-agent `/agent/live` | 500 at connect (after 1s grace), then 500 / 60s | Hang-up within 1s of connect is free; partial minute after that is billed |
+| Scheduler trigger | cloud-agent scheduler-trigger | 100 (deduped) | Yes |
+| `browser_action` tool | contextual | Voice: 100; Text: pre-billed (skipped) | See Browser Action Billing |
 
-**Live voice connect gate:** a session requires a balance of **≥ 5** to start (enforced by both the client and the server). The first 5-credit spend fires ~1 second after connect (`makeBillingController`'s grace delay) — a call ended within that grace window is free; anything longer is billed 5 credits immediately, then 5 more every 60 seconds.
+**Live voice connect gate:** a session requires a balance of **≥ 500** to start (enforced by both the client and the server). The first 500‑Power spend fires ~1 second after connect (`makeBillingController`'s grace delay) — a call ended within that grace window is free; anything longer is billed 500 Power immediately, then 500 more every 60 seconds.
 
 ---
 
@@ -50,32 +53,38 @@ The `browser_action` tool (Desktop Bridge extension) uses **contextual billing**
 | Path | Timer billing | `browser_action` flat billing |
 |------|--------------|-------------------------------|
 | Voice (`/agent/live`) | Wall-clock timer **paused** during wake + execution | `spendCredit` after paired device found |
-| Text (`POST /agent/run`) | N/A — 1 credit pre-spent per turn | Skip `spendCredit` (`preBilled: true`) |
+| Text (`POST /agent/run`) | N/A — 100 Power pre-spent per turn | Skip `spendCredit` (`preBilled: true`) |
 
-**No credit spent** when no paired device is registered or when the device is paused (`isPaused: true`).
+**No Power spent** when no paired device is registered or when the device is paused (`isPaused: true`).
 
-**Refunds:** Voice path refunds the `browser_action` credit on `EXTENSION_OFFLINE` (12s wake timeout, extension never connected). No refund on execution errors (`SELECTOR_NOT_FOUND`, `EXECUTION_TIMEOUT`, etc.) — the extension connected and attempted the task.
+**Refunds:** Voice path refunds the `browser_action` Power on `EXTENSION_OFFLINE` (12s wake timeout, extension never connected). No refund on execution errors (`SELECTOR_NOT_FOUND`, `EXECUTION_TIMEOUT`, etc.) — the extension connected and attempted the task.
 
 See **[Browser Bridge](browser-bridge.md)** for the full billing and lifecycle context.
 
 ---
 
-## First Login Credits
+## First Login Power
 
-New users receive **50 free credits** upon their first login, seeded by the Cloud SQL bootstrap flow.
+New users receive **5 000 Power** upon their first login, seeded by the Cloud SQL bootstrap flow.
 
 ### How it works
 
 1. `exchangeToken` calls `subscriptionService.getOrCreateDefaultSubscription(userId)`
 2. That function checks if any `credit_transactions` row exists for the user
-3. If the user is new (no existing credits), it calls `creditService.addCredits(userId, 50, null, 'signup')`
-4. This inserts a `credit_transactions` row with `initial_amount = 50`, `remaining_balance = 50`, `transaction_type = 'signup'`, `expires_at = NULL`
+3. If the user is new (no existing Power), it calls `creditService.addCredits(userId, 5000, null, 'signup')`
+4. This inserts a `credit_transactions` row with `initial_amount = 5000`, `remaining_balance = 5000`, `transaction_type = 'signup'`, `expires_at = NULL`
 
-### Properties of signup credits
+### Properties of signup Power
 
 - **Never expire:** `expires_at = NULL`
-- **Spent last:** Spend algorithm orders by `expires_at NULLS LAST`, so expiring credits are consumed first
-- **Not affected by subscription expiry:** Expiry `UPDATE` targets only `transaction_type = 'subscription'` — signup credits are never touched
+- **Spent last:** Spend algorithm orders by `expires_at NULLS LAST`, so expiring Power is consumed first
+- **Not affected by subscription expiry:** Expiry `UPDATE` targets only `transaction_type = 'subscription'` — signup Power is never touched
+
+---
+
+## Power Meter Denominator (`grantedTotal`)
+
+The meter on the app header shows a fraction of **available / grantedTotal**. `grantedTotal` is the total Power granted by currently active, unexpired grants (remaining balance > 0). This denominator reflects the live pool of Power available from active grants and excludes expired or fully spent transactions.
 
 ---
 
@@ -98,14 +107,14 @@ New users receive **50 free credits** upon their first login, seeded by the Clou
 
 | Stripe Event | Action |
 |---|---|
-| `checkout.session.completed` (subscription) | Grant 300 credits expiring at `current_period_end`; expire old subscription credits |
-| `checkout.session.completed` (credit pack) | Grant 100 credits expiring 31 days from now |
-| `customer.subscription.updated` (renewal) | Grant 300 credits expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` for idempotency); expire old subscription credits |
-| `invoice.payment_succeeded` (credit pack fallback) | Grant 100 credits expiring 31 days from now |
-| `charge.refunded` | Deduct credits, prorated by `amount_refunded / amount` for partial refunds |
-| `customer.subscription.deleted` | No credit action — credits expire naturally at `expires_at` |
+| `checkout.session.completed` (subscription) | Grant 30 000 Power expiring at `current_period_end`; expire old subscription Power |
+| `checkout.session.completed` (credit pack) | Grant 10 000 Power expiring 31 days from now |
+| `customer.subscription.updated` (renewal) | Grant 30 000 Power expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` for idempotency); expire old subscription Power |
+| `invoice.payment_succeeded` (credit pack fallback) | Grant 10 000 Power expiring 31 days from now |
+| `charge.refunded` | Deduct Power, prorated by `amount_refunded / amount` for partial refunds |
+| `customer.subscription.deleted` | No Power action — Power expires naturally at `expires_at` |
 
-**Idempotency guard must run before expiring old credits or performing any other DB writes. Guard first, write second.**
+**Idempotency guard must run before expiring old Power or performing any other DB writes. Guard first, write second.**
 
 All Stripe events are deduped via a `processed_stripe_events(event_id)` table checked before dispatch — a replayed event returns 200 immediately without re-running its handler. If handler dispatch throws, the dedupe row is deleted before the 500 response so Stripe's retry isn't silently swallowed.
 
@@ -135,8 +144,8 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 
 | RevenueCat Event | Action |
 |---|---|
-| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add credits. |
-| `NON_RENEWING_PURCHASE` | Credit pack → add credits. |
+| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add Power. |
+| `NON_RENEWING_PURCHASE` | Credit pack → add Power. |
 | `CANCELLATION` | Known subscription → keep `plan_status = 'active'` with auto-renew off. Unknown → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
 | `EXPIRATION` | Upsert `plan_tier = 'free'`, `plan_status = 'expired'`. |
 
@@ -152,7 +161,7 @@ const REVENUECAT_PRODUCT_TO_TIER: Record<string, "monthly_20" | "monthly_50"> = 
   "monthly_50_subscription": "monthly_50",
 };
 
-// iOS (credit_100) and Android (credit_pack_100) credit-pack product IDs
+// iOS (credit_100) and Android (credit_pack_100) credit‑pack product IDs
 const REVENUECAT_CREDIT_PACK_IDS = new Set(["credit_pack_100", "credit_100"]);
 ```
 
@@ -214,7 +223,7 @@ Client (web)
   → user completes payment on Stripe-hosted page
   → Stripe redirects to STRIPE_SUCCESS_URL / STRIPE_CANCEL_URL
   → Stripe fires checkout.session.completed webhook
-  → stripeWebhook upserts subscriptions or adds credits
+  → stripeWebhook upserts subscriptions or adds Power
 ```
 
 ### `purchasePackageStripe` Cloud Function

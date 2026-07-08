@@ -1,0 +1,2 @@
+export const AGENT_TURN_CREDIT_COST = 100
+export const LIVE_SESSION_CREDIT_COST = 500

@@ -19,25 +19,55 @@ function renderInline(text: string, baseStyle: object) {
   })
 }
 
-export function PolicyMarkdown({ content }: { content: string }) {
+type Block = { type: 'heading' | 'paragraph' | 'spacer'; text: string }
+
+function toBlocks(content: string): Block[] {
   const lines = content.trim().split('\n')
+  const blocks: Block[] = []
+  let paragraphLines: string[] = []
+
+  const flushParagraph = () => {
+    if (paragraphLines.length > 0) {
+      blocks.push({ type: 'paragraph', text: paragraphLines.join(' ') })
+      paragraphLines = []
+    }
+  }
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      flushParagraph()
+      blocks.push({ type: 'heading', text: line.slice(3) })
+    } else if (line === '') {
+      flushParagraph()
+      blocks.push({ type: 'spacer', text: '' })
+    } else {
+      paragraphLines.push(line)
+    }
+  }
+  flushParagraph()
+
+  return blocks
+}
+
+export function PolicyMarkdown({ content }: { content: string }) {
+  const blocks = toBlocks(content)
 
   return (
     <View>
-      {lines.map((line, index) => {
-        if (line.startsWith('## ')) {
+      {blocks.map((block, index) => {
+        if (block.type === 'heading') {
           return (
             <Text key={index} style={styles.heading}>
-              {line.slice(3)}
+              {block.text}
             </Text>
           )
         }
-        if (line === '') {
+        if (block.type === 'spacer') {
           return <View key={index} style={styles.spacer} />
         }
         return (
           <Text key={index} style={styles.paragraph}>
-            {renderInline(line, styles.paragraph)}
+            {renderInline(block.text, styles.paragraph)}
           </Text>
         )
       })}

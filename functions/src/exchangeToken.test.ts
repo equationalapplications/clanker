@@ -59,6 +59,7 @@ test("exchangeTokenHandler normalizes token email before repository lookup", asy
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 0,
     },
   };
 
@@ -114,6 +115,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 5000,
     },
   };
 
@@ -145,6 +147,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       planTier: mockSubscription.planTier,
       planStatus: mockSubscription.planStatus,
       currentCredits: mockSubscription.currentCredits,
+      grantedTotal: 5000,
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt,
       nextExpiryDate: mockSubscription.nextExpiryDate,
@@ -192,6 +195,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 15000,
     },
   };
 
@@ -221,6 +225,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       planTier: mockSubscription.planTier,
       planStatus: mockSubscription.planStatus,
       currentCredits: mockSubscription.currentCredits,
+      grantedTotal: 15000,
       termsVersion: mockSubscription.termsVersion,
       termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
       nextExpiryDate: mockSubscription.nextExpiryDate?.toISOString(),
@@ -268,6 +273,7 @@ test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects",
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 0,
     },
   };
 
@@ -330,6 +336,7 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 0,
     },
   };
 
@@ -387,6 +394,7 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
     },
     creditService: {
       getCredits: async () => existingSubscription.currentCredits,
+      getGrantedTotal: async () => 0,
     },
   };
 
@@ -575,6 +583,7 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
     },
     creditService: {
       getCredits: async () => mockSubscription.currentCredits,
+      getGrantedTotal: async () => 0,
     },
   };
 

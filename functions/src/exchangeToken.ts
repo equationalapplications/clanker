@@ -99,6 +99,17 @@ const handler = async (
             syncedCredits = subscription.currentCredits ?? 0;
         }
 
+        // Sum of granted credits over currently "live" rows, used by the client to
+        // compute a fill percentage for the power meter UI. On failure we return 0,
+        // which the client (usePowerBalance) treats as "unknown/loading" since a
+        // genuinely empty grant total is impossible for a user with balance > 0.
+        let grantedTotal = 0;
+        try {
+            grantedTotal = await deps.creditService.getGrantedTotal(user.id);
+        } catch (grantedError) {
+            logger.warn("creditService.getGrantedTotal failed, meter will show loading state", { userId: user.id, grantedError });
+        }
+
         logger.info("Token exchange/bootstrap successful", {
             email: normalizedEmail,
             userId: user.id,
@@ -148,6 +159,7 @@ const handler = async (
                 planTier: subscription.planTier,
                 planStatus: subscription.planStatus,
                 currentCredits: syncedCredits,
+                grantedTotal,
                 termsVersion: subscription.termsVersion,
                 termsAcceptedAt: toISO(subscription.termsAcceptedAt),
                 nextExpiryDate: toISO(subscription.nextExpiryDate),

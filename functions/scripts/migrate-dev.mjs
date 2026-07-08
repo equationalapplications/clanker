@@ -39,6 +39,8 @@ const MIGRATION_ORDER = [
   '0016_llm_wiki_graph.sql',
   '0017_expo_push_token.sql',
   '0018_billing_hardening.sql',
+  '0019_character_voice_default_fix.sql',
+  '0020_credit_power_scale.sql',
 ];
 
 /** seedLocal.ts creates schema through pgvector embeddings but not org/graph tables. */

@@ -7,12 +7,12 @@ import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-n
 
 import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { useUserPrivateData } from '~/hooks/useUser'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 import { useWebCheckoutSync } from '~/hooks/useWebCheckoutSync'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
 import { restorePurchases } from '~/config/revenueCatConfig'
 import { APPLE_EULA_URL } from '~/config/constants'
+import { usePowerBalance } from '~/hooks/usePowerBalance'
 
 export default function SubscribeScreen() {
   const router = useRouter()
@@ -35,8 +35,7 @@ export default function SubscribeScreen() {
     logEvent('subscribe_flow_started')
   }, [])
 
-  const { userPrivate } = useUserPrivateData()
-  const credits = userPrivate?.credits || 0
+  const { totalPower } = usePowerBalance()
   const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -89,17 +88,17 @@ export default function SubscribeScreen() {
           <Card.Content>
             <View style={styles.statusSection}>
               <Text variant="headlineMedium" style={styles.title}>
-                {isPremium ? 'Monthly Credit Plan' : 'Choose Your Credits'}
+                {isPremium ? 'Monthly Power Plan' : 'Choose Your Power'}
               </Text>
 
               <View style={styles.creditsStatus}>
                 <Text variant="bodyLarge" style={styles.statusText}>
                   {isPremium
-                    ? 'You receive 300 credits each month. Credits expire at the end of each billing cycle.'
-                    : `Current Credits: ${credits}`}
+                    ? '30,000 Power, refills every month. Power expires at the end of each billing cycle.'
+                    : `Current Power: ${totalPower.toLocaleString()}`}
                 </Text>
                 <Text variant="bodyMedium" style={styles.description}>
-                  Credits power chat, voice, images, and more. Purchase more anytime.
+                  Power powers chat, voice, images, and more. Purchase more anytime.
                 </Text>
               </View>
             </View>
@@ -116,13 +115,14 @@ export default function SubscribeScreen() {
           <View style={styles.buttonContainer}>
             {!isPremium && (
               <Button
+                testID="subscribe-monthly"
                 mode="contained"
                 onPress={() => handlePurchase('monthly_20')}
                 disabled={inFlightAction !== null}
                 loading={inFlightAction === 'monthly_20'}
                 style={[styles.actionButton, { marginBottom: 12 }]}
               >
-                300 credits / month · $20
+                30,000 Power / month · $20
               </Button>
             )}
             <Button
@@ -132,7 +132,7 @@ export default function SubscribeScreen() {
               loading={inFlightAction === 'payg'}
               style={styles.actionButton}
             >
-              100 credits · $10
+              10,000 Power · $10
             </Button>
             <Button
               mode="text"
@@ -169,13 +169,13 @@ export default function SubscribeScreen() {
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="headlineSmall" style={styles.featuresTitle}>
-                Why Buy Credits?
+                Why Buy Power?
               </Text>
 
               <View style={styles.featuresList}>
                 <View style={styles.feature}>
                   <IconButton icon="image" size={24} />
-                  <Text variant="bodyMedium">Generate character images using credits</Text>
+                  <Text variant="bodyMedium">Generate character images using Power</Text>
                 </View>
 
                 <View style={styles.feature}>
@@ -197,15 +197,41 @@ export default function SubscribeScreen() {
           </Card>
         )}
 
+        {/* Pricing section: per-action costs in Power */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineSmall" style={styles.featuresTitle}>
+              How much Power does each action cost?
+            </Text>
+            <View style={styles.pricingList}>
+              <Text variant="bodyMedium" style={styles.pricingRow}>
+                • Text chat reply — 100 – 300 Power
+              </Text>
+              <Text variant="bodyMedium" style={styles.pricingRow}>
+                • Image generation — 200 Power
+              </Text>
+              <Text variant="bodyMedium" style={styles.pricingRow}>
+                • Document conversion — 200 Power
+              </Text>
+              <Text variant="bodyMedium" style={styles.pricingRow}>
+                • Voice session — 500 to connect + 500 / min
+              </Text>
+              <Text variant="bodyMedium" style={styles.pricingRow}>
+                • Agent turns — 100 Power / loop
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
+
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="headlineSmall" style={styles.featuresTitle}>
               Plan Comparison
             </Text>
             <View style={styles.featuresList}>
-              <Text variant="bodyMedium">• Free Tier — 50 credits</Text>
-              <Text variant="bodyMedium">• Monthly Plan — 300 credits for $20, renews monthly</Text>
-              <Text variant="bodyMedium">• One-time Pack — 100 credits for $10, valid 31 days</Text>
+              <Text variant="bodyMedium">• Free Tier — 5,000 Power</Text>
+              <Text variant="bodyMedium">• Monthly Plan — 30,000 Power for $20, refills monthly</Text>
+              <Text variant="bodyMedium">• One-time Pack — 10,000 Power for $10, valid 31 days</Text>
             </View>
           </Card.Content>
         </Card>
@@ -290,6 +316,13 @@ const styles = StyleSheet.create({
   },
   featuresList: {
     gap: 12,
+  },
+  pricingList: {
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  pricingRow: {
+    paddingVertical: 2,
   },
   feature: {
     flexDirection: 'row',

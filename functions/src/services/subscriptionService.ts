@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { subscriptions, creditTransactions } from '../db/schema.js';
 import { createCreditService } from './creditService.js';
+import { SIGNUP_CREDIT_AMOUNT } from '../constants/credits.js';
 
 const SIGNUP_CREDIT_REFERENCE_ID = 'signup';
 
@@ -65,7 +66,7 @@ export const createSubscriptionService = (
         .length > 0;
 
       if (!hasAnyCreditRow) {
-        await creditService.addCredits(userId, 50, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+        await creditService.addCredits(userId, SIGNUP_CREDIT_AMOUNT, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
       }
 
       return await service.getSubscription(userId) ?? subscription;
@@ -79,7 +80,7 @@ export const createSubscriptionService = (
           userId: params.userId,
           planTier: params.planTier,
           planStatus: params.planStatus,
-          currentCredits: params.currentCredits ?? 50,
+          currentCredits: params.currentCredits ?? SIGNUP_CREDIT_AMOUNT,
           stripeSubscriptionId: params.stripeSubscriptionId,
           stripeCustomerId: params.stripeCustomerId,
           billingCycleStart: params.billingCycleStart,

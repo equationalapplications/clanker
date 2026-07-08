@@ -19,6 +19,7 @@ export default function CreditsDisplay({
   onDismissExpiredMessage,
 }: CreditsDisplayProps) {
   const { data: credits, isLoading, error, refetch } = useUserCredits()
+  const totalPower = credits?.totalCredits ?? 0
   const refreshBootstrap = useBootstrapRefresh()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
@@ -144,17 +145,17 @@ export default function CreditsDisplay({
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="headlineSmall" style={styles.title}>
-            Your Credits
+            Your Power
           </Text>
 
-          <View style={styles.creditsContainer}>
-            <Text variant="displaySmall" style={[styles.creditsCount, { color: colors.primary }]}>
-              {credits?.totalCredits || 0}
+          <View style={styles.powerContainer}>
+            <Text variant="displaySmall" style={[styles.powerCount, { color: colors.primary }]}>
+              {totalPower}
             </Text>
-            <Text variant="bodyMedium">Credits Available</Text>
-            {credits?.nextExpiryDate && credits.totalCredits > 0 && (
+            <Text variant="bodyMedium">Power Available</Text>
+            {credits?.nextExpiryDate && totalPower > 0 && (
               <Text variant="bodySmall" style={[styles.expiryText, { color: colors.onSurfaceVariant }]}>
-                Credits expire {new Date(credits.nextExpiryDate).toLocaleDateString()}
+                Power expires {new Date(credits.nextExpiryDate).toLocaleDateString()}
               </Text>
             )}
           </View>
@@ -167,7 +168,7 @@ export default function CreditsDisplay({
               disabled={isSubscribeLocked}
               loading={isPurchasing === 'subscribe'}
             >
-              300 credits / month · $20
+              30,000 Power / month · $20
             </Button>
 
             <Button
@@ -177,7 +178,7 @@ export default function CreditsDisplay({
               disabled={isPaygLocked}
               loading={isPurchasing === 'payg'}
             >
-              Buy 100 Credits - $10
+              Buy 10,000 Power - $10
             </Button>
           </View>
 
@@ -188,10 +189,10 @@ export default function CreditsDisplay({
             loading={isPurchasing === 'restore'}
             style={styles.restoreButton}
           >
-            Sync Subscription & Credits
+            Sync Subscription & Power
           </Button>
           <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
-            Use this if your subscription or credits aren&apos;t showing correctly.
+            Use this if your subscription or Power aren&apos;t showing correctly.
           </Text>
         </Card.Content>
       </Card>
@@ -218,11 +219,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  creditsContainer: {
+  powerContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  creditsCount: {
+  powerCount: {
     fontWeight: 'bold',
   },
   expiryText: {
