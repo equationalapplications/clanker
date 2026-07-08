@@ -76,6 +76,7 @@ Refund logic is unaffected: `spendCredits` allocations and `refundCredit` operat
 - `functions/src/` — cost/grant constants in `generateReply`, `generateImage`, `convertDocumentText`, `summarizeText`, `generateEmbedding`, `wikiLlm`, `wikiSync`, memory callables, `stripeWebhook`, `revenueCatWebhook`, `subscriptionService`.
 - `cloud-agent/` — per-iteration spend, live-voice billing controller (500/60s), connect gate, scheduler trigger, `browser_action` billing.
 - `src/` — client-side gate checks and any client constants mirroring costs.
+- Bootstrap/`exchangeToken` credits payload — add `grantedTotal` (`SUM(initial_amount)` over the same active rows used for the balance sum) to power the meter denominator.
 - `docs/billing-and-credits.md` — cost tables rewritten in new units with a note: *user-facing name is "Power"*.
 
 ### Deploy order
@@ -92,6 +93,7 @@ Between steps 1 and 2, old server code spends old-unit amounts against inflated 
 
 - All user-facing strings: "Credits" → "Power". Includes badge/meter, subscribe screen, purchase copy, error messages, accessibility labels.
 - No database, table, column, function, or service renames. `credit_transactions`, `creditService`, `getUserCredits` etc. all keep their names.
+- **Frontend boundary rule:** new and modified frontend components, props, and interfaces use `power*` naming. The credit→power translation is isolated to a single hook, `usePowerBalance` (wraps `useUserCredits` + `useCurrentPlan`, returns `{ totalPower, grantedPower, rawFill, barFill, band, isLoading }`). Existing hooks keep their names; components consume only the new hook.
 
 ---
 
@@ -101,15 +103,19 @@ New `PowerMeter` component replaces the contents of `CreditCounterIcon` in the s
 
 ### Fill computation
 
+Capacity is **server-derived**: the bootstrap credits payload adds `grantedTotal = SUM(initial_amount)` of the user's active (non-expired, non-exhausted-window) credit rows, alongside the existing balance. No client-side capacity constants table.
+
 ```
-capacity = subscriber ? 30000 : 5000        // from useCurrentPlan tier
-rawFill  = min(totalCredits / capacity, 1)  // totalCredits from useUserCredits
-fill     = round(rawFill * 20) / 20          // quantize to 5% steps
+rawFill   = grantedTotal > 0 ? min(totalCredits / grantedTotal, 1) : 0
+barFill   = round(rawFill * 20) / 20            // quantize bar width to 5% steps
+if (totalCredits > 0 && barFill === 0) barFill = 0.03   // minimum visible sliver
+band      = rawFill >= 0.20 ? normal : rawFill >= 0.05 ? amber : red   // bands use rawFill, not barFill
 ```
 
-- **Capacity:** monthly subscribers (monthly_20 and monthly_50) use 30,000; free users use 5,000 (signup grant). Resolved client-side from `useCurrentPlan` + a constants table; no new API or backend field.
-- **Overfill:** pack purchases can push balance above capacity. Meter pegs at 100% and shows a small "+" indicator.
-- **Coarse updates:** with quantization, a single 100-Power message against a 30,000 capacity moves the meter zero visual steps. The meter only visibly changes after ~5% of capacity is consumed.
+- **Capacity semantics:** fill = remaining/granted across active rows. Meter reads full at any grant (signup, monthly renewal, pack) and drains smoothly — no overfill peg. Works for every tier and pack combination with no client knowledge of plan amounts.
+- **Zero-state guard:** while `totalCredits > 0`, the bar never renders fully empty — a minimum sliver (~3%) stays visible so a usable balance never looks dead.
+- **Bands from rawFill:** color thresholds (20% / 5%) are computed from the unquantized ratio so amber/red trigger accurately despite the coarse bar.
+- **Coarse updates:** with quantization, a single 100-Power message against a 30,000 grant moves the bar zero visual steps; the bar changes only after ~5% of granted Power is consumed.
 
 ### Visual
 
@@ -147,7 +153,7 @@ Subscribe screen copy sells capacity + refill: "30,000 Power, refills every mont
 ## 5. Error Handling
 
 - Migration is a single idempotent-by-inspection statement; run once, verify, no retry logic needed. Verify by comparing `SUM(remaining_balance)` before/after (×100).
-- Client tolerates transitional states: if plan tier is unknown, meter falls back to free capacity (5,000) rather than erroring.
+- Client tolerates transitional states: if `grantedTotal` is missing or 0 (stale client cache, transitional bootstrap), meter renders the loading/dimmed state rather than a false empty bar.
 - All existing spend/refund/insufficient-balance paths unchanged in structure — only constants and user-facing copy change.
 
 ---
@@ -155,7 +161,8 @@ Subscribe screen copy sells capacity + refill: "30,000 Power, refills every mont
 ## 6. Testing
 
 - **Migration:** on local docker Postgres (`migrate:dev` + `seedLocal.ts`), assert every row's `initial_amount`/`remaining_balance` is ×100 and totals match.
-- **PowerMeter unit tests:** quantization steps, band colors at boundaries (5%, 20%), capacity per tier, overfill "+" state, loading state, accessibility labels.
+- **PowerMeter unit tests:** quantization steps, band thresholds at rawFill boundaries (5%, 20%), minimum-sliver guard (balance > 0 never renders empty), full-at-grant behavior (remaining == granted), missing `grantedTotal` fallback, loading state, accessibility labels.
+- **Backend:** `grantedTotal` computation over active rows (excludes expired rows; includes signup + subscription + pack mixes).
 - **Functions tests:** updated cost/grant constants across existing credit-flow tests (mechanical sweep); webhook grant amounts (5,000 / 30,000 / 10,000).
 - **Voice gate:** client + server tests assert ≥ 500 connect gate.
 - **Copy audit test-pass:** grep-level check that no user-facing "credit" strings remain in chat surfaces.
