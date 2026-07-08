@@ -76,7 +76,7 @@ Refund logic is unaffected: `spendCredits` allocations and `refundCredit` operat
 - `functions/src/` — cost/grant constants in `generateReply`, `generateImage`, `convertDocumentText`, `summarizeText`, `generateEmbedding`, `wikiLlm`, `wikiSync`, memory callables, `stripeWebhook`, `revenueCatWebhook`, `subscriptionService`.
 - `cloud-agent/` — per-iteration spend, live-voice billing controller (500/60s), connect gate, scheduler trigger, `browser_action` billing.
 - `src/` — client-side gate checks and any client constants mirroring costs.
-- Bootstrap/`exchangeToken` credits payload — add `grantedTotal` (`SUM(initial_amount)` over the same active rows used for the balance sum) to power the meter denominator.
+- Bootstrap/`exchangeToken` credits payload — add `grantedTotal` (`SUM(initial_amount)` over live rows: `remaining_balance > 0` and not expired) to power the meter denominator.
 - `docs/billing-and-credits.md` — cost tables rewritten in new units with a note: *user-facing name is "Power"*.
 
 ### Deploy order
@@ -103,7 +103,11 @@ New `PowerMeter` component replaces the contents of `CreditCounterIcon` in the s
 
 ### Fill computation
 
-Capacity is **server-derived**: the bootstrap credits payload adds `grantedTotal = SUM(initial_amount)` of the user's active (non-expired, non-exhausted-window) credit rows, alongside the existing balance. No client-side capacity constants table.
+Capacity is **server-derived**: the bootstrap credits payload adds `grantedTotal = SUM(initial_amount)` of the user's **live** credit rows — `remaining_balance > 0` AND not expired — alongside the existing balance. No client-side capacity constants table.
+
+The `remaining_balance > 0` filter is required: exhausted rows must drop out of the denominator even if unexpired (`expires_at` NULL or future), otherwise non-expiring rows (signup, manual grants) and repeat pack purchases inflate the denominator forever — ten exhausted 10,000-Power packs would make a fresh pack render as 10% full. The denominator reflects only the pools the user is currently drawing from.
+
+**Accepted artifact:** when a row is fully drained it leaves the denominator and fill recomputes upward (e.g. signup 5,000 + pack 10,000: pack exhausts → fill jumps 33% → 100%). Jump direction is always upward ("good news"), expiring pools are spent first (`expires_at NULLS LAST`), and quantization smooths small cases — acceptable.
 
 ```
 rawFill   = grantedTotal > 0 ? min(totalCredits / grantedTotal, 1) : 0
@@ -162,7 +166,7 @@ Subscribe screen copy sells capacity + refill: "30,000 Power, refills every mont
 
 - **Migration:** on local docker Postgres (`migrate:dev` + `seedLocal.ts`), assert every row's `initial_amount`/`remaining_balance` is ×100 and totals match.
 - **PowerMeter unit tests:** quantization steps, band thresholds at rawFill boundaries (5%, 20%), minimum-sliver guard (balance > 0 never renders empty), full-at-grant behavior (remaining == granted), missing `grantedTotal` fallback, loading state, accessibility labels.
-- **Backend:** `grantedTotal` computation over active rows (excludes expired rows; includes signup + subscription + pack mixes).
+- **Backend:** `grantedTotal` computation over live rows — excludes expired rows AND exhausted (`remaining_balance = 0`) rows; covers signup + subscription + pack mixes and the upward-jump-on-exhaustion case.
 - **Functions tests:** updated cost/grant constants across existing credit-flow tests (mechanical sweep); webhook grant amounts (5,000 / 30,000 / 10,000).
 - **Voice gate:** client + server tests assert ≥ 500 connect gate.
 - **Copy audit test-pass:** grep-level check that no user-facing "credit" strings remain in chat surfaces.
