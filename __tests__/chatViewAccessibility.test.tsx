@@ -44,6 +44,13 @@ jest.mock('expo-router/react-navigation', () => ({
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn() },
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => false),
+    setParams: jest.fn(),
+  }),
   Stack: Object.assign(
     ({ children }: any) => {
       const React = require('react')
