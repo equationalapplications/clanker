@@ -216,14 +216,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
 const skipNativeSubmitRef = useRef(false)
 
-  const sendCurrentText = useCallback(() => {
-    const trimmedText = text?.trim()
-
-    if (trimmedText && onSend) {
-      onSend({ text: trimmedText } as Partial<TMessage>, true)
-    }
-  }, [onSend, text])
-
   const handleNativeKeyPress = useCallback(
     (event: { nativeEvent: { key: string; shiftKey?: boolean } }) => {
       const nativeEvent = event.nativeEvent

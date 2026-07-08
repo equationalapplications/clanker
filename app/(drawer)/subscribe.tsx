@@ -7,7 +7,6 @@ import { Card, Text, IconButton, Button, Snackbar, List, Divider } from 'react-n
 
 import CreditsDisplay from '~/components/CreditsDisplay'
 import { useIsPremium } from '~/hooks/useIsPremium'
-import { useUserPrivateData } from '~/hooks/useUser'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
 import { useWebCheckoutSync } from '~/hooks/useWebCheckoutSync'
 import { makePackagePurchase, type ProductType } from '~/utilities/makePackagePurchase'
