@@ -18,6 +18,7 @@ export interface SubscriptionSnapshot {
   planTier: string
   planStatus: string
   currentCredits: number
+  grantedTotal: number
   termsVersion: string | null
   termsAcceptedAt: string | null
   nextExpiryDate: string | null
@@ -68,6 +69,7 @@ async function runBootstrapSession(): Promise<BootstrapResponse> {
         userId: data?.user?.id,
         planTier: data?.subscription?.planTier,
         credits: data?.subscription?.currentCredits,
+        grantedTotal: data?.subscription?.grantedTotal,
       })
 
       if (!data?.user || !data?.subscription) {
@@ -119,6 +121,7 @@ export async function bootstrapSession(): Promise<BootstrapResponse> {
         planTier: 'free',
         planStatus: 'active',
         currentCredits: 100,
+        grantedTotal: 0,
         termsVersion: '2.2',
         termsAcceptedAt: new Date().toISOString(),
         nextExpiryDate: null,
