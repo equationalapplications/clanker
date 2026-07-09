@@ -185,13 +185,16 @@ test("wikiLlm generator: no responseSchema, thinkingBudget 1024, retries once on
       },
     },
   } as never);
-  const gen = getTextGeneratorForTests();
-  const out = await gen("sys", "user");
-  assert.equal(out, '{"ok":true}');
-  assert.equal(call, 2);
-  const cfg = seenConfigs[0] as Record<string, unknown>;
-  assert.equal(cfg["responseMimeType"], "application/json");
-  assert.equal("responseSchema" in cfg, false);
-  assert.deepEqual(cfg["thinkingConfig"], { thinkingBudget: 1024 });
-  __setGenAIClientForTests(undefined);
+  try {
+    const gen = getTextGeneratorForTests();
+    const out = await gen("sys", "user");
+    assert.equal(out, '{"ok":true}');
+    assert.equal(call, 2);
+    const cfg = seenConfigs[0] as Record<string, unknown>;
+    assert.equal(cfg["responseMimeType"], "application/json");
+    assert.equal("responseSchema" in cfg, false);
+    assert.deepEqual(cfg["thinkingConfig"], { thinkingBudget: 1024 });
+  } finally {
+    __setGenAIClientForTests(undefined);
+  }
 });
