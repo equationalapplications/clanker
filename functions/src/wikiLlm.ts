@@ -1,7 +1,7 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateTextWithRetry } from "./services/vertexText.js";
 import {userRepository} from "./services/userRepository.js";
 import {creditService as defaultCreditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
@@ -9,10 +9,8 @@ import {WIKI_CREDIT_COST} from "./constants/credits.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
-// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
-// governs this Cloud Function's own deploy region, unrelated to this.
-const GEMINI_LOCATION = "global";
 const MAX_OUTPUT_TOKENS = 8_192;
+const WIKI_LLM_THINKING_BUDGET = 1024; // background librarian; structured JSON reasoning, quality > latency
 const MAX_SYSTEM_PROMPT_LENGTH = 32_000;
 const MAX_USER_PROMPT_LENGTH = 500_000;
 
@@ -66,59 +64,31 @@ interface WikiLlmOptions {
   creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
 }
 
-let genAIClient: GoogleGenAI | undefined;
-
-function getGenAIClient(): GoogleGenAI {
-  if (genAIClient) {
-    return genAIClient;
-  }
-
-  const project = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v));
-  if (!project) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for wiki LLM.",
-    );
-  }
-
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
-  return genAIClient;
-}
-
 function getTextGenerator(model = DEFAULT_MODEL) {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
-    const ai = getGenAIClient();
-    const result = await ai.models.generateContent({
+    const { text } = await generateTextWithRetry({
       model,
-      contents: [{role: "user", parts: [{text: userPrompt}]}],
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemPrompt,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: WIKI_LLM_THINKING_BUDGET },
         temperature: 0,
         responseMimeType: "application/json",
-        responseSchema: {type: Type.OBJECT},
+        // NOTE: responseSchema deliberately omitted. An object schema with no
+        // properties gave constrained decoding a degenerate grammar and drove
+        // empty responses. The librarian prompt (core-llm-wiki) fully specifies
+        // the JSON shape and the client parses/validates it.
       },
+      logContext: "wikiLlm",
     });
-
-    const candidates = result.candidates ?? [];
-    for (const candidate of candidates) {
-      const parts = candidate.content?.parts ?? [];
-      const text = parts
-        .map((p) => (typeof p.text === "string" ? p.text : ""))
-        .join("")
-        .trim();
-      if (text) return text;
-    }
-
-    throw new HttpsError("internal", "Model returned an empty response.");
+    return text;
   };
+}
+
+/** Test seam — exercises the real generator against the injected client. */
+export function getTextGeneratorForTests(model = DEFAULT_MODEL) {
+  return getTextGenerator(model);
 }
 
 export const wikiLlmHandler = async (
