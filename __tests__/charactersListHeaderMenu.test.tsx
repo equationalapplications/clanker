@@ -179,6 +179,7 @@ describe('CharactersListScreen header overflow menu', () => {
     act(() => importItem.props.onPress())
 
     expect(mockPickAndPreview).toHaveBeenCalledTimes(1)
+    expect(menuItems(root)).toHaveLength(0)
     expect(findByType(root, 'Snackbar')[0]).toBeTruthy()
   })
 

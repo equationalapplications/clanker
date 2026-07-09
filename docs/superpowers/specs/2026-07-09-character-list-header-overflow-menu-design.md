@@ -22,7 +22,7 @@ existing behavior (cloud sync, bundle import, preview modal, toasts).
 
 Keep the header as one row:
 
-```
+```text
 ┌─────────────────────────────┐
 │ Characters      [ + New ] ⋮ │
 └─────────────────────────────┘

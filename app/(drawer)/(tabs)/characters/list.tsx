@@ -46,10 +46,11 @@ export default function CharactersListScreen() {
   const clonedCharacterIdRef = useRef<string | null>(null)
   const [menuVisible, setMenuVisible] = useState(false)
   const isMenuBusy = isCloudSyncing || isImportParsing || isImporting || isCreatingClone
+  const isMenuActionBlocked = isMenuBusy || isPending || isCreatingDefault
 
   const handleMenuCloudSync = () => {
     setMenuVisible(false)
-    if (isCloudSyncing || isPending || isCreatingDefault) {
+    if (isMenuActionBlocked) {
       return
     }
     setToastState({ message: 'Syncing characters…', requiresSubscription: false })
@@ -58,6 +59,9 @@ export default function CharactersListScreen() {
 
   const handleMenuImport = () => {
     setMenuVisible(false)
+    if (isMenuActionBlocked) {
+      return
+    }
     setToastState({ message: 'Starting import…', requiresSubscription: false })
     handleCreateFromBundle()
   }
@@ -211,7 +215,7 @@ export default function CharactersListScreen() {
                 size={28}
                 onPress={() => setMenuVisible(true)}
                 loading={isMenuBusy}
-                disabled={isMenuBusy || isPending || isCreatingDefault}
+                disabled={isMenuActionBlocked}
                 accessibilityLabel="More actions"
               />
             }
