@@ -160,3 +160,25 @@ test("summarizeTextHandler refunds the credit when the model returns an empty su
 
   assert.equal(refunded, true);
 });
+
+import { __setGenAIClientForTests } from "./services/vertexText.js";
+import { getSummaryGeneratorForTests } from "./summarizeText.js";
+
+test("summarizeText generator: retries once on retryable empty then returns text", async () => {
+  let call = 0;
+  __setGenAIClientForTests({
+    models: {
+      generateContent: async () => {
+        call += 1;
+        return call === 1
+          ? { candidates: [{ content: { parts: [] }, finishReason: "OTHER" }] }
+          : { candidates: [{ content: { parts: [{ text: "summary" }] }, finishReason: "STOP" }] };
+      },
+    },
+  } as never);
+  const gen = getSummaryGeneratorForTests();
+  const out = await gen("prompt");
+  assert.equal(out, "summary");
+  assert.equal(call, 2);
+  __setGenAIClientForTests(undefined);
+});
