@@ -1,3 +1,19 @@
+# [30.25.0](https://github.com/equationalapplications/clanker/compare/v30.24.0...v30.25.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* avoid render-time setState in ChatComposer, correct test height constants ([3dc9520](https://github.com/equationalapplications/clanker/commit/3dc9520217de062a807ec725adc78892a3559846))
+* avoid setState-in-effect lint error, correct web composer padding const ([0090bd6](https://github.com/equationalapplications/clanker/commit/0090bd6b5426e2d06a99bf433b4c10d9f7660cc1))
+* repair embedding credits, chat composer height, and OTA export ([858643f](https://github.com/equationalapplications/clanker/commit/858643f0ab488523e4cd12e8c31ad27f7f8d0536))
+* unbreak chatViewAccessibility suite and typecheck ([7defe0d](https://github.com/equationalapplications/clanker/commit/7defe0d397c74e6d54e94fcd04cda3191a89275f))
+* unify menu busy guard, add menu-close assertion, tag doc fence ([6ab58fc](https://github.com/equationalapplications/clanker/commit/6ab58fc09dd4327fc4576ff3d8ddd4310eaf3b9b))
+
+
+### Features
+
+* collapse character list header actions into overflow menu ([ef6dfcf](https://github.com/equationalapplications/clanker/commit/ef6dfcf703768aad6df25c4f066bffa1995119e0))
+
 # [30.24.0](https://github.com/equationalapplications/clanker/compare/v30.23.0...v30.24.0) (2026-07-08)
 
 
