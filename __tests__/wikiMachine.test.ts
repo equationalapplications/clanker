@@ -15,6 +15,8 @@ const makeWikiMock = (overrides: Partial<Record<string, unknown>> = {}) => ({
   exportDump: jest.fn().mockResolvedValue({ generatedAt: 0, entities: {} }),
   importDump: jest.fn().mockResolvedValue(undefined),
   runPrune: jest.fn().mockResolvedValue(undefined),
+  getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'emergent', node_types: [], edge_types: [] }),
+  setOntologyManifest: jest.fn().mockResolvedValue(undefined),
   subscribeEntityStatus: jest.fn().mockImplementation((_id: string, cb: (s: unknown) => void) => {
     cb({ ingesting: false, librarian: false, heal: false })
     return () => {}
@@ -265,5 +267,67 @@ describe('wikiMachine', () => {
     actor.send({ type: 'INGEST', doc })
     await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
     expect(actor.getSnapshot().context.lastIngestResult).toEqual(ingestResult)
+  })
+
+  test('bootstrap: SYNC sent immediately after spawn runs only after bootstrap resolves', async () => {
+    const order: string[] = []
+    let resolveManifest!: (v: unknown) => void
+    const wiki = makeWikiMock({
+      getOntologyManifest: jest.fn(() => {
+        order.push('getOntologyManifest')
+        return new Promise((res) => { resolveManifest = res })
+      }),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+      exportDump: jest.fn(() => { order.push('exportDump'); return Promise.resolve({ generatedAt: 0, entities: {} }) }),
+    })
+    const actor = spawnAndTrack(wiki)
+    // Machine starts in bootstrapping and is awaiting getOntologyManifest.
+    expect(actor.getSnapshot().value).toBe('bootstrapping')
+    // SYNC arrives during bootstrap — must be queued, not run yet.
+    actor.send({ type: 'SYNC', runRemoteSync: jest.fn().mockResolvedValue(null) })
+    expect(order).toEqual(['getOntologyManifest'])
+    // Manifest missing → bootstrap writes emergent default, then idle drains the queued SYNC.
+    resolveManifest(null)
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(order).toEqual(['getOntologyManifest', 'exportDump'])
+    expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
+      'char1', { node_types: [], edge_types: [] }, { mode: 'emergent' },
+    )
+  })
+
+  test('bootstrap: existing non-off manifest is left untouched', async () => {
+    const wiki = makeWikiMock({
+      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'strict', node_types: [], edge_types: [] }),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+    })
+    const actor = spawnAndTrack(wiki)
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
+  })
+
+  test("bootstrap: mode 'off' manifest is reset to empty emergent (carried-over behavior)", async () => {
+    const wiki = makeWikiMock({
+      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'off', node_types: [{ name: 'x' }], edge_types: [] }),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+    })
+    const actor = spawnAndTrack(wiki)
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
+      'char1', { node_types: [], edge_types: [] }, { mode: 'emergent' },
+    )
+  })
+
+  test('bootstrap: failure still reaches idle, reports, and processes queued events', async () => {
+    const wiki = makeWikiMock({
+      getOntologyManifest: jest.fn().mockRejectedValue(new Error('boom')),
+      setOntologyManifest: jest.fn().mockResolvedValue(undefined),
+    })
+    const actor = spawnAndTrack(wiki)
+    actor.send({ type: 'READ', query: 'hello' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(wiki.read).toHaveBeenCalledWith('char1', 'hello')
+    expect(jest.mocked(reportError)).toHaveBeenCalledWith(
+      expect.any(Error), 'wiki:char1:ontology:bootstrap',
+    )
   })
 })
