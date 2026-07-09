@@ -1,7 +1,7 @@
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import type { DecodedIdToken } from 'firebase-admin/auth';
-import { GoogleGenAI } from '@google/genai';
+import { generateTextWithRetry } from './services/vertexText.js';
 import * as mammoth from 'mammoth';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
@@ -10,12 +10,10 @@ import { creditService } from './services/creditService.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEFAULT_REGION = 'us-central1';
-// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
-// governs this Cloud Function's own deploy region, unrelated to this.
-const GEMINI_LOCATION = 'global';
 const CONVERT_MODEL = 'gemini-3.5-flash';
 const MAX_BASE64_LENGTH = 12_000_000; // ~9MB raw file
 const MAX_DOCUMENT_CHARS = 200_000;
+const CONVERT_THINKING_BUDGET = 0; // mechanical transcription transform
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
@@ -45,40 +43,8 @@ interface ConvertDocumentTextDeps {
   generateFromGemini: (mimeType: string, base64: string) => Promise<string>;
 }
 
-let genAIClient: GoogleGenAI | undefined;
-
-function getProjectId(): string {
-  const value = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v));
-  if (!value) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for document conversion.',
-    );
-  }
-  return value;
-}
-
-function getGenAIClient(): GoogleGenAI {
-  if (genAIClient) {
-    return genAIClient;
-  }
-  genAIClient = new GoogleGenAI({
-    vertexai: true,
-    project: getProjectId(),
-    location: GEMINI_LOCATION,
-  });
-  return genAIClient;
-}
-
 async function defaultGenerateFromGemini(mimeType: string, base64: string): Promise<string> {
-  const ai = getGenAIClient();
-  const result = await ai.models.generateContent({
+  const { text } = await generateTextWithRetry({
     model: CONVERT_MODEL,
     contents: [
       {
@@ -86,17 +52,18 @@ async function defaultGenerateFromGemini(mimeType: string, base64: string): Prom
         parts: [{ inlineData: { mimeType, data: base64 } }, { text: CONVERSION_PROMPT }],
       },
     ],
-    config: { maxOutputTokens: 65_536, thinkingConfig: { thinkingBudget: 0 } },
+    config: {
+      maxOutputTokens: 65_536,
+      thinkingConfig: { thinkingBudget: CONVERT_THINKING_BUDGET },
+    },
+    logContext: 'convertDocumentText',
   });
-  const candidates = result.candidates ?? [];
-  for (const candidate of candidates) {
-    const text = (candidate.content?.parts ?? [])
-      .map((p) => (typeof p.text === 'string' ? p.text : ''))
-      .join('')
-      .trim();
-    if (text) return text;
-  }
-  throw new HttpsError('internal', 'Model returned empty conversion response.');
+  return text;
+}
+
+/** Test seam — exercises the real generator against the injected client. */
+export async function defaultGenerateFromGeminiForTests(mimeType: string, base64: string): Promise<string> {
+  return defaultGenerateFromGemini(mimeType, base64);
 }
 
 async function defaultConvertDocx(buffer: Buffer): Promise<string> {

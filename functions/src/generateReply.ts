@@ -3,8 +3,8 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { and, eq } from "drizzle-orm";
-import { GoogleGenAI } from "@google/genai";
 import type { Content, GroundingMetadata, Tool } from "@google/genai";
+import { getGenAIClient as getSharedGenAIClient, isRetryableEmptyResponseFinishReason } from "./services/vertexText.js";
 import { buildAuthorizedToolsArray, googleSearchManifest } from "@equationalapplications/core-llm-tools";
 import { REPLY_COST_WITH_TOOLS, REPLY_COST_NO_TOOLS } from "./constants/credits.js";
 import type { GeminiToolEntry } from "@equationalapplications/core-llm-tools";
@@ -18,10 +18,6 @@ import { characters, messages } from "./db/schema.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
-// Gemini 3 family is currently global-only on Vertex AI (no us-central1
-// regional serving yet); DEFAULT_REGION above still governs the Cloud
-// Function's own deploy region, unrelated to this.
-const GEMINI_LOCATION = "global";
 const MAX_PROMPT_LENGTH = 12_000;
 const MAX_OUTPUT_TOKENS = 1_024;
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000;
@@ -268,35 +264,7 @@ function isIdentityConflictError(error: unknown): boolean {
   return toErrorMessage(error).toLowerCase().includes("different firebase uid");
 }
 
-function getProjectId(): string | undefined {
-  return [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v));
-}
-
 let textGenerator: GenerateTextFn | undefined;
-let genAIClient: GoogleGenAI | undefined;
-
-function getGenAIClient(): GoogleGenAI {
-  if (genAIClient) {
-    return genAIClient;
-  }
-
-  const project = getProjectId();
-  if (!project) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI chat response generation."
-    );
-  }
-
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
-  return genAIClient;
-}
 
 export function toGenAITool(entry: GeminiToolEntry): Tool {
   if ('google_search' in entry) {
@@ -315,23 +283,6 @@ export function buildToolsForRequest(tools?: ToolDeclaration[]): Tool[] {
   return buildAuthorizedToolsArray([googleSearchManifest], []).map(toGenAITool);
 }
 
-const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set([
-  "MAX_TOKENS",
-  "SAFETY",
-  "RECITATION",
-  "BLOCKLIST",
-  "PROHIBITED_CONTENT",
-  "SPII",
-  "MALFORMED_FUNCTION_CALL",
-]);
-
-function isRetryableEmptyResponseFinishReason(finishReason: string | undefined): boolean {
-  if (!finishReason || finishReason === "FINISH_REASON_UNSPECIFIED" || finishReason === "OTHER") {
-    return true;
-  }
-  return !NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS.has(finishReason);
-}
-
 function getTextGenerator(): GenerateTextFn {
   if (textGenerator) {
     return textGenerator;
@@ -342,7 +293,7 @@ function getTextGenerator(): GenerateTextFn {
     systemInstruction: string;
     tools?: ToolDeclaration[];
   }) => {
-    const ai = getGenAIClient();
+    const ai = getSharedGenAIClient();
     const tools = buildToolsForRequest(input.tools);
 
     for (let attempt = 0; attempt < 2; attempt++) {

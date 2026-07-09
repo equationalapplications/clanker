@@ -110,7 +110,7 @@ export const wikiMachine = createMachine(
       events: WikiMachineEvents
       input: WikiMachineInput
     },
-    initial: 'idle',
+    initial: 'bootstrapping',
     context: ({ input }) => ({
       entityId: input.entityId,
       wiki: input.wiki,
@@ -142,6 +142,20 @@ export const wikiMachine = createMachine(
       FORGET: { actions: 'enqueueEvent' },
     },
     states: {
+      bootstrapping: {
+        invoke: {
+          src: 'bootstrapOntologyActor',
+          input: ({ context }) => ({
+            wiki: context.wiki,
+            entityId: context.entityId,
+          }),
+          onDone: { target: 'idle' },
+          onError: {
+            target: 'idle',
+            actions: 'reportBootstrapError',
+          },
+        },
+      },
       idle: {
         entry: 'flushPending',
         on: {
@@ -316,6 +330,12 @@ export const wikiMachine = createMachine(
   },
   {
     actions: {
+      reportBootstrapError: ({ context, event }) => {
+        reportError(
+          normalizeError((event as { error?: unknown }).error),
+          `wiki:${context.entityId}:ontology:bootstrap`,
+        )
+      },
       recordError: ({ context }) => {
         if (context.lastError && !(context.lastError instanceof WikiBusyError)) {
           const operation = context.currentEvent?.type || 'unknown'
@@ -371,6 +391,22 @@ export const wikiMachine = createMachine(
             },
           )
           return unsubscribe
+        },
+      ),
+      bootstrapOntologyActor: fromPromise(
+        async ({
+          input,
+        }: {
+          input: { wiki: Wiki; entityId: string }
+        }) => {
+          const existing = await input.wiki.getOntologyManifest(input.entityId)
+          if (!existing || existing.mode === 'off') {
+            await input.wiki.setOntologyManifest(
+              input.entityId,
+              { node_types: [], edge_types: [] },
+              { mode: 'emergent' },
+            )
+          }
         },
       ),
       readActor: fromPromise(
