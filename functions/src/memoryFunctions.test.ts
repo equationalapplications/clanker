@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HttpsError } from "firebase-functions/v2/https";
+import { __setGenAIClientForTests } from "./services/vertexText.js";
+import { defaultGenerateContentForTests } from "./memoryFunctions.js";
 
 process.env.NODE_ENV = "test";
 
@@ -579,8 +581,6 @@ test("memoryHealHandler does not downgrade or delete user_document entries", asy
     assert.equal(updatedDocEntry.confidence, "inferred", "user_document entry confidence should not change");
   }
 });
-import { __setGenAIClientForTests } from "./services/vertexText.js";
-import { defaultGenerateContentForTests } from "./memoryFunctions.js";
 
 test("memory generateContent: throws (not '') on empty after retry; budget 1024", async () => {
   let call = 0;

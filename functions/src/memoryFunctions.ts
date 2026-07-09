@@ -15,7 +15,9 @@ import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.j
 
 const DEFAULT_REGION = 'us-central1';
 const HEAL_MODEL = 'gemini-3.5-flash';
-const HEAL_MAX_OUTPUT_TOKENS = 1_024;
+// Thinking tokens count against maxOutputTokens; keep headroom for output text so a
+// thinking-heavy response doesn't hit MAX_TOKENS (non-retryable) before emitting text.
+const HEAL_MAX_OUTPUT_TOKENS = 2_048;
 const HEAL_THINKING_BUDGET = 1024; // background, structured, correctness-critical: heal / write-diff / contradiction
 
 type MemoryIdentity = {

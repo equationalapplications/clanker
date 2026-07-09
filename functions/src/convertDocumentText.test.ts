@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, test } from 'node:test';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { __setGenAIClientForTests } from './services/vertexText.js';
+import { defaultGenerateFromGeminiForTests } from './convertDocumentText.js';
 
 process.env.NODE_ENV = 'test';
 
@@ -287,10 +289,6 @@ describe('convertDocumentText onCall config', () => {
     assert.equal(endpoint.availableMemoryMb, 512);
   });
 });
-
-import { test } from 'node:test';
-import { __setGenAIClientForTests } from "./services/vertexText.js";
-import { defaultGenerateFromGeminiForTests } from "./convertDocumentText.js";
 
 test("convert generateFromGemini: retries once on empty then returns markdown", async () => {
   let call = 0;

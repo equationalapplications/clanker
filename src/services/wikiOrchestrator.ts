@@ -100,12 +100,15 @@ async function syncAll(
         // rather than entering `syncing` synchronously, so a plain
         // `matches('syncing')` check would miss an already-queued SYNC.
         const snapshot = actor.getSnapshot()
-        const wasAlreadySyncing =
-          snapshot.matches('syncing') ||
-          snapshot.context.pendingEvents.some((e) => e.type === 'SYNC')
+        // A SYNC that is merely queued (in pendingEvents) is not yet running: it must not
+        // suppress the fail-fast path, otherwise unrelated earlier-queued work failing first
+        // gets misreported as "Sync failed". But it must still block re-enqueueing below.
+        const isCurrentlySyncing = snapshot.matches('syncing')
+        const hasQueuedSync = snapshot.context.pendingEvents.some((e) => e.type === 'SYNC')
+        const wasAlreadySyncing = isCurrentlySyncing || hasQueuedSync
         // If already syncing, subscribe() won't replay the current state; treat as seen so we
         // still resolve when the in-flight cycle reaches idle/error.
-        let seenSyncing = wasAlreadySyncing
+        let seenSyncing = isCurrentlySyncing
         let settled = false
         let timeoutId: ReturnType<typeof setTimeout> | undefined
 
@@ -128,7 +131,7 @@ async function syncAll(
           // `syncing` (e.g. in-flight or queued non-sync work fails first), fail fast
           // instead of waiting for the full timeout with seenSyncing still false.
           if (
-            !wasAlreadySyncing &&
+            !isCurrentlySyncing &&
             !seenSyncing &&
             snap.matches('error')
           ) {

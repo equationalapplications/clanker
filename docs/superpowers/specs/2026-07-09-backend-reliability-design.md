@@ -13,7 +13,7 @@ Production web testing (2026-07-09) surfaced two independent failure families:
 
 **A. Client wiki transaction races** (wedged SQLite connection):
 
-```
+```text
 [wiki:<id>:ontology:write] Failed to write ontology manifest …
   Error code 1: cannot start a transaction within a transaction
   Error code 1: cannot rollback - no transaction is active
@@ -34,7 +34,7 @@ Two concurrency sources on the single shared `_wiki` connection
 
 **B. Cloud function 500s on empty Vertex responses:**
 
-```
+```text
 POST …/summarizeText 500 — FirebaseError: INTERNAL
 POST …/wikiLlm 500 — FirebaseError: Model returned an empty response.
 ```
@@ -85,7 +85,7 @@ On actor spawn: unawaited `getOntologyManifest` → if missing or `mode === 'off
 
 `wikiMachine` gains an initial `bootstrapping` state:
 
-```
+```text
 initial: 'bootstrapping'
 bootstrapping:
   invoke: bootstrapOntologyActor   # getOntologyManifest → conditional setOntologyManifest
