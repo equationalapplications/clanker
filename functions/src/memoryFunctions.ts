@@ -2,7 +2,7 @@ import * as logger from 'firebase-functions/logger';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DecodedIdToken } from 'firebase-admin/auth';
-import { GoogleGenAI } from '@google/genai';
+import { generateTextWithRetry } from './services/vertexText.js';
 
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 
@@ -14,11 +14,9 @@ import { getDb } from './db/cloudSql.js';
 import { agentTasks, characters, memoryEvents, wikiEntries } from './db/schema.js';
 
 const DEFAULT_REGION = 'us-central1';
-// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
-// governs this Cloud Function's own deploy region, unrelated to this.
-const GEMINI_LOCATION = 'global';
 const HEAL_MODEL = 'gemini-3.5-flash';
 const HEAL_MAX_OUTPUT_TOKENS = 1_024;
+const HEAL_THINKING_BUDGET = 1024; // background, structured, correctness-critical: heal / write-diff / contradiction
 
 type MemoryIdentity = {
   userId: string;
@@ -132,55 +130,22 @@ type MemoryFunctionDeps = {
   generateContent: (prompt: string) => Promise<string>;
 };
 
-let genAIClient: GoogleGenAI | undefined;
-
-function getGenAIClient(): GoogleGenAI {
-  if (genAIClient) {
-    return genAIClient;
-  }
-
-  const project = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map(v => v?.trim())
-    .find((v): v is string => Boolean(v));
-  if (!project) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for memory heal.',
-    );
-  }
-
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
-  return genAIClient;
-}
-
 async function defaultGenerateContent(prompt: string): Promise<string> {
-  const ai = getGenAIClient();
-  const result = await ai.models.generateContent({
+  const { text } = await generateTextWithRetry({
     model: HEAL_MODEL,
     contents: prompt,
     config: {
       maxOutputTokens: HEAL_MAX_OUTPUT_TOKENS,
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig: { thinkingBudget: HEAL_THINKING_BUDGET },
     },
+    logContext: 'memoryHeal',
   });
-  const candidates = result.candidates ?? [];
+  return text;
+}
 
-  for (const candidate of candidates) {
-    const parts = candidate.content?.parts ?? [];
-    const text = parts
-      .map((part) => (typeof part.text === 'string' ? part.text : ''))
-      .join('')
-      .trim();
-    if (text) {
-      return text;
-    }
-  }
-
-  return '';
+/** Test seam — exercises the real generator against the injected client. */
+export async function defaultGenerateContentForTests(prompt: string): Promise<string> {
+  return defaultGenerateContent(prompt);
 }
 
 const defaultDeps: MemoryFunctionDeps = {

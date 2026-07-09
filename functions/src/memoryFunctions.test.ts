@@ -579,3 +579,38 @@ test("memoryHealHandler does not downgrade or delete user_document entries", asy
     assert.equal(updatedDocEntry.confidence, "inferred", "user_document entry confidence should not change");
   }
 });
+import { __setGenAIClientForTests } from "./services/vertexText.js";
+import { defaultGenerateContentForTests } from "./memoryFunctions.js";
+
+test("memory generateContent: throws (not '') on empty after retry; budget 1024", async () => {
+  let call = 0;
+  const seenConfigs: unknown[] = [];
+  __setGenAIClientForTests({
+    models: {
+      generateContent: async (req: { config: unknown }) => {
+        call += 1;
+        seenConfigs.push(req.config);
+        return { candidates: [{ content: { parts: [] }, finishReason: "OTHER" }] };
+      },
+    },
+  } as never);
+  await assert.rejects(
+    () => defaultGenerateContentForTests("prompt"),
+    (e: HttpsError) => e.code === "internal",
+  );
+  assert.equal(call, 2); // retried once
+  assert.deepEqual((seenConfigs[0] as Record<string, unknown>)["thinkingConfig"], { thinkingBudget: 1024 });
+  __setGenAIClientForTests(undefined);
+});
+
+test("memory generateContent: returns text when present", async () => {
+  __setGenAIClientForTests({
+    models: {
+      generateContent: async () => ({
+        candidates: [{ content: { parts: [{ text: "[]" }] }, finishReason: "STOP" }],
+      }),
+    },
+  } as never);
+  assert.equal(await defaultGenerateContentForTests("p"), "[]");
+  __setGenAIClientForTests(undefined);
+});
