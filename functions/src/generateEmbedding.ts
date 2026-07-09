@@ -5,6 +5,7 @@ import type {Credential} from "firebase-admin/app";
 import type {DecodedIdToken} from "firebase-admin/auth";
 import { userRepository } from "./services/userRepository.js";
 import { creditService } from "./services/creditService.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
 
 const DEFAULT_REGION = "us-central1";
 const MODEL_ID = "text-embedding-004";
@@ -218,6 +219,7 @@ export const generateEmbedding = onCall(
     enforceAppCheck: true,
     invoker: "public",
     memory: "256MiB",
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => generateEmbeddingHandler(request),
 );

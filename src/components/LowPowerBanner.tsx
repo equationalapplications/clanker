@@ -12,7 +12,7 @@ export function LowPowerBanner() {
   const [dismissed, setDismissed] = useState(false)
   const [amberLatched, setAmberLatched] = useState(false)
   const hasShownAmberRef = useRef(getAmberShownThisSession())
-  const prevBandRef = useRef<typeof band>()
+  const prevBandRef = useRef<typeof band>(undefined)
 
   useEffect(() => {
     if (band === 'amber' && !hasShownAmberRef.current) {

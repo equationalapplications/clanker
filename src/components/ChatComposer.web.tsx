@@ -18,6 +18,16 @@ import {
 
 export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
 
+const LINE_HEIGHT = 22
+const COMPOSER_MARGIN_VERTICAL = 6 + 4
+// Web input's actual vertical padding — keep this exported so ChatView's Metro-resolved
+// import gets the correct platform-specific value.
+export const COMPOSER_VERTICAL_PADDING = 10
+export const MIN_INPUT_HEIGHT =
+  LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
+export const MAX_INPUT_HEIGHT =
+  LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
+
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
     characterId?: string
@@ -54,12 +64,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   characterId,
   userId,
   onPhaseChange,
+  onInputSizeChanged,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
   const activeRequestIdRef = useRef(0)
+  const [prevText, setPrevText] = useState(text)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -69,6 +82,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       activeRequestIdRef.current = -1
     }
   }, [])
+
+  if (prevText !== text) {
+    setPrevText(text)
+    if (!text) setInputHeight(MIN_INPUT_HEIGHT)
+  }
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -243,24 +261,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
 
   const showPlusButton = Boolean(characterId) && Boolean(userId)
 
+  // NOTE: no `style` in here — gifted-chat's Composer spreads textInputProps
+  // last on the TextInput, so a style here would replace the internal style
+  // array including the `height: composerHeight` entry that drives growth.
   const mergedTextInputProps = {
     ...textInputProps,
-    style: [
-      textInputProps?.style,
-      {
-        backgroundColor: 'transparent',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        color: colors.onSurfaceVariant,
-        outline: 'none',
-        outlineColor: 'transparent',
-        outlineWidth: 0,
-        outlineOffset: 0,
-        boxShadow: 'none',
-        borderWidth: 0,
-        borderColor: 'transparent',
-      },
-    ],
   }
 
   return (
@@ -298,12 +303,32 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           <Composer
             {...props}
             text={text}
+            composerHeight={inputHeight}
+            onInputSizeChanged={(size) => {
+              // react-native-web reports scrollHeight, which already includes
+              // the input's own padding — only the outer margins are missing.
+              const height = Math.max(
+                MIN_INPUT_HEIGHT,
+                Math.min(MAX_INPUT_HEIGHT, size.height + COMPOSER_MARGIN_VERTICAL),
+              )
+              setInputHeight(height)
+              // Keep GiftedChat's internal composerHeight in sync so the message
+              // list offset tracks the input's real size.
+              onInputSizeChanged?.({ ...size, height })
+            }}
             textInputStyle={{
               backgroundColor: 'transparent',
               paddingHorizontal: 12,
-              paddingVertical: 10,
+              paddingVertical: COMPOSER_VERTICAL_PADDING,
               color: colors.onSurfaceVariant,
-            }}
+              outline: 'none',
+              outlineColor: 'transparent',
+              outlineWidth: 0,
+              outlineOffset: 0,
+              boxShadow: 'none',
+              borderWidth: 0,
+              borderColor: 'transparent',
+            } as any}
             textInputProps={{
               ...mergedTextInputProps,
               accessibilityLabel: 'Message input',
@@ -350,6 +375,11 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
+    // Must be a row: gifted-chat's Composer puts flex: 1 on the TextInput, and
+    // in a column container that flexes its HEIGHT to zero-basis, overriding
+    // the explicit height: composerHeight and collapsing the input.
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   spinnerContainer: {
     width: 36,

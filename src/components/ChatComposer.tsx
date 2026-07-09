@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
 import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
@@ -31,6 +31,23 @@ async function readAsBase64(uri: string): Promise<string> {
   return file.base64()
 }
 
+// Vertical padding inside the text input. The Composer fixes the TextInput's
+// height to composerHeight, so this padding must be added back to the height
+// reported through onInputSizeChanged or the text gets clipped.
+export const COMPOSER_VERTICAL_PADDING = 8
+const LINE_HEIGHT = 22 // matches gifted-chat Composer's textInput lineHeight
+// gifted-chat's Composer.js bakes its own marginTop/marginBottom onto the
+// TextInput INSIDE the fixed `height: composerHeight` box (see
+// node_modules/react-native-gifted-chat/lib/Composer.js styles.textInput).
+// That margin eats into the usable text area on top of our own padding, so it
+// must be added to the height or the bottom line of text gets clipped.
+const COMPOSER_MARGIN_VERTICAL = Platform.select({ ios: 6 + 5, android: 0 + 3, default: 6 + 4 })
+// ~2.5 lines visible when idle, grows up to ~6 before scrolling internally.
+export const MIN_INPUT_HEIGHT =
+  LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
+export const MAX_INPUT_HEIGHT =
+  LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
+
 export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onSend,
   text,
@@ -38,12 +55,15 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   characterId,
   userId,
   onPhaseChange,
+  onInputSizeChanged,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
   const activeRequestIdRef = useRef(0)
+  const [prevText, setPrevText] = useState(text)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -53,6 +73,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       activeRequestIdRef.current = -1
     }
   }, [])
+
+  if (prevText !== text) {
+    setPrevText(text)
+    if (!text) setInputHeight(MIN_INPUT_HEIGHT)
+  }
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -264,10 +289,25 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           <Composer
             {...props}
             text={text}
+            composerHeight={inputHeight}
+            onInputSizeChanged={(size) => {
+              const height = Math.max(
+                MIN_INPUT_HEIGHT,
+                Math.min(
+                  MAX_INPUT_HEIGHT,
+                  size.height + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL,
+                ),
+              )
+              setInputHeight(height)
+              // Keep GiftedChat's internal composerHeight in sync so the message
+              // list offset tracks the input's real size.
+              onInputSizeChanged?.({ ...size, height })
+            }}
             textInputStyle={{
               backgroundColor: 'transparent',
               paddingHorizontal: 12,
-              paddingVertical: 10,
+              paddingVertical: COMPOSER_VERTICAL_PADDING,
+              textAlignVertical: 'center',
               color: colors.onSurfaceVariant,
             }}
             textInputProps={{
@@ -309,6 +349,11 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
+    // Must be a row: gifted-chat's Composer puts flex: 1 on the TextInput, and
+    // in a column container that flexes its HEIGHT to zero-basis, overriding
+    // the explicit height: composerHeight and collapsing the input to one line.
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   spinnerContainer: {
     width: 36,
