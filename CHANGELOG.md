@@ -1,3 +1,10 @@
+## [30.26.1](https://github.com/equationalapplications/clanker/compare/v30.26.0...v30.26.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **functions:** add promptFeedback to empty-response logging, test empty candidates ([2f2096c](https://github.com/equationalapplications/clanker/commit/2f2096cc6512df32008997c48c479433d76a6ea5))
+
 # [30.26.0](https://github.com/equationalapplications/clanker/compare/v30.25.0...v30.26.0) (2026-07-09)
 
 
