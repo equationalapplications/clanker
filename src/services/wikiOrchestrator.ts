@@ -51,14 +51,6 @@ function getOrSpawn(
   actor.start()
   actors.set(entityId, actor)
 
-  void wiki.getOntologyManifest(entityId).then((existing) => {
-    if (!existing || existing.mode === 'off') {
-      return wiki.setOntologyManifest(entityId, { node_types: [], edge_types: [] }, { mode: 'emergent' })
-    }
-  }).catch((error) => {
-    console.warn(`Failed to bootstrap emergent ontology mode for ${entityId}:`, error)
-  })
-
   return actor
 }
 
@@ -101,9 +93,16 @@ async function syncAll(
       }
 
       await new Promise<void>((resolve, reject) => {
-        // If actor is already syncing, wait for that cycle to finish and do not
-        // enqueue another SYNC that could resolve against the wrong cycle.
-        const wasAlreadySyncing = actor.getSnapshot().matches('syncing')
+        // If actor is already syncing — or has a SYNC queued behind bootstrap/
+        // other work — wait for that cycle to finish and do not enqueue another
+        // SYNC that could resolve against the wrong cycle or run a duplicate.
+        // The `bootstrapping` initial state defers SYNC into `pendingEvents`
+        // rather than entering `syncing` synchronously, so a plain
+        // `matches('syncing')` check would miss an already-queued SYNC.
+        const snapshot = actor.getSnapshot()
+        const wasAlreadySyncing =
+          snapshot.matches('syncing') ||
+          snapshot.context.pendingEvents.some((e) => e.type === 'SYNC')
         // If already syncing, subscribe() won't replay the current state; treat as seen so we
         // still resolve when the in-flight cycle reaches idle/error.
         let seenSyncing = wasAlreadySyncing

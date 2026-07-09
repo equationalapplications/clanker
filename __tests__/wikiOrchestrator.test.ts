@@ -37,6 +37,13 @@ describe('wikiOrchestrator', () => {
     expect(a).not.toBe(b)
   })
 
+  test('getOrSpawn returns before any ontology bootstrap side effect', () => {
+    const wiki = makeWikiMock()
+    wikiOrchestrator.getOrSpawn('e1', wiki as never)
+    // Synchronous check: getOrSpawn must not have fired bootstrap inline.
+    expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
+  })
+
   test('stop removes the actor and unsubscribes status', () => {
     const unsubscribe = jest.fn()
     const wiki = {
