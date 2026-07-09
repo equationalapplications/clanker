@@ -1,3 +1,22 @@
+# [30.26.0](https://github.com/equationalapplications/clanker/compare/v30.25.0...v30.26.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* address CodeRabbit review on PR [#554](https://github.com/equationalapplications/clanker/issues/554) ([ce35cb7](https://github.com/equationalapplications/clanker/commit/ce35cb7381027f657a402f3572f4e15e3576bf81))
+* **functions:** convertDocumentText uses shared vertexText retry helper ([46001e5](https://github.com/equationalapplications/clanker/commit/46001e5c2b3e7169227fe7d6bf6e20fcc594a709))
+* **functions:** memory generateContent throws on empty (latent bug) + budget 1024 ([2d7dd99](https://github.com/equationalapplications/clanker/commit/2d7dd9978591bb601d3e97414b3f2f3701a9dd28))
+* **functions:** summarizeText uses shared vertexText retry helper ([3ebebe4](https://github.com/equationalapplications/clanker/commit/3ebebe45239074ff511c85e00e45b807dee854a7))
+* **functions:** wikiLlm uses shared retry, drops degenerate responseSchema, budget 1024 ([bd96842](https://github.com/equationalapplications/clanker/commit/bd96842aee00ff3c9895d5a4672efe045fd5626d))
+* **wiki:** adopt expo-llm-wiki 4.20 transaction serialization ([9a1371f](https://github.com/equationalapplications/clanker/commit/9a1371f2d8ce419049856ebff87c75b728fa10f0))
+* **wiki:** drop getOrSpawn fire-and-forget bootstrap, harden syncAll dedup ([b955fb2](https://github.com/equationalapplications/clanker/commit/b955fb20402892f22cc9cd8018349912220dd5f4))
+* **wiki:** order ontology bootstrap through actor bootstrapping state ([4093469](https://github.com/equationalapplications/clanker/commit/40934690582381c706db5d3f4bf975c05355342a))
+
+
+### Features
+
+* **functions:** shared vertexText helper with empty-response retry+logging ([1d6050e](https://github.com/equationalapplications/clanker/commit/1d6050e8b195270b434d8ced5725826465419dc8))
+
 # [30.25.0](https://github.com/equationalapplications/clanker/compare/v30.24.0...v30.25.0) (2026-07-09)
 
 
