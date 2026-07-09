@@ -1,17 +1,15 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import type {DecodedIdToken} from "firebase-admin/auth";
-import { GoogleGenAI } from "@google/genai";
+import { generateTextWithRetry } from "./services/vertexText.js";
 import { userRepository } from "./services/userRepository.js";
 import { creditService } from "./services/creditService.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
-// Gemini 3 family is global-only on Vertex AI; DEFAULT_REGION above still
-// governs this Cloud Function's own deploy region, unrelated to this.
-const GEMINI_LOCATION = "global";
 const MAX_INPUT_LENGTH = 16_000;
 const MAX_OUTPUT_TOKENS = 1_024;
+const SUMMARIZE_THINKING_BUDGET = 0; // interactive-ish compression; retry (vertexText) covers empties
 const SUMMARIZE_TEXT_COST = 100;
 
 interface SummarizeTextData {
@@ -29,16 +27,6 @@ interface SummarizeTextOptions {
   generateSummary?: GenerateSummaryFn;
   userRepository?: Pick<typeof userRepository, "getOrCreateUserByFirebaseIdentity">;
   creditService?: Pick<typeof creditService, "spendCredits" | "refundCredit">;
-}
-
-function getProjectId(): string | undefined {
-  return [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v));
 }
 
 function truncateSummary(text: string, maxLength: number): string {
@@ -86,25 +74,7 @@ function parseInput(data: unknown): {text: string; maxCharacters: number} {
   };
 }
 
-let genAIClient: GoogleGenAI | undefined;
 let summaryGenerator: GenerateSummaryFn | undefined;
-
-function getGenAIClient(): GoogleGenAI {
-  if (genAIClient) {
-    return genAIClient;
-  }
-
-  const project = getProjectId();
-  if (!project) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for text summarization."
-    );
-  }
-
-  genAIClient = new GoogleGenAI({ vertexai: true, project, location: GEMINI_LOCATION });
-  return genAIClient;
-}
 
 function getSummaryGenerator(): GenerateSummaryFn {
   if (summaryGenerator) {
@@ -112,32 +82,25 @@ function getSummaryGenerator(): GenerateSummaryFn {
   }
 
   summaryGenerator = async (prompt: string): Promise<string> => {
-    const ai = getGenAIClient();
-    const result = await ai.models.generateContent({
+    const { text } = await generateTextWithRetry({
       model: DEFAULT_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        thinkingConfig: { thinkingBudget: 0 },
+        thinkingConfig: { thinkingBudget: SUMMARIZE_THINKING_BUDGET },
       },
+      logContext: "summarizeText",
     });
-    const candidates = result.candidates ?? [];
-
-    for (const candidate of candidates) {
-      const parts = candidate.content?.parts ?? [];
-      const text = parts
-        .map((part) => (typeof part.text === "string" ? part.text : ""))
-        .join("")
-        .trim();
-      if (text) {
-        return text;
-      }
-    }
-
-    throw new HttpsError("internal", "Model returned an empty summary response.");
+    return text;
   };
 
   return summaryGenerator;
+}
+
+/** Test seam — exercises the real generator against the injected client. */
+export function getSummaryGeneratorForTests(): GenerateSummaryFn {
+  summaryGenerator = undefined;
+  return getSummaryGenerator();
 }
 
 const handler = async (
