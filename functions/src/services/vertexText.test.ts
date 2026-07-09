@@ -58,11 +58,15 @@ test("generateTextWithRetry: retries once on retryable empty then succeeds", asy
 test("generateTextWithRetry: retries once when candidates array is empty", async () => {
   const client = fakeClient([emptyResponse(), textResponse("ok")]);
   __setGenAIClientForTests(client as never);
-  const { text } = await generateTextWithRetry({
-    model: "m", contents: "hi", config: {}, logContext: "test",
-  });
-  assert.equal(text, "ok");
-  assert.equal(client.calls(), 2);
+  try {
+    const { text } = await generateTextWithRetry({
+      model: "m", contents: "hi", config: {}, logContext: "test",
+    });
+    assert.equal(text, "ok");
+    assert.equal(client.calls(), 2);
+  } finally {
+    __setGenAIClientForTests(undefined);
+  }
 });
 
 test("generateTextWithRetry: does NOT retry on non-retryable finishReason", async () => {
