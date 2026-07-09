@@ -74,6 +74,14 @@ Each `Menu.Item` `onPress` first closes the menu
 (`setMenuVisible(false)`), then invokes the existing handler
 (`handleCloudSync` / `handleCreateFromBundle`).
 
+### Menu anchor positioning
+
+The kebab `IconButton` is the `Menu` `anchor`. RNP menus can render
+slightly over/under the header depending on the navigation setup and
+platform. Verify placement on both Android and iOS; if the menu overlaps
+the header row, set the `Menu` `statusBarHeight` prop (or an anchor offset)
+to correct it. This is a manual-verification item, not a code default.
+
 ## State
 
 - New local state: `const [menuVisible, setMenuVisible] = useState(false)`.
@@ -86,12 +94,29 @@ When any menu-driven action is running, the kebab itself signals it — one
 indicator covers all menu actions (a closed menu can't show per-item
 state):
 
-- `IconButton` props:
-  - `icon={isMenuBusy ? undefined : 'dots-vertical'}`
+- `IconButton` props (RNP 5.15.3):
+  - `icon="dots-vertical"` — keep a constant icon. Verified against
+    `react-native-paper/src/components/IconButton/IconButton.tsx`: when
+    `loading` is true the component renders an `ActivityIndicator` in place
+    of the icon, so the icon value is simply ignored while busy. `icon` is
+    a required prop; do **not** pass `undefined`.
   - `loading={isMenuBusy}`
   - `disabled={isMenuBusy || isPending || isCreatingDefault}`
 - The `New` button keeps its own `loading`/`disabled`
   (`isPending || isCreatingDefault`) — unchanged.
+
+### Immediate action feedback (transient toast)
+
+Because the menu closes the instant an item is tapped, the only remaining
+signal is the spinning kebab — the user can be left wondering what is
+loading. To close that gap, fire an immediate transient `Snackbar` message
+via the existing `setToastState` when a menu action starts:
+
+- Cloud Sync → `"Syncing characters…"` on tap.
+- Import from Bundle → `"Starting import…"` on tap.
+
+These reuse the existing toast machinery (no new UI). They set expectation
+immediately; the existing error/completion toasts still fire afterward.
 
 ## Accessibility
 
@@ -104,7 +129,8 @@ state):
 
 - `handleCloudSync`, `handleCreateFromBundle`, and all downstream handlers.
 - Import preview `Modal` and its buttons.
-- Cloud sync effects, import-error effect, toasts / `Snackbar`.
+- Cloud sync effects, import-error effect, error/completion toasts.
+- `Snackbar` component itself (reused for the new transient start messages).
 - `New` button behavior.
 
 ## Testing
@@ -113,9 +139,10 @@ state):
 - Add coverage:
   - Tapping the kebab opens the menu; both items are present and reachable
     by accessibility label.
-  - Selecting **Cloud Sync** closes the menu and triggers sync.
-  - Selecting **Import from Bundle** closes the menu and starts the import
-    pick/preview flow.
+  - Selecting **Cloud Sync** closes the menu, shows a `"Syncing characters…"`
+    toast, and triggers sync.
+  - Selecting **Import from Bundle** closes the menu, shows a
+    `"Starting import…"` toast, and starts the import pick/preview flow.
   - While `isMenuBusy` is true, the kebab shows its loading state and is
     disabled.
 
