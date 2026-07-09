@@ -341,6 +341,7 @@ function getTextGenerator(): GenerateTextFn {
         logger.warn("generateReply empty model response, retrying once", {
           finishReasons,
           candidateCount: candidates.length,
+          promptFeedback: result.promptFeedback ?? null,
         });
         continue;
       }
@@ -352,6 +353,7 @@ function getTextGenerator(): GenerateTextFn {
         {
           finishReasons,
           candidateCount: candidates.length,
+          promptFeedback: result.promptFeedback ?? null,
         },
       );
       break;
