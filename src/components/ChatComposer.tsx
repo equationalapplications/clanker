@@ -63,7 +63,6 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
   const activeRequestIdRef = useRef(0)
-  const [prevText, setPrevText] = useState(text)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -74,9 +73,8 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
-  if (prevText !== text) {
-    setPrevText(text)
-    if (!text) setInputHeight(MIN_INPUT_HEIGHT)
+  if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
+    setInputHeight(MIN_INPUT_HEIGHT)
   }
 
   const handlePlusPress = useCallback(async () => {

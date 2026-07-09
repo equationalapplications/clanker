@@ -139,12 +139,14 @@ jest.mock('~/hooks/usePowerBalance', () => ({
 jest.mock('~/components/CharacterAvatar', () => () => null)
 let capturedChatComposerProps: any = null
 // Keep in sync with ChatComposer.tsx's MIN_INPUT_HEIGHT/MAX_INPUT_HEIGHT formula
-// (LINE_HEIGHT 22 * 2.5/6 + COMPOSER_VERTICAL_PADDING 8 * 2 + COMPOSER_MARGIN_VERTICAL 10).
+// (LINE_HEIGHT 22 * 2.5/6 + COMPOSER_VERTICAL_PADDING 8 * 2 + COMPOSER_MARGIN_VERTICAL,
+// where COMPOSER_MARGIN_VERTICAL is Platform.select({ ios: 11, android: 3, default: 10 });
+// mockPlatformOS defaults to 'android' below, so margin = 3 here).
 jest.mock('~/components/ChatComposer', () => ({
   __esModule: true,
   COMPOSER_VERTICAL_PADDING: 8,
-  MIN_INPUT_HEIGHT: 81,
-  MAX_INPUT_HEIGHT: 158,
+  MIN_INPUT_HEIGHT: 74,
+  MAX_INPUT_HEIGHT: 151,
   default: (props: any) => {
     capturedChatComposerProps = props
     return null
@@ -433,7 +435,7 @@ describe('ChatView accessibility', () => {
     expect(capturedGiftedChatProps).not.toBeNull()
     expect(typeof capturedGiftedChatProps.renderInputToolbar).toBe('function')
     expect(typeof capturedGiftedChatProps.renderSend).toBe('function')
-    expect(capturedGiftedChatProps.minInputToolbarHeight).toBe(81 + 16)
+    expect(capturedGiftedChatProps.minInputToolbarHeight).toBe(74 + 16)
     expect(capturedGiftedChatProps.alwaysShowSend).toBe(false)
   })
 
