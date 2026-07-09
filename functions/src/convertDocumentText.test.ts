@@ -287,3 +287,24 @@ describe('convertDocumentText onCall config', () => {
     assert.equal(endpoint.availableMemoryMb, 512);
   });
 });
+
+import { test } from 'node:test';
+import { __setGenAIClientForTests } from "./services/vertexText.js";
+import { defaultGenerateFromGeminiForTests } from "./convertDocumentText.js";
+
+test("convert generateFromGemini: retries once on empty then returns markdown", async () => {
+  let call = 0;
+  __setGenAIClientForTests({
+    models: {
+      generateContent: async () => {
+        call += 1;
+        return call === 1
+          ? { candidates: [] }
+          : { candidates: [{ content: { parts: [{ text: "# md" }] }, finishReason: "STOP" }] };
+      },
+    },
+  } as never);
+  assert.equal(await defaultGenerateFromGeminiForTests("application/pdf", "AAAA"), "# md");
+  assert.equal(call, 2);
+  __setGenAIClientForTests(undefined);
+});
