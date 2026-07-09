@@ -2,6 +2,7 @@ import { appCheckReady, exchangeToken, getCurrentUser } from '~/config/firebaseC
 import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 import { ensureDevSandboxCharacter } from '~/auth/ensureDevSandboxCharacter'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
+import { TERMS } from '~/config/termsConfig'
 
 export interface UserSnapshot {
   id: string
@@ -39,7 +40,7 @@ const mockBootstrapEmail = 'dev@localhost.com'
 const mockBootstrapCurrentCredits = 5000
 const mockBootstrapPlanTier = 'free'
 const mockBootstrapPlanStatus = 'active'
-const mockBootstrapTermsVersion = null
+const mockBootstrapTermsVersion = TERMS.version
 
 const bootstrapSessionPromises = new Map<string, Promise<BootstrapSessionResult>>()
 
@@ -121,7 +122,7 @@ async function buildMockBootstrap(): Promise<BootstrapSessionResult> {
       currentCredits: mockBootstrapCurrentCredits,
       grantedTotal: mockBootstrapCurrentCredits,
       termsVersion: mockBootstrapTermsVersion,
-      termsAcceptedAt: null,
+      termsAcceptedAt: now,
       nextExpiryDate: null,
       cancelAtPeriodEnd: false,
     },
