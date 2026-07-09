@@ -1,6 +1,7 @@
 # Character List Header — Overflow Menu Design
 
 **Date:** 2026-07-09
+**Status:** Approved
 **File affected:** `app/(drawer)/(tabs)/characters/list.tsx`
 
 ## Problem
