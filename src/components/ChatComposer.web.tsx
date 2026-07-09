@@ -18,17 +18,15 @@ import {
 
 export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
 
-// Keep in sync with ChatComposer.tsx — ChatView imports these and Metro resolves
-// this file on web.
-export const COMPOSER_VERTICAL_PADDING = 8
 const LINE_HEIGHT = 22
 const COMPOSER_MARGIN_VERTICAL = 6 + 4
-// Web input uses paddingVertical: 10 in mergedTextInputProps below.
-const WEB_INPUT_PADDING_VERTICAL = 10
+// Web input's actual vertical padding — keep this exported so ChatView's Metro-resolved
+// import gets the correct platform-specific value.
+export const COMPOSER_VERTICAL_PADDING = 10
 export const MIN_INPUT_HEIGHT =
-  LINE_HEIGHT * 2.5 + WEB_INPUT_PADDING_VERTICAL * 2 + COMPOSER_MARGIN_VERTICAL
+  LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
 export const MAX_INPUT_HEIGHT =
-  LINE_HEIGHT * 6 + WEB_INPUT_PADDING_VERTICAL * 2 + COMPOSER_MARGIN_VERTICAL
+  LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
 
 type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
   Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
@@ -74,6 +72,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
   const activeRequestIdRef = useRef(0)
+  const [prevText, setPrevText] = useState(text)
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -84,9 +83,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
-  useEffect(() => {
+  if (prevText !== text) {
+    setPrevText(text)
     if (!text) setInputHeight(MIN_INPUT_HEIGHT)
-  }, [text])
+  }
 
   const handlePlusPress = useCallback(async () => {
     if (!characterId || !userId) return
@@ -319,7 +319,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             textInputStyle={{
               backgroundColor: 'transparent',
               paddingHorizontal: 12,
-              paddingVertical: WEB_INPUT_PADDING_VERTICAL,
+              paddingVertical: COMPOSER_VERTICAL_PADDING,
               color: colors.onSurfaceVariant,
               outline: 'none',
               outlineColor: 'transparent',
