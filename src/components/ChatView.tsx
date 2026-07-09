@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState } from 'react'
+import { BottomTabBarHeightContext } from 'expo-router/build/react-navigation/bottom-tabs'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
@@ -12,7 +13,10 @@ import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import ChatComposer, { type DocumentUploadPhase } from '~/components/ChatComposer'
+import ChatComposer, {
+  MIN_INPUT_HEIGHT,
+  type DocumentUploadPhase,
+} from '~/components/ChatComposer'
 import { GroundingHtml } from '~/components/GroundingHtml'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
@@ -106,6 +110,10 @@ function ChatViewContent({
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors, roundness } = useTheme()
+  // Screen sits inside the bottom tab navigator, which reserves this height below
+  // the content even when the keyboard covers it — feed it back to GiftedChat so
+  // the input toolbar tracks the keyboard instead of leaving a gap under it.
+  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0
 
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
@@ -436,7 +444,12 @@ function ChatViewContent({
         listViewProps={groundingListViewProps}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
-        minInputToolbarHeight={56}
+        minInputToolbarHeight={MIN_INPUT_HEIGHT + 16}
+        minComposerHeight={MIN_INPUT_HEIGHT}
+        // GiftedChat translates content by (keyboardHeight - bottomOffset) where
+        // keyboardHeight is negative, so a NEGATIVE offset shifts the toolbar down
+        // by the tab bar height that already separates it from the screen bottom.
+        bottomOffset={-tabBarHeight}
         renderAvatar={(props) => {
           const isUser = props.currentMessage?.user._id === currentUserId
           const avatarUri = isUser ? (chatUser.avatar as string | undefined) : (characterAvatar as string | null)
