@@ -1,5 +1,5 @@
 import { View, StyleSheet, FlatList } from 'react-native'
-import { Text, Button, ActivityIndicator, Snackbar, IconButton, Portal, Modal, useTheme } from 'react-native-paper'
+import { Text, Button, ActivityIndicator, Snackbar, IconButton, Portal, Modal, Menu, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useSelector } from '@xstate/react'
@@ -44,6 +44,27 @@ export default function CharactersListScreen() {
   } = useImportCharacterOKF()
   const [isCreatingClone, setIsCreatingClone] = useState(false)
   const clonedCharacterIdRef = useRef<string | null>(null)
+  const [menuVisible, setMenuVisible] = useState(false)
+  const isMenuBusy = isCloudSyncing || isImportParsing || isImporting || isCreatingClone
+  const isMenuActionBlocked = isMenuBusy || isPending || isCreatingDefault
+
+  const handleMenuCloudSync = () => {
+    setMenuVisible(false)
+    if (isMenuActionBlocked) {
+      return
+    }
+    setToastState({ message: 'Syncing characters…', requiresSubscription: false })
+    handleCloudSync()
+  }
+
+  const handleMenuImport = () => {
+    setMenuVisible(false)
+    if (isMenuActionBlocked) {
+      return
+    }
+    setToastState({ message: 'Starting import…', requiresSubscription: false })
+    handleCreateFromBundle()
+  }
 
   // Navigate to edit page when creation completes
   useEffect(() => {
@@ -176,19 +197,6 @@ export default function CharactersListScreen() {
           Characters
         </Text>
         <View style={styles.headerActions}>
-          <IconButton
-            icon="cloud-sync"
-            size={28}
-            onPress={() => {
-              if (isCloudSyncing || isPending || isCreatingDefault) {
-                return
-              }
-              handleCloudSync()
-            }}
-            loading={isCloudSyncing}
-            disabled={isCloudSyncing || isPending || isCreatingDefault}
-            accessibilityLabel="Cloud Sync"
-          />
           <Button
             mode="contained"
             icon="plus"
@@ -198,15 +206,31 @@ export default function CharactersListScreen() {
           >
             New
           </Button>
-          <Button
-            mode="outlined"
-            icon="file-import-outline"
-            onPress={handleCreateFromBundle}
-            disabled={isImportParsing || isImporting || isCreatingClone}
-            loading={isImportParsing}
+          <Menu
+            visible={menuVisible}
+            onDismiss={() => setMenuVisible(false)}
+            anchor={
+              <IconButton
+                icon="dots-vertical"
+                size={28}
+                onPress={() => setMenuVisible(true)}
+                loading={isMenuBusy}
+                disabled={isMenuActionBlocked}
+                accessibilityLabel="More actions"
+              />
+            }
           >
-            From Bundle
-          </Button>
+            <Menu.Item
+              leadingIcon="cloud-sync"
+              onPress={handleMenuCloudSync}
+              title="Cloud Sync"
+            />
+            <Menu.Item
+              leadingIcon="file-import-outline"
+              onPress={handleMenuImport}
+              title="Import from Bundle"
+            />
+          </Menu>
         </View>
       </View>
 
