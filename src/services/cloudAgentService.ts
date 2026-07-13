@@ -36,7 +36,14 @@ export interface CloudAgentStreamCallbacks {
   onToolEnd?: (name: string) => void
 }
 
-const AUTH_TIMEOUT_MS = 5000
+// Must outlast a Cloud Run cold start (~7.5s observed) or the first message of a
+// session always stalls out and falls back to HTTP.
+const WS_CONNECT_TIMEOUT_MS = 10_000
+// After a transport-level WS failure (connect error/timeout), go straight to HTTP
+// for this long so a WS-blocked network pays the connect wait once, not per message.
+const WS_RETRY_COOLDOWN_MS = 60_000
+
+let wsDisabledUntil = 0
 
 function isClientDevBuild(): boolean {
   if (typeof __DEV__ !== 'undefined') return __DEV__
@@ -261,7 +268,7 @@ async function runViaWebSocket(
         try { ws.close() } catch { /* ignore */ }
         reject(new Error('WebSocket connection timeout'))
       })
-    }, AUTH_TIMEOUT_MS)
+    }, WS_CONNECT_TIMEOUT_MS)
   })
 }
 
@@ -274,18 +281,26 @@ export async function callCloudAgent(
     characterId: resolveCloudAgentCharacterId(payload.characterId),
   }
 
+  if (Date.now() < wsDisabledUntil) {
+    return await runViaHttp(resolvedPayload)
+  }
+
   try {
     return await runViaWebSocket(resolvedPayload, callbacks)
   } catch (wsErr) {
     const msg = wsErr instanceof Error ? wsErr.message : String(wsErr)
+    const isTransportFailure =
+      msg === 'WebSocket connection error' || msg === 'WebSocket connection timeout'
     const shouldFallbackToHttp =
-      msg === 'WebSocket connection error' ||
-      msg === 'WebSocket connection timeout' ||
+      isTransportFailure ||
       msg === 'WebSocket auth timeout' ||
       msg.startsWith('WebSocket error: UNAUTHORIZED')
 
     if (!shouldFallbackToHttp) throw wsErr
 
+    if (isTransportFailure) {
+      wsDisabledUntil = Date.now() + WS_RETRY_COOLDOWN_MS
+    }
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
     return await runViaHttp(resolvedPayload)
   }

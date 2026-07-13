@@ -418,4 +418,60 @@ describe('callCloudAgent', () => {
 
     ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
   })
+
+  it('skips WebSocket entirely for the cooldown window after a transport failure', async () => {
+    let wsConstructions = 0
+    class CountingFailingWebSocket extends FailingWebSocket {
+      constructor() {
+        super()
+        wsConstructions += 1
+      }
+    }
+    ;(global as unknown as { WebSocket: typeof CountingFailingWebSocket }).WebSocket =
+      CountingFailingWebSocket
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'HTTP reply', toolCalls: [] }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+
+    await callCloudAgent({ message: 'first', characterId: 'char-1' })
+    await callCloudAgent({ message: 'second', characterId: 'char-1' })
+
+    expect(wsConstructions).toBe(1)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+
+    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
+  })
+
+  it('waits 10s for a slow WebSocket connect (cold start) before falling back to HTTP', async () => {
+    jest.useFakeTimers()
+    class NeverOpensWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      readyState = NeverOpensWebSocket.CONNECTING
+      addEventListener() {}
+      removeEventListener() {}
+      send() {}
+      close() {}
+    }
+    ;(global as unknown as { WebSocket: typeof NeverOpensWebSocket }).WebSocket =
+      NeverOpensWebSocket
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'HTTP reply', toolCalls: [] }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+
+    const pending = callCloudAgent({ message: 'hi', characterId: 'char-1' })
+    await jest.advanceTimersByTimeAsync(9_999)
+    expect(mockFetch).not.toHaveBeenCalled()
+
+    await jest.advanceTimersByTimeAsync(2)
+    const result = await pending
+    expect(result.reply).toBe('HTTP reply')
+
+    jest.useRealTimers()
+    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
+  })
 })
