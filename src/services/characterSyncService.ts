@@ -32,6 +32,7 @@ import {
 } from '../database/characterDatabase'
 import type { MemoryDump } from '@equationalapplications/expo-llm-wiki'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import { schemaOrgWarmAgentManifest } from '@equationalapplications/schema-org-llm-wiki'
 import { getWiki } from '~/services/wikiService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import {
@@ -179,6 +180,19 @@ async function syncWikiForCloud(
     // Best-effort: type facts that bypassed the librarian (cloud-agent writes,
     // pre-ontology facts). One batch per sync; backlog converges across syncs.
     for (const char of cloudChars) {
+        // Seed the curated schema.org ontology for characters that have none.
+        // Runs after syncAll so a manifest restored from cloud wins over the seed;
+        // the seeded manifest propagates to cloud on the next sync. On failure the
+        // character stays in mode 'off' and the next sync retries.
+        try {
+            const existing = await wiki.getOntologyManifest(char.id)
+            if (!existing) {
+                await wiki.setOntologyManifest(char.id, schemaOrgWarmAgentManifest, { mode: 'strict' })
+            }
+        } catch (err) {
+            reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:seed`, char.id, 'Failed to seed ontology manifest')
+        }
+
         try {
             const result = await wiki.runOntologyBackfill(char.id)
             if (__DEV__) console.log(`[ontology:backfill] ${char.id}`, result)
