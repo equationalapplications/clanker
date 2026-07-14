@@ -1,3 +1,10 @@
+# [30.28.0](https://github.com/equationalapplications/clanker/compare/v30.27.0...v30.28.0) (2026-07-14)
+
+
+### Features
+
+* seed schema.org ontology manifest for cloud characters during sync ([3547b03](https://github.com/equationalapplications/clanker/commit/3547b037ffb1233318762d7dd4f2b349e887309d))
+
 # [30.27.0](https://github.com/equationalapplications/clanker/compare/v30.26.1...v30.27.0) (2026-07-14)
 
 
