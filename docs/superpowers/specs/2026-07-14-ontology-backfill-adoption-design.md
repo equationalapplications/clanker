@@ -1,7 +1,7 @@
 # Ontology Backfill Adoption — Design
 
 **Date:** 2026-07-14
-**Status:** Approved
+**Status:** Implemented
 **Depends on:** expo-llm-wiki 4.21.0 (`runOntologyBackfill`, spec `2026-07-13-ontology-backfill-spec.md` in the expo-llm-wiki repo)
 
 ## Problem
