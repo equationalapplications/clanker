@@ -43,7 +43,16 @@ Success path, after the `try/catch`:
 // pre-ontology facts). One batch per sync; backlog converges across syncs.
 for (const char of cloudChars) {
     try {
-        await wiki.runOntologyBackfill(char.id)
+        const result = await wiki.runOntologyBackfill(char.id)
+        if (__DEV__) console.log(`[ontology:backfill] ${char.id}`, result)
+        if (result.scanned > 0 && result.typed === 0) {
+            reportWikiOpForCharacter(
+                new Error(`Backfill batch classified nothing: ${JSON.stringify(result)}`),
+                `wiki:${char.id}:ontology:backfill:stalled`,
+                char.id,
+                'Ontology backfill stalled',
+            )
+        }
     } catch (err) {
         if (err instanceof WikiBusyError) continue
         reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:backfill`, char.id, 'Ontology backfill failed')
@@ -57,7 +66,13 @@ One `runOntologyBackfill` call per cloud character per sync — at most 25 facts
 
 Sequential loop (no concurrency): each iteration is one LLM round-trip and the wiki serializes internally anyway.
 
-Result counters (`scanned`, `typed`, `failedValidation`, `edgesAdded`, `remaining`, `deferred`) are ignored in v1.
+**Runtime constraints note:** Clanker never runs this sync from an OS background-fetch task — both `syncAllToCloud` triggers are foreground (startup after auth, network-reconnect callback in `app/_layout.tsx`). If the app is backgrounded mid-loop and iOS suspends it, at most the in-flight batch's LLM call is lost; the library's per-batch transactions and locks prevent corruption, and the next sync resumes from the same oldest-first queue.
+
+### 3b. Telemetry: stalled-batch signal
+
+Ignoring result counters entirely would leave one failure mode invisible: if the cloud-agent routinely writes facts the backfill prompt cannot classify, every batch defers them onto the 7-day cooldown and the backlog loops forever with zero progress. That state has a stateless per-run signature — `scanned > 0 && typed === 0` — so v1 reports it through the existing error pathway (tag `wiki:<id>:ontology:backfill:stalled`, counters serialized into the message; counters contain no fact content). Dev builds also log the full result every run.
+
+Full analytics events (`logEvent`) stay out of v1 — no dashboard consumer yet.
 
 ### 4. Error handling
 
@@ -75,13 +90,14 @@ All in the existing `__tests__/characterSyncWiki.test.ts` harness (mocked wiki +
 4. Backfill not called when `syncAll` throws (pipeline error or `WikiBusyError`).
 5. Backfill not called when wiki is unavailable or there are zero cloud characters (existing early returns).
 6. `restoreFromCloud` path triggers backfill (integration-style case through `syncWikiForCloud`).
+7. Stalled batch (`scanned > 0, typed === 0`): reported once with tag `wiki:<id>:ontology:backfill:stalled`; a healthy result (`typed > 0`) and an empty result (`scanned === 0`) report nothing.
 
 Plus: full client suite, typecheck, lint stay green after the dep bump.
 
 ## Out of Scope (v1)
 
 - Convergence loops (`while remaining > 0`) or any multi-batch drain per sync.
-- Surfacing backfill result counters in UI or analytics.
+- Surfacing backfill result counters in UI or as analytics events (v1 keeps the stalled-batch Crashlytics signal only).
 - Edge-backfill for already-typed facts (deferred in the library spec too).
 - Any cloud-agent/server-side change — the server keeps writing untyped facts; the device types them post-sync.
 
