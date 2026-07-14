@@ -1,7 +1,7 @@
 # Curated Schema.org Ontology for Clanker Warm-Agent — Design
 
 **Date:** 2026-07-14 (revised same day to adopt the published manifest package)
-**Status:** Design Complete (Pending Implementation)
+**Status:** Implemented (seeding shipped in feat/schema)
 **Branch:** `feat/schema`
 **Depends on:** `@equationalapplications/schema-org-llm-wiki` 4.22.0, `@equationalapplications/expo-llm-wiki` / `core-llm-wiki` 4.22.0+ (triple-keyed edge validation)
 
