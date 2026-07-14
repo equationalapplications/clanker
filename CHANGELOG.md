@@ -1,3 +1,17 @@
+# [30.27.0](https://github.com/equationalapplications/clanker/compare/v30.26.1...v30.27.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **chat:** survive cloud-agent cold start on WebSocket connect ([85bdb75](https://github.com/equationalapplications/clanker/commit/85bdb75f3338bbfe557511cd56fb6a0d68a00f1b))
+* **functions:** declare Cloud SQL secrets on summarizeText ([67a5d3a](https://github.com/equationalapplications/clanker/commit/67a5d3a8e6cc9a6b9c94ca0d6e93477be9020d28))
+* rename WS connect-timeout timer to avoid auth-timeout confusion ([84e9e8a](https://github.com/equationalapplications/clanker/commit/84e9e8af3c6a1dbf095716ec6fcbc8af53c73617))
+
+
+### Features
+
+* run ontology backfill per cloud character after wiki sync ([f9430d3](https://github.com/equationalapplications/clanker/commit/f9430d30d77963ede2c0c0cf880f0a1ad9ad7a6d))
+
 ## [30.26.1](https://github.com/equationalapplications/clanker/compare/v30.26.0...v30.26.1) (2026-07-09)
 
 
