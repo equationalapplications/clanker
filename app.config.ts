@@ -117,7 +117,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Allow Clanker to access your photo library to set a character avatar.',
       UIBackgroundModes: ['audio'],
     },
-    associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
+    associatedDomains: ['applinks:clanker-ai.com'],
     config: {
       usesNonExemptEncryption: false,
     },
@@ -149,11 +149,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           {
             scheme: 'https',
             host: 'clanker-ai.com',
-            pathPrefix: '/characters/shared/',
-          },
-          {
-            scheme: 'https',
-            host: 'www.clanker-ai.com',
             pathPrefix: '/characters/shared/',
           },
         ],
