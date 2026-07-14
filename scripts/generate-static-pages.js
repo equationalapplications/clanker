@@ -22,7 +22,6 @@ const ts = require('typescript')
 
 const ROOT = path.resolve(__dirname, '..')
 const PUBLIC_DIR = path.join(ROOT, 'public')
-const SITE = 'https://clanker-ai.com'
 
 // ---------------------------------------------------------------------------
 // Minimal TS module loader (transpile + evaluate) with native-dep stubs.
@@ -78,6 +77,8 @@ function resolveTs(file) {
   if (fs.existsSync(indexed)) return indexed
   throw new Error(`Cannot resolve module: ${file}`)
 }
+
+const { SITE_BASE: SITE } = loadTsModule(path.join(ROOT, 'src/config/siteConfig'))
 
 // ---------------------------------------------------------------------------
 // Plain-text (config) → HTML conversion.
