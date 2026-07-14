@@ -4,6 +4,7 @@ import type {DecodedIdToken} from "firebase-admin/auth";
 import { generateTextWithRetry } from "./services/vertexText.js";
 import { userRepository } from "./services/userRepository.js";
 import { creditService } from "./services/creditService.js";
+import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_REGION = "us-central1";
@@ -173,6 +174,7 @@ export const summarizeText = onCall(
     region: DEFAULT_REGION,
     enforceAppCheck: true,
     invoker: "public",
+    secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => handler(request)
 );

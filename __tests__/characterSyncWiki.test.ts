@@ -5,6 +5,19 @@ const mockGetAllCharactersIncludingDeleted = jest.fn()
 const mockGetUnsyncedCharacters = jest.fn().mockResolvedValue([])
 const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
+const mockRunOntologyBackfill = jest.fn()
+
+function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): OntologyBackfillResult {
+  return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, ...overrides }
+}
+
+function makeMockWiki(overrides: Record<string, unknown> = {}) {
+  return {
+    runOntologyBackfill: (...args: unknown[]) => mockRunOntologyBackfill(...args),
+    ...overrides,
+  }
+}
+
 jest.mock('~/services/wikiService', () => ({
   getWiki: () => mockGetWiki(),
 }))
@@ -59,6 +72,7 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   },
 }))
 
+import type { OntologyBackfillResult } from '@equationalapplications/expo-llm-wiki'
 import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
 import { getUserCharactersFn } from '~/services/apiClient'
@@ -95,7 +109,8 @@ const LOCAL_ID = 'char-local-1'
 describe('syncWikiForCloud orchestration path', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockGetWiki.mockReturnValue({})
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
     mockSyncAll.mockResolvedValue(undefined)
   })
 
@@ -135,7 +150,7 @@ describe('syncWikiForCloud orchestration path', () => {
 
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
-    expect(wikiArg).toEqual({})
+    expect(wikiArg).toBe(mockGetWiki.mock.results[0].value)
     expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(1)
     expect(itemsArg[0].entityId).toBe(LOCAL_ID)
@@ -153,7 +168,7 @@ describe('syncWikiForCloud orchestration path', () => {
 
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
-    expect(wikiArg).toEqual({})
+    expect(wikiArg).toBe(mockGetWiki.mock.results[0].value)
     expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(2)
     expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
@@ -241,10 +256,10 @@ describe('syncWikiForCloud orchestration path', () => {
     }
     const mockGetOntologyManifest = jest.fn().mockResolvedValue(localOntology)
     const mockSetOntologyManifest = jest.fn().mockResolvedValue(undefined)
-    mockGetWiki.mockReturnValue({
+    mockGetWiki.mockReturnValue(makeMockWiki({
       getOntologyManifest: mockGetOntologyManifest,
       setOntologyManifest: mockSetOntologyManifest,
-    })
+    }))
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     await syncAllToCloud('user-1')
 
@@ -335,10 +350,166 @@ describe('syncWikiForCloud orchestration path', () => {
   })
 })
 
+describe('ontology backfill after sync', () => {
+  const SECOND_LOCAL_ID = 'char-local-2'
+  const SECOND_CLOUD_ID = '550e8400-e29b-41d4-a716-446655440001'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
+    mockSyncAll.mockResolvedValue(undefined)
+  })
+
+  it('runs backfill once per cloud character after successful syncAll', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: SECOND_LOCAL_ID, cloud_id: SECOND_CLOUD_ID }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSyncAll).toHaveBeenCalledTimes(1)
+    expect(mockRunOntologyBackfill).toHaveBeenCalledTimes(2)
+    expect(mockRunOntologyBackfill).toHaveBeenNthCalledWith(1, LOCAL_ID)
+    expect(mockRunOntologyBackfill).toHaveBeenNthCalledWith(2, SECOND_LOCAL_ID)
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('swallows WikiBusyError from backfill and still processes remaining characters', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: SECOND_LOCAL_ID, cloud_id: SECOND_CLOUD_ID }),
+    ])
+    mockRunOntologyBackfill
+      .mockRejectedValueOnce(new WikiBusyError('backfill', LOCAL_ID))
+      .mockResolvedValueOnce(makeBackfillResult({ scanned: 3, typed: 3 }))
+
+    await syncAllToCloud('user-1')
+
+    expect(mockRunOntologyBackfill).toHaveBeenCalledTimes(2)
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('reports non-busy backfill errors with the backfill tag and continues', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: SECOND_LOCAL_ID, cloud_id: SECOND_CLOUD_ID }),
+    ])
+    mockRunOntologyBackfill
+      .mockRejectedValueOnce(new Error('llm exploded'))
+      .mockResolvedValueOnce(makeBackfillResult({ scanned: 1, typed: 1 }))
+
+    await expect(syncAllToCloud('user-1')).resolves.toBeUndefined()
+
+    expect(mockRunOntologyBackfill).toHaveBeenCalledTimes(2)
+    expect(reportError).toHaveBeenCalledTimes(1)
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      `wiki:${LOCAL_ID}:ontology:backfill`,
+    )
+  })
+
+  it('reports a stalled batch (scanned > 0, typed === 0) with the stalled tag', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockRunOntologyBackfill.mockResolvedValue(
+      makeBackfillResult({ scanned: 5, deferred: 5, remaining: 5 }),
+    )
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).toHaveBeenCalledTimes(1)
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      `wiki:${LOCAL_ID}:ontology:backfill:stalled`,
+    )
+  })
+
+  it('reports nothing for healthy and empty backfill results', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: SECOND_LOCAL_ID, cloud_id: SECOND_CLOUD_ID }),
+    ])
+    mockRunOntologyBackfill
+      .mockResolvedValueOnce(makeBackfillResult({ scanned: 4, typed: 2, deferred: 2 }))
+      .mockResolvedValueOnce(makeBackfillResult())
+
+    await syncAllToCloud('user-1')
+
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('skips backfill when syncAll throws a pipeline error', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockSyncAll.mockRejectedValue(new Error('network error'))
+
+    await syncAllToCloud('user-1')
+
+    expect(mockRunOntologyBackfill).not.toHaveBeenCalled()
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:sync:batch')
+  })
+
+  it('skips backfill when syncAll throws WikiBusyError', async () => {
+    const { WikiBusyError } = require('@equationalapplications/expo-llm-wiki')
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+    mockSyncAll.mockRejectedValue(new WikiBusyError('sync', LOCAL_ID))
+
+    await syncAllToCloud('user-1')
+
+    expect(mockRunOntologyBackfill).not.toHaveBeenCalled()
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('skips backfill when there are no cloud characters', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar({ save_to_cloud: 0, cloud_id: null }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockRunOntologyBackfill).not.toHaveBeenCalled()
+  })
+
+  it('runs backfill through the restoreFromCloud path', async () => {
+    ;(getUserCharactersFn as jest.Mock).mockResolvedValue({
+      data: {
+        characters: [
+          {
+            id: CLOUD_ID,
+            name: 'Restored',
+            avatar: null,
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt: new Date(1000).toISOString(),
+            updatedAt: new Date(2000).toISOString(),
+            voice: null,
+          },
+        ],
+      },
+    })
+    // First call: restoreFromCloud building its local map (no local chars yet).
+    // Second call: syncWikiForCloud re-querying after batchInsertCharacters.
+    mockGetAllCharactersIncludingDeleted
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeCloudChar({ id: CLOUD_ID, cloud_id: CLOUD_ID })])
+
+    await restoreFromCloud('user-1')
+
+    expect(mockSyncAll).toHaveBeenCalledTimes(1)
+    expect(mockRunOntologyBackfill).toHaveBeenCalledTimes(1)
+    expect(mockRunOntologyBackfill).toHaveBeenCalledWith(CLOUD_ID)
+  })
+})
+
 describe('restoreFromCloud wiki sync reporting', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockGetWiki.mockReturnValue({})
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
   })
 
   it('reports restore wiki sync failures via reportError', async () => {

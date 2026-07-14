@@ -182,3 +182,16 @@ test("summarizeText generator: retries once on retryable empty then returns text
   assert.equal(call, 2);
   __setGenAIClientForTests(undefined);
 });
+
+import { summarizeText } from "./summarizeText.js";
+import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
+
+test("summarizeText onCall config: declares Cloud SQL secret bindings", () => {
+  const endpoint = (summarizeText as unknown as {
+    __endpoint: { secretEnvironmentVariables?: Array<{ key: string }> };
+  }).__endpoint;
+  const keys = (endpoint.secretEnvironmentVariables ?? []).map((s) => s.key);
+  for (const name of CLOUD_SQL_SECRETS) {
+    assert.ok(keys.includes(name), `summarizeText missing secret binding ${name}`);
+  }
+});
