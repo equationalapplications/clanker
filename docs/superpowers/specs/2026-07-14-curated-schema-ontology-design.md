@@ -153,7 +153,7 @@ Casing note: edge names keep Schema.org camelCase (`worksFor`, `itemReviewed`). 
 
 ### Where the manifest lives at runtime
 
-The ontology manifest is stored per character in cloud Postgres (`llm_wiki_ontology`, `functions/src/wikiSync.ts`) and per entity in edge SQLite. `characterSyncService` already syncs it both directions: the edge sends its local manifest in the sync bundle, and writes `cloudBundle.ontology` back via `wiki.setOntologyManifest(...)`. **No manifest is seeded anywhere today** — every character currently resolves to mode `off`.
+The ontology manifest is stored per character in cloud Postgres (`llm_wiki_ontology`, `functions/src/wikiSync.ts`) and per entity in edge SQLite. `characterSyncService` already syncs it both directions: the edge sends its local manifest in the sync bundle, and writes `cloudBundle.ontology` back via `wiki.setOntologyManifest(...)`. Before this adoption, no manifest was seeded anywhere and every character resolved to mode `off`; the sync-time seed shipped by this design now writes `schemaOrgWarmAgentManifest` (strict mode) for any cloud character that has none.
 
 ### Adoption steps
 

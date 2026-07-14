@@ -608,6 +608,56 @@ describe('ontology manifest seeding', () => {
     expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
   })
 
+  it('does not overwrite a manifest restored from the cloud during runRemoteSync', async () => {
+    const cloudOntology = {
+      mode: 'strict' as const,
+      manifest: { node_types: [{ type: 'place', description: 'A place' }], edge_types: [] },
+    }
+    // Model the manifest store so the runRemoteSync write is visible to the seed check.
+    const stored: Record<string, unknown> = {}
+    mockGetOntologyManifest.mockImplementation(async (id: string) => stored[id] ?? null)
+    mockSetOntologyManifest.mockImplementation(
+      async (id: string, manifest: unknown, opts: { mode: string }) => {
+        stored[id] = { mode: opts.mode, manifest }
+      },
+    )
+    mockWikiSyncFn.mockResolvedValue({
+      data: {
+        remoteDump: {
+          generatedAt: 1001,
+          entities: {
+            [CLOUD_ID]: { facts: [], tasks: [], events: [], edges: [], ontology: cloudOntology },
+          },
+        },
+      },
+    })
+    // Drive runRemoteSync so the cloud manifest lands before the seed check.
+    mockSyncAll.mockImplementation(
+      async (items: Array<{ runRemoteSync: (dump: unknown) => Promise<unknown> }>) => {
+        for (const item of items) {
+          await item.runRemoteSync({
+            generatedAt: 1000,
+            entities: { [LOCAL_ID]: { facts: [], tasks: [], events: [], edges: [] } },
+          })
+        }
+      },
+    )
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+    await syncAllToCloud('user-1')
+
+    // Single write: the cloud restore. The seed saw the restored manifest and skipped.
+    expect(mockSetOntologyManifest).toHaveBeenCalledTimes(1)
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(
+      LOCAL_ID,
+      cloudOntology.manifest,
+      { mode: 'strict' },
+    )
+    expect(stored[LOCAL_ID]).toEqual(cloudOntology)
+    expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
   it('seeds each cloud character independently', async () => {
     const secondLocalId = 'char-local-2'
     const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'

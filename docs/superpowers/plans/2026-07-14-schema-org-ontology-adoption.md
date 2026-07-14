@@ -14,7 +14,7 @@
 
 ---
 
-### Task 1: Bump wiki dependencies and add the manifest package
+## Task 1: Bump wiki dependencies and add the manifest package
 
 All three packages released at 4.22.0 (release run completed 2026-07-14; verified on npm). The published `expo-llm-wiki@4.22.0` pins `core-llm-wiki@4.22.0` exact, so all must move together.
 
@@ -47,11 +47,8 @@ Expected output: `9 28`
 
 - [ ] **Step 4: Verify nothing broke**
 
-Run: `npm run typecheck`
-Expected: exits 0.
-
-Run: `npm test __tests__/characterSyncWiki.test.ts`
-Expected: all tests PASS (no source changes yet; this baselines the suite against 4.22.0).
+Run: `npm run typecheck && npm run lint && npm run test`
+Expected: exits 0 (required validation after changing repository-root files — see `AGENTS.md`).
 
 - [ ] **Step 5: Commit**
 
@@ -62,7 +59,7 @@ git commit -m "chore: bump wiki packages to 4.22.0, add schema-org-llm-wiki mani
 
 ---
 
-### Task 2: Seed the ontology manifest during sync (TDD)
+## Task 2: Seed the ontology manifest during sync (TDD)
 
 **Files:**
 - Modify: `src/services/characterSyncService.ts` (imports at line 33-36; backfill loop at lines 179-199)
@@ -264,27 +261,17 @@ git commit -m "feat: seed schema.org ontology manifest for cloud characters duri
 
 ---
 
-### Task 3: Full verification and spec status update
+## Task 3: Full verification and spec status update
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-07-14-curated-schema-ontology-design.md:4` (status line)
 
-- [ ] **Step 1: Typecheck**
+- [ ] **Step 1: Full verification**
 
-Run: `npm run typecheck`
-Expected: exits 0.
+Run: `npm run typecheck && npm run lint && npm run test`
+Expected: exits 0 (required validation after changing repository-root files — see `AGENTS.md`). If unrelated suites were already failing before this branch, note them but don't fix here.
 
-- [ ] **Step 2: Lint the touched files**
-
-Run: `npm run lint:check`
-Expected: no errors in `src/services/characterSyncService.ts` or `__tests__/characterSyncWiki.test.ts` (pre-existing warnings elsewhere are out of scope).
-
-- [ ] **Step 3: Full test suite**
-
-Run: `npm test`
-Expected: exits 0. If unrelated suites were already failing before this branch, note them but don't fix here.
-
-- [ ] **Step 4: Mark the spec implemented**
+- [ ] **Step 2: Mark the spec implemented**
 
 In `docs/superpowers/specs/2026-07-14-curated-schema-ontology-design.md`, change line 4:
 
@@ -292,7 +279,7 @@ In `docs/superpowers/specs/2026-07-14-curated-schema-ontology-design.md`, change
 **Status:** Implemented (seeding shipped in feat/schema)
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-07-14-curated-schema-ontology-design.md
@@ -301,7 +288,7 @@ git commit -m "docs: mark curated schema ontology spec as implemented"
 
 ---
 
-### Task 4: Integration sanity check + PR
+## Task 4: Integration sanity check + PR
 
 - [ ] **Step 1: Manual smoke test (dev client)**
 
