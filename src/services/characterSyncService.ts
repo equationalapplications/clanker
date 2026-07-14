@@ -190,6 +190,7 @@ async function syncWikiForCloud(
                 await wiki.setOntologyManifest(char.id, schemaOrgWarmAgentManifest, { mode: 'strict' })
             }
         } catch (err) {
+            if (err instanceof WikiBusyError) continue
             reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:seed`, char.id, 'Failed to seed ontology manifest')
         }
 
