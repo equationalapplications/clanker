@@ -7,7 +7,7 @@ const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
 const mockRunOntologyBackfill = jest.fn()
 
-function makeBackfillResult(overrides: Record<string, number> = {}) {
+function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): OntologyBackfillResult {
   return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, ...overrides }
 }
 
@@ -72,6 +72,7 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   },
 }))
 
+import type { OntologyBackfillResult } from '@equationalapplications/expo-llm-wiki'
 import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
 import { getUserCharactersFn } from '~/services/apiClient'

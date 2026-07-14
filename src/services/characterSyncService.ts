@@ -182,6 +182,8 @@ async function syncWikiForCloud(
         try {
             const result = await wiki.runOntologyBackfill(char.id)
             if (__DEV__) console.log(`[ontology:backfill] ${char.id}`, result)
+            // Stalled = batch made zero progress, whether all facts deferred or all
+            // failed validation; the counters in the message disambiguate which.
             if (result.scanned > 0 && result.typed === 0) {
                 reportWikiOpForCharacter(
                     new Error(`Backfill batch classified nothing: ${JSON.stringify(result)}`),
