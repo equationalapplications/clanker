@@ -6,6 +6,8 @@ const mockGetUnsyncedCharacters = jest.fn().mockResolvedValue([])
 const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
 const mockRunOntologyBackfill = jest.fn()
+const mockGetOntologyManifest = jest.fn()
+const mockSetOntologyManifest = jest.fn()
 
 function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): OntologyBackfillResult {
   return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, ...overrides }
@@ -14,6 +16,8 @@ function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): On
 function makeMockWiki(overrides: Record<string, unknown> = {}) {
   return {
     runOntologyBackfill: (...args: unknown[]) => mockRunOntologyBackfill(...args),
+    getOntologyManifest: (...args: unknown[]) => mockGetOntologyManifest(...args),
+    setOntologyManifest: (...args: unknown[]) => mockSetOntologyManifest(...args),
     ...overrides,
   }
 }
@@ -73,6 +77,7 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
 }))
 
 import type { OntologyBackfillResult } from '@equationalapplications/expo-llm-wiki'
+import { schemaOrgWarmAgentManifest } from '@equationalapplications/schema-org-llm-wiki'
 import { syncAllToCloud, restoreFromCloud } from '../src/services/characterSyncService'
 import { reportError } from '~/utilities/reportError'
 import { getUserCharactersFn } from '~/services/apiClient'
@@ -111,6 +116,8 @@ describe('syncWikiForCloud orchestration path', () => {
     jest.clearAllMocks()
     mockGetWiki.mockReturnValue(makeMockWiki())
     mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
+    mockGetOntologyManifest.mockResolvedValue(null)
+    mockSetOntologyManifest.mockResolvedValue(undefined)
     mockSyncAll.mockResolvedValue(undefined)
   })
 
@@ -358,6 +365,8 @@ describe('ontology backfill after sync', () => {
     jest.clearAllMocks()
     mockGetWiki.mockReturnValue(makeMockWiki())
     mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
+    mockGetOntologyManifest.mockResolvedValue(null)
+    mockSetOntologyManifest.mockResolvedValue(undefined)
     mockSyncAll.mockResolvedValue(undefined)
   })
 
@@ -510,6 +519,8 @@ describe('restoreFromCloud wiki sync reporting', () => {
     jest.clearAllMocks()
     mockGetWiki.mockReturnValue(makeMockWiki())
     mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
+    mockGetOntologyManifest.mockResolvedValue(null)
+    mockSetOntologyManifest.mockResolvedValue(undefined)
   })
 
   it('reports restore wiki sync failures via reportError', async () => {
@@ -539,5 +550,86 @@ describe('restoreFromCloud wiki sync reporting', () => {
     await expect(restoreFromCloud('user-1')).resolves.toBeUndefined()
 
     expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:sync:restore')
+  })
+})
+
+describe('ontology manifest seeding', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
+    mockSyncAll.mockResolvedValue(undefined)
+    mockGetOntologyManifest.mockResolvedValue(null)
+    mockSetOntologyManifest.mockResolvedValue(undefined)
+  })
+
+  it('seeds the schema.org manifest in strict mode when a character has none', async () => {
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSetOntologyManifest).toHaveBeenCalledTimes(1)
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(
+      LOCAL_ID,
+      schemaOrgWarmAgentManifest,
+      { mode: 'strict' },
+    )
+    // Seed must land before backfill so the batch types facts against the manifest.
+    expect(mockSetOntologyManifest.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRunOntologyBackfill.mock.invocationCallOrder[0],
+    )
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('skips seeding when a manifest already exists', async () => {
+    mockGetOntologyManifest.mockResolvedValue({
+      mode: 'strict',
+      manifest: { node_types: [{ type: 'person', description: 'A person' }], edge_types: [] },
+    })
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSetOntologyManifest).not.toHaveBeenCalled()
+    expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
+  })
+
+  it('reports seed failures with the seed tag and still runs backfill', async () => {
+    mockSetOntologyManifest.mockRejectedValue(new Error('disk full'))
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
+
+    await expect(syncAllToCloud('user-1')).resolves.toBeUndefined()
+
+    expect(reportError).toHaveBeenCalledTimes(1)
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      `wiki:${LOCAL_ID}:ontology:seed`,
+    )
+    expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
+  })
+
+  it('seeds each cloud character independently', async () => {
+    const secondLocalId = 'char-local-2'
+    const secondCloudId = '550e8400-e29b-41d4-a716-446655440001'
+    // First character already has a manifest; second doesn't.
+    mockGetOntologyManifest
+      .mockResolvedValueOnce({
+        mode: 'strict',
+        manifest: { node_types: [{ type: 'person', description: 'A person' }], edge_types: [] },
+      })
+      .mockResolvedValueOnce(null)
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([
+      makeCloudChar(),
+      makeCloudChar({ id: secondLocalId, cloud_id: secondCloudId }),
+    ])
+
+    await syncAllToCloud('user-1')
+
+    expect(mockSetOntologyManifest).toHaveBeenCalledTimes(1)
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(
+      secondLocalId,
+      schemaOrgWarmAgentManifest,
+      { mode: 'strict' },
+    )
   })
 })
