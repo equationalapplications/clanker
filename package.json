@@ -39,8 +39,8 @@
   },
   "dependencies": {
     "@equationalapplications/core-llm-tools": "4.17.3",
-    "@equationalapplications/core-llm-wiki": "^4.20.0",
-    "@equationalapplications/expo-llm-wiki": "^4.20.0",
+    "@equationalapplications/core-llm-wiki": "^4.21.0",
+    "@equationalapplications/expo-llm-wiki": "^4.21.0",
     "@expo/metro-runtime": "~56.0.16",
     "@expo/vector-icons": "^15.1.1",
     "@google/genai": "^2.10.0",
