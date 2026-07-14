@@ -580,9 +580,6 @@ export default function EditCharacterScreen() {
           <View style={styles.toggleRow}>
             <View style={styles.toggleTextContainer}>
               <Text variant="titleMedium">Save to Cloud</Text>
-              <Text variant="bodySmall" style={styles.toggleHelperText}>
-                Costs 1 credit per sync.
-              </Text>
             </View>
             <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit || isSaving || isUpdating || isCloudSyncing || isCloudUnsyncing} />
           </View>
