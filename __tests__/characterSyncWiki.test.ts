@@ -5,6 +5,19 @@ const mockGetAllCharactersIncludingDeleted = jest.fn()
 const mockGetUnsyncedCharacters = jest.fn().mockResolvedValue([])
 const mockGetSoftDeletedCharacters = jest.fn().mockResolvedValue([])
 
+const mockRunOntologyBackfill = jest.fn()
+
+function makeBackfillResult(overrides: Record<string, number> = {}) {
+  return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, ...overrides }
+}
+
+function makeMockWiki(overrides: Record<string, unknown> = {}) {
+  return {
+    runOntologyBackfill: (...args: unknown[]) => mockRunOntologyBackfill(...args),
+    ...overrides,
+  }
+}
+
 jest.mock('~/services/wikiService', () => ({
   getWiki: () => mockGetWiki(),
 }))
@@ -95,7 +108,8 @@ const LOCAL_ID = 'char-local-1'
 describe('syncWikiForCloud orchestration path', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockGetWiki.mockReturnValue({})
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
     mockSyncAll.mockResolvedValue(undefined)
   })
 
@@ -135,7 +149,7 @@ describe('syncWikiForCloud orchestration path', () => {
 
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
-    expect(wikiArg).toEqual({})
+    expect(wikiArg).toBe(mockGetWiki.mock.results[0].value)
     expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(1)
     expect(itemsArg[0].entityId).toBe(LOCAL_ID)
@@ -153,7 +167,7 @@ describe('syncWikiForCloud orchestration path', () => {
 
     expect(mockSyncAll).toHaveBeenCalledTimes(1)
     const [itemsArg, wikiArg, concurrencyArg] = mockSyncAll.mock.calls[0]
-    expect(wikiArg).toEqual({})
+    expect(wikiArg).toBe(mockGetWiki.mock.results[0].value)
     expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(2)
     expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
@@ -241,10 +255,10 @@ describe('syncWikiForCloud orchestration path', () => {
     }
     const mockGetOntologyManifest = jest.fn().mockResolvedValue(localOntology)
     const mockSetOntologyManifest = jest.fn().mockResolvedValue(undefined)
-    mockGetWiki.mockReturnValue({
+    mockGetWiki.mockReturnValue(makeMockWiki({
       getOntologyManifest: mockGetOntologyManifest,
       setOntologyManifest: mockSetOntologyManifest,
-    })
+    }))
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     await syncAllToCloud('user-1')
 
@@ -338,7 +352,8 @@ describe('syncWikiForCloud orchestration path', () => {
 describe('restoreFromCloud wiki sync reporting', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockGetWiki.mockReturnValue({})
+    mockGetWiki.mockReturnValue(makeMockWiki())
+    mockRunOntologyBackfill.mockResolvedValue(makeBackfillResult())
   })
 
   it('reports restore wiki sync failures via reportError', async () => {
