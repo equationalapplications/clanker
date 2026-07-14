@@ -160,12 +160,12 @@ async function runViaWebSocket(
     let groundingMetadata: GroundingMetadata | undefined
     let usageSnapshot: { remainingCredits: number } | null = null
     let settled = false
-    let authTimeout: ReturnType<typeof setTimeout>
+    let connectTimeout: ReturnType<typeof setTimeout>
 
     const settle = (fn: () => void) => {
       if (settled) return
       settled = true
-      clearTimeout(authTimeout)
+      clearTimeout(connectTimeout)
       ws.removeEventListener('open', handleOpen)
       ws.removeEventListener('message', handleMessage)
       ws.removeEventListener('error', handleError)
@@ -190,7 +190,7 @@ async function runViaWebSocket(
     }
 
     const handleOpen = () => {
-      clearTimeout(authTimeout)
+      clearTimeout(connectTimeout)
       ws.send(JSON.stringify({ type: 'auth', token }))
       ws.send(JSON.stringify({
         type: 'agent_run',
@@ -221,7 +221,7 @@ async function runViaWebSocket(
           return
         }
 
-        clearTimeout(authTimeout)
+        clearTimeout(connectTimeout)
 
         if (msg.type === 'tool_start' && msg.name && !toolCalls.includes(msg.name)) {
           toolCalls.push(msg.name)
@@ -263,7 +263,7 @@ async function runViaWebSocket(
     ws.addEventListener('close', handleClose)
 
     // Guard against sockets that never reach `open`.
-    authTimeout = setTimeout(() => {
+    connectTimeout = setTimeout(() => {
       settle(() => {
         try { ws.close() } catch { /* ignore */ }
         reject(new Error('WebSocket connection timeout'))
