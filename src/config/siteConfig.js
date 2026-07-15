@@ -5,7 +5,7 @@
 // only transpiles app.config.ts itself — nested imports resolve via plain
 // Node require, which can't load .ts modules.
 const SITE_BASE = 'https://clanker-ai.com'
-const SITE_HOST = SITE_BASE.replace(/^https?:\/\//, '')
+const SITE_HOST = new URL(SITE_BASE).host
 const CHARACTER_SHARE_PATH_PREFIX = '/characters/shared/'
 
 module.exports = { SITE_BASE, SITE_HOST, CHARACTER_SHARE_PATH_PREFIX }
