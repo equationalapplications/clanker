@@ -4,11 +4,35 @@ import fs from 'fs'
 import path from 'path'
 
 import * as pkg from './package.json'
+import { CHARACTER_SHARE_PATH_PREFIX, SITE_HOST } from './src/config/siteConfig'
 
 dotenv.config({ quiet: true })
 // .env.development.local (gitignored, dev-only) carries dev-sandbox flags like
 // EXPO_PUBLIC_USE_MOCK_AUTH. Expo's own env loader applies it for dev builds only,
 // so it never overrides production values during `expo export`/EAS production builds.
+
+/**
+ * Native app-link host. Mirrors the share-origin override in
+ * src/utilities/characterShare.ts so generated share links and the iOS/Android
+ * app-link manifests always agree. A custom origin still needs its own
+ * .well-known/assetlinks.json and apple-app-site-association served on that
+ * host for links to open the app. Defaults to SITE_HOST when unset.
+ */
+const getCharacterShareHost = () => {
+  const configured = process.env.EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL?.trim()
+  if (!configured) {
+    return SITE_HOST
+  }
+  try {
+    return new URL(configured).host
+  } catch {
+    throw new Error(
+      `Invalid EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL (must be a full URL): ${configured}`
+    )
+  }
+}
+
+const characterShareHost = getCharacterShareHost()
 
 const breakingChangeVersion = pkg.version.split('.')[0]
 
@@ -117,7 +141,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Allow Clanker to access your photo library to set a character avatar.',
       UIBackgroundModes: ['audio'],
     },
-    associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
+    associatedDomains: [`applinks:${characterShareHost}`],
     config: {
       usesNonExemptEncryption: false,
     },
@@ -148,13 +172,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         data: [
           {
             scheme: 'https',
-            host: 'clanker-ai.com',
-            pathPrefix: '/characters/shared/',
-          },
-          {
-            scheme: 'https',
-            host: 'www.clanker-ai.com',
-            pathPrefix: '/characters/shared/',
+            host: characterShareHost,
+            pathPrefix: CHARACTER_SHARE_PATH_PREFIX,
           },
         ],
         category: ['BROWSABLE', 'DEFAULT'],

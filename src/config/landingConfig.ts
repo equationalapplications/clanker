@@ -1,6 +1,8 @@
 // Landing page content — single source of truth for `/` (React) and `/welcome` (static HTML).
 
-export const SITE_BASE = 'https://clanker-ai.com'
+import { SITE_BASE } from './siteConfig'
+
+export { SITE_BASE }
 
 export const SITE_META = {
   title: 'Clanker — AI Characters with Real-Time Voice & Google OKF Memory',
