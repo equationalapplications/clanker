@@ -34,10 +34,11 @@ export function getGenAIClient(): GoogleGenAI {
   return genAIClient;
 }
 
+// RECITATION is deliberately absent: unlike these verdicts it is a property of
+// the sampled tokens rather than of the prompt, so a second draw often clears it.
 export const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set([
   "MAX_TOKENS",
   "SAFETY",
-  "RECITATION",
   "BLOCKLIST",
   "PROHIBITED_CONTENT",
   "SPII",

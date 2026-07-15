@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 import * as pkg from './package.json'
+import { CHARACTER_SHARE_PATH_PREFIX, SITE_HOST } from './src/config/siteConfig'
 
 dotenv.config({ quiet: true })
 // .env.development.local (gitignored, dev-only) carries dev-sandbox flags like
@@ -117,7 +118,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         'Allow Clanker to access your photo library to set a character avatar.',
       UIBackgroundModes: ['audio'],
     },
-    associatedDomains: ['applinks:clanker-ai.com', 'applinks:www.clanker-ai.com'],
+    associatedDomains: [`applinks:${SITE_HOST}`],
     config: {
       usesNonExemptEncryption: false,
     },
@@ -148,13 +149,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         data: [
           {
             scheme: 'https',
-            host: 'clanker-ai.com',
-            pathPrefix: '/characters/shared/',
-          },
-          {
-            scheme: 'https',
-            host: 'www.clanker-ai.com',
-            pathPrefix: '/characters/shared/',
+            host: SITE_HOST,
+            pathPrefix: CHARACTER_SHARE_PATH_PREFIX,
           },
         ],
         category: ['BROWSABLE', 'DEFAULT'],

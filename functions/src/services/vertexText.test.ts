@@ -35,6 +35,40 @@ test("isRetryableEmptyResponseFinishReason: MAX_TOKENS and SAFETY are non-retrya
   assert.equal(isRetryableEmptyResponseFinishReason(undefined), true);
 });
 
+// RECITATION depends on sampling, not on a deterministic policy verdict: a
+// second draw often lands on wording the recitation check accepts.
+test("isRetryableEmptyResponseFinishReason: RECITATION is retryable", () => {
+  assert.equal(isRetryableEmptyResponseFinishReason("RECITATION"), true);
+});
+
+test("generateTextWithRetry: retries once on RECITATION then succeeds", async () => {
+  const client = fakeClient([emptyResponse("RECITATION"), textResponse("summary")]);
+  __setGenAIClientForTests(client as never);
+  try {
+    const { text } = await generateTextWithRetry({
+      model: "m", contents: "hi", config: {}, logContext: "test",
+    });
+    assert.equal(text, "summary");
+    assert.equal(client.calls(), 2);
+  } finally {
+    __setGenAIClientForTests(undefined);
+  }
+});
+
+test("generateTextWithRetry: throws internal HttpsError when RECITATION repeats", async () => {
+  const client = fakeClient([emptyResponse("RECITATION"), emptyResponse("RECITATION")]);
+  __setGenAIClientForTests(client as never);
+  try {
+    await assert.rejects(
+      () => generateTextWithRetry({ model: "m", contents: "hi", config: {}, logContext: "test" }),
+      (e: HttpsError) => e.code === "internal" && e.message === "Model returned an empty response.",
+    );
+    assert.equal(client.calls(), 2);
+  } finally {
+    __setGenAIClientForTests(undefined);
+  }
+});
+
 test("generateTextWithRetry: returns first non-empty candidate text", async () => {
   const client = fakeClient([textResponse("hello")]);
   __setGenAIClientForTests(client as never);
