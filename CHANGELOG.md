@@ -1,3 +1,14 @@
+## [30.28.1](https://github.com/equationalapplications/clanker/compare/v30.28.0...v30.28.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **characters:** drop credit cost helper from Save to Cloud toggle ([fa852ad](https://github.com/equationalapplications/clanker/commit/fa852ad0f25489fbb6338a488b932db6231f8cbc))
+* **deeplinks:** add Play App Signing key fingerprint to assetlinks.json ([8bcd271](https://github.com/equationalapplications/clanker/commit/8bcd27149a95c423113b3efe904b4933884bec4c))
+* **deeplinks:** derive native app-link host from share-origin override ([a28db41](https://github.com/equationalapplications/clanker/commit/a28db41f2908413691644866d89447a5f94bc46d))
+* **deeplinks:** drop www.clanker-ai.com as an app-link host ([c62f7ea](https://github.com/equationalapplications/clanker/commit/c62f7ea9f7091a66bdcd08581949201703e53994))
+* **functions:** retry empty Vertex responses on RECITATION ([2d42797](https://github.com/equationalapplications/clanker/commit/2d42797f20e515cd92991334c633e552dcc47b37))
+
 # [30.28.0](https://github.com/equationalapplications/clanker/compare/v30.27.0...v30.28.0) (2026-07-14)
 
 
