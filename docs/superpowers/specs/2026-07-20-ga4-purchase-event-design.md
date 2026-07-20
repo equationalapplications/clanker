@@ -67,7 +67,7 @@ No retry logic: MP has no delivery confirmation, and Stripe won't retry `checkou
 ## Testing
 
 - Unit tests in `functions/src/services/ga4MeasurementService.test.ts`: `client_id` determinism (same uid → same id, different uid → different id), payload shape (event name, params, `transaction_id`, `value` in dollars not cents), fetch failure is swallowed and logged, missing secrets short-circuit without throwing.
-- Extend `functions/src/stripeWebhook.test.ts`: credit-pack purchase triggers `sendPurchaseEvent` exactly once with the right `userId`/amount/currency; subscription-only purchases do **not** trigger it; a second delivery of the same `event.id` (dedupe path) does not trigger it again.
+- Extend `functions/src/stripeWebhook.test.ts`: credit-pack purchase triggers `sendPurchaseEvent` exactly once with the right `firebaseUid`/amount/currency; subscription-only purchases do **not** trigger it; a second delivery of the same `event.id` (dedupe path) does not trigger it again.
 - No live GA4 verification in CI — DebugView/Realtime confirmation is a manual owner step post-deploy (documented as a follow-up, not blocking this PR).
 
 ## Out of Scope
