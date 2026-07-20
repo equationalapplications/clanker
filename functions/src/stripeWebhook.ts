@@ -248,21 +248,25 @@ export const stripeWebhookHandler = async (
     return;
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Trim to defend against stray whitespace/newlines in the Secret Manager
+  // value (an incident where the stored secret had a trailing newline made
+  // Stripe reject every event with a signature-verification error).
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     logger.error("STRIPE_WEBHOOK_SECRET is not configured");
     res.status(500).send("Webhook secret not configured");
     return;
   }
 
-  const sig = req.headers["stripe-signature"];
-  if (typeof sig !== "string" || sig.trim().length === 0) {
+  const rawSig = req.headers["stripe-signature"];
+  if (typeof rawSig !== "string" || rawSig.trim().length === 0) {
     logger.warn("Missing or invalid stripe-signature header", {
-      headerType: Array.isArray(sig) ? "array" : typeof sig,
+      headerType: Array.isArray(rawSig) ? "array" : typeof rawSig,
     });
     res.status(400).send("Missing or invalid Stripe signature header");
     return;
   }
+  const sig = rawSig.trim();
 
   let stripe: Stripe;
   try {
