@@ -12,6 +12,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
+import {sendPurchaseEvent as sendGa4PurchaseEvent} from "./services/ga4MeasurementService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -32,6 +33,7 @@ interface StripeWebhookDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueCents: number; currency: string}) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
@@ -77,6 +79,9 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
+  },
+  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueCents: number; currency: string}) {
+    await sendGa4PurchaseEvent(params);
   },
   async isEventProcessed(eventId: string) {
     return stripeEventDedupeService.isEventProcessed(eventId);
@@ -371,7 +376,7 @@ export const stripeWebhook = onRequest(
   stripeWebhookHandler
 );
 
-async function handleCheckoutCompleted(
+export async function handleCheckoutCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   priceIds: StripePriceIds,
@@ -466,6 +471,19 @@ async function handleCheckoutCompleted(
       email: customerEmail,
       credits: CREDIT_PACK_AMOUNT * totalCreditPackQty,
     });
+
+    if (user.firebaseUid) {
+      await deps.sendPurchaseEvent({
+        firebaseUid: user.firebaseUid,
+        transactionId: session.id,
+        valueCents: session.amount_total ?? 0,
+        currency: session.currency ?? "usd",
+      });
+    } else {
+      logger.warn("checkout.session.completed: missing firebaseUid, skipping GA4 purchase event", {
+        sessionId: session.id,
+      });
+    }
   }
 }
 
