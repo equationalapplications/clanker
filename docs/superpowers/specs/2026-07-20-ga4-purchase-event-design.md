@@ -21,6 +21,8 @@ Investigation confirmed:
 - **`client_id`:** deterministic `sha256(firebaseUid)` (formatted as GA4 expects, e.g. two dot-separated segments derived from the hash). Same user always maps to the same synthetic client_id.
 - **`user_id`:** the same Firebase UID passed to `setUserId()` client-side (`authMachine.ts`), included alongside `client_id` in the MP payload so GA4 correlates this server event with the user's client-side funnel events.
 
+**Owner action required — `GA4_MP_API_SECRET`:** unlike `GA4_MEASUREMENT_ID` (already exists as `G-TELW4E82QJ`), this secret does not exist yet. Owner must generate it in GA4 Admin → Data Streams → [Web Stream] → Measurement Protocol API secrets, then load the value into GCP Secret Manager as `GA4_MP_API_SECRET`. Blocking prerequisite for deploy, not for writing/reviewing this code.
+
 ## Architecture
 
 ### New: `functions/src/services/ga4MeasurementService.ts`
