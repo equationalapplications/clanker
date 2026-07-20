@@ -24,36 +24,32 @@ BEGIN
   )
   ON CONFLICT (user_id) DO NOTHING;
 
-  IF NOT EXISTS (
-    SELECT 1
-    FROM credit_transactions
-    WHERE user_id = NEW.id
-      AND reason = 'signup'
-      AND reference_id = 'signup'
-      AND transaction_type = 'signup'
-  ) THEN
-    INSERT INTO credit_transactions (
-      user_id,
-      delta,
-      reason,
-      reference_id,
-      initial_amount,
-      remaining_balance,
-      transaction_type,
-      expires_at,
-      created_at
-    ) VALUES (
-      NEW.id,
-      5000,
-      'signup',
-      'signup',
-      5000,
-      5000,
-      'signup',
-      NULL,
-      NOW()
-    );
-  END IF;
+  -- Idempotency is delegated to credit_transactions_idempotency_idx, the partial unique
+  -- index on (user_id, reason, reference_id) WHERE reference_id IS NOT NULL. A NOT EXISTS
+  -- guard on a narrower or wider key than the index would let a row through that then
+  -- fails the unique constraint, so match the index exactly via ON CONFLICT.
+  INSERT INTO credit_transactions (
+    user_id,
+    delta,
+    reason,
+    reference_id,
+    initial_amount,
+    remaining_balance,
+    transaction_type,
+    expires_at,
+    created_at
+  ) VALUES (
+    NEW.id,
+    5000,
+    'signup',
+    'signup',
+    5000,
+    5000,
+    'signup',
+    NULL,
+    NOW()
+  )
+  ON CONFLICT (user_id, reason, reference_id) WHERE reference_id IS NOT NULL DO NOTHING;
 
   RETURN NEW;
 END;
