@@ -41,6 +41,7 @@ const MIGRATION_ORDER = [
   '0018_billing_hardening.sql',
   '0019_character_voice_default_fix.sql',
   '0020_credit_power_scale.sql',
+  '0021_fix_handle_new_user_trigger_power_scale.sql',
 ];
 
 /** seedLocal.ts creates schema through pgvector embeddings but not org/graph tables. */

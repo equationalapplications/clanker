@@ -24,9 +24,9 @@ export const users = pgTable('users', {
 
 // NOTE: The DB trigger handle_new_user() inserts into this table directly.
 // Phase 2 of credits-redesign updates subscriptionService.getOrCreateDefaultSubscription
-// to also insert a credit_transactions row for the 50-credit signup grant.
+// to also insert a credit_transactions row for the 5,000-Power signup grant.
 // The Postgres trigger is now also responsible for seeding the authoritative
-// 50-credit signup grant row in credit_transactions with transaction_type='signup'.
+// 5,000-Power signup grant row in credit_transactions with transaction_type='signup'.
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').unique().notNull().references(() => users.id, { onDelete: 'cascade' }),

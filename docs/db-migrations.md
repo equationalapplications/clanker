@@ -51,8 +51,9 @@ Keep this table up to date — it is the source of truth for what has actually r
 | 18 | `0018_billing_hardening.sql` | `subscriptions.subscription_provider`/`cancel_at_period_end`, `processed_stripe_events` dedupe table, unique `stripe_customer_id` index |
 | 19 | `0019_character_voice_default_fix.sql` | Fix `characters.voice` default/backfill off stale `Umbriel` value |
 | 20 | `0020_credit_power_scale.sql` | Inflate `credit_transactions`/`subscriptions` credit balances ×100 for Power unit rename |
+| 21 | `0021_fix_handle_new_user_trigger_power_scale.sql` | Fix `handle_new_user()` trigger still hardcoding 50 (missed by 0020, which only updated existing rows) — new signups now get 5,000 |
 
-> **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod` (verified via `information_schema.columns` — `llm_wiki_entries.embedding` does not exist).
+> **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod`.
 
 ### Prerequisites
 
