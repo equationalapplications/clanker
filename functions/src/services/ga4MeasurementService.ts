@@ -4,7 +4,10 @@ import * as logger from "firebase-functions/logger";
 const GA4_MP_ENDPOINT = "https://www.google-analytics.com/mp/collect";
 
 export function buildClientId(firebaseUid: string): string {
-  return createHash("sha256").update(firebaseUid).digest("hex");
+  const hash = createHash("sha256").update(firebaseUid).digest();
+  const a = hash.readUInt32BE(0);
+  const b = hash.readUInt32BE(4);
+  return `${a}.${b}`;
 }
 
 export interface PurchaseEventParams {
