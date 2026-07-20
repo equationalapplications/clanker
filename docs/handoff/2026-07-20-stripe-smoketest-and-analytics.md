@@ -2,7 +2,7 @@
 
 **Created:** 2026-07-20
 **Updated:** 2026-07-20 (later session — see "Correction" below)
-**Status:** Task A (smoke test) outstanding. Task B (analytics) shipped and removed from this doc.
+**Status:** Task A (smoke test) outstanding, deferred by owner. Task B (analytics) shipped; the one missed purchase has been backfilled.
 
 ---
 
@@ -30,6 +30,20 @@ The endpoint's `enabled_events` barely overlapped the handler's `switch`. Stripe
 - `enabled_events` = the five handled types
 - Legacy project decommissioned: all 20 functions deleted, legacy URL now 404s
 - Credit pack is a one-time price (`price_1TvHU6DTb0norRA0gqLmSkeO`); the old recurring price is archived
+
+### Analytics backfill for the missed first purchase (done 2026-07-20 ~19:50 UTC)
+
+The first real customer purchase (`cs_live_a1bwpXKk…`, uid `Lh8BpjlcpUXkYM7eetZoohfjnMf1`, $10.00 USD, paid 2026-07-19T00:39:29Z) never reached GA4 — the event died with the rest of the legacy-project webhook traffic. It was replayed by hand through the Measurement Protocol with `timestamp_micros` set to the real payment time, so it lands on Jul 19 rather than the replay date.
+
+The payload matched what `ga4MeasurementService` would have sent: `client_id` from `buildClientId(uid)`, `transaction_id` = session id, `value` 10.0, `currency` usd, one `credit_pack` item. Validated against `/debug/mp/collect` first (`validationMessages: []`), then posted to `/mp/collect` (204).
+
+Three things to know if this ever needs repeating:
+
+- **The Measurement Protocol only backdates 72 hours.** This replay had ~29h of that window left. Any purchase discovered later than 72h after the fact cannot be placed on its real date — the event is dropped outright, not clamped.
+- **A backdated event is invisible to Realtime and DebugView** (both are ~30-minute windows). Confirm it in Monetization → Ecommerce purchases after 24–48h of processing, or in BigQuery by `event_timestamp = 1784421569000000`.
+- **BigQuery export was linked 2026-07-20**, so no `events_20260719` table will ever exist. The backdated event lands in the Jul 20 export carrying its Jul 19 timestamp.
+
+Attribution is the one thing that can't be recovered: the synthetic `client_id` carries no session or source, so this purchase reports as direct / `(not set)`. Revenue totals are right; channel reporting for this one sale is not.
 
 ---
 
