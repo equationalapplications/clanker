@@ -40,10 +40,16 @@ The payload matched what `ga4MeasurementService` would have sent: `client_id` fr
 Three things to know if this ever needs repeating:
 
 - **The Measurement Protocol only backdates 72 hours.** This replay had ~29h of that window left. Any purchase discovered later than 72h after the fact cannot be placed on its real date — the event is dropped outright, not clamped.
-- **A backdated event is invisible to Realtime and DebugView** (both are ~30-minute windows). Confirm it in Monetization → Ecommerce purchases after 24–48h of processing, or in BigQuery by `event_timestamp = 1784421569000000`.
-- **BigQuery export was linked 2026-07-20**, so no `events_20260719` table will ever exist. The backdated event lands in the Jul 20 export carrying its Jul 19 timestamp.
+- **Realtime buckets by ingest time, not event timestamp**, so a backdated event *does* show up there immediately — but its presence only proves ingestion, never that the backdate was honored. Standard reports (Monetization → Ecommerce purchases) are the only place the recorded date can be confirmed, 24–48h later.
+- **BigQuery export was linked 2026-07-20**, so no `events_20260719` table will ever exist. The backdated event lands in the Jul 20 export carrying its Jul 19 timestamp. As of 19:55 UTC the `analytics_544289823` dataset had not been created yet — `bq ls` on the project returned nothing — so BigQuery was no help for same-day verification.
 
 Attribution is the one thing that can't be recovered: the synthetic `client_id` carries no session or source, so this purchase reports as direct / `(not set)`. Revenue totals are right; channel reporting for this one sale is not.
+
+#### Verification status
+
+Monetization showed `$0.00` right after the send, which was pure processing lag, not a failure. To tell lag apart from a misrouted event without waiting a day, a throwaway `mp_connectivity_check` event was sent through the same credentials with **no** `timestamp_micros` — Realtime then showed both it and `purchase` at count 1, proving `G-TELW4E82QJ` + the API secret do reach property `544289823` and that the purchase was ingested. (That junk event name is now permanently in the property's event list; harmless, but don't be puzzled by it later.)
+
+Still open until reports process: **which date the revenue lands on.** Jul 19 means the backdate held. Jul 20 means `timestamp_micros` was ignored — the amount and transaction id are still correct, and nothing can be done about the date, since GA4 events cannot be edited or deleted.
 
 ---
 
