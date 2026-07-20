@@ -139,7 +139,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Allow Clanker to access your photo library to set a character avatar.',
-      UIBackgroundModes: ['audio'],
     },
     associatedDomains: [`applinks:${characterShareHost}`],
     config: {
