@@ -21,6 +21,7 @@ if (!admin.apps.length) {
 type UserLookup = {
   id: string;
   email: string;
+  firebaseUid?: string;
 };
 
 interface StripeWebhookDeps {
@@ -45,14 +46,14 @@ const defaultDeps: StripeWebhookDeps = {
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async findUserByFirebaseUid(firebaseUid: string) {
     const user = await userRepository.findUserByFirebaseUid(firebaseUid);
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async findUserByStripeCustomerId(customerId: string) {
     const userId = await subscriptionService.findUserIdByStripeCustomerId(customerId);
@@ -63,7 +64,7 @@ const defaultDeps: StripeWebhookDeps = {
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async upsertSubscription(params: UpsertSubscriptionParams) {
     await subscriptionService.upsertSubscription(params);
