@@ -10,9 +10,9 @@
 First paying customer (יהלי, `mamashlo99989@gmail.com`, `cus_UuXoQSTzKikZAH`) paid $10 but received no credits. Two root causes were found and fixed:
 
 1. **`STRIPE_WEBHOOK_SECRET` had a trailing newline** → every live webhook rejected with a 400 signature error, so the credit-grant path never ran for anyone. Fixed: secret rolled + re-added cleanly (Secret Manager v4), `stripeWebhook` redeployed. Code now trims the secret + signature header — **PR #565 into `staging`** (`functions/src/stripeWebhook.ts`).
-2. **Credit-pack Stripe price was `recurring`** → buying the "$10 credit pack" created a $10/mo subscription. Fixed: new one-time price `price_1TvHU6DTb0norRA0gqLmSkeO` created, `STRIPE_CREDIT_PACK_PRICE_ID` repointed (backend `functions/.env.clanker-prod` + client `.env`), product `default_price` reassigned, old price `price_1TF2okDTb0norRA0Ja9S6QZk` archived.
+2. **Credit-pack Stripe price was `recurring`** → buying the "$10 credit pack" created a $10/mo subscription. Fixed: new one-time price `<redacted>` created, `STRIPE_CREDIT_PACK_PRICE_ID` repointed (backend `functions/.env.clanker-prod` + client `.env`), product `default_price` reassigned, old price `<redacted>` archived.
 
-Customer recovery: subscription `sub_1TuiliDTb0norRA0uaLEUXx0` canceled (immediate), credits manually set to 10,050.
+Customer recovery: subscription `<redacted>` canceled (immediate), credits manually set to 10,050.
 
 **Verified:** a request signed with the new secret returns HTTP 200 from the deployed function (direct probe). What is NOT yet verified end-to-end: a real Stripe → function delivery succeeding, and a real pack purchase producing a one-time charge + credit grant from an updated client.
 
