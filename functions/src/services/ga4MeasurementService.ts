@@ -33,25 +33,47 @@ export async function sendPurchaseEvent(
 
   try {
     const url = `${GA4_MP_ENDPOINT}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
-    const response = await fetchImpl(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        client_id: buildClientId(params.firebaseUid),
-        user_id: params.firebaseUid,
-        events: [
-          {
-            name: "purchase",
-            params: {
-              transaction_id: params.transactionId,
-              value: params.valueCents / 100,
-              currency: params.currency,
-              items: [{ item_id: "credit_pack", item_name: "Credit Pack" }],
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+
+    try {
+      const response = await fetchImpl(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          client_id: buildClientId(params.firebaseUid),
+          user_id: params.firebaseUid,
+          events: [
+            {
+              name: "purchase",
+              params: {
+                transaction_id: params.transactionId,
+                value: params.valueCents / 100,
+                currency: params.currency,
+                items: [{ item_id: "credit_pack", item_name: "Credit Pack" }],
+              },
             },
-          },
-        ],
-      }),
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        logger.error("GA4 Measurement Protocol request failed", {
+          transactionId: params.transactionId,
+          status: response.status,
+        });
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    logger.error("GA4 Measurement Protocol request threw", {
+      transactionId: params.transactionId,
+      error,
     });
+  }
 
     if (!response.ok) {
       logger.error("GA4 Measurement Protocol request failed", {
