@@ -1,3 +1,22 @@
+# [30.29.0](https://github.com/equationalapplications/clanker/compare/v30.28.1...v30.29.0) (2026-07-20)
+
+
+### Bug Fixes
+
+* **db:** align handle_new_user signup guard with idempotency index ([83884a3](https://github.com/equationalapplications/clanker/commit/83884a3b92020f449823a4b9e87c9ee08d266101))
+* **db:** handle_new_user trigger still granted 50 credits, not 5000 ([d256ea5](https://github.com/equationalapplications/clanker/commit/d256ea5cbc2ef7f4f0136fdbafddc0fd67746fb6))
+* **functions,docs:** use pack subtotal for GA4 event; redact handoff PII ([f215407](https://github.com/equationalapplications/clanker/commit/f21540772859579794dd7f9f5a1663a9730c3dfb))
+* **functions:** convert GA4 purchase value using currency exponent ([d25af48](https://github.com/equationalapplications/clanker/commit/d25af488aedbb2805420db71f0f2eee35da953b6))
+* **functions:** treat UGX as two-decimal currency for GA4 events ([fce8648](https://github.com/equationalapplications/clanker/commit/fce8648aff6b8b0bbb9b6c35e12a2119b485c065))
+* **stripe:** trim whitespace from webhook secret and signature ([268e5cc](https://github.com/equationalapplications/clanker/commit/268e5cc38bd18e1cc8eea3e82f2f6aee4c0935c1))
+
+
+### Features
+
+* **functions:** add GA4 Measurement Protocol purchase event service ([c3d8bfb](https://github.com/equationalapplications/clanker/commit/c3d8bfba06115367f4e3569f89d604534dcb5e59))
+* **functions:** carry firebaseUid through stripeWebhook user lookups ([2ca980b](https://github.com/equationalapplications/clanker/commit/2ca980b0acfd777dcedfd7ddefbd92c86c2158e2))
+* **functions:** fire GA4 purchase event on credit-pack checkout completion ([2a1db7f](https://github.com/equationalapplications/clanker/commit/2a1db7f987991b9343308635b2f40201871e0cc8))
+
 ## [30.28.1](https://github.com/equationalapplications/clanker/compare/v30.28.0...v30.28.1) (2026-07-15)
 
 
