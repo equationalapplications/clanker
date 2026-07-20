@@ -14,6 +14,7 @@ import {
   getInvoiceLineItemPriceId,
   mapStripeSubscriptionStatus,
   stripeWebhookHandler,
+  handleCheckoutCompleted,
   handleInvoicePaymentSucceeded,
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
@@ -174,6 +175,51 @@ test("stripeWebhookHandler trims whitespace from STRIPE_WEBHOOK_SECRET and signa
   assert.equal(capturedSignature, "t=1,v1=sig");
 });
 
+test("stripeWebhookHandler does not call sendPurchaseEvent for an already-processed event", async (t) => {
+  const stripe = new Stripe("sk_test_123");
+  t.mock.method(
+    stripe.webhooks,
+    "constructEvent",
+    (_payload: unknown, _signature: unknown, _secret: unknown) => {
+      return {id: "evt_dedupe_1", type: "checkout.session.completed", data: {object: {}}} as never;
+    }
+  );
+  setStripeClientFactoryForTests(() => stripe);
+  t.after(() => setStripeClientFactoryForTests(null));
+
+  const res = createResponseRecorder();
+  let called = false;
+  const deps = {
+    findUserByEmail: async () => ({id: "user-1", email: "person@example.com", firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async () => {
+      called = true;
+    },
+    markEventProcessed: async () => false, // already processed → dedupe short-circuits before dispatch
+    completeEventProcessed: async () => {},
+    unmarkEventProcessed: async () => {},
+    getLastProcessedChargeRefundTotal: async () => 0,
+  };
+
+  await stripeWebhookHandler(
+    {
+      method: "POST",
+      headers: {"stripe-signature": "t=1,v1=sig"},
+      rawBody: Buffer.from("{}"),
+    } as never,
+    res as never,
+    deps as never
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(called, false);
+});
+
 test("mapStripeSubscriptionStatus maps active-like statuses to active", () => {
   const statuses: Stripe.Subscription.Status[] = [
     "active",
@@ -307,6 +353,146 @@ test("handleInvoicePaymentSucceeded renews subscription credits only on subscrip
     expiresAt: new Date(1710000000 * 1000),
     referenceId: "sub_sub_123_1710000000",
   });
+});
+
+test("handleCheckoutCompleted sends a GA4 purchase event for a credit-pack purchase", async () => {
+  let sentEvent: unknown = null;
+
+  const session = {
+    id: "cs_test_credit_pack",
+    customer_details: { email: "person@example.com" },
+    customer_email: "person@example.com",
+    client_reference_id: null,
+    subscription: null,
+    customer: "cus_123",
+    amount_total: 1000,
+    currency: "usd",
+  } as unknown as Stripe.Checkout.Session;
+
+  const mockStripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async (_sessionId: string) => ({
+          data: [{ price: { id: "price_credit_pack" }, quantity: 1 }],
+        }),
+      },
+    },
+  } as unknown as Stripe;
+
+  await handleCheckoutCompleted(mockStripe, session, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async (params: unknown) => {
+      sentEvent = params;
+    },
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "cs_test_credit_pack",
+    valueCents: 1000,
+    currency: "usd",
+  });
+});
+
+test("handleCheckoutCompleted does not send a GA4 purchase event for a subscription-only purchase", async () => {
+  let called = false;
+
+  const session = {
+    id: "cs_test_sub",
+    customer_details: { email: "person@example.com" },
+    customer_email: "person@example.com",
+    client_reference_id: null,
+    subscription: "sub_123",
+    customer: "cus_123",
+    amount_total: 2000,
+    currency: "usd",
+  } as unknown as Stripe.Checkout.Session;
+
+  const mockStripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async (_sessionId: string) => ({
+          data: [{ price: { id: "price_monthly_20" }, quantity: 1 }],
+        }),
+      },
+    },
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleCheckoutCompleted(mockStripe, session, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => true,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async () => {
+      called = true;
+    },
+  } as never);
+
+  assert.equal(called, false);
+});
+
+test("handleCheckoutCompleted skips the GA4 purchase event when firebaseUid is missing", async () => {
+  let called = false;
+
+  const session = {
+    id: "cs_test_no_uid",
+    customer_details: { email: "person@example.com" },
+    customer_email: "person@example.com",
+    client_reference_id: null,
+    subscription: null,
+    customer: "cus_123",
+    amount_total: 1000,
+    currency: "usd",
+  } as unknown as Stripe.Checkout.Session;
+
+  const mockStripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async (_sessionId: string) => ({
+          data: [{ price: { id: "price_credit_pack" }, quantity: 1 }],
+        }),
+      },
+    },
+  } as unknown as Stripe;
+
+  await handleCheckoutCompleted(mockStripe, session, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async () => {
+      called = true;
+    },
+  } as never);
+
+  assert.equal(called, false);
 });
 
 test("handleSubscriptionUpdated renews credits when planStatus is active", async () => {
