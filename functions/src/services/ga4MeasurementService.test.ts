@@ -95,8 +95,17 @@ test("sendPurchaseEvent skips the request when secrets are not configured", asyn
       fetchImpl as typeof fetch
     );
   } finally {
-    process.env.GA4_MEASUREMENT_ID = original.measurementId;
-    process.env.GA4_MP_API_SECRET = original.apiSecret;
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
   }
 
   assert.equal(called, false);
