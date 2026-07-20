@@ -581,7 +581,7 @@ In the same function, update the credit-pack branch:
       await deps.sendPurchaseEvent({
         firebaseUid: user.firebaseUid,
         transactionId: session.id,
-        valueCents: session.amount_total ?? 0,
+        valueCents: creditPackValueCents,
         currency: session.currency ?? "usd",
       });
     } else {
@@ -646,15 +646,10 @@ git commit -m "chore(functions): bind GA4 Measurement Protocol secrets to stripe
 
 ## Task 5: Full suite verification
 
-- [ ] **Step 1: Run the full functions test suite**
+- [ ] **Step 1: Run the repository-level checks**
 
-Run: `cd functions && npm run test`
-Expected: all tests pass, including the pre-existing suite plus everything added in Tasks 1 and 3.
-
-- [ ] **Step 2: Run lint (if configured)**
-
-Run: `cd functions && npm run lint` (skip if no lint script exists — check `functions/package.json` first)
-Expected: no errors.
+Run: `npm run typecheck && npm run lint && npm run test`
+Expected: all checks pass, including the pre-existing suite plus everything added in Tasks 1 and 3.
 
 ---
 

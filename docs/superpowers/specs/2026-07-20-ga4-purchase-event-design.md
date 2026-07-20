@@ -34,7 +34,7 @@ function buildClientId(firebaseUid: string): string
 async function sendPurchaseEvent(params: {
   firebaseUid: string
   transactionId: string   // session.id
-  valueCents: number      // session.amount_total
+  valueCents: number      // summed amount_total of credit-pack line items only (not session.amount_total, which includes any subscription line items in a mixed cart)
   currency: string        // session.currency
 }): Promise<void>
 ```
@@ -49,7 +49,8 @@ No retry logic: MP has no delivery confirmation, and Stripe won't retry `checkou
 ### `functions/src/stripeWebhook.ts` changes
 
 - Extend `UserLookup` type (currently `{ id, email }`) to include `firebaseUid?: string` (optional — keeps the ~14 existing test-double literals in `stripeWebhook.test.ts` compiling unchanged; the call site below skips the GA4 event and logs a warning if it's absent rather than treating it as an error), and update the three `defaultDeps` lookup functions (`findUserByEmail`, `findUserByFirebaseUid`, `findUserByStripeCustomerId`) to pass it through — the underlying `userRepository` rows already carry it, it's just dropped in the current mapping.
-- In `handleCheckoutCompleted`, inside the existing `if (totalCreditPackQty > 0) { ... }` block, after `addCredits` succeeds, if `user.firebaseUid` is present and `session.amount_total` is a number and `session.currency` is set, call `ga4MeasurementService.sendPurchaseEvent({ firebaseUid: user.firebaseUid, transactionId: session.id, valueCents: session.amount_total, currency: session.currency })` (otherwise log a warning and skip).
+- While iterating line items, accumulate `creditPackValueCents` from each credit-pack line item's own `amount_total` (not `session.amount_total`, which is the full Checkout total and would overstate revenue in a mixed subscription + credit-pack cart).
+- In `handleCheckoutCompleted`, inside the existing `if (totalCreditPackQty > 0) { ... }` block, after `addCredits` succeeds, if `user.firebaseUid` is present and `session.currency` is set, call `ga4MeasurementService.sendPurchaseEvent({ firebaseUid: user.firebaseUid, transactionId: session.id, valueCents: creditPackValueCents, currency: session.currency })` (otherwise log a warning and skip).
 - Add `GA4_MEASUREMENT_ID` and `GA4_MP_API_SECRET` to the `secrets: [...]` array on the `stripeWebhook` function definition (alongside `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Both provisioned as Secret Manager secrets — `GA4_MEASUREMENT_ID` is not sensitive but is kept alongside its paired API secret for consistency and single source of truth with the client's `G-TELW4E82QJ`.
 
 ## Data Flow

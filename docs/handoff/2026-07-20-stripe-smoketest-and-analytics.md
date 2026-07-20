@@ -7,7 +7,7 @@
 
 ## Background (what just happened)
 
-First paying customer (יהלי, `mamashlo99989@gmail.com`, `cus_UuXoQSTzKikZAH`) paid $10 but received no credits. Two root causes were found and fixed:
+First paying customer (`<redacted>`) paid $10 but received no credits. Two root causes were found and fixed:
 
 1. **`STRIPE_WEBHOOK_SECRET` had a trailing newline** → every live webhook rejected with a 400 signature error, so the credit-grant path never ran for anyone. Fixed: secret rolled + re-added cleanly (Secret Manager v4), `stripeWebhook` redeployed. Code now trims the secret + signature header — **PR #565 into `staging`** (`functions/src/stripeWebhook.ts`).
 2. **Credit-pack Stripe price was `recurring`** → buying the "$10 credit pack" created a $10/mo subscription. Fixed: new one-time price `<redacted>` created, `STRIPE_CREDIT_PACK_PRICE_ID` repointed (backend `functions/.env.clanker-prod` + client `.env`), product `default_price` reassigned, old price `<redacted>` archived.
@@ -41,10 +41,15 @@ Full detail is in agent memory: `project_stripe_first_customer_incident.md`.
    Expect: `"Received Stripe event"` → `checkout.session.completed` → `"checkout.session.completed: credits added"` → 200. **No** `"Stripe signature verification failed"`.
 3. Confirm the Stripe object is a **one-time payment**, not a subscription:
    ```bash
+   NETRC=$(mktemp)
+   chmod 600 "$NETRC"
    SK=$(gcloud secrets versions access latest --secret=STRIPE_SECRET_KEY --project=clanker-prod | tr -d '[:space:]')
+   printf 'machine api.stripe.com login %s password\n' "$SK" > "$NETRC"
+   unset SK
    # find the session/charge for your test customer, then:
-   curl -s "https://api.stripe.com/v1/checkout/sessions/<cs_id>" -u "$SK:" \
+   curl -s --netrc-file "$NETRC" "https://api.stripe.com/v1/checkout/sessions/<cs_id>" \
      | python3 -c 'import sys,json;s=json.load(sys.stdin);print("mode:",s["mode"],"subscription:",s.get("subscription"))'
+   rm -f "$NETRC"
    ```
    Expect `mode: payment`, `subscription: None`.
 4. Confirm credits landed: admin dashboard → your test user → credits increased by `CREDIT_PACK_AMOUNT` (10000 Power) with a ~31-day expiry.
@@ -99,6 +104,6 @@ A short findings doc: which of the above are true, and a recommendation — mini
 | Checkout callable | `functions/src/purchasePackageStripe.ts` (mode derived from `price.type`) |
 | Client price map | `src/config/constants.ts` (reads `EXPO_PUBLIC_STRIPE_*`); values in gitignored root `.env` |
 | Analytics | `src/services/analyticsService.ts` / `.web.ts`; spec `docs/superpowers/specs/2026-07-05-firebase-analytics-design.md` |
-| Open PR | #565 (secret/signature trim) → `staging` |
+| Related PR | #565 (secret/signature trim) — merged into `staging`, bundled into `main` via #568 |
 
 **General cautions:** live Stripe + prod DB + Secret Manager. gcloud auth may need `gcloud auth login` (interactive). Confirm hard-to-reverse / money / customer-facing actions with the owner before acting.

@@ -408,6 +408,7 @@ export async function handleCheckoutCompleted(
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {limit: 10});
 
   let totalCreditPackQty = 0;
+  let creditPackValueCents = 0;
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
     if (!priceId) continue;
@@ -457,6 +458,7 @@ export async function handleCheckoutCompleted(
       });
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       totalCreditPackQty += item.quantity ?? 1;
+      creditPackValueCents += item.amount_total ?? 0;
     }
   }
 
@@ -475,18 +477,17 @@ export async function handleCheckoutCompleted(
     });
 
     if (user.firebaseUid) {
-      const amountTotal = session.amount_total;
       const currency = session.currency;
 
-      if (typeof amountTotal !== "number" || !currency) {
-        logger.warn("checkout.session.completed: missing amount_total or currency, skipping GA4 purchase event", {
+      if (!currency) {
+        logger.warn("checkout.session.completed: missing currency, skipping GA4 purchase event", {
           sessionId: session.id,
         });
       } else {
         await deps.sendPurchaseEvent({
           firebaseUid: user.firebaseUid,
           transactionId: session.id,
-          valueCents: amountTotal,
+          valueCents: creditPackValueCents,
           currency,
         });
       }

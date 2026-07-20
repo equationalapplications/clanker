@@ -373,7 +373,7 @@ test("handleCheckoutCompleted sends a GA4 purchase event for a credit-pack purch
     checkout: {
       sessions: {
         listLineItems: async (_sessionId: string) => ({
-          data: [{ price: { id: "price_credit_pack" }, quantity: 1 }],
+          data: [{ price: { id: "price_credit_pack" }, quantity: 1, amount_total: 1000 }],
         }),
       },
     },
@@ -399,6 +399,61 @@ test("handleCheckoutCompleted sends a GA4 purchase event for a credit-pack purch
   assert.deepEqual(sentEvent, {
     firebaseUid: "firebase-uid-1",
     transactionId: "cs_test_credit_pack",
+    valueCents: 1000,
+    currency: "usd",
+  });
+});
+
+test("handleCheckoutCompleted sends only the credit-pack subtotal for a mixed subscription + credit-pack cart", async () => {
+  let sentEvent: unknown = null;
+
+  const session = {
+    id: "cs_test_mixed_cart",
+    customer_details: { email: "person@example.com" },
+    customer_email: "person@example.com",
+    client_reference_id: null,
+    subscription: "sub_123",
+    customer: "cus_123",
+    amount_total: 3000,
+    currency: "usd",
+  } as unknown as Stripe.Checkout.Session;
+
+  const mockStripe = {
+    checkout: {
+      sessions: {
+        listLineItems: async (_sessionId: string) => ({
+          data: [
+            { price: { id: "price_monthly_20" }, quantity: 1, amount_total: 2000 },
+            { price: { id: "price_credit_pack" }, quantity: 1, amount_total: 1000 },
+          ],
+        }),
+      },
+    },
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleCheckoutCompleted(mockStripe, session, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => true,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async (params: unknown) => {
+      sentEvent = params;
+    },
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "cs_test_mixed_cart",
     valueCents: 1000,
     currency: "usd",
   });
