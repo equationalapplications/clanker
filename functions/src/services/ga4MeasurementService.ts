@@ -75,16 +75,4 @@ export async function sendPurchaseEvent(
     });
   }
 
-    if (!response.ok) {
-      logger.error("GA4 Measurement Protocol request failed", {
-        transactionId: params.transactionId,
-        status: response.status,
-      });
-    }
-  } catch (error) {
-    logger.error("GA4 Measurement Protocol request threw", {
-      transactionId: params.transactionId,
-      error,
-    });
-  }
 }
