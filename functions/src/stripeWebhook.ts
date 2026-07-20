@@ -475,12 +475,21 @@ export async function handleCheckoutCompleted(
     });
 
     if (user.firebaseUid) {
-      await deps.sendPurchaseEvent({
-        firebaseUid: user.firebaseUid,
-        transactionId: session.id,
-        valueCents: session.amount_total ?? 0,
-        currency: session.currency ?? "usd",
-      });
+      const amountTotal = session.amount_total;
+      const currency = session.currency;
+
+      if (typeof amountTotal !== "number" || !currency) {
+        logger.warn("checkout.session.completed: missing amount_total or currency, skipping GA4 purchase event", {
+          sessionId: session.id,
+        });
+      } else {
+        await deps.sendPurchaseEvent({
+          firebaseUid: user.firebaseUid,
+          transactionId: session.id,
+          valueCents: amountTotal,
+          currency,
+        });
+      }
     } else {
       logger.warn("checkout.session.completed: missing firebaseUid, skipping GA4 purchase event", {
         sessionId: session.id,
