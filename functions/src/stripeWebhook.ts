@@ -33,7 +33,7 @@ interface StripeWebhookDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
-  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueCents: number; currency: string}) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
@@ -80,7 +80,7 @@ const defaultDeps: StripeWebhookDeps = {
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
   },
-  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueCents: number; currency: string}) {
+  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) {
     await sendGa4PurchaseEvent(params);
   },
   async isEventProcessed(eventId: string) {
@@ -408,7 +408,7 @@ export async function handleCheckoutCompleted(
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {limit: 10});
 
   let totalCreditPackQty = 0;
-  let creditPackValueCents = 0;
+  let creditPackValueMinorUnits = 0;
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
     if (!priceId) continue;
@@ -458,7 +458,7 @@ export async function handleCheckoutCompleted(
       });
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       totalCreditPackQty += item.quantity ?? 1;
-      creditPackValueCents += item.amount_total ?? 0;
+      creditPackValueMinorUnits += item.amount_total ?? 0;
     }
   }
 
@@ -487,7 +487,7 @@ export async function handleCheckoutCompleted(
         await deps.sendPurchaseEvent({
           firebaseUid: user.firebaseUid,
           transactionId: session.id,
-          valueCents: creditPackValueCents,
+          valueMinorUnits: creditPackValueMinorUnits,
           currency,
         });
       }

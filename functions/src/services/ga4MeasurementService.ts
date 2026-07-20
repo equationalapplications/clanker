@@ -3,6 +3,22 @@ import * as logger from "firebase-functions/logger";
 
 const GA4_MP_ENDPOINT = "https://www.google-analytics.com/mp/collect";
 
+// Stripe currencies with no minor unit (amount is already a whole-currency value).
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg",
+  "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+]);
+
+// Stripe currencies whose minor unit is a thousandth rather than a hundredth.
+const THREE_DECIMAL_CURRENCIES = new Set(["bhd", "jod", "kwd", "omr", "tnd"]);
+
+function minorUnitsToDecimal(amountMinorUnits: number, currency: string): number {
+  const normalized = currency.toLowerCase();
+  if (ZERO_DECIMAL_CURRENCIES.has(normalized)) return amountMinorUnits;
+  if (THREE_DECIMAL_CURRENCIES.has(normalized)) return amountMinorUnits / 1000;
+  return amountMinorUnits / 100;
+}
+
 export function buildClientId(firebaseUid: string): string {
   const hash = createHash("sha256").update(firebaseUid).digest();
   const a = hash.readUInt32BE(0);
@@ -13,7 +29,7 @@ export function buildClientId(firebaseUid: string): string {
 export interface PurchaseEventParams {
   firebaseUid: string;
   transactionId: string;
-  valueCents: number;
+  valueMinorUnits: number;
   currency: string;
 }
 
@@ -50,7 +66,7 @@ export async function sendPurchaseEvent(
               name: "purchase",
               params: {
                 transaction_id: params.transactionId,
-                value: params.valueCents / 100,
+                value: minorUnitsToDecimal(params.valueMinorUnits, params.currency),
                 currency: params.currency,
                 items: [{ item_id: "credit_pack", item_name: "Credit Pack" }],
               },

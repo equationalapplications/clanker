@@ -30,7 +30,7 @@ test("sendPurchaseEvent posts a well-formed GA4 MP purchase event", async () => 
       {
         firebaseUid: "uid-123",
         transactionId: "cs_test_abc",
-        valueCents: 1000,
+        valueMinorUnits: 1000,
         currency: "usd",
       },
       fetchImpl as typeof fetch
@@ -65,6 +65,46 @@ test("sendPurchaseEvent posts a well-formed GA4 MP purchase event", async () => 
   assert.equal(body.events[0].params.currency, "usd");
 });
 
+test("sendPurchaseEvent converts a zero-decimal currency (JPY) without dividing by 100", async () => {
+  const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
+  process.env.GA4_MEASUREMENT_ID = "G-TEST123";
+  process.env.GA4_MP_API_SECRET = "test-secret";
+
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(null, { status: 204 });
+  };
+
+  try {
+    await sendPurchaseEvent(
+      {
+        firebaseUid: "uid-123",
+        transactionId: "cs_test_jpy",
+        valueMinorUnits: 1500,
+        currency: "jpy",
+      },
+      fetchImpl as typeof fetch
+    );
+  } finally {
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
+  }
+
+  const body = JSON.parse(String(calls[0].init?.body));
+  assert.equal(body.events[0].params.value, 1500);
+  assert.equal(body.events[0].params.currency, "jpy");
+});
+
 test("sendPurchaseEvent swallows fetch failures without throwing", async () => {
   const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
   process.env.GA4_MEASUREMENT_ID = "G-TEST123";
@@ -77,7 +117,7 @@ test("sendPurchaseEvent swallows fetch failures without throwing", async () => {
   try {
     await assert.doesNotReject(
       sendPurchaseEvent(
-        { firebaseUid: "uid-123", transactionId: "cs_test_abc", valueCents: 1000, currency: "usd" },
+        { firebaseUid: "uid-123", transactionId: "cs_test_abc", valueMinorUnits: 1000, currency: "usd" },
         fetchImpl as typeof fetch
       )
     );
@@ -109,7 +149,7 @@ test("sendPurchaseEvent skips the request when secrets are not configured", asyn
 
   try {
     await sendPurchaseEvent(
-      { firebaseUid: "uid-123", transactionId: "cs_test_abc", valueCents: 1000, currency: "usd" },
+      { firebaseUid: "uid-123", transactionId: "cs_test_abc", valueMinorUnits: 1000, currency: "usd" },
       fetchImpl as typeof fetch
     );
   } finally {

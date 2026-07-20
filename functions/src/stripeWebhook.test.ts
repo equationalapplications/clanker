@@ -399,7 +399,7 @@ test("handleCheckoutCompleted sends a GA4 purchase event for a credit-pack purch
   assert.deepEqual(sentEvent, {
     firebaseUid: "firebase-uid-1",
     transactionId: "cs_test_credit_pack",
-    valueCents: 1000,
+    valueMinorUnits: 1000,
     currency: "usd",
   });
 });
@@ -454,7 +454,7 @@ test("handleCheckoutCompleted sends only the credit-pack subtotal for a mixed su
   assert.deepEqual(sentEvent, {
     firebaseUid: "firebase-uid-1",
     transactionId: "cs_test_mixed_cart",
-    valueCents: 1000,
+    valueMinorUnits: 1000,
     currency: "usd",
   });
 });
