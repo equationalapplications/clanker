@@ -371,6 +371,8 @@ export const stripeWebhook = onRequest(
       ...CLOUD_SQL_SECRETS,
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
+      "GA4_MEASUREMENT_ID",
+      "GA4_MP_API_SECRET",
     ]
   },
   stripeWebhookHandler
