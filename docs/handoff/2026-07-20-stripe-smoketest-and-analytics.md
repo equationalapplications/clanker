@@ -78,7 +78,7 @@ Still open until reports process: **which date the revenue lands on.** Jul 19 me
    NETRC=$(mktemp)
    chmod 600 "$NETRC"
    SK=$(gcloud secrets versions access latest --secret=STRIPE_SECRET_KEY --project=clanker-prod | tr -d '[:space:]')
-   printf 'machine api.stripe.com login %s password\n' "$SK" > "$NETRC"
+printf 'machine api.stripe.com login %s password x\n' "$SK" > "$NETRC"
    unset SK
    # find the session for your test customer, then:
    curl -s --netrc-file "$NETRC" "https://api.stripe.com/v1/checkout/sessions/<cs_id>" \
