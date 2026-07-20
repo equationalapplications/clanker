@@ -6,7 +6,7 @@ const GA4_MP_ENDPOINT = "https://www.google-analytics.com/mp/collect";
 // Stripe currencies with no minor unit (amount is already a whole-currency value).
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg",
-  "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+  "rwf", "vnd", "vuv", "xaf", "xof", "xpf",
 ]);
 
 // Stripe currencies whose minor unit is a thousandth rather than a hundredth.
