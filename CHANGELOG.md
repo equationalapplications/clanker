@@ -1,3 +1,10 @@
+## [30.29.1](https://github.com/equationalapplications/clanker/compare/v30.29.0...v30.29.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **ios:** remove UIBackgroundModes audio from Info.plist ([311ec5a](https://github.com/equationalapplications/clanker/commit/311ec5afab3d81b63239d230c08b37f0c9d3eea2))
+
 # [30.29.0](https://github.com/equationalapplications/clanker/compare/v30.28.1...v30.29.0) (2026-07-20)
 
 
