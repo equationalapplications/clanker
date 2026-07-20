@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-20
 **Branch:** fix/analytics-purchase-event
-**Status:** Draft
+**Status:** Implemented
 
 ## Background
 
