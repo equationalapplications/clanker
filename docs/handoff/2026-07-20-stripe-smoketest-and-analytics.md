@@ -33,7 +33,7 @@ The endpoint's `enabled_events` barely overlapped the handler's `switch`. Stripe
 
 ### Analytics backfill for the missed first purchase (done 2026-07-20 ~19:50 UTC)
 
-The first real customer purchase (`cs_live_a1bwpXKk…`, uid `Lh8BpjlcpUXkYM7eetZoohfjnMf1`, $10.00 USD, paid 2026-07-19T00:39:29Z) never reached GA4 — the event died with the rest of the legacy-project webhook traffic. It was replayed by hand through the Measurement Protocol with `timestamp_micros` set to the real payment time, so it lands on Jul 19 rather than the replay date.
+The first real customer purchase (`<redacted>`, uid `<redacted>`, $10.00 USD, paid 2026-07-19T00:39:29Z) never reached GA4 — the event died with the rest of the legacy-project webhook traffic. It was replayed by hand through the Measurement Protocol with `timestamp_micros` set to the real payment time, so it lands on Jul 19 rather than the replay date.
 
 The payload matched what `ga4MeasurementService` would have sent: `client_id` from `buildClientId(uid)`, `transaction_id` = session id, `value` 10.0, `currency` usd, one `credit_pack` item. Validated against `/debug/mp/collect` first (`validationMessages: []`), then posted to `/mp/collect` (204).
 
