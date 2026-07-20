@@ -36,8 +36,17 @@ test("sendPurchaseEvent posts a well-formed GA4 MP purchase event", async () => 
       fetchImpl as typeof fetch
     );
   } finally {
-    process.env.GA4_MEASUREMENT_ID = original.measurementId;
-    process.env.GA4_MP_API_SECRET = original.apiSecret;
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
   }
 
   assert.equal(calls.length, 1);
