@@ -12,6 +12,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
+import {sendPurchaseEvent as sendGa4PurchaseEvent} from "./services/ga4MeasurementService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -21,6 +22,7 @@ if (!admin.apps.length) {
 type UserLookup = {
   id: string;
   email: string;
+  firebaseUid?: string;
 };
 
 interface StripeWebhookDeps {
@@ -31,6 +33,7 @@ interface StripeWebhookDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
@@ -45,14 +48,14 @@ const defaultDeps: StripeWebhookDeps = {
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async findUserByFirebaseUid(firebaseUid: string) {
     const user = await userRepository.findUserByFirebaseUid(firebaseUid);
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async findUserByStripeCustomerId(customerId: string) {
     const userId = await subscriptionService.findUserIdByStripeCustomerId(customerId);
@@ -63,7 +66,7 @@ const defaultDeps: StripeWebhookDeps = {
     if (!user) {
       return null;
     }
-    return {id: user.id, email: user.email};
+    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
   },
   async upsertSubscription(params: UpsertSubscriptionParams) {
     await subscriptionService.upsertSubscription(params);
@@ -76,6 +79,9 @@ const defaultDeps: StripeWebhookDeps = {
   },
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
+  },
+  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) {
+    await sendGa4PurchaseEvent(params);
   },
   async isEventProcessed(eventId: string) {
     return stripeEventDedupeService.isEventProcessed(eventId);
@@ -248,21 +254,25 @@ export const stripeWebhookHandler = async (
     return;
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Trim to defend against stray whitespace/newlines in the Secret Manager
+  // value (an incident where the stored secret had a trailing newline made
+  // Stripe reject every event with a signature-verification error).
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     logger.error("STRIPE_WEBHOOK_SECRET is not configured");
     res.status(500).send("Webhook secret not configured");
     return;
   }
 
-  const sig = req.headers["stripe-signature"];
-  if (typeof sig !== "string" || sig.trim().length === 0) {
+  const rawSig = req.headers["stripe-signature"];
+  if (typeof rawSig !== "string" || rawSig.trim().length === 0) {
     logger.warn("Missing or invalid stripe-signature header", {
-      headerType: Array.isArray(sig) ? "array" : typeof sig,
+      headerType: Array.isArray(rawSig) ? "array" : typeof rawSig,
     });
     res.status(400).send("Missing or invalid Stripe signature header");
     return;
   }
+  const sig = rawSig.trim();
 
   let stripe: Stripe;
   try {
@@ -361,12 +371,14 @@ export const stripeWebhook = onRequest(
       ...CLOUD_SQL_SECRETS,
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET",
+      "GA4_MEASUREMENT_ID",
+      "GA4_MP_API_SECRET",
     ]
   },
   stripeWebhookHandler
 );
 
-async function handleCheckoutCompleted(
+export async function handleCheckoutCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   priceIds: StripePriceIds,
@@ -396,6 +408,7 @@ async function handleCheckoutCompleted(
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {limit: 10});
 
   let totalCreditPackQty = 0;
+  let creditPackValueMinorUnits = 0;
   for (const item of lineItems.data) {
     const priceId = item.price?.id;
     if (!priceId) continue;
@@ -445,6 +458,7 @@ async function handleCheckoutCompleted(
       });
     } else if (isCreditPackPriceId(priceId, priceIds)) {
       totalCreditPackQty += item.quantity ?? 1;
+      creditPackValueMinorUnits += item.amount_total ?? 0;
     }
   }
 
@@ -461,6 +475,27 @@ async function handleCheckoutCompleted(
       email: customerEmail,
       credits: CREDIT_PACK_AMOUNT * totalCreditPackQty,
     });
+
+    if (user.firebaseUid) {
+      const currency = session.currency;
+
+      if (!currency) {
+        logger.warn("checkout.session.completed: missing currency, skipping GA4 purchase event", {
+          sessionId: session.id,
+        });
+      } else {
+        await deps.sendPurchaseEvent({
+          firebaseUid: user.firebaseUid,
+          transactionId: session.id,
+          valueMinorUnits: creditPackValueMinorUnits,
+          currency,
+        });
+      }
+    } else {
+      logger.warn("checkout.session.completed: missing firebaseUid, skipping GA4 purchase event", {
+        sessionId: session.id,
+      });
+    }
   }
 }
 
