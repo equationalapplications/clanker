@@ -120,6 +120,60 @@ test("stripeWebhookHandler returns 500 when STRIPE_SECRET_KEY is missing", async
   }
 });
 
+test("stripeWebhookHandler trims whitespace from STRIPE_WEBHOOK_SECRET and signature before verifying", async (t) => {
+  const originalWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Reproduce the production incident: the Secret Manager value had a trailing
+  // newline, which made Stripe reject every event with a signature error.
+  process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_123\n";
+
+  let capturedSecret: unknown;
+  let capturedSignature: unknown;
+  const stripe = new Stripe("sk_test_123");
+  t.mock.method(
+    stripe.webhooks,
+    "constructEvent",
+    (_payload: unknown, signature: unknown, secret: unknown) => {
+      capturedSignature = signature;
+      capturedSecret = secret;
+      return {id: "evt_trim_1", type: "unhandled.event", data: {object: {}}} as never;
+    }
+  );
+  setStripeClientFactoryForTests(() => stripe);
+  t.after(() => {
+    setStripeClientFactoryForTests(null);
+    process.env.STRIPE_WEBHOOK_SECRET = originalWebhookSecret;
+  });
+
+  const res = createResponseRecorder();
+  const deps = {
+    findUserByEmail: async () => null,
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    markEventProcessed: async () => true,
+    completeEventProcessed: async () => {},
+    unmarkEventProcessed: async () => {},
+    getLastProcessedChargeRefundTotal: async () => 0,
+  };
+
+  await stripeWebhookHandler(
+    {
+      method: "POST",
+      headers: {"stripe-signature": "  t=1,v1=sig  "},
+      rawBody: Buffer.from("{}"),
+    } as never,
+    res as never,
+    deps as never
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(capturedSecret, "whsec_test_123");
+  assert.equal(capturedSignature, "t=1,v1=sig");
+});
+
 test("mapStripeSubscriptionStatus maps active-like statuses to active", () => {
   const statuses: Stripe.Subscription.Status[] = [
     "active",
