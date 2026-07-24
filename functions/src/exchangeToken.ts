@@ -164,6 +164,7 @@ const handler = async (
                 termsAcceptedAt: toISO(subscription.termsAcceptedAt),
                 nextExpiryDate: toISO(subscription.nextExpiryDate),
                 cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
+                subscriptionProvider: subscription.subscriptionProvider ?? null,
             },
         };
     } catch (err: unknown) {

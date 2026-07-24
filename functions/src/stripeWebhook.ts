@@ -12,7 +12,7 @@ import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
 import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
-import {sendPurchaseEvent as sendGa4PurchaseEvent} from "./services/ga4MeasurementService.js";
+import {sendPurchaseEvent as sendGa4PurchaseEvent, sendRefundEvent as sendGa4RefundEvent} from "./services/ga4MeasurementService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -33,7 +33,8 @@ interface StripeWebhookDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
-  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"; items?: Array<{item_id: string; item_name: string}>}) => Promise<void>;
+  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
@@ -80,8 +81,11 @@ const defaultDeps: StripeWebhookDeps = {
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
   },
-  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) {
+  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"; items?: Array<{item_id: string; item_name: string}>}) {
     await sendGa4PurchaseEvent(params);
+  },
+  async sendRefundEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) {
+    await sendGa4RefundEvent(params);
   },
   async isEventProcessed(eventId: string) {
     return stripeEventDedupeService.isEventProcessed(eventId);
@@ -212,6 +216,51 @@ export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
   default:
     logger.warn("customer.subscription.updated: unknown Stripe status", {status});
     return "active";
+  }
+}
+
+// Fire a GA4 purchase event from Stripe data. Never throws (isolation) and never guesses revenue.
+async function emitStripePurchase(
+  deps: StripeWebhookDeps,
+  params: {firebaseUid?: string; transactionId: string; valueMinorUnits: number; currency: string; items: Array<{item_id: string; item_name: string}>}
+): Promise<void> {
+  if (!params.firebaseUid) {
+    logger.warn("Stripe: missing firebaseUid, skipping GA4 purchase event", {transactionId: params.transactionId});
+    return;
+  }
+  try {
+    await deps.sendPurchaseEvent({
+      firebaseUid: params.firebaseUid,
+      transactionId: params.transactionId,
+      valueMinorUnits: params.valueMinorUnits,
+      currency: params.currency,
+      paymentProvider: "stripe",
+      items: params.items,
+    });
+  } catch (err) {
+    logger.error("Stripe: GA4 purchase emission failed (ignored)", {err, transactionId: params.transactionId});
+  }
+}
+
+// Fire a GA4 refund event from Stripe data. Never throws (isolation) and never guesses revenue.
+async function emitStripeRefund(
+  deps: StripeWebhookDeps,
+  params: {firebaseUid?: string; transactionId: string; valueMinorUnits: number; currency: string}
+): Promise<void> {
+  if (!params.firebaseUid) {
+    logger.warn("Stripe: missing firebaseUid, skipping GA4 refund event", {transactionId: params.transactionId});
+    return;
+  }
+  try {
+    await deps.sendRefundEvent({
+      firebaseUid: params.firebaseUid,
+      transactionId: params.transactionId,
+      valueMinorUnits: params.valueMinorUnits,
+      currency: params.currency,
+      paymentProvider: "stripe",
+    });
+  } catch (err) {
+    logger.error("Stripe: GA4 refund emission failed (ignored)", {err, transactionId: params.transactionId});
   }
 }
 
@@ -489,6 +538,7 @@ export async function handleCheckoutCompleted(
           transactionId: session.id,
           valueMinorUnits: creditPackValueMinorUnits,
           currency,
+          paymentProvider: "stripe",
         });
       }
     } else {
@@ -633,6 +683,29 @@ export async function handleInvoicePaymentSucceeded(
         }
       }
     }
+
+    // B6.1: emit one GA4 purchase per subscription invoice (subscription_create or
+    // subscription_cycle) keyed on the invoice, so checkout.session.completed stays
+    // credit-pack-only and initial + renewal payments each fire exactly once.
+    if (invoice.billing_reason === 'subscription_create' || invoice.billing_reason === 'subscription_cycle') {
+      const priceId = invoice.lines.data.map(getInvoiceLineItemPriceId).find((id) => id !== undefined);
+      const tier = priceId ? getTierByPriceId(priceId, priceIds) : undefined;
+      const currency = invoice.currency;
+      if (tier && typeof invoice.amount_paid === 'number' && invoice.amount_paid > 0 && currency) {
+        await emitStripePurchase(deps, {
+          firebaseUid: user.firebaseUid,
+          transactionId: invoice.id ?? `${subscriptionId}_${invoice.billing_reason}`,
+          valueMinorUnits: invoice.amount_paid,
+          currency,
+          items: [{item_id: tier, item_name: tier}],
+        });
+      } else {
+        logger.warn('invoice.payment_succeeded: insufficient data for GA4 purchase, skipping', {
+          invoiceId: invoice.id,
+          subscriptionId,
+        });
+      }
+    }
     return;
   }
 
@@ -727,6 +800,12 @@ export async function handleChargeRefunded(
         amountRefunded: charge.amount_refunded,
       });
     }
+    await emitStripeRefund(deps, {
+      firebaseUid: user.firebaseUid,
+      transactionId: `${charge.id}_${charge.amount_refunded}`,
+      valueMinorUnits: deltaRefunded,
+      currency: charge.currency,
+    });
   } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
     await deps.upsertSubscription({
@@ -737,6 +816,12 @@ export async function handleChargeRefunded(
       cancelAtPeriodEnd: false,
     });
     logger.info("charge.refunded: subscription cancelled", {userId: user.id, chargeId: charge.id});
+    await emitStripeRefund(deps, {
+      firebaseUid: user.firebaseUid,
+      transactionId: charge.id,
+      valueMinorUnits: charge.amount_refunded,
+      currency: charge.currency,
+    });
   } else {
     logger.warn("charge.refunded: unable to classify refund", {
       email: customerEmail,

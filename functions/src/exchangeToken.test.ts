@@ -152,6 +152,7 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       termsAcceptedAt: mockSubscription.termsAcceptedAt,
       nextExpiryDate: mockSubscription.nextExpiryDate,
       cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
+      subscriptionProvider: null,
     },
   });
 });
@@ -178,6 +179,7 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
     termsAcceptedAt: new Date(),
     nextExpiryDate: new Date("2026-01-01T00:00:00.000Z"),
     cancelAtPeriodEnd: true,
+    subscriptionProvider: "revenuecat",
   };
 
   const mockDeps = {
@@ -230,8 +232,11 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       termsAcceptedAt: mockSubscription.termsAcceptedAt.toISOString(),
       nextExpiryDate: mockSubscription.nextExpiryDate?.toISOString(),
       cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
+      subscriptionProvider: mockSubscription.subscriptionProvider,
     },
   });
+
+  assert.strictEqual(result.subscription.subscriptionProvider, "revenuecat");
 });
 
 test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects", async () => {
