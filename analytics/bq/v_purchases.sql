@@ -10,13 +10,17 @@ WITH purchases AS (
     user_pseudo_id,
     event_date,
     TIMESTAMP_MICROS(event_timestamp) AS event_timestamp,
-    (SELECT ep.value.double_value FROM UNNEST(event_params) ep WHERE ep.key = 'value') AS value,
+    (SELECT COALESCE(ep.value.int_value, ep.value.float_value, ep.value.double_value) FROM UNNEST(event_params) ep WHERE ep.key = 'value') AS value,
     (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'currency') AS currency,
     (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'payment_provider') AS payment_provider,
     (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'store') AS store,
     (SELECT i.item_id FROM UNNEST(items) i LIMIT 1) AS item_id
   FROM `clanker-prod.analytics_544289823.events_*`
   WHERE event_name = 'purchase'
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'transaction_id')
+    ORDER BY event_timestamp
+  ) = 1
 ),
 refunds AS (
   SELECT DISTINCT

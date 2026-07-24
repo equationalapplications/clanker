@@ -70,7 +70,7 @@ interface RevenueCatDeps {
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
   sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"; items?: Array<{item_id: string; item_name: string}>; store?: string; periodType?: string}) => Promise<void>;
-  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"}) => Promise<void>;
+  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"; items?: Array<{item_id: string; item_name: string}>; store?: string; periodType?: string}) => Promise<void>;
 }
 
 const defaultDeps: RevenueCatDeps = {
@@ -202,6 +202,7 @@ async function emitRevenueCatPurchase(
 async function emitRevenueCatRefund(
   deps: RevenueCatDeps,
   event: RevenueCatEvent["event"],
+  productName: string,
 ): Promise<void> {
   const transactionId = resolveGa4TransactionId(event);
   if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) return;
@@ -212,6 +213,9 @@ async function emitRevenueCatRefund(
       value: event.price_in_purchased_currency,
       currency: event.currency,
       paymentProvider: "revenuecat",
+      items: [{item_id: normalizeRevenueCatProductId(event.product_id), item_name: productName}],
+      ...(event.store ? {store: event.store} : {}),
+      ...(event.period_type ? {periodType: event.period_type} : {}),
     });
   } catch (err) {
     logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, transactionId});
@@ -661,7 +665,7 @@ export const revenueCatWebhookHandler = async (
             } else {
               logger.warn("RevenueCat: subscription refund missing both expiration_at_ms and transaction_id, cannot claw back", {app_user_id, product_id, tier});
             }
-            await emitRevenueCatRefund(deps, rcEvent);
+            await emitRevenueCatRefund(deps, rcEvent, tier);
             logger.info("RevenueCat: subscription refund — downgraded and clawed back", {app_user_id, product_id, tier});
           } else {
             // Benign auto-renew-off: entitlement stays active until EXPIRATION.
@@ -690,7 +694,7 @@ export const revenueCatWebhookHandler = async (
               "revenuecat_refund",
               `${original_transaction_id}_refund`
             );
-            await emitRevenueCatRefund(deps, rcEvent);
+            await emitRevenueCatRefund(deps, rcEvent, "Credit Pack");
             logger.info("RevenueCat: credit-pack refund deducted", {app_user_id, product_id, credits: CREDIT_PACK_AMOUNT});
           } else {
             logger.warn("RevenueCat: credit-pack cancellation missing original_transaction_id, cannot deduct", {app_user_id, product_id});
