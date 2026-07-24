@@ -381,7 +381,7 @@ export const revenueCatWebhookHandler = async (
       return;
     }
 
-    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id} =
+    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id, environment} =
       payload.event;
     const normalizedProductId = normalizeRevenueCatProductId(product_id);
 
@@ -395,6 +395,14 @@ export const revenueCatWebhookHandler = async (
     // RevenueCat dashboard test events are connectivity checks and do not need user-side effects.
     if (type === "TEST") {
       res.status(200).json({received: true});
+      return;
+    }
+
+    // Sandbox / TestFlight purchases must never grant production entitlements.
+    // Respond 200 so RevenueCat does not retry.
+    if (environment === "SANDBOX") {
+      logger.info("RevenueCat webhook: ignoring sandbox event", {type, app_user_id, product_id});
+      res.status(200).json({received: true, ignored: "sandbox"});
       return;
     }
 

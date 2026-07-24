@@ -97,6 +97,46 @@ test("revenueCatWebhookHandler returns 200 for TEST event", async () => {
   assert.deepEqual(res.body, {received: true});
 });
 
+test("revenueCatWebhookHandler ignores SANDBOX events with 200 and no side effects", async () => {
+  const res = createResponseRecorder();
+  let findCalls = 0;
+  let addCalls = 0;
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: {authorization: "Bearer rc-secret"},
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_sandbox",
+          product_id: "credit_pack_100",
+          environment: "SANDBOX",
+          original_transaction_id: "rc_txn_sbx",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => {
+        findCalls += 1;
+        return {id: "cloud-user-1"};
+      },
+      getSubscription: async () => null,
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => {
+        addCalls += 1;
+      },
+    } as never
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {received: true, ignored: "sandbox"});
+  assert.equal(findCalls, 0);
+  assert.equal(addCalls, 0);
+});
+
 test("parseRevenueCatEvent accepts minimal valid payload", () => {
   const parsed = parseRevenueCatEvent({
     event: {
