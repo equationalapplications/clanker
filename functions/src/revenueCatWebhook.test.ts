@@ -152,6 +152,53 @@ test("parseRevenueCatEvent rejects invalid required fields", () => {
   );
 });
 
+test("parseRevenueCatEvent extracts the extended optional fields", () => {
+  const parsed = parseRevenueCatEvent({
+    event: {
+      type: "INITIAL_PURCHASE",
+      app_user_id: "uid_123",
+      product_id: "monthly_20_subscription",
+      environment: "SANDBOX",
+      cancel_reason: "CUSTOMER_SUPPORT",
+      store: "APP_STORE",
+      transaction_id: "txn_abc",
+      purchased_at_ms: 1_700_000_000_000,
+      period_type: "NORMAL",
+      price: 20,
+      price_in_purchased_currency: 20,
+      currency: "USD",
+      country_code: "US",
+    },
+  });
+
+  assert.equal(parsed.event.environment, "SANDBOX");
+  assert.equal(parsed.event.cancel_reason, "CUSTOMER_SUPPORT");
+  assert.equal(parsed.event.store, "APP_STORE");
+  assert.equal(parsed.event.transaction_id, "txn_abc");
+  assert.equal(parsed.event.purchased_at_ms, 1_700_000_000_000);
+  assert.equal(parsed.event.period_type, "NORMAL");
+  assert.equal(parsed.event.price, 20);
+  assert.equal(parsed.event.price_in_purchased_currency, 20);
+  assert.equal(parsed.event.currency, "USD");
+  assert.equal(parsed.event.country_code, "US");
+});
+
+test("parseRevenueCatEvent tolerates absent extended fields", () => {
+  const parsed = parseRevenueCatEvent({
+    event: {type: "RENEWAL", app_user_id: "uid_1", product_id: "monthly_20_subscription"},
+  });
+  assert.equal(parsed.event.environment, undefined);
+  assert.equal(parsed.event.price_in_purchased_currency, undefined);
+});
+
+test("parseRevenueCatEvent rejects a wrong-typed price", () => {
+  assert.throws(() =>
+    parseRevenueCatEvent({
+      event: {type: "RENEWAL", app_user_id: "uid_1", product_id: "monthly_20_subscription", price: "free"},
+    })
+  );
+});
+
 test("revenueCatWebhookHandler does not renew credits on PRODUCT_CHANGE events", async () => {
   const res = createResponseRecorder();
   let renewCalls = 0;

@@ -154,6 +154,16 @@ interface RevenueCatEvent {
     product_id: string;
     expiration_at_ms?: number;
     original_transaction_id?: string;
+    environment?: string;
+    cancel_reason?: string;
+    store?: string;
+    transaction_id?: string;
+    purchased_at_ms?: number;
+    period_type?: string;
+    price?: number;
+    price_in_purchased_currency?: number;
+    currency?: string;
+    country_code?: string;
   };
 }
 
@@ -260,6 +270,29 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const normalizedOriginalTransactionId =
     typeof originalTransactionId === "string" ? originalTransactionId.trim() : undefined;
 
+  const optionalString = (raw: unknown, field: string): string | undefined => {
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "string") throw new Error(`Invalid event.${field}`);
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+  const optionalNumber = (raw: unknown, field: string): number | undefined => {
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "number" || !Number.isFinite(raw)) throw new Error(`Invalid event.${field}`);
+    return raw;
+  };
+
+  const environment = optionalString(event.environment, "environment");
+  const cancelReason = optionalString(event.cancel_reason, "cancel_reason");
+  const store = optionalString(event.store, "store");
+  const transactionId = optionalString(event.transaction_id, "transaction_id");
+  const purchasedAtMs = optionalNumber(event.purchased_at_ms, "purchased_at_ms");
+  const periodType = optionalString(event.period_type, "period_type");
+  const price = optionalNumber(event.price, "price");
+  const priceInPurchasedCurrency = optionalNumber(event.price_in_purchased_currency, "price_in_purchased_currency");
+  const currency = optionalString(event.currency, "currency");
+  const countryCode = optionalString(event.country_code, "country_code");
+
   return {
     event: {
       type,
@@ -269,6 +302,16 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
         {expiration_at_ms: expirationAtMs} : {}),
       ...(normalizedOriginalTransactionId && normalizedOriginalTransactionId.length > 0 ?
         {original_transaction_id: normalizedOriginalTransactionId} : {}),
+      ...(environment !== undefined ? {environment} : {}),
+      ...(cancelReason !== undefined ? {cancel_reason: cancelReason} : {}),
+      ...(store !== undefined ? {store} : {}),
+      ...(transactionId !== undefined ? {transaction_id: transactionId} : {}),
+      ...(purchasedAtMs !== undefined ? {purchased_at_ms: purchasedAtMs} : {}),
+      ...(periodType !== undefined ? {period_type: periodType} : {}),
+      ...(price !== undefined ? {price} : {}),
+      ...(priceInPurchasedCurrency !== undefined ? {price_in_purchased_currency: priceInPurchasedCurrency} : {}),
+      ...(currency !== undefined ? {currency} : {}),
+      ...(countryCode !== undefined ? {country_code: countryCode} : {}),
     },
   };
 }
