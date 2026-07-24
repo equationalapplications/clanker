@@ -198,6 +198,26 @@ async function emitRevenueCatPurchase(
   }
 }
 
+// Fire a GA4 refund event from RC data. Never throws (isolation) and never guesses revenue.
+async function emitRevenueCatRefund(
+  deps: RevenueCatDeps,
+  event: RevenueCatEvent["event"],
+): Promise<void> {
+  const transactionId = resolveGa4TransactionId(event);
+  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) return;
+  try {
+    await deps.sendRefundEvent({
+      firebaseUid: event.app_user_id,
+      transactionId,
+      value: event.price_in_purchased_currency,
+      currency: event.currency,
+      paymentProvider: "revenuecat",
+    });
+  } catch (err) {
+    logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, transactionId});
+  }
+}
+
 // Shape of RevenueCat webhook event payload (abbreviated)
 interface RevenueCatEvent {
   event: {
@@ -522,6 +542,7 @@ export const revenueCatWebhookHandler = async (
             tier,
             type,
           });
+          await emitRevenueCatPurchase(deps, rcEvent, tier);
         } else if (isRevenueCatCreditPackProduct(product_id)) {
           if (!original_transaction_id) {
             logger.warn("RevenueCat: credit-pack event missing original_transaction_id, rejecting so RevenueCat retries", {
@@ -541,10 +562,7 @@ export const revenueCatWebhookHandler = async (
             original_transaction_id
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
-        }
-        if (type === "INITIAL_PURCHASE" || type === "RENEWAL") {
-          const productName = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId] ?? "Credit Pack";
-          await emitRevenueCatPurchase(deps, rcEvent, productName);
+          await emitRevenueCatPurchase(deps, rcEvent, "Credit Pack");
         }
         break;
       }
@@ -643,22 +661,7 @@ export const revenueCatWebhookHandler = async (
             } else {
               logger.warn("RevenueCat: subscription refund missing both expiration_at_ms and transaction_id, cannot claw back", {app_user_id, product_id, tier});
             }
-            {
-              const refundTxnId = resolveGa4TransactionId(rcEvent);
-              if (refundTxnId && typeof rcEvent.price_in_purchased_currency === "number" && rcEvent.currency) {
-                try {
-                  await deps.sendRefundEvent({
-                    firebaseUid: app_user_id,
-                    transactionId: refundTxnId,
-                    value: rcEvent.price_in_purchased_currency,
-                    currency: rcEvent.currency,
-                    paymentProvider: "revenuecat",
-                  });
-                } catch (err) {
-                  logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, refundTxnId});
-                }
-              }
-            }
+            await emitRevenueCatRefund(deps, rcEvent);
             logger.info("RevenueCat: subscription refund — downgraded and clawed back", {app_user_id, product_id, tier});
           } else {
             // Benign auto-renew-off: entitlement stays active until EXPIRATION.
@@ -687,22 +690,7 @@ export const revenueCatWebhookHandler = async (
               "revenuecat_refund",
               `${original_transaction_id}_refund`
             );
-            {
-              const refundTxnId = resolveGa4TransactionId(rcEvent);
-              if (refundTxnId && typeof rcEvent.price_in_purchased_currency === "number" && rcEvent.currency) {
-                try {
-                  await deps.sendRefundEvent({
-                    firebaseUid: app_user_id,
-                    transactionId: refundTxnId,
-                    value: rcEvent.price_in_purchased_currency,
-                    currency: rcEvent.currency,
-                    paymentProvider: "revenuecat",
-                  });
-                } catch (err) {
-                  logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, refundTxnId});
-                }
-              }
-            }
+            await emitRevenueCatRefund(deps, rcEvent);
             logger.info("RevenueCat: credit-pack refund deducted", {app_user_id, product_id, credits: CREDIT_PACK_AMOUNT});
           } else {
             logger.warn("RevenueCat: credit-pack cancellation missing original_transaction_id, cannot deduct", {app_user_id, product_id});

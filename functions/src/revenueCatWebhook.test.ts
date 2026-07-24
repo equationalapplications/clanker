@@ -1039,6 +1039,45 @@ test("revenueCatWebhookHandler skips the GA4 purchase when price fields are abse
   assert.equal(purchaseCalls.length, 0);
 });
 
+test("revenueCatWebhookHandler sends no GA4 purchase for an unrecognized-product INITIAL_PURCHASE", async () => {
+  const res = createResponseRecorder();
+  const purchaseCalls: Ga4EventCall[] = [];
+  let upsertCalls = 0;
+  let addCreditsCalls = 0;
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "some_unknown_product",
+          original_transaction_id: "rc_txn_1",
+          transaction_id: "rc_inner_txn_1",
+          price_in_purchased_currency: 20,
+          currency: "USD",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => { upsertCalls += 1; },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => { addCreditsCalls += 1; },
+      adjustCredits: async () => undefined,
+      sendPurchaseEvent: async (p) => { purchaseCalls.push(p); },
+      sendRefundEvent: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls, 0, "unrecognized product must not upsert a subscription");
+  assert.equal(addCreditsCalls, 0, "unrecognized product must not grant credit-pack credits");
+  assert.equal(purchaseCalls.length, 0, "unrecognized product must not emit a phantom GA4 purchase");
+});
+
 test("revenueCatWebhookHandler sends a GA4 refund on a subscription refund", async () => {
   const res = createResponseRecorder();
   const refundCalls: Ga4EventCall[] = [];
