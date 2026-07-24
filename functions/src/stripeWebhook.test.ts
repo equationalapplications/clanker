@@ -1245,3 +1245,338 @@ test("handleSubscriptionDeleted falls back to stored stripe_customer_id when Str
     cancelAtPeriodEnd: false,
   });
 });
+
+// --- B6: Stripe GA4 parity for subscriptions + refunds ---
+
+test("handleInvoicePaymentSucceeded emits one GA4 purchase for subscription_create", async () => {
+  let sentEvent: unknown = null;
+
+  const invoice = {
+    id: "inv_create_1",
+    customer_email: "person@example.com",
+    billing_reason: "subscription_create",
+    amount_paid: 2000,
+    currency: "usd",
+    parent: { subscription_details: { subscription: "sub_123" } },
+    lines: { data: [{ quantity: 1, pricing: { price_details: { price: "price_monthly_20" } } }] },
+  } as unknown as Stripe.Invoice;
+
+  const mockStripe = {
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleInvoicePaymentSucceeded(mockStripe, invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async (params: unknown) => { sentEvent = params; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "inv_create_1",
+    valueMinorUnits: 2000,
+    currency: "usd",
+    paymentProvider: "stripe",
+    items: [{item_id: "monthly_20", item_name: "monthly_20"}],
+  });
+});
+
+test("handleInvoicePaymentSucceeded emits one GA4 purchase for subscription_cycle", async () => {
+  let sentEvent: unknown = null;
+
+  const invoice = {
+    id: "inv_cycle_1",
+    customer_email: "person@example.com",
+    billing_reason: "subscription_cycle",
+    amount_paid: 2000,
+    currency: "usd",
+    parent: { subscription_details: { subscription: "sub_123" } },
+    lines: { data: [{ quantity: 1, pricing: { price_details: { price: "price_monthly_20" } } }] },
+  } as unknown as Stripe.Invoice;
+
+  const mockStripe = {
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleInvoicePaymentSucceeded(mockStripe, invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => true,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async (params: unknown) => { sentEvent = params; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "inv_cycle_1",
+    valueMinorUnits: 2000,
+    currency: "usd",
+    paymentProvider: "stripe",
+    items: [{item_id: "monthly_20", item_name: "monthly_20"}],
+  });
+});
+
+test("handleInvoicePaymentSucceeded skips GA4 purchase when firebaseUid is missing", async () => {
+  let called = false;
+
+  const invoice = {
+    id: "inv_no_uid",
+    customer_email: "person@example.com",
+    billing_reason: "subscription_create",
+    amount_paid: 2000,
+    currency: "usd",
+    parent: { subscription_details: { subscription: "sub_123" } },
+    lines: { data: [{ quantity: 1, pricing: { price_details: { price: "price_monthly_20" } } }] },
+  } as unknown as Stripe.Invoice;
+
+  const mockStripe = {
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleInvoicePaymentSucceeded(mockStripe, invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async () => { called = true; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.equal(called, false);
+});
+
+test("handleInvoicePaymentSucceeded a GA4 emission failure does not throw (isolation)", async () => {
+  const invoice = {
+    id: "inv_ga4_fail",
+    customer_email: "person@example.com",
+    billing_reason: "subscription_create",
+    amount_paid: 2000,
+    currency: "usd",
+    parent: { subscription_details: { subscription: "sub_123" } },
+    lines: { data: [{ quantity: 1, pricing: { price_details: { price: "price_monthly_20" } } }] },
+  } as unknown as Stripe.Invoice;
+
+  const mockStripe = {
+    subscriptions: {
+      retrieve: async (_id: string) => ({ current_period_end: 1710000000 }),
+    },
+  } as unknown as Stripe;
+
+  await handleInvoicePaymentSucceeded(mockStripe, invoice, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendPurchaseEvent: async () => { throw new Error("GA4 down"); },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+  // Reaching here without throwing proves isolation.
+});
+
+test("handleChargeRefunded emits a GA4 refund with the delta value for a credit-pack refund", async () => {
+  let sentEvent: unknown = null;
+
+  const charge = {
+    id: "ch_refund_1",
+    amount: 1000,
+    amount_refunded: 200,
+    currency: "usd",
+    billing_details: {email: "user@example.com"},
+    invoice: "in_refund_1",
+  } as unknown as Stripe.Charge;
+
+  const mockStripe = {
+    invoices: {
+      retrieve: async () => ({
+        parent: {subscription_details: {subscription: null}},
+        lines: {data: [{
+          quantity: 1,
+          pricing: {price_details: {price: "price_credit_pack"}},
+        }]},
+      }),
+    },
+  } as unknown as Stripe;
+
+  await handleChargeRefunded(mockStripe, charge, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendRefundEvent: async (params: unknown) => { sentEvent = params; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "ch_refund_1_200",
+    valueMinorUnits: 200,
+    currency: "usd",
+    paymentProvider: "stripe",
+  });
+});
+
+test("handleChargeRefunded emits a GA4 refund for a subscription refund", async () => {
+  let sentEvent: unknown = null;
+
+  const charge = {
+    id: "ch_refund_sub_1",
+    amount: 2000,
+    amount_refunded: 2000,
+    currency: "usd",
+    billing_details: {email: "user@example.com"},
+    invoice: "in_refund_sub_1",
+  } as unknown as Stripe.Charge;
+
+  const mockStripe = {
+    invoices: {
+      retrieve: async () => ({
+        parent: {subscription_details: {subscription: "sub_1"}},
+        lines: {data: []},
+      }),
+    },
+  } as unknown as Stripe;
+
+  await handleChargeRefunded(mockStripe, charge, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendRefundEvent: async (params: unknown) => { sentEvent = params; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.deepEqual(sentEvent, {
+    firebaseUid: "firebase-uid-1",
+    transactionId: "ch_refund_sub_1",
+    valueMinorUnits: 2000,
+    currency: "usd",
+    paymentProvider: "stripe",
+  });
+});
+
+test("handleChargeRefunded does not emit a GA4 refund for an unclassifiable refund", async () => {
+  let called = false;
+
+  const charge = {
+    id: "ch_refund_unknown",
+    amount: 500,
+    amount_refunded: 500,
+    currency: "usd",
+    billing_details: {email: "user@example.com"},
+    invoice: undefined,
+  } as unknown as Stripe.Charge;
+
+  await handleChargeRefunded(mockStripeNoInvoice(), charge, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email, firebaseUid: "firebase-uid-1"}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendRefundEvent: async () => { called = true; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.equal(called, false);
+});
+
+function mockStripeNoInvoice(): Stripe {
+  return {} as unknown as Stripe;
+}
+
+test("handleChargeRefunded skips GA4 refund when firebaseUid is missing", async () => {
+  let called = false;
+
+  const charge = {
+    id: "ch_refund_no_uid",
+    amount: 2000,
+    amount_refunded: 2000,
+    currency: "usd",
+    billing_details: {email: "user@example.com"},
+    invoice: "in_refund_no_uid",
+  } as unknown as Stripe.Charge;
+
+  const mockStripe = {
+    invoices: {
+      retrieve: async () => ({
+        parent: {subscription_details: {subscription: "sub_1"}},
+        lines: {data: []},
+      }),
+    },
+  } as unknown as Stripe;
+
+  await handleChargeRefunded(mockStripe, charge, {
+    monthly20: "price_monthly_20",
+    monthly50: "price_monthly_50",
+    creditPack: "price_credit_pack",
+  }, {
+    findUserByEmail: async (email: string) => ({id: "user-1", email}),
+    findUserByFirebaseUid: async () => null,
+    findUserByStripeCustomerId: async () => null,
+    upsertSubscription: async () => {},
+    renewSubscriptionCredits: async () => false,
+    addCredits: async () => {},
+    adjustCredits: async () => {},
+    sendRefundEvent: async () => { called = true; },
+    getLastProcessedChargeRefundTotal: async () => 0,
+  } as never);
+
+  assert.equal(called, false);
+});

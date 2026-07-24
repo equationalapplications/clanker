@@ -46,21 +46,23 @@ resolvable transaction id, `price_in_purchased_currency`, or `currency`.
 
 | Event | Side effect |
 |-------|-------------|
-| checkout.session.completed | subscription line item → upsert sub (provider=stripe) + renew credits from `current_period_end`; credit-pack line item(s) → add pack credits (key=session id) **and** GA4 purchase. GA4 purchase fires only for the credit-pack path — a subscription-only checkout does not currently emit a GA4 purchase event. |
+| checkout.session.completed | subscription line item → upsert sub (provider=stripe) + renew credits from `current_period_end`, **no GA4 purchase** (fires from `invoice.payment_succeeded` instead, see B6.1); credit-pack line item(s) → add pack credits (key=session id) **and** GA4 purchase |
 | customer.subscription.updated | sync tier/status/`cancelAtPeriodEnd`; if resulting status is active, renew sub credits (key=`sub_{id}_{current_period_end}`, idempotent) — no GA4 event |
 | customer.subscription.deleted | downgrade to free/cancelled (provider=null) — no GA4 event |
-| invoice.payment_succeeded | if tied to a subscription and `billing_reason=subscription_cycle`, renew sub credits (same idempotent key as above); otherwise (non-subscription invoice) add pack credits for any credit-pack line items (key=invoice id) — no GA4 event either way |
-| charge.refunded | if the underlying invoice has credit-pack line items, deduct credits proportional to the *new* refund delta (idempotent via cumulative-refund tracking); else if the invoice is subscription-linked, cancel the subscription (free/cancelled); else log as unclassifiable — no GA4 refund event is sent for Stripe today |
+| invoice.payment_succeeded | if tied to a subscription: `billing_reason=subscription_cycle` renews sub credits (same idempotent key as above); **`subscription_create` or `subscription_cycle`** additionally emits one GA4 purchase keyed on `invoice.id` (tier resolved from the invoice line's price id) — one event per invoice, no double-count with `checkout.session.completed`; otherwise (non-subscription invoice) add pack credits for any credit-pack line items (key=invoice id), no GA4 event |
+| charge.refunded | if the underlying invoice has credit-pack line items, deduct credits proportional to the *new* refund delta (idempotent via cumulative-refund tracking) **and emit a GA4 refund** (value=delta, key=`{charge.id}_{amount_refunded}`); else if the invoice is subscription-linked, cancel the subscription (free/cancelled) **and emit a GA4 refund** (value=full `amount_refunded`, key=`charge.id`); else log as unclassifiable, no GA4 event |
 
 Stripe events are deduplicated via `stripeEventDedupeService` (claim → process →
 complete/unmark) before the switch runs, so retried webhook deliveries are a no-op.
 
-**Known gap:** GA4 purchase events are only emitted for the Stripe credit-pack
-checkout path; Stripe subscription purchases and renewals do not emit GA4 purchase
-events, and no Stripe flow emits a GA4 refund event. RevenueCat emits both purchase
-and refund events across its equivalent flows. This asymmetry means GA4/BQ purchase
-totals underrepresent Stripe subscription revenue and Stripe refunds — tracked as a
-follow-up, not fixed by this doc.
+GA4 purchase/refund emission for Stripe mirrors RevenueCat's isolation guarantee:
+`emitStripePurchase`/`emitStripeRefund` never throw (wrapped in try/catch, logged and
+swallowed) and skip with a `warn` log if `firebaseUid`, `value`, or `currency` is
+missing (never guess revenue). Stripe refund `transaction_id` keys on `charge.id`,
+which does not match the originating purchase's `transaction_id` (`session.id` /
+`invoice.id`) — cosmetic in the GA4 UI's purchase↔refund linking only; canonical
+revenue reconciliation happens in BigQuery (`v_purchases`), where refunds are their
+own rows tagged `stripe`.
 
 ## Analytics flow
 
