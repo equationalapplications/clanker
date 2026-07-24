@@ -385,7 +385,7 @@ export const revenueCatWebhookHandler = async (
       return;
     }
 
-    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id, environment} =
+    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id, transaction_id, environment, cancel_reason} =
       payload.event;
     const normalizedProductId = normalizeRevenueCatProductId(product_id);
 
@@ -555,24 +555,52 @@ export const revenueCatWebhookHandler = async (
       case "CANCELLATION": {
         const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
         if (tier) {
-          // Subscription cancellation. Refund handling (cancel_reason CUSTOMER_SUPPORT)
-          // is added in the A2 task; here, non-refund cancels stay benign (auto-renew off).
-          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
-            new Date(expiration_at_ms) : null;
-          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
-          await deps.upsertSubscription({
-            userId: cloudUser.id,
-            planTier: tier,
-            planStatus: "active",
-            renewalAt,
-            subscriptionProvider: "revenuecat",
-            cancelAtPeriodEnd: true,
-          });
-          logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
-            app_user_id,
-            product_id,
-            tier,
-          });
+          if (cancel_reason === "CUSTOMER_SUPPORT") {
+            // Refund: downgrade immediately and claw back this cycle's renewal credits.
+            await deps.upsertSubscription({
+              userId: cloudUser.id,
+              planTier: "free",
+              planStatus: "cancelled",
+              subscriptionProvider: null,
+              cancelAtPeriodEnd: false,
+            });
+            // Clawback key: prefer the per-cycle key used to grant renewal credits
+            // (`${original_transaction_id}_${expiration_at_ms}`, see INITIAL_PURCHASE/RENEWAL).
+            // Some store refunds void the sub immediately and omit `expiration_at_ms`; fall
+            // back to `transaction_id` so the clawback still fires (still deterministic +
+            // idempotent via the `_refund` suffix). Only skip if we have no key at all.
+            const clawbackKey =
+              typeof expiration_at_ms === "number" ? String(expiration_at_ms) :
+              transaction_id ? String(transaction_id) : null;
+            if (original_transaction_id && clawbackKey) {
+              const referenceId = `${original_transaction_id}_${clawbackKey}_refund`;
+              await deps.adjustCredits(
+                cloudUser.id,
+                -SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+                "revenuecat_refund",
+                referenceId
+              );
+            } else {
+              logger.warn("RevenueCat: subscription refund missing both expiration_at_ms and transaction_id, cannot claw back", {app_user_id, product_id, tier});
+            }
+            logger.info("RevenueCat: subscription refund — downgraded and clawed back", {app_user_id, product_id, tier});
+          } else {
+            // Benign auto-renew-off: entitlement stays active until EXPIRATION.
+            const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+              new Date(expiration_at_ms) : null;
+            const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+            await deps.upsertSubscription({
+              userId: cloudUser.id,
+              planTier: tier,
+              planStatus: "active",
+              renewalAt,
+              subscriptionProvider: "revenuecat",
+              cancelAtPeriodEnd: true,
+            });
+            logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
+              app_user_id, product_id, tier,
+            });
+          }
         } else if (isRevenueCatCreditPackProduct(product_id)) {
           // A credit-pack "cancellation" is a pack refund. Deduct the granted pack credits
           // (floored at zero by syncSubscriptionCache) and leave the subscription row alone.

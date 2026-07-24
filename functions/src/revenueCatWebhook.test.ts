@@ -673,6 +673,124 @@ test("revenueCatWebhookHandler rejects a NON_RENEWING_PURCHASE credit-pack event
   assert.equal(addCreditsCalled, false);
 });
 
+test("revenueCatWebhookHandler downgrades and claws back on a subscription refund", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: RevenueCatUpsertParams[] = [];
+  const adjustCalls: Array<{delta: number; reason: string; referenceId?: string}> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          cancel_reason: "CUSTOMER_SUPPORT",
+          original_transaction_id: "rc_sub_txn",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async (p) => { upsertCalls.push(p); },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.equal(upsertCalls[0].planTier, "free");
+  assert.equal(upsertCalls[0].planStatus, "cancelled");
+  assert.equal(upsertCalls[0].subscriptionProvider, null);
+  assert.equal(adjustCalls.length, 1);
+  assert.equal(adjustCalls[0].delta, -30000); // SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT
+  assert.equal(adjustCalls[0].reason, "revenuecat_refund");
+  assert.equal(adjustCalls[0].referenceId, "rc_sub_txn_1779235200000_refund"); // Date.UTC(2026, 4, 20)
+});
+
+test("revenueCatWebhookHandler claws back on a CUSTOMER_SUPPORT refund missing expiration_at_ms via transaction_id fallback", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: RevenueCatUpsertParams[] = [];
+  const adjustCalls: Array<{delta: number; reason: string; referenceId?: string}> = [];
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          cancel_reason: "CUSTOMER_SUPPORT",
+          original_transaction_id: "rc_sub_txn",
+          transaction_id: "rc_void_txn",
+          // expiration_at_ms omitted: store voided the sub immediately.
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async (p) => { upsertCalls.push(p); },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls[0].planTier, "free");
+  assert.equal(upsertCalls[0].planStatus, "cancelled");
+  assert.equal(adjustCalls.length, 1);
+  assert.equal(adjustCalls[0].delta, -30000);
+  assert.equal(adjustCalls[0].referenceId, "rc_sub_txn_rc_void_txn_refund");
+});
+
+test("revenueCatWebhookHandler treats a non-refund CANCELLATION as benign auto-renew-off", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: RevenueCatUpsertParams[] = [];
+  const adjustCalls: unknown[] = [];
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          cancel_reason: "UNSUBSCRIBE",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async (p) => { upsertCalls.push(p); },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async (...a) => { adjustCalls.push(a); },
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.equal(upsertCalls[0].planTier, "monthly_20");
+  assert.equal(upsertCalls[0].planStatus, "active");
+  assert.equal(upsertCalls[0].cancelAtPeriodEnd, true);
+  assert.equal(adjustCalls.length, 0);
+});
+
 test("revenueCatWebhookHandler deducts pack credits on a credit-pack CANCELLATION and leaves the sub untouched", async () => {
   const res = createResponseRecorder();
   const adjustCalls: Array<{delta: number; reason: string; referenceId?: string}> = [];
