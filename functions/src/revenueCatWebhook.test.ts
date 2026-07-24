@@ -874,3 +874,61 @@ test("revenueCatWebhookHandler only downgrades EXPIRATION for a known tier produ
   assert.equal(res.statusCode, 200);
   assert.equal(upsertCalls, 0, "pack expiration must not downgrade the subscription");
 });
+
+test("revenueCatWebhookHandler clears cancelAtPeriodEnd on UNCANCELLATION", async () => {
+  const res = createResponseRecorder();
+  const upsertCalls: RevenueCatUpsertParams[] = [];
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "UNCANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async (p) => { upsertCalls.push(p); },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls.length, 1);
+  assert.equal(upsertCalls[0].planTier, "monthly_20");
+  assert.equal(upsertCalls[0].planStatus, "active");
+  assert.equal(upsertCalls[0].cancelAtPeriodEnd, false);
+});
+
+test("revenueCatWebhookHandler is a no-op on BILLING_ISSUE and TRANSFER", async () => {
+  for (const type of ["BILLING_ISSUE", "TRANSFER"]) {
+    const res = createResponseRecorder();
+    let upsertCalls = 0;
+    await revenueCatWebhookHandler(
+      {
+        method: "POST",
+        headers: { authorization: "Bearer rc-secret" },
+        body: { event: { type, app_user_id: "uid_123", product_id: "monthly_20_subscription" } },
+      } as never,
+      res as never,
+      {
+        findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+        getSubscription: async () => null,
+        upsertSubscription: async () => { upsertCalls += 1; },
+        renewSubscriptionCredits: async () => false,
+        addCredits: async () => undefined,
+        adjustCredits: async () => undefined,
+      }
+    );
+    assert.equal(res.statusCode, 200, `${type} should 200`);
+    assert.equal(upsertCalls, 0, `${type} should not change state`);
+  }
+});

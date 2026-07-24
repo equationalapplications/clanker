@@ -636,6 +636,40 @@ export const revenueCatWebhookHandler = async (
         }
         break;
       }
+      case "UNCANCELLATION": {
+        const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
+        if (tier) {
+          const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+            new Date(expiration_at_ms) : null;
+          const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: tier,
+            planStatus: "active",
+            renewalAt,
+            subscriptionProvider: "revenuecat",
+            cancelAtPeriodEnd: false,
+          });
+          logger.info("RevenueCat: uncancellation — auto-renew re-enabled", {app_user_id, product_id, tier});
+        } else {
+          logger.info("RevenueCat: uncancellation for non-subscription product, no state change", {app_user_id, product_id});
+        }
+        break;
+      }
+      case "BILLING_ISSUE": {
+        // Grace period: entitlement stays active until EXPIRATION. Log for visibility.
+        logger.warn("RevenueCat: billing issue (grace period, entitlement still active)", {app_user_id, product_id});
+        break;
+      }
+      case "TRANSFER": {
+        // Full re-pointing of entitlements between users is backlog; make occurrences visible.
+        const transferredFrom = (payload.event as {transferred_from?: unknown}).transferred_from;
+        const transferredTo = (payload.event as {transferred_to?: unknown}).transferred_to;
+        logger.warn("RevenueCat: TRANSFER event received (not fully handled)", {
+          app_user_id, product_id, transferredFrom, transferredTo,
+        });
+        break;
+      }
       default:
         logger.info("RevenueCat: unhandled event type", {type});
       }
