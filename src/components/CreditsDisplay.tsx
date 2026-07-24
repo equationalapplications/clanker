@@ -28,6 +28,16 @@ export default function CreditsDisplay({
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const webPurchaseStartRef = React.useRef<'subscribe' | 'payg' | null>(null)
   const isWeb = Platform.OS === 'web'
+  const purchaseErrorMessage = (e: any): string => {
+    const code = typeof e?.code === 'string' ? e.code : undefined
+    if (code === 'functions/invalid-argument') {
+      return 'This app version is out of date — please refresh and try again.'
+    }
+    if (code === 'functions/already-exists' && typeof e?.message === 'string') {
+      return e.message
+    }
+    return 'Purchase failed. Please try again.'
+  }
   const isLocalWebPurchaseLocked = isWeb && (isPurchasing === 'subscribe' || isPurchasing === 'payg')
   const isSubscribeLocked = isWeb
     ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isSubscribeLocked)
@@ -91,7 +101,7 @@ export default function CreditsDisplay({
       }
     } catch (e) {
       console.error(e)
-      setErrorMessage('Purchase failed. Please try again.')
+      setErrorMessage(purchaseErrorMessage(e))
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }
@@ -128,12 +138,7 @@ export default function CreditsDisplay({
       }
     } catch (e: any) {
       console.error(e)
-      const firebaseCode = typeof e?.code === 'string' ? e.code : undefined
-      setErrorMessage(
-        firebaseCode === 'functions/already-exists' && typeof e?.message === 'string'
-          ? e.message
-          : 'Purchase failed. Please try again.'
-      )
+      setErrorMessage(purchaseErrorMessage(e))
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }
