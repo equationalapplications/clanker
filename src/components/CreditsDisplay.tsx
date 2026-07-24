@@ -5,6 +5,7 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
+import { useAuthSubscription } from '~/hooks/useAuthSnapshot'
 import type { WebCheckoutLocks } from '~/hooks/useWebCheckoutSync'
 
 interface CreditsDisplayProps {
@@ -21,6 +22,7 @@ export default function CreditsDisplay({
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const totalPower = credits?.totalCredits ?? 0
   const refreshBootstrap = useBootstrapRefresh()
+  const subscription = useAuthSubscription()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -102,6 +104,20 @@ export default function CreditsDisplay({
 
   const handleSubscribe = async () => {
     if (!tryStartPurchase('subscribe')) {
+      return
+    }
+
+    const currentProvider = Platform.OS === 'web' ? 'stripe' : 'revenuecat'
+    const hasActiveOtherProviderSub =
+      subscription?.planStatus === 'active' &&
+      subscription?.planTier != null &&
+      subscription.planTier !== 'free' &&
+      subscription.subscriptionProvider != null &&
+      subscription.subscriptionProvider !== currentProvider
+
+    if (hasActiveOtherProviderSub) {
+      setErrorMessage('You already have an active subscription. Manage it on the platform where you subscribed.')
+      resetPurchaseState()
       return
     }
 

@@ -38,6 +38,7 @@ const bootstrapData = {
     termsAcceptedAt: null,
     nextExpiryDate: null,
     cancelAtPeriodEnd: false,
+    subscriptionProvider: 'stripe',
   },
 }
 
