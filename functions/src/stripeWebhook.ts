@@ -33,7 +33,7 @@ interface StripeWebhookDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
-  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) => Promise<void>;
   isEventProcessed: (eventId: string) => Promise<boolean>;
   markEventProcessed: (eventId: string) => Promise<boolean>;
   completeEventProcessed: (eventId: string) => Promise<void>;
@@ -80,7 +80,7 @@ const defaultDeps: StripeWebhookDeps = {
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
   },
-  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string}) {
+  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) {
     await sendGa4PurchaseEvent(params);
   },
   async isEventProcessed(eventId: string) {
@@ -489,6 +489,7 @@ export async function handleCheckoutCompleted(
           transactionId: session.id,
           valueMinorUnits: creditPackValueMinorUnits,
           currency,
+          paymentProvider: "stripe",
         });
       }
     } else {

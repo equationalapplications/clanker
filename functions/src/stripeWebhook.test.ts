@@ -401,6 +401,7 @@ test("handleCheckoutCompleted sends a GA4 purchase event for a credit-pack purch
     transactionId: "cs_test_credit_pack",
     valueMinorUnits: 1000,
     currency: "usd",
+    paymentProvider: "stripe",
   });
 });
 
@@ -456,6 +457,7 @@ test("handleCheckoutCompleted sends only the credit-pack subtotal for a mixed su
     transactionId: "cs_test_mixed_cart",
     valueMinorUnits: 1000,
     currency: "usd",
+    paymentProvider: "stripe",
   });
 });
 
