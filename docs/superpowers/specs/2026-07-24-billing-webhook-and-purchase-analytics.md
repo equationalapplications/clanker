@@ -247,6 +247,76 @@ webhook event → side-effect matrix (both providers), analytics flow diagram, a
 BQ dataset/view inventory. Replaces tribal knowledge currently spread across handoff
 docs.
 
+### B6. Stripe GA4 parity — subscriptions + refunds
+
+B1 tagged the one Stripe GA4 path that existed (credit-pack `purchase` from
+`checkout.session.completed`). Stripe still emits **no** GA4 event for subscription
+purchases, subscription renewals, or refunds — so GA4/BQ revenue is systematically
+short on the entire Stripe subscription and refund side, while RC emits both across
+its equivalent flows. This asymmetry breaks the Goal-2 promise ("every real purchase …
+produces a GA4 `purchase` event"). B6 closes it. All changes in
+`functions/src/stripeWebhook.ts` + `functions/src/stripeWebhook.test.ts`; TDD.
+
+Design principles carry over from B1: **never guess revenue** (skip + `warn` on
+missing value / currency / `firebaseUid`) and **isolation** (a GA4 failure must never
+fail the webhook). Add two local wrappers, `emitStripePurchase` / `emitStripeRefund`,
+mirroring RC's `emitRevenueCatPurchase` / `emitRevenueCatRefund` (try/catch/log,
+never throw).
+
+**B6.1 Subscription purchases → `invoice.payment_succeeded` only.**
+A brand-new Stripe subscription fires *both* `checkout.session.completed` (subscription
+line item) and `invoice.payment_succeeded` (`billing_reason: subscription_create`).
+Emitting from both would double-count revenue in GA4 (different natural ids → no
+dedup). **Decision 5:** emit subscription purchases from `invoice.payment_succeeded`
+only, covering both `subscription_create` (initial) and `subscription_cycle` (renewal)
+— any invoice tied to a subscription with a paid amount. One `purchase` event per
+invoice, uniform keying, no double-count.
+
+- In `handleInvoicePaymentSucceeded`, on the subscription branch (`subscriptionId`
+  present), emit `purchase` for `subscription_create` **and** `subscription_cycle`:
+  - `transactionId = invoice.id`
+  - `valueMinorUnits = invoice.amount_paid`, `currency = invoice.currency`
+  - `items = [{item_id: tier, item_name: tier}]` (resolve tier from the subscription
+    line's price id via `getTierByPriceId`)
+  - `paymentProvider: "stripe"`
+  - `firebaseUid` from the existing `findUserByEmail` lookup (already returned); skip +
+    `warn` if absent, mirroring the credit-pack path.
+- `checkout.session.completed` stays **credit-pack-only** for GA4 — no subscription
+  emission there.
+
+**B6.2 Credit-pack purchases — unchanged.** Still emit from
+`checkout.session.completed` (key `session.id`) and the non-subscription
+`invoice.payment_succeeded` credit-pack path as today.
+
+**B6.3 Refunds → `charge.refunded`.**
+- Credit-pack refund branch (`creditPackQty > 0`): after deducting credits, emit
+  `refund` with `valueMinorUnits = deltaRefunded` (the new-refund delta already
+  computed), so partial / repeat refunds each report only their increment.
+  `transactionId = ${charge.id}_${charge.amount_refunded}` (matches the credit-adjust
+  `referenceId`, unique per delta).
+- Subscription refund branch (`isSubscriptionRefund`): after cancelling, emit `refund`
+  with `valueMinorUnits = charge.amount_refunded`, `transactionId = charge.id`.
+- Unclassifiable branch: **no emission** (never-guess).
+- `currency = charge.currency`; skip + `warn` if no `firebaseUid`.
+
+**B6.4 Keying tradeoff (accepted).** Stripe refund `transaction_id` keys on
+`charge.id`, which will not match the originating purchase's `transaction_id`
+(`session.id` / `invoice.id`) — Stripe does not expose the purchase id on the charge
+cheaply. GA4's UI net-revenue linking won't associate purchase↔refund, but the
+canonical analytics is BigQuery (`v_purchases` / `v_user_journey`), where refunds are
+their own rows tagged `stripe`. So this is cosmetic in the GA4 UI only. Documented,
+not fixed.
+
+**Tests:** `subscription_create` emits one purchase; `subscription_cycle` emits one
+purchase; a subscription `checkout.session.completed` emits **no** purchase (no
+double-emit); credit-pack refund emits `refund` with the delta value; subscription
+refund emits `refund`; unclassifiable refund emits nothing; missing `firebaseUid` /
+`currency` skips with a warn; a GA4 emission failure does not fail the webhook.
+
+**Docs:** update `docs/billing-architecture.md` — remove the "Known gap" note and
+correct the `checkout.session.completed` / `charge.refunded` / `invoice.payment_succeeded`
+rows of the event matrix to reflect the new emissions.
+
 ---
 
 ## Verification
@@ -273,7 +343,9 @@ docs.
    second PR.
 3. B1 GA4 events + Stripe provider tag — third PR.
 4. B3 views + B5 docs — fourth PR (no deploy risk).
-5. B4 RC export — deferred (see B4).
+5. B6 Stripe GA4 parity (subscriptions + refunds) — folds into the RC-webhook billing
+   PR (`feat/rc-webhook-billing`, PR #572) since it lives in the same webhook layer.
+6. B4 RC export — deferred (see B4).
 
 PRs target `staging` per `docs/GIT_WORKFLOW.md`.
 
@@ -294,3 +366,10 @@ PRs target `staging` per `docs/GIT_WORKFLOW.md`.
    amount — store refunds are effectively full-amount, so the RC path deducts the
    full grant (still floored at zero); the proportional math matters chiefly on the
    Stripe path, where it is already implemented.
+5. **Stripe subscription GA4 purchases fire from `invoice.payment_succeeded` only**
+   (B6.1): the initial Stripe subscription payment fires both
+   `checkout.session.completed` and `invoice.payment_succeeded`; keying every
+   subscription purchase off the invoice covers initial + renewals with one event
+   each and no double-count. Refund `transaction_id` keys on `charge.id` and is not
+   reconciled to the purchase `transaction_id` in GA4 (B6.4) — cosmetic in the GA4 UI
+   only; canonical revenue is BigQuery-side.
