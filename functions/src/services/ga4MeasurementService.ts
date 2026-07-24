@@ -71,7 +71,11 @@ async function sendGa4Event(
     return;
   }
 
-  const items = params.items ?? [{ item_id: "credit_pack", item_name: "Credit Pack" }];
+  const items = params.items ?? (
+    eventName === "purchase"
+      ? [{ item_id: "credit_pack", item_name: "Credit Pack" }]
+      : [{ item_id: "unknown", item_name: "Unknown Item" }]
+  );
 
   try {
     const url = `${GA4_MP_ENDPOINT}?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;

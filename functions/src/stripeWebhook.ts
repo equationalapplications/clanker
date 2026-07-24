@@ -799,13 +799,13 @@ export async function handleChargeRefunded(
         credits: creditsToDeduct,
         amountRefunded: charge.amount_refunded,
       });
-      await emitStripeRefund(deps, {
-        firebaseUid: user.firebaseUid,
-        transactionId: `${charge.id}_${charge.amount_refunded}`,
-        valueMinorUnits: deltaRefunded,
-        currency: charge.currency,
-      });
     }
+    await emitStripeRefund(deps, {
+      firebaseUid: user.firebaseUid,
+      transactionId: `${charge.id}_${charge.amount_refunded}`,
+      valueMinorUnits: deltaRefunded,
+      currency: charge.currency,
+    });
   } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
     await deps.upsertSubscription({

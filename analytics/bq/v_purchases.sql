@@ -17,6 +17,7 @@ WITH purchases AS (
     (SELECT i.item_id FROM UNNEST(items) i LIMIT 1) AS item_id
   FROM `clanker-prod.analytics_544289823.events_*`
   WHERE event_name = 'purchase'
+    AND (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'transaction_id') IS NOT NULL
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'transaction_id')
     ORDER BY event_timestamp
@@ -27,6 +28,7 @@ refunds AS (
     (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'transaction_id') AS transaction_id
   FROM `clanker-prod.analytics_544289823.events_*`
   WHERE event_name = 'refund'
+    AND (SELECT ep.value.string_value FROM UNNEST(event_params) ep WHERE ep.key = 'transaction_id') IS NOT NULL
 )
 SELECT
   p.transaction_id,
