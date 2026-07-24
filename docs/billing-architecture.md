@@ -60,9 +60,12 @@ GA4 purchase/refund emission for Stripe mirrors RevenueCat's isolation guarantee
 swallowed) and skip with a `warn` log if `firebaseUid`, `value`, or `currency` is
 missing (never guess revenue). Stripe refund `transaction_id` keys on `charge.id`,
 which does not match the originating purchase's `transaction_id` (`session.id` /
-`invoice.id`) — cosmetic in the GA4 UI's purchase↔refund linking only; canonical
-revenue reconciliation happens in BigQuery (`v_purchases`), where refunds are their
-own rows tagged `stripe`.
+`invoice.id`) — this breaks the GA4 UI's purchase↔refund linking for Stripe, and it
+means the `refunded` convenience column on `v_purchases` purchase rows never flips
+for Stripe (it only works for RevenueCat, whose refund events reuse the purchase's
+transaction id). Canonical revenue reconciliation happens in BigQuery
+(`v_purchases`), where every refund event lands as its own row (`type = 'refund'`),
+queryable independent of whether it links back to a purchase row.
 
 ## Analytics flow
 
@@ -78,9 +81,12 @@ design (see `analytics/bq/README.md`).
 - `clanker-prod.analytics_544289823` — GA4-managed daily export (`events_*`), not
   hand-edited.
 - `clanker-prod.clanker_analytics.v_purchases` (`analytics/bq/v_purchases.sql`) —
-  one row per transaction (`transaction_id`, `user_id`, `user_pseudo_id`,
-  `event_date`, `event_timestamp`, `value`, `currency`, `payment_provider`, `store`,
-  `item_id`), with a `refunded` boolean joined from matching `refund` events.
+  one row per transaction event (`type` = `purchase` or `refund`,
+  `transaction_id`, `user_id`, `user_pseudo_id`, `event_date`, `event_timestamp`,
+  `value`, `currency`, `payment_provider`, `store`, `item_id`). Purchase rows carry
+  a best-effort `refunded` boolean joined on matching `transaction_id` (reliable
+  for RevenueCat only, see B6.4 above); query `type = 'refund'` rows directly for
+  canonical refund reconciliation, including Stripe.
 - `clanker-prod.clanker_analytics.v_user_journey` (`analytics/bq/v_user_journey.sql`) —
   90-day behavioral funnel.
 - Known caveat (`analytics/bq/README.md`): the Firebase native SDK can auto-log

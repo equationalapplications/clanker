@@ -305,71 +305,116 @@ test("sendPurchaseEvent skips the event when neither value nor valueMinorUnits i
 });
 
 test("sendPurchaseEvent accepts a decimal value + paymentProvider (RevenueCat path)", async () => {
+  const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
   process.env.GA4_MEASUREMENT_ID = "G-TEST123";
   process.env.GA4_MP_API_SECRET = "test-secret";
   const calls: Array<{ init?: RequestInit }> = [];
-  const fetchImpl = async (_u: any, init?: RequestInit) => {
+  const fetchImpl = async (_u: string | URL | Request, init?: RequestInit) => {
     calls.push({ init });
     return new Response(null, { status: 204 });
   };
 
-  await sendPurchaseEvent(
-    {
-      firebaseUid: "uid-9",
-      transactionId: "rc_txn_9",
-      value: 20,
-      currency: "USD",
-      paymentProvider: "revenuecat",
-      items: [{ item_id: "monthly_20", item_name: "Monthly 20" }],
-      store: "APP_STORE",
-      periodType: "NORMAL",
-    },
-    fetchImpl as typeof fetch
-  );
+  try {
+    await sendPurchaseEvent(
+      {
+        firebaseUid: "uid-9",
+        transactionId: "rc_txn_9",
+        value: 20,
+        currency: "USD",
+        paymentProvider: "revenuecat",
+        items: [{ item_id: "monthly_20", item_name: "Monthly 20" }],
+        store: "APP_STORE",
+        periodType: "NORMAL",
+      },
+      fetchImpl as typeof fetch
+    );
 
-  const body = JSON.parse(String(calls[0].init?.body));
-  const p = body.events[0].params;
-  assert.equal(body.events[0].name, "purchase");
-  assert.equal(p.value, 20);
-  assert.equal(p.currency, "USD");
-  assert.equal(p.payment_provider, "revenuecat");
-  assert.equal(p.store, "APP_STORE");
-  assert.equal(p.period_type, "NORMAL");
-  assert.deepEqual(p.items, [{ item_id: "monthly_20", item_name: "Monthly 20" }]);
+    const body = JSON.parse(String(calls[0].init?.body));
+    const p = body.events[0].params;
+    assert.equal(body.events[0].name, "purchase");
+    assert.equal(p.value, 20);
+    assert.equal(p.currency, "USD");
+    assert.equal(p.payment_provider, "revenuecat");
+    assert.equal(p.store, "APP_STORE");
+    assert.equal(p.period_type, "NORMAL");
+    assert.deepEqual(p.items, [{ item_id: "monthly_20", item_name: "Monthly 20" }]);
+  } finally {
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
+  }
 });
 
 test("sendPurchaseEvent still converts valueMinorUnits for the Stripe path and tags provider", async () => {
+  const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
   process.env.GA4_MEASUREMENT_ID = "G-TEST123";
   process.env.GA4_MP_API_SECRET = "test-secret";
   const calls: Array<{ init?: RequestInit }> = [];
-  const fetchImpl = async (_u: any, init?: RequestInit) => {
+  const fetchImpl = async (_u: string | URL | Request, init?: RequestInit) => {
     calls.push({ init });
     return new Response(null, { status: 204 });
   };
 
-  await sendPurchaseEvent(
-    { firebaseUid: "uid-1", transactionId: "cs_1", valueMinorUnits: 1000, currency: "usd", paymentProvider: "stripe" },
-    fetchImpl as typeof fetch
-  );
-  const p = JSON.parse(String(calls[0].init?.body)).events[0].params;
-  assert.equal(p.value, 10);
-  assert.equal(p.payment_provider, "stripe");
+  try {
+    await sendPurchaseEvent(
+      { firebaseUid: "uid-1", transactionId: "cs_1", valueMinorUnits: 1000, currency: "usd", paymentProvider: "stripe" },
+      fetchImpl as typeof fetch
+    );
+    const p = JSON.parse(String(calls[0].init?.body)).events[0].params;
+    assert.equal(p.value, 10);
+    assert.equal(p.payment_provider, "stripe");
+  } finally {
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
+  }
 });
 
 test("sendRefundEvent posts a refund event with the same transaction id", async () => {
+  const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
   process.env.GA4_MEASUREMENT_ID = "G-TEST123";
   process.env.GA4_MP_API_SECRET = "test-secret";
   const calls: Array<{ init?: RequestInit }> = [];
-  const fetchImpl = async (_u: any, init?: RequestInit) => {
+  const fetchImpl = async (_u: string | URL | Request, init?: RequestInit) => {
     calls.push({ init });
     return new Response(null, { status: 204 });
   };
 
-  await sendRefundEvent(
-    { firebaseUid: "uid-1", transactionId: "cs_1", value: 10, currency: "usd", paymentProvider: "stripe" },
-    fetchImpl as typeof fetch
-  );
-  const body = JSON.parse(String(calls[0].init?.body));
-  assert.equal(body.events[0].name, "refund");
-  assert.equal(body.events[0].params.transaction_id, "cs_1");
+  try {
+    await sendRefundEvent(
+      { firebaseUid: "uid-1", transactionId: "cs_1", value: 10, currency: "usd", paymentProvider: "stripe" },
+      fetchImpl as typeof fetch
+    );
+    const body = JSON.parse(String(calls[0].init?.body));
+    assert.equal(body.events[0].name, "refund");
+    assert.equal(body.events[0].params.transaction_id, "cs_1");
+  } finally {
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
+  }
 });

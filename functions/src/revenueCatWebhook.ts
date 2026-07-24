@@ -205,7 +205,12 @@ async function emitRevenueCatRefund(
   productName: string,
 ): Promise<void> {
   const transactionId = resolveGa4TransactionId(event);
-  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) return;
+  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) {
+    logger.info("RevenueCat: insufficient data for GA4 refund, skipping", {
+      app_user_id: event.app_user_id, product_id: event.product_id,
+    });
+    return;
+  }
   try {
     await deps.sendRefundEvent({
       firebaseUid: event.app_user_id,
