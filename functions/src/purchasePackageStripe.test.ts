@@ -587,6 +587,36 @@ test("purchasePackageStripeHandler allows a credit-pack purchase even with an ac
   });
 });
 
+test("purchasePackageStripeHandler allows subscription purchase after the RevenueCat subscription has expired", async (t) => {
+  const {createCheckoutSessionMock} = stubHandlerDeps(
+    t,
+    "recurring",
+    "sess_resub",
+    "https://checkout.stripe.com/resub"
+  );
+
+  await withAdminAuthStub(async () => ({email: "user@example.com"}), async () => {
+    const url = await purchasePackageStripeHandler(
+      {auth: {uid: "firebase-uid-1"}, data: {priceId: "price_monthly_20"}} as never,
+      {
+        userRepository: {
+          findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+        },
+        subscriptionService: {
+          getSubscription: async () => ({
+            planStatus: "cancelled",
+            planTier: "free",
+            subscriptionProvider: "revenuecat",
+          }),
+        },
+      } as never
+    );
+
+    assert.equal(url, "https://checkout.stripe.com/resub");
+    assert.equal(createCheckoutSessionMock.mock.calls.length, 1);
+  });
+});
+
 test("purchasePackageStripeHandler allows subscription purchase when Cloud SQL user has no subscription row yet", async (t) => {
   stubHandlerDeps(t, "recurring", "sess_new", "https://checkout.stripe.com/new");
 

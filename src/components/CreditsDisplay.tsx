@@ -126,7 +126,11 @@ export default function CreditsDisplay({
       subscription.subscriptionProvider !== currentProvider
 
     if (hasActiveOtherProviderSub) {
-      setErrorMessage('You already have an active subscription. Manage it on the platform where you subscribed.')
+      setErrorMessage(
+        subscription?.subscriptionProvider === 'revenuecat'
+          ? 'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+          : 'You already have an active subscription on the web. Manage it at your account billing page.'
+      )
       resetPurchaseState()
       return
     }

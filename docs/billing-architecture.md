@@ -84,10 +84,14 @@ design (see `analytics/bq/README.md`).
 - `clanker-prod.clanker_analytics.v_user_journey` (`analytics/bq/v_user_journey.sql`) —
   90-day behavioral funnel.
 - Known caveat (`analytics/bq/README.md`): the Firebase native SDK can auto-log
-  `in_app_purchase` alongside the server-sent `purchase` event, which would
-  double-count native revenue in `v_purchases` — check for this after the first
-  native purchase; the mitigation (disable auto-collection or filter the event) is
-  not yet implemented.
+  `in_app_purchase` alongside the server-sent `purchase` event. `v_purchases`
+  already filters `event_name = 'purchase'` only, so it structurally excludes
+  `in_app_purchase` and does not double-count — no view-side mitigation needed.
+  Raw GA4 aggregate totals *outside* `v_purchases` (e.g. the GA4 UI, or any other
+  query against `events_*`) are still exposed to double-counting until
+  auto-collection is disabled at the native SDK/build-config level; verify against
+  the BQ export after the first real native purchase (see Verification in the spec)
+  and disable auto-collection then if it fires.
 
 ## Deferred
 

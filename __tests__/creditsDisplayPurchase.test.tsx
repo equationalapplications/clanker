@@ -416,7 +416,7 @@ describe('CreditsDisplay purchase flows', () => {
 
     expect(mockMakePackagePurchase).not.toHaveBeenCalled()
     expect(JSON.stringify(tree.toJSON())).toContain(
-      'You already have an active subscription. Manage it on the platform where you subscribed.'
+      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
     )
     expect(subscribeButton.props.disabled).toBe(false)
   })
