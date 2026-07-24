@@ -209,6 +209,8 @@ test("parseRevenueCatEvent extracts the extended optional fields", () => {
       price_in_purchased_currency: 20,
       currency: "USD",
       country_code: "US",
+      transferred_from: ["gA1B2c3"],
+      transferred_to: ["gD4E5f6"],
     },
   });
 
@@ -222,6 +224,8 @@ test("parseRevenueCatEvent extracts the extended optional fields", () => {
   assert.equal(parsed.event.price_in_purchased_currency, 20);
   assert.equal(parsed.event.currency, "USD");
   assert.equal(parsed.event.country_code, "US");
+  assert.deepEqual(parsed.event.transferred_from, ["gA1B2c3"]);
+  assert.deepEqual(parsed.event.transferred_to, ["gD4E5f6"]);
 });
 
 test("parseRevenueCatEvent tolerates absent extended fields", () => {
@@ -230,6 +234,8 @@ test("parseRevenueCatEvent tolerates absent extended fields", () => {
   });
   assert.equal(parsed.event.environment, undefined);
   assert.equal(parsed.event.price_in_purchased_currency, undefined);
+  assert.equal(parsed.event.transferred_from, undefined);
+  assert.equal(parsed.event.transferred_to, undefined);
 });
 
 test("parseRevenueCatEvent rejects a wrong-typed price", () => {

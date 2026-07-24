@@ -168,6 +168,8 @@ interface RevenueCatEvent {
     price_in_purchased_currency?: number;
     currency?: string;
     country_code?: string;
+    transferred_from?: unknown;
+    transferred_to?: unknown;
   };
 }
 
@@ -296,6 +298,8 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const priceInPurchasedCurrency = optionalNumber(event.price_in_purchased_currency, "price_in_purchased_currency");
   const currency = optionalString(event.currency, "currency");
   const countryCode = optionalString(event.country_code, "country_code");
+  const transferredFrom = event.transferred_from;
+  const transferredTo = event.transferred_to;
 
   return {
     event: {
@@ -316,6 +320,8 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
       ...(priceInPurchasedCurrency !== undefined ? {price_in_purchased_currency: priceInPurchasedCurrency} : {}),
       ...(currency !== undefined ? {currency} : {}),
       ...(countryCode !== undefined ? {country_code: countryCode} : {}),
+      ...(transferredFrom !== undefined ? {transferred_from: transferredFrom} : {}),
+      ...(transferredTo !== undefined ? {transferred_to: transferredTo} : {}),
     },
   };
 }
@@ -663,10 +669,10 @@ export const revenueCatWebhookHandler = async (
       }
       case "TRANSFER": {
         // Full re-pointing of entitlements between users is backlog; make occurrences visible.
-        const transferredFrom = (payload.event as {transferred_from?: unknown}).transferred_from;
-        const transferredTo = (payload.event as {transferred_to?: unknown}).transferred_to;
         logger.warn("RevenueCat: TRANSFER event received (not fully handled)", {
-          app_user_id, product_id, transferredFrom, transferredTo,
+          app_user_id, product_id,
+          transferredFrom: payload.event.transferred_from,
+          transferredTo: payload.event.transferred_to,
         });
         break;
       }
