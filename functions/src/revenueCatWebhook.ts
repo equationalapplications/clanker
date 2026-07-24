@@ -67,6 +67,7 @@ interface RevenueCatDeps {
   upsertSubscription: (params: RevenueCatUpsertParams) => Promise<void>;
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
+  adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
 }
 
 const defaultDeps: RevenueCatDeps = {
@@ -129,6 +130,9 @@ const defaultDeps: RevenueCatDeps = {
   },
   async addCredits(userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) {
     await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId);
+  },
+  async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
+    await creditService.adjustCredits(userId, delta, reason, referenceId);
   },
 };
 
@@ -551,6 +555,8 @@ export const revenueCatWebhookHandler = async (
       case "CANCELLATION": {
         const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
         if (tier) {
+          // Subscription cancellation. Refund handling (cancel_reason CUSTOMER_SUPPORT)
+          // is added in the A2 task; here, non-refund cancels stay benign (auto-renew off).
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
             new Date(expiration_at_ms) : null;
           const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
@@ -567,30 +573,39 @@ export const revenueCatWebhookHandler = async (
             product_id,
             tier,
           });
+        } else if (isRevenueCatCreditPackProduct(product_id)) {
+          // A credit-pack "cancellation" is a pack refund. Deduct the granted pack credits
+          // (floored at zero by syncSubscriptionCache) and leave the subscription row alone.
+          if (original_transaction_id) {
+            await deps.adjustCredits(
+              cloudUser.id,
+              -CREDIT_PACK_AMOUNT,
+              "revenuecat_refund",
+              `${original_transaction_id}_refund`
+            );
+            logger.info("RevenueCat: credit-pack refund deducted", {app_user_id, product_id, credits: CREDIT_PACK_AMOUNT});
+          } else {
+            logger.warn("RevenueCat: credit-pack cancellation missing original_transaction_id, cannot deduct", {app_user_id, product_id});
+          }
         } else {
-          await deps.upsertSubscription({
-            userId: cloudUser.id,
-            planTier: "free",
-            planStatus: "cancelled",
-            subscriptionProvider: null,
-            cancelAtPeriodEnd: false,
-          });
-          logger.warn("RevenueCat: cancellation for unknown product, defaulting to free/cancelled", {
-            app_user_id,
-            product_id,
-          });
+          // Neither a known tier nor a known pack — log only, never downgrade.
+          logger.warn("RevenueCat: cancellation for unknown product, no state change", {app_user_id, product_id});
         }
         break;
       }
       case "EXPIRATION": {
-        await deps.upsertSubscription({
-          userId: cloudUser.id,
-          planTier: "free",
-          planStatus: "expired",
-          subscriptionProvider: null,
-          cancelAtPeriodEnd: false,
-        });
-        logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
+        if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: "free",
+            planStatus: "expired",
+            subscriptionProvider: null,
+            cancelAtPeriodEnd: false,
+          });
+          logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
+        } else {
+          logger.info("RevenueCat: expiration for non-subscription product, no state change", {app_user_id, product_id});
+        }
         break;
       }
       default:

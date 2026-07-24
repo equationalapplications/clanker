@@ -128,6 +128,7 @@ test("revenueCatWebhookHandler ignores SANDBOX events with 200 and no side effec
       addCredits: async () => {
         addCalls += 1;
       },
+      adjustCredits: async () => undefined,
     } as never
   );
 
@@ -269,6 +270,7 @@ test("revenueCatWebhookHandler does not renew credits on PRODUCT_CHANGE events",
         return true;
       },
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -304,6 +306,7 @@ test("revenueCatWebhookHandler keeps paid tier active on cancellation until expi
       },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -346,6 +349,7 @@ test("revenueCatWebhookHandler normalizes expiration to free tier", async () => 
       },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -387,6 +391,7 @@ test("revenueCatWebhookHandler tags new subscriptions with the revenuecat provid
       upsertSubscription: async (params: RevenueCatUpsertParams) => { upsertCalls.push(params); },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -423,6 +428,7 @@ test("revenueCatWebhookHandler bootstraps Cloud SQL user when missing", async ()
       },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -466,6 +472,7 @@ test("revenueCatWebhookHandler maps Android base-plan-suffixed subscription IDs"
       },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -509,6 +516,7 @@ test("revenueCatWebhookHandler maps cancellation for Android base-plan-suffixed 
       },
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -549,6 +557,7 @@ test("revenueCatWebhookHandler returns retryable status when Cloud SQL user is u
       upsertSubscription: async () => undefined,
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -590,6 +599,7 @@ test("revenueCatWebhookHandler grants credits and warns on billing_provider_coll
       upsertSubscription: async () => { upsertCalled = true; },
       renewSubscriptionCredits: async () => true,
       addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -622,6 +632,7 @@ test("revenueCatWebhookHandler rejects a credit-pack event missing original_tran
       upsertSubscription: async () => {},
       renewSubscriptionCredits: async () => false,
       addCredits: async () => { addCreditsCalled = true; },
+      adjustCredits: async () => undefined,
     }
   );
 
@@ -654,9 +665,94 @@ test("revenueCatWebhookHandler rejects a NON_RENEWING_PURCHASE credit-pack event
       upsertSubscription: async () => {},
       renewSubscriptionCredits: async () => false,
       addCredits: async () => { addCreditsCalled = true; },
+      adjustCredits: async () => undefined,
     }
   );
 
   assert.equal(res.statusCode, 503);
   assert.equal(addCreditsCalled, false);
+});
+
+test("revenueCatWebhookHandler deducts pack credits on a credit-pack CANCELLATION and leaves the sub untouched", async () => {
+  const res = createResponseRecorder();
+  const adjustCalls: Array<{delta: number; reason: string; referenceId?: string}> = [];
+  let upsertCalls = 0;
+
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "credit_pack_100",
+          cancel_reason: "CUSTOMER_SUPPORT",
+          original_transaction_id: "rc_pack_txn",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => { upsertCalls += 1; },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+    }
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls, 0, "credit-pack refund must not touch the subscription row");
+  assert.equal(adjustCalls.length, 1);
+  assert.equal(adjustCalls[0].delta, -10000); // CREDIT_PACK_AMOUNT
+  assert.equal(adjustCalls[0].reason, "revenuecat_refund");
+  assert.equal(adjustCalls[0].referenceId, "rc_pack_txn_refund");
+});
+
+test("revenueCatWebhookHandler leaves an unknown-product CANCELLATION as a no-op", async () => {
+  const res = createResponseRecorder();
+  let upsertCalls = 0;
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: { event: { type: "CANCELLATION", app_user_id: "uid_123", product_id: "some_unknown_product" } },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => { upsertCalls += 1; },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls, 0, "unknown-product cancellation must not downgrade");
+});
+
+test("revenueCatWebhookHandler only downgrades EXPIRATION for a known tier product", async () => {
+  const res = createResponseRecorder();
+  let upsertCalls = 0;
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: { event: { type: "EXPIRATION", app_user_id: "uid_123", product_id: "credit_pack_100" } },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => { upsertCalls += 1; },
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(upsertCalls, 0, "pack expiration must not downgrade the subscription");
 });
