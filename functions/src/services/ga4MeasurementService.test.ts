@@ -266,6 +266,44 @@ test("sendPurchaseEvent skips the request when secrets are not configured", asyn
   assert.equal(called, false);
 });
 
+test("sendPurchaseEvent skips the event when neither value nor valueMinorUnits is provided (never guess revenue)", async () => {
+  const original = { measurementId: process.env.GA4_MEASUREMENT_ID, apiSecret: process.env.GA4_MP_API_SECRET };
+  process.env.GA4_MEASUREMENT_ID = "G-TEST123";
+  process.env.GA4_MP_API_SECRET = "test-secret";
+
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(null, { status: 204 });
+  };
+
+  try {
+    await sendPurchaseEvent(
+      {
+        firebaseUid: "uid-123",
+        transactionId: "cs_test_no_value",
+        currency: "usd",
+        paymentProvider: "stripe",
+      },
+      fetchImpl as typeof fetch
+    );
+  } finally {
+    if (original.measurementId === undefined) {
+      delete process.env.GA4_MEASUREMENT_ID;
+    } else {
+      process.env.GA4_MEASUREMENT_ID = original.measurementId;
+    }
+
+    if (original.apiSecret === undefined) {
+      delete process.env.GA4_MP_API_SECRET;
+    } else {
+      process.env.GA4_MP_API_SECRET = original.apiSecret;
+    }
+  }
+
+  assert.equal(calls.length, 0);
+});
+
 test("sendPurchaseEvent accepts a decimal value + paymentProvider (RevenueCat path)", async () => {
   process.env.GA4_MEASUREMENT_ID = "G-TEST123";
   process.env.GA4_MP_API_SECRET = "test-secret";
