@@ -40,6 +40,7 @@ describe('getUserPrivate', () => {
         termsAcceptedAt: '2026-04-20T00:00:00.000Z',
         nextExpiryDate: null,
         cancelAtPeriodEnd: false,
+        subscriptionProvider: 'stripe',
       },
     })
 
@@ -71,6 +72,7 @@ describe('getUserPrivate', () => {
         termsAcceptedAt: '2026-04-20T00:00:00.000Z',
         nextExpiryDate: null,
         cancelAtPeriodEnd: false,
+        subscriptionProvider: 'stripe',
       },
     })
 

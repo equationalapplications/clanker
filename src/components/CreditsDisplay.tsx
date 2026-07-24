@@ -5,6 +5,7 @@ import { useUserCredits } from '~/hooks/useUserCredits'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { makePackagePurchase } from '~/utilities/makePackagePurchase'
 import { useBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
+import { useAuthSubscription } from '~/hooks/useAuthSnapshot'
 import type { WebCheckoutLocks } from '~/hooks/useWebCheckoutSync'
 
 interface CreditsDisplayProps {
@@ -21,11 +22,22 @@ export default function CreditsDisplay({
   const { data: credits, isLoading, error, refetch } = useUserCredits()
   const totalPower = credits?.totalCredits ?? 0
   const refreshBootstrap = useBootstrapRefresh()
+  const subscription = useAuthSubscription()
   const { colors } = useTheme()
   const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const webPurchaseStartRef = React.useRef<'subscribe' | 'payg' | null>(null)
   const isWeb = Platform.OS === 'web'
+  const purchaseErrorMessage = (e: any): string => {
+    const code = typeof e?.code === 'string' ? e.code : undefined
+    if (code === 'functions/invalid-argument') {
+      return 'This app version is out of date — please refresh and try again.'
+    }
+    if (code === 'functions/already-exists' && typeof e?.message === 'string') {
+      return e.message
+    }
+    return 'Purchase failed. Please try again.'
+  }
   const isLocalWebPurchaseLocked = isWeb && (isPurchasing === 'subscribe' || isPurchasing === 'payg')
   const isSubscribeLocked = isWeb
     ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isSubscribeLocked)
@@ -89,7 +101,7 @@ export default function CreditsDisplay({
       }
     } catch (e) {
       console.error(e)
-      setErrorMessage('Purchase failed. Please try again.')
+      setErrorMessage(purchaseErrorMessage(e))
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }
@@ -105,6 +117,24 @@ export default function CreditsDisplay({
       return
     }
 
+    const currentProvider = Platform.OS === 'web' ? 'stripe' : 'revenuecat'
+    const hasActiveOtherProviderSub =
+      subscription?.planStatus === 'active' &&
+      subscription?.planTier != null &&
+      subscription.planTier !== 'free' &&
+      subscription.subscriptionProvider != null &&
+      subscription.subscriptionProvider !== currentProvider
+
+    if (hasActiveOtherProviderSub) {
+      setErrorMessage(
+        subscription?.subscriptionProvider === 'revenuecat'
+          ? 'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+          : 'You already have an active subscription on the web. Manage it at your account billing page.'
+      )
+      resetPurchaseState()
+      return
+    }
+
     try {
       const purchaseResult = await makePackagePurchase('monthly_20')
       if (Platform.OS !== 'web' && purchaseResult != null) {
@@ -112,12 +142,7 @@ export default function CreditsDisplay({
       }
     } catch (e: any) {
       console.error(e)
-      const firebaseCode = typeof e?.code === 'string' ? e.code : undefined
-      setErrorMessage(
-        firebaseCode === 'functions/already-exists' && typeof e?.message === 'string'
-          ? e.message
-          : 'Purchase failed. Please try again.'
-      )
+      setErrorMessage(purchaseErrorMessage(e))
       if (Platform.OS === 'web') {
         resetPurchaseState()
       }

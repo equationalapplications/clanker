@@ -5,6 +5,7 @@ const mockUseUserCredits = jest.fn()
 const mockUsePowerBalance = jest.fn()
 const mockMakePackagePurchase = jest.fn()
 const mockAuthServiceSend = jest.fn()
+const mockUseAuthSubscription = jest.fn()
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
@@ -51,6 +52,10 @@ jest.mock('~/hooks/useUserCredits', () => ({
 
 jest.mock('~/hooks/usePowerBalance', () => ({
   usePowerBalance: (...args: unknown[]) => mockUsePowerBalance(...args),
+}))
+
+jest.mock('~/hooks/useAuthSnapshot', () => ({
+  useAuthSubscription: (...args: unknown[]) => mockUseAuthSubscription(...args),
 }))
 
 jest.mock('~/hooks/useMachines', () => ({
@@ -105,6 +110,7 @@ describe('CreditsDisplay purchase flows', () => {
     })
 
     mockMakePackagePurchase.mockResolvedValue(undefined)
+    mockUseAuthSubscription.mockReturnValue(null)
   })
 
   afterEach(() => {
@@ -380,5 +386,108 @@ describe('CreditsDisplay purchase flows', () => {
     // The parent (subscribe.tsx) is responsible for showing the timeout message
     const treeString = JSON.stringify(tree.toJSON())
     expect(treeString).not.toContain('Previous checkout timed out')
+  })
+
+  it('blocks subscribe when an active subscription exists on the other provider', async () => {
+    mockUseAuthSubscription.mockReturnValue({
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      currentCredits: 100,
+      grantedTotal: 100,
+      termsVersion: null,
+      termsAcceptedAt: null,
+      nextExpiryDate: null,
+      cancelAtPeriodEnd: false,
+      subscriptionProvider: 'revenuecat',
+    })
+
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(mockMakePackagePurchase).not.toHaveBeenCalled()
+    expect(JSON.stringify(tree.toJSON())).toContain(
+      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+    )
+    expect(subscribeButton.props.disabled).toBe(false)
+  })
+
+  it('shows the refresh message when the purchase fails with invalid-argument', async () => {
+    const staleBundleError = Object.assign(new Error('stale price id'), {
+      code: 'functions/invalid-argument',
+    })
+    mockMakePackagePurchase.mockRejectedValueOnce(staleBundleError)
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
+
+    await act(async () => {
+      await buyButton.props.onPress()
+    })
+
+    expect(JSON.stringify(tree.toJSON())).toContain(
+      'This app version is out of date — please refresh and try again.'
+    )
+  })
+
+  it('shows the generic message for other purchase errors', async () => {
+    mockMakePackagePurchase.mockRejectedValueOnce(new Error('boom'))
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const buyButton = tree.root.findByProps({ testID: 'Buy 10,000 Power - $10' })
+
+    await act(async () => {
+      await buyButton.props.onPress()
+    })
+
+    expect(JSON.stringify(tree.toJSON())).toContain('Purchase failed. Please try again.')
+  })
+
+  it('allows subscribe when the active subscription is on the current (web/stripe) provider', async () => {
+    mockUseAuthSubscription.mockReturnValue({
+      planTier: 'monthly_20',
+      planStatus: 'active',
+      currentCredits: 100,
+      grantedTotal: 100,
+      termsVersion: null,
+      termsAcceptedAt: null,
+      nextExpiryDate: null,
+      cancelAtPeriodEnd: false,
+      subscriptionProvider: 'stripe',
+    })
+
+    const CreditsDisplay = require('~/components/CreditsDisplay').default
+    let tree!: ReturnType<typeof create>
+
+    await act(async () => {
+      tree = create(<CreditsDisplay />)
+    })
+
+    const subscribeButton = tree.root.findByProps({ testID: '30,000 Power / month · $20' })
+
+    await act(async () => {
+      await subscribeButton.props.onPress()
+    })
+
+    expect(mockMakePackagePurchase).toHaveBeenCalledWith('monthly_20')
   })
 })

@@ -22,6 +22,7 @@ graph LR
   CookiePreferencesModal --> CookieConsentContext
   CreditsDisplay --> useUserCredits
   CreditsDisplay --> useBootstrapRefresh
+  CreditsDisplay --> useAuthSnapshot
   GroundingHtml --> sanitizeGroundingHtml
   GroundingHtml --> isSafeHttpUrl
   GroundingHtml.web --> groundingShadowContent

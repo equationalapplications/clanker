@@ -25,6 +25,7 @@ export interface SubscriptionSnapshot {
   termsAcceptedAt: string | null
   nextExpiryDate: string | null
   cancelAtPeriodEnd: boolean
+  subscriptionProvider: 'stripe' | 'revenuecat' | null
 }
 
 export interface BootstrapSessionResult {
@@ -84,6 +85,7 @@ function normalizeBootstrapResponse(response: {
     termsAcceptedAt: response.subscription.termsAcceptedAt ?? null,
     nextExpiryDate: response.subscription.nextExpiryDate ?? null,
     cancelAtPeriodEnd: response.subscription.cancelAtPeriodEnd ?? false,
+    subscriptionProvider: response.subscription.subscriptionProvider ?? null,
   }
 
   return {
@@ -125,6 +127,7 @@ async function buildMockBootstrap(): Promise<BootstrapSessionResult> {
       termsAcceptedAt: now,
       nextExpiryDate: null,
       cancelAtPeriodEnd: false,
+      subscriptionProvider: 'stripe',
     },
   }
 }

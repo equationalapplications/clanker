@@ -52,6 +52,7 @@ describe('getUserCredits', () => {
         termsAcceptedAt: null,
         nextExpiryDate: null,
         cancelAtPeriodEnd: false,
+        subscriptionProvider: 'stripe',
       },
     })
 

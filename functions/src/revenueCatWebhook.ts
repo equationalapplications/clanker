@@ -8,6 +8,7 @@ import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
+import {sendPurchaseEvent as sendGa4PurchaseEvent, sendRefundEvent as sendGa4RefundEvent} from "./services/ga4MeasurementService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -67,6 +68,9 @@ interface RevenueCatDeps {
   upsertSubscription: (params: RevenueCatUpsertParams) => Promise<void>;
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
+  adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"; items?: Array<{item_id: string; item_name: string}>; store?: string; periodType?: string}) => Promise<void>;
+  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"; items?: Array<{item_id: string; item_name: string}>; store?: string; periodType?: string}) => Promise<void>;
 }
 
 const defaultDeps: RevenueCatDeps = {
@@ -130,6 +134,15 @@ const defaultDeps: RevenueCatDeps = {
   async addCredits(userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) {
     await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId);
   },
+  async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
+    await creditService.adjustCredits(userId, delta, reason, referenceId);
+  },
+  async sendPurchaseEvent(params) {
+    await sendGa4PurchaseEvent(params);
+  },
+  async sendRefundEvent(params) {
+    await sendGa4RefundEvent(params);
+  },
 };
 
 function isRevenueCatCreditPackProduct(productId: string): boolean {
@@ -146,6 +159,74 @@ function normalizeRevenueCatProductId(productId: string): string {
   return trimmedProductId.slice(0, separatorIndex);
 }
 
+// Resolve the transaction id used to key GA4 revenue events. Prefer RC's transaction_id,
+// fall back to the per-cycle key for renewals.
+function resolveGa4TransactionId(event: RevenueCatEvent["event"]): string | undefined {
+  if (event.transaction_id) return event.transaction_id;
+  if (event.original_transaction_id && typeof event.expiration_at_ms === "number") {
+    return `${event.original_transaction_id}_${event.expiration_at_ms}`;
+  }
+  return undefined;
+}
+
+// Fire a GA4 purchase event from RC data. Never throws (isolation) and never guesses revenue.
+async function emitRevenueCatPurchase(
+  deps: RevenueCatDeps,
+  event: RevenueCatEvent["event"],
+  productName: string,
+): Promise<void> {
+  const transactionId = resolveGa4TransactionId(event);
+  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) {
+    logger.info("RevenueCat: insufficient data for GA4 purchase, skipping", {
+      app_user_id: event.app_user_id, product_id: event.product_id,
+    });
+    return;
+  }
+  try {
+    await deps.sendPurchaseEvent({
+      firebaseUid: event.app_user_id,
+      transactionId,
+      value: event.price_in_purchased_currency,
+      currency: event.currency,
+      paymentProvider: "revenuecat",
+      items: [{item_id: normalizeRevenueCatProductId(event.product_id), item_name: productName}],
+      ...(event.store ? {store: event.store} : {}),
+      ...(event.period_type ? {periodType: event.period_type} : {}),
+    });
+  } catch (err) {
+    logger.error("RevenueCat: GA4 purchase emission failed (ignored)", {err, transactionId});
+  }
+}
+
+// Fire a GA4 refund event from RC data. Never throws (isolation) and never guesses revenue.
+async function emitRevenueCatRefund(
+  deps: RevenueCatDeps,
+  event: RevenueCatEvent["event"],
+  productName: string,
+): Promise<void> {
+  const transactionId = resolveGa4TransactionId(event);
+  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) {
+    logger.info("RevenueCat: insufficient data for GA4 refund, skipping", {
+      app_user_id: event.app_user_id, product_id: event.product_id,
+    });
+    return;
+  }
+  try {
+    await deps.sendRefundEvent({
+      firebaseUid: event.app_user_id,
+      transactionId,
+      value: event.price_in_purchased_currency,
+      currency: event.currency,
+      paymentProvider: "revenuecat",
+      items: [{item_id: normalizeRevenueCatProductId(event.product_id), item_name: productName}],
+      ...(event.store ? {store: event.store} : {}),
+      ...(event.period_type ? {periodType: event.period_type} : {}),
+    });
+  } catch (err) {
+    logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, transactionId});
+  }
+}
+
 // Shape of RevenueCat webhook event payload (abbreviated)
 interface RevenueCatEvent {
   event: {
@@ -154,6 +235,18 @@ interface RevenueCatEvent {
     product_id: string;
     expiration_at_ms?: number;
     original_transaction_id?: string;
+    environment?: string;
+    cancel_reason?: string;
+    store?: string;
+    transaction_id?: string;
+    purchased_at_ms?: number;
+    period_type?: string;
+    price?: number;
+    price_in_purchased_currency?: number;
+    currency?: string;
+    country_code?: string;
+    transferred_from?: unknown;
+    transferred_to?: unknown;
   };
 }
 
@@ -260,6 +353,31 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
   const normalizedOriginalTransactionId =
     typeof originalTransactionId === "string" ? originalTransactionId.trim() : undefined;
 
+  const optionalString = (raw: unknown, field: string): string | undefined => {
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "string") throw new Error(`Invalid event.${field}`);
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+  const optionalNumber = (raw: unknown, field: string): number | undefined => {
+    if (raw === undefined || raw === null) return undefined;
+    if (typeof raw !== "number" || !Number.isFinite(raw)) throw new Error(`Invalid event.${field}`);
+    return raw;
+  };
+
+  const environment = optionalString(event.environment, "environment");
+  const cancelReason = optionalString(event.cancel_reason, "cancel_reason");
+  const store = optionalString(event.store, "store");
+  const transactionId = optionalString(event.transaction_id, "transaction_id");
+  const purchasedAtMs = optionalNumber(event.purchased_at_ms, "purchased_at_ms");
+  const periodType = optionalString(event.period_type, "period_type");
+  const price = optionalNumber(event.price, "price");
+  const priceInPurchasedCurrency = optionalNumber(event.price_in_purchased_currency, "price_in_purchased_currency");
+  const currency = optionalString(event.currency, "currency");
+  const countryCode = optionalString(event.country_code, "country_code");
+  const transferredFrom = event.transferred_from;
+  const transferredTo = event.transferred_to;
+
   return {
     event: {
       type,
@@ -269,6 +387,18 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent {
         {expiration_at_ms: expirationAtMs} : {}),
       ...(normalizedOriginalTransactionId && normalizedOriginalTransactionId.length > 0 ?
         {original_transaction_id: normalizedOriginalTransactionId} : {}),
+      ...(environment !== undefined ? {environment} : {}),
+      ...(cancelReason !== undefined ? {cancel_reason: cancelReason} : {}),
+      ...(store !== undefined ? {store} : {}),
+      ...(transactionId !== undefined ? {transaction_id: transactionId} : {}),
+      ...(purchasedAtMs !== undefined ? {purchased_at_ms: purchasedAtMs} : {}),
+      ...(periodType !== undefined ? {period_type: periodType} : {}),
+      ...(price !== undefined ? {price} : {}),
+      ...(priceInPurchasedCurrency !== undefined ? {price_in_purchased_currency: priceInPurchasedCurrency} : {}),
+      ...(currency !== undefined ? {currency} : {}),
+      ...(countryCode !== undefined ? {country_code: countryCode} : {}),
+      ...(transferredFrom !== undefined ? {transferred_from: transferredFrom} : {}),
+      ...(transferredTo !== undefined ? {transferred_to: transferredTo} : {}),
     },
   };
 }
@@ -338,7 +468,8 @@ export const revenueCatWebhookHandler = async (
       return;
     }
 
-    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id} =
+    const rcEvent = payload.event;
+    const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id, transaction_id, environment, cancel_reason} =
       payload.event;
     const normalizedProductId = normalizeRevenueCatProductId(product_id);
 
@@ -352,6 +483,14 @@ export const revenueCatWebhookHandler = async (
     // RevenueCat dashboard test events are connectivity checks and do not need user-side effects.
     if (type === "TEST") {
       res.status(200).json({received: true});
+      return;
+    }
+
+    // Sandbox / TestFlight purchases must never grant production entitlements.
+    // Respond 200 so RevenueCat does not retry.
+    if (environment === "SANDBOX") {
+      logger.info("RevenueCat webhook: ignoring sandbox event", {type, app_user_id, product_id});
+      res.status(200).json({received: true, ignored: "sandbox"});
       return;
     }
 
@@ -412,6 +551,7 @@ export const revenueCatWebhookHandler = async (
             tier,
             type,
           });
+          await emitRevenueCatPurchase(deps, rcEvent, tier);
         } else if (isRevenueCatCreditPackProduct(product_id)) {
           if (!original_transaction_id) {
             logger.warn("RevenueCat: credit-pack event missing original_transaction_id, rejecting so RevenueCat retries", {
@@ -431,6 +571,7 @@ export const revenueCatWebhookHandler = async (
             original_transaction_id
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
+          await emitRevenueCatPurchase(deps, rcEvent, "Credit Pack");
         }
         break;
       }
@@ -494,10 +635,97 @@ export const revenueCatWebhookHandler = async (
             original_transaction_id
           );
           logger.info("RevenueCat: non-renewing credits added", {app_user_id});
+          await emitRevenueCatPurchase(deps, rcEvent, "Credit Pack");
         }
         break;
       }
       case "CANCELLATION": {
+        const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
+        if (tier) {
+          if (cancel_reason === "CUSTOMER_SUPPORT") {
+            // Refund: downgrade immediately and claw back this cycle's renewal credits.
+            await deps.upsertSubscription({
+              userId: cloudUser.id,
+              planTier: "free",
+              planStatus: "cancelled",
+              subscriptionProvider: null,
+              cancelAtPeriodEnd: false,
+            });
+            // Clawback key: prefer the per-cycle key used to grant renewal credits
+            // (`${original_transaction_id}_${expiration_at_ms}`, see INITIAL_PURCHASE/RENEWAL).
+            // Some store refunds void the sub immediately and omit `expiration_at_ms`; fall
+            // back to `transaction_id` so the clawback still fires (still deterministic +
+            // idempotent via the `_refund` suffix). Only skip if we have no key at all.
+            const clawbackKey =
+              typeof expiration_at_ms === "number" ? String(expiration_at_ms) :
+              transaction_id ? String(transaction_id) : null;
+            if (original_transaction_id && clawbackKey) {
+              const referenceId = `${original_transaction_id}_${clawbackKey}_refund`;
+              await deps.adjustCredits(
+                cloudUser.id,
+                -SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+                "revenuecat_refund",
+                referenceId
+              );
+            } else {
+              logger.warn("RevenueCat: subscription refund missing both expiration_at_ms and transaction_id, cannot claw back", {app_user_id, product_id, tier});
+            }
+            await emitRevenueCatRefund(deps, rcEvent, tier);
+            logger.info("RevenueCat: subscription refund — downgraded and clawed back", {app_user_id, product_id, tier});
+          } else {
+            // Benign auto-renew-off: entitlement stays active until EXPIRATION.
+            const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
+              new Date(expiration_at_ms) : null;
+            const renewalAt = expirationDate && Number.isFinite(expirationDate.getTime()) ? expirationDate : null;
+            await deps.upsertSubscription({
+              userId: cloudUser.id,
+              planTier: tier,
+              planStatus: "active",
+              renewalAt,
+              subscriptionProvider: "revenuecat",
+              cancelAtPeriodEnd: true,
+            });
+            logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
+              app_user_id, product_id, tier,
+            });
+          }
+        } else if (isRevenueCatCreditPackProduct(product_id)) {
+          // A credit-pack "cancellation" is a pack refund. Deduct the granted pack credits
+          // (floored at zero by syncSubscriptionCache) and leave the subscription row alone.
+          if (original_transaction_id) {
+            await deps.adjustCredits(
+              cloudUser.id,
+              -CREDIT_PACK_AMOUNT,
+              "revenuecat_refund",
+              `${original_transaction_id}_refund`
+            );
+            await emitRevenueCatRefund(deps, rcEvent, "Credit Pack");
+            logger.info("RevenueCat: credit-pack refund deducted", {app_user_id, product_id, credits: CREDIT_PACK_AMOUNT});
+          } else {
+            logger.warn("RevenueCat: credit-pack cancellation missing original_transaction_id, cannot deduct", {app_user_id, product_id});
+          }
+        } else {
+          // Neither a known tier nor a known pack — log only, never downgrade.
+          logger.warn("RevenueCat: cancellation for unknown product, no state change", {app_user_id, product_id});
+        }
+        break;
+      }
+      case "EXPIRATION": {
+        if (REVENUECAT_PRODUCT_TO_TIER[normalizedProductId]) {
+          await deps.upsertSubscription({
+            userId: cloudUser.id,
+            planTier: "free",
+            planStatus: "expired",
+            subscriptionProvider: null,
+            cancelAtPeriodEnd: false,
+          });
+          logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
+        } else {
+          logger.info("RevenueCat: expiration for non-subscription product, no state change", {app_user_id, product_id});
+        }
+        break;
+      }
+      case "UNCANCELLATION": {
         const tier = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId];
         if (tier) {
           const expirationDate = typeof expiration_at_ms === "number" && Number.isFinite(expiration_at_ms) ?
@@ -509,37 +737,26 @@ export const revenueCatWebhookHandler = async (
             planStatus: "active",
             renewalAt,
             subscriptionProvider: "revenuecat",
-            cancelAtPeriodEnd: true,
-          });
-          logger.info("RevenueCat: subscription cancellation recorded (auto-renew off, entitlement still active)", {
-            app_user_id,
-            product_id,
-            tier,
-          });
-        } else {
-          await deps.upsertSubscription({
-            userId: cloudUser.id,
-            planTier: "free",
-            planStatus: "cancelled",
-            subscriptionProvider: null,
             cancelAtPeriodEnd: false,
           });
-          logger.warn("RevenueCat: cancellation for unknown product, defaulting to free/cancelled", {
-            app_user_id,
-            product_id,
-          });
+          logger.info("RevenueCat: uncancellation — auto-renew re-enabled", {app_user_id, product_id, tier});
+        } else {
+          logger.info("RevenueCat: uncancellation for non-subscription product, no state change", {app_user_id, product_id});
         }
         break;
       }
-      case "EXPIRATION": {
-        await deps.upsertSubscription({
-          userId: cloudUser.id,
-          planTier: "free",
-          planStatus: "expired",
-          subscriptionProvider: null,
-          cancelAtPeriodEnd: false,
+      case "BILLING_ISSUE": {
+        // Grace period: entitlement stays active until EXPIRATION. Log for visibility.
+        logger.warn("RevenueCat: billing issue (grace period, entitlement still active)", {app_user_id, product_id});
+        break;
+      }
+      case "TRANSFER": {
+        // Full re-pointing of entitlements between users is backlog; make occurrences visible.
+        logger.warn("RevenueCat: TRANSFER event received (not fully handled)", {
+          app_user_id, product_id,
+          transferredFrom: payload.event.transferred_from,
+          transferredTo: payload.event.transferred_to,
         });
-        logger.info("RevenueCat: subscription expired", {app_user_id, product_id});
         break;
       }
       default:
@@ -558,7 +775,7 @@ export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
     invoker: "public",
-    secrets: [...CLOUD_SQL_SECRETS, "REVENUECAT_WEBHOOK_SECRET"]
+    secrets: [...CLOUD_SQL_SECRETS, "REVENUECAT_WEBHOOK_SECRET", "GA4_MEASUREMENT_ID", "GA4_MP_API_SECRET"]
   },
   revenueCatWebhookHandler
 );
