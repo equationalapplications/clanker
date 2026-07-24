@@ -1,7 +1,7 @@
 # Spec — RevenueCat webhook correctness + unified purchase analytics
 
 **Created:** 2026-07-24
-**Status:** Approved
+**Status:** Implemented
 
 ## Context
 
