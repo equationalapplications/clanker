@@ -1,3 +1,32 @@
+# [30.30.0](https://github.com/equationalapplications/clanker/compare/v30.29.1...v30.30.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* **billing:** add subscriptionProvider to remaining SubscriptionSnapshot test fixtures ([f96e488](https://github.com/equationalapplications/clanker/commit/f96e4889df82bb72f496be76806d486180cbac79))
+* **billing:** address PR 572 Copilot review round 2 ([7f0c593](https://github.com/equationalapplications/clanker/commit/7f0c593877bfa7b8c6383f8c5b81ed5b33539e67))
+* **billing:** address PR 572 review feedback ([201a84b](https://github.com/equationalapplications/clanker/commit/201a84be5955a66be86e10c721b81ae298b710c1))
+* **billing:** address PR 573 review feedback ([923ed1a](https://github.com/equationalapplications/clanker/commit/923ed1a5b2d3d7ff5b023b44b90e01b032589f61))
+* **billing:** reconcile double-subscribe message, add resubscribe test, fix B2 doc ([3ea065c](https://github.com/equationalapplications/clanker/commit/3ea065cba1e2e225550d61ba9299fdf957c2fd10))
+* **rc-webhook:** actually thread transferred_from/to through to the TRANSFER log ([42bbbe9](https://github.com/equationalapplications/clanker/commit/42bbbe98a9d39ecfb4e91b0baa46b19b7f9bff73))
+* **rc-webhook:** gate GA4 purchase emission on recognized products; dedupe refund emission ([4f1107a](https://github.com/equationalapplications/clanker/commit/4f1107abd4c0c854069c02d5d74a3bbe2fa38c8a))
+* **rc-webhook:** handle CUSTOMER_SUPPORT refunds — downgrade + clawback ([9d2fa5f](https://github.com/equationalapplications/clanker/commit/9d2fa5f6ad540eb23a97a627a11e51e6661a3afd))
+* **rc-webhook:** ignore SANDBOX events so they never grant production credits ([3d7a5be](https://github.com/equationalapplications/clanker/commit/3d7a5be781616d100b545d403ba22dc913c033cf))
+* **rc-webhook:** product-guard CANCELLATION/EXPIRATION; deduct pack refunds ([fe74667](https://github.com/equationalapplications/clanker/commit/fe74667b95137637c1ebeb1bb2f2274ab1cd3d74))
+
+
+### Features
+
+* **analytics:** canonical BigQuery views v_purchases + v_user_journey ([20d8227](https://github.com/equationalapplications/clanker/commit/20d8227079dc6701fc5fdd31153041f76c24275a))
+* **billing:** client double-subscribe gate via bootstrap subscriptionProvider ([e1c9e80](https://github.com/equationalapplications/clanker/commit/e1c9e80477f55a21bc998ad96bac217228a3ad62))
+* **billing:** map invalid-argument purchase failures to a refresh message ([a0167e1](https://github.com/equationalapplications/clanker/commit/a0167e138c97c141c5cf5ef9af10cae90d83d87e))
+* **ga4:** generalize purchase event (decimal value, provider tag, refund event) ([162c649](https://github.com/equationalapplications/clanker/commit/162c6495ae2bfaa865fcbec770b1de94f2c45249))
+* **rc-webhook:** emit GA4 purchase/refund events tagged revenuecat ([0da5322](https://github.com/equationalapplications/clanker/commit/0da5322ef9b951b76dc17f0ac337434babdf3693))
+* **rc-webhook:** extend parseRevenueCatEvent with revenue + refund fields ([e245174](https://github.com/equationalapplications/clanker/commit/e245174983fe8f58b5ded3298ca38d4078347baf))
+* **rc-webhook:** handle UNCANCELLATION, BILLING_ISSUE, TRANSFER ([9d29c2c](https://github.com/equationalapplications/clanker/commit/9d29c2c1ec6acc1ce39f72bde5862c263aa40585))
+* **stripe-webhook:** add GA4 parity for subscription purchases and refunds ([18cff7b](https://github.com/equationalapplications/clanker/commit/18cff7b2243aab239980f432858b6e44ca9dd0ed))
+* **stripe-webhook:** tag GA4 purchase events with paymentProvider=stripe ([b685536](https://github.com/equationalapplications/clanker/commit/b68553606bba0a87a39034e4b935c29689c7ebc6))
+
 ## [30.29.1](https://github.com/equationalapplications/clanker/compare/v30.29.0...v30.29.1) (2026-07-20)
 
 
