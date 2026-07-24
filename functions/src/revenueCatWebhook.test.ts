@@ -129,6 +129,8 @@ test("revenueCatWebhookHandler ignores SANDBOX events with 200 and no side effec
         addCalls += 1;
       },
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     } as never
   );
 
@@ -277,6 +279,8 @@ test("revenueCatWebhookHandler does not renew credits on PRODUCT_CHANGE events",
       },
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -313,6 +317,8 @@ test("revenueCatWebhookHandler keeps paid tier active on cancellation until expi
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -356,6 +362,8 @@ test("revenueCatWebhookHandler normalizes expiration to free tier", async () => 
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -398,6 +406,8 @@ test("revenueCatWebhookHandler tags new subscriptions with the revenuecat provid
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -435,6 +445,8 @@ test("revenueCatWebhookHandler bootstraps Cloud SQL user when missing", async ()
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -479,6 +491,8 @@ test("revenueCatWebhookHandler maps Android base-plan-suffixed subscription IDs"
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -523,6 +537,8 @@ test("revenueCatWebhookHandler maps cancellation for Android base-plan-suffixed 
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -564,6 +580,8 @@ test("revenueCatWebhookHandler returns retryable status when Cloud SQL user is u
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -606,6 +624,8 @@ test("revenueCatWebhookHandler grants credits and warns on billing_provider_coll
       renewSubscriptionCredits: async () => true,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -639,6 +659,8 @@ test("revenueCatWebhookHandler rejects a credit-pack event missing original_tran
       renewSubscriptionCredits: async () => false,
       addCredits: async () => { addCreditsCalled = true; },
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -672,6 +694,8 @@ test("revenueCatWebhookHandler rejects a NON_RENEWING_PURCHASE credit-pack event
       renewSubscriptionCredits: async () => false,
       addCredits: async () => { addCreditsCalled = true; },
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -707,6 +731,8 @@ test("revenueCatWebhookHandler downgrades and claws back on a subscription refun
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -750,6 +776,8 @@ test("revenueCatWebhookHandler claws back on a CUSTOMER_SUPPORT refund missing e
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -787,6 +815,8 @@ test("revenueCatWebhookHandler treats a non-refund CANCELLATION as benign auto-r
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async (...a) => { adjustCalls.push(a); },
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
   assert.equal(res.statusCode, 200);
@@ -824,6 +854,8 @@ test("revenueCatWebhookHandler deducts pack credits on a credit-pack CANCELLATIO
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async (_uid, delta, reason, referenceId) => { adjustCalls.push({delta, reason, referenceId}); },
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
 
@@ -852,6 +884,8 @@ test("revenueCatWebhookHandler leaves an unknown-product CANCELLATION as a no-op
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
   assert.equal(res.statusCode, 200);
@@ -875,6 +909,8 @@ test("revenueCatWebhookHandler only downgrades EXPIRATION for a known tier produ
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
   assert.equal(res.statusCode, 200);
@@ -905,6 +941,8 @@ test("revenueCatWebhookHandler clears cancelAtPeriodEnd on UNCANCELLATION", asyn
       renewSubscriptionCredits: async () => false,
       addCredits: async () => undefined,
       adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async () => undefined,
     }
   );
   assert.equal(res.statusCode, 200);
@@ -912,6 +950,165 @@ test("revenueCatWebhookHandler clears cancelAtPeriodEnd on UNCANCELLATION", asyn
   assert.equal(upsertCalls[0].planTier, "monthly_20");
   assert.equal(upsertCalls[0].planStatus, "active");
   assert.equal(upsertCalls[0].cancelAtPeriodEnd, false);
+});
+
+interface Ga4EventCall {
+  firebaseUid: string;
+  transactionId: string;
+  value?: number;
+  currency: string;
+  paymentProvider: "revenuecat";
+  items?: Array<{item_id: string; item_name: string}>;
+  store?: string;
+  periodType?: string;
+}
+
+test("revenueCatWebhookHandler sends a GA4 purchase after a subscription INITIAL_PURCHASE", async () => {
+  const res = createResponseRecorder();
+  const purchaseCalls: Ga4EventCall[] = [];
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "INITIAL_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          original_transaction_id: "rc_txn_1",
+          transaction_id: "rc_inner_txn_1",
+          price_in_purchased_currency: 20,
+          currency: "USD",
+          store: "APP_STORE",
+          period_type: "NORMAL",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => true,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+      sendPurchaseEvent: async (p) => { purchaseCalls.push(p); },
+      sendRefundEvent: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(purchaseCalls.length, 1);
+  assert.equal(purchaseCalls[0].paymentProvider, "revenuecat");
+  assert.equal(purchaseCalls[0].firebaseUid, "uid_123");
+  assert.equal(purchaseCalls[0].transactionId, "rc_inner_txn_1");
+  assert.equal(purchaseCalls[0].value, 20);
+  assert.equal(purchaseCalls[0].currency, "USD");
+});
+
+test("revenueCatWebhookHandler skips the GA4 purchase when price fields are absent", async () => {
+  const res = createResponseRecorder();
+  const purchaseCalls: Ga4EventCall[] = [];
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "RENEWAL",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          original_transaction_id: "rc_txn_1",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => true,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+      sendPurchaseEvent: async (p) => { purchaseCalls.push(p); },
+      sendRefundEvent: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(purchaseCalls.length, 0);
+});
+
+test("revenueCatWebhookHandler sends a GA4 refund on a subscription refund", async () => {
+  const res = createResponseRecorder();
+  const refundCalls: Ga4EventCall[] = [];
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "CANCELLATION",
+          app_user_id: "uid_123",
+          product_id: "monthly_20_subscription",
+          cancel_reason: "CUSTOMER_SUPPORT",
+          original_transaction_id: "rc_sub_txn",
+          transaction_id: "rc_inner_sub_txn",
+          expiration_at_ms: Date.UTC(2026, 4, 20),
+          price_in_purchased_currency: 20,
+          currency: "USD",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => undefined,
+      sendRefundEvent: async (p) => { refundCalls.push(p); },
+    }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(refundCalls.length, 1);
+  assert.equal(refundCalls[0].transactionId, "rc_inner_sub_txn");
+  assert.equal(refundCalls[0].paymentProvider, "revenuecat");
+});
+
+test("a GA4 failure never fails the RC webhook response", async () => {
+  const res = createResponseRecorder();
+  await revenueCatWebhookHandler(
+    {
+      method: "POST",
+      headers: { authorization: "Bearer rc-secret" },
+      body: {
+        event: {
+          type: "NON_RENEWING_PURCHASE",
+          app_user_id: "uid_123",
+          product_id: "credit_pack_100",
+          original_transaction_id: "rc_pack_1",
+          transaction_id: "rc_pack_inner_1",
+          price_in_purchased_currency: 10,
+          currency: "USD",
+        },
+      },
+    } as never,
+    res as never,
+    {
+      findUserByFirebaseUid: async () => ({id: "cloud-user-1"}),
+      getSubscription: async () => null,
+      upsertSubscription: async () => {},
+      renewSubscriptionCredits: async () => false,
+      addCredits: async () => undefined,
+      adjustCredits: async () => undefined,
+      sendPurchaseEvent: async () => { throw new Error("GA4 down"); },
+      sendRefundEvent: async () => undefined,
+    }
+  );
+  assert.equal(res.statusCode, 200, "GA4 failure must not fail the webhook");
 });
 
 test("revenueCatWebhookHandler is a no-op on BILLING_ISSUE and TRANSFER", async () => {
@@ -932,6 +1129,8 @@ test("revenueCatWebhookHandler is a no-op on BILLING_ISSUE and TRANSFER", async 
         renewSubscriptionCredits: async () => false,
         addCredits: async () => undefined,
         adjustCredits: async () => undefined,
+        sendPurchaseEvent: async () => undefined,
+        sendRefundEvent: async () => undefined,
       }
     );
     assert.equal(res.statusCode, 200, `${type} should 200`);

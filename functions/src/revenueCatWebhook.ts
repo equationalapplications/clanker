@@ -8,6 +8,7 @@ import {subscriptionService} from "./services/subscriptionService.js";
 import {creditService} from "./services/creditService.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
+import {sendPurchaseEvent as sendGa4PurchaseEvent, sendRefundEvent as sendGa4RefundEvent} from "./services/ga4MeasurementService.js";
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -68,6 +69,8 @@ interface RevenueCatDeps {
   renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
   addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
   adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
+  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"; items?: Array<{item_id: string; item_name: string}>; store?: string; periodType?: string}) => Promise<void>;
+  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; value?: number; currency: string; paymentProvider: "revenuecat"}) => Promise<void>;
 }
 
 const defaultDeps: RevenueCatDeps = {
@@ -134,6 +137,12 @@ const defaultDeps: RevenueCatDeps = {
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
     await creditService.adjustCredits(userId, delta, reason, referenceId);
   },
+  async sendPurchaseEvent(params) {
+    await sendGa4PurchaseEvent(params);
+  },
+  async sendRefundEvent(params) {
+    await sendGa4RefundEvent(params);
+  },
 };
 
 function isRevenueCatCreditPackProduct(productId: string): boolean {
@@ -148,6 +157,45 @@ function normalizeRevenueCatProductId(productId: string): string {
   }
 
   return trimmedProductId.slice(0, separatorIndex);
+}
+
+// Resolve the transaction id used to key GA4 revenue events. Prefer RC's transaction_id,
+// fall back to the per-cycle key for renewals.
+function resolveGa4TransactionId(event: RevenueCatEvent["event"]): string | undefined {
+  if (event.transaction_id) return event.transaction_id;
+  if (event.original_transaction_id && typeof event.expiration_at_ms === "number") {
+    return `${event.original_transaction_id}_${event.expiration_at_ms}`;
+  }
+  return undefined;
+}
+
+// Fire a GA4 purchase event from RC data. Never throws (isolation) and never guesses revenue.
+async function emitRevenueCatPurchase(
+  deps: RevenueCatDeps,
+  event: RevenueCatEvent["event"],
+  productName: string,
+): Promise<void> {
+  const transactionId = resolveGa4TransactionId(event);
+  if (!transactionId || typeof event.price_in_purchased_currency !== "number" || !event.currency) {
+    logger.info("RevenueCat: insufficient data for GA4 purchase, skipping", {
+      app_user_id: event.app_user_id, product_id: event.product_id,
+    });
+    return;
+  }
+  try {
+    await deps.sendPurchaseEvent({
+      firebaseUid: event.app_user_id,
+      transactionId,
+      value: event.price_in_purchased_currency,
+      currency: event.currency,
+      paymentProvider: "revenuecat",
+      items: [{item_id: normalizeRevenueCatProductId(event.product_id), item_name: productName}],
+      ...(event.store ? {store: event.store} : {}),
+      ...(event.period_type ? {periodType: event.period_type} : {}),
+    });
+  } catch (err) {
+    logger.error("RevenueCat: GA4 purchase emission failed (ignored)", {err, transactionId});
+  }
 }
 
 // Shape of RevenueCat webhook event payload (abbreviated)
@@ -391,6 +439,7 @@ export const revenueCatWebhookHandler = async (
       return;
     }
 
+    const rcEvent = payload.event;
     const {type, app_user_id, product_id, expiration_at_ms, original_transaction_id, transaction_id, environment, cancel_reason} =
       payload.event;
     const normalizedProductId = normalizeRevenueCatProductId(product_id);
@@ -493,6 +542,10 @@ export const revenueCatWebhookHandler = async (
           );
           logger.info("RevenueCat: credits added", {app_user_id, credits: CREDIT_PACK_AMOUNT});
         }
+        if (type === "INITIAL_PURCHASE" || type === "RENEWAL") {
+          const productName = REVENUECAT_PRODUCT_TO_TIER[normalizedProductId] ?? "Credit Pack";
+          await emitRevenueCatPurchase(deps, rcEvent, productName);
+        }
         break;
       }
       case "PRODUCT_CHANGE": {
@@ -555,6 +608,7 @@ export const revenueCatWebhookHandler = async (
             original_transaction_id
           );
           logger.info("RevenueCat: non-renewing credits added", {app_user_id});
+          await emitRevenueCatPurchase(deps, rcEvent, "Credit Pack");
         }
         break;
       }
@@ -589,6 +643,22 @@ export const revenueCatWebhookHandler = async (
             } else {
               logger.warn("RevenueCat: subscription refund missing both expiration_at_ms and transaction_id, cannot claw back", {app_user_id, product_id, tier});
             }
+            {
+              const refundTxnId = resolveGa4TransactionId(rcEvent);
+              if (refundTxnId && typeof rcEvent.price_in_purchased_currency === "number" && rcEvent.currency) {
+                try {
+                  await deps.sendRefundEvent({
+                    firebaseUid: app_user_id,
+                    transactionId: refundTxnId,
+                    value: rcEvent.price_in_purchased_currency,
+                    currency: rcEvent.currency,
+                    paymentProvider: "revenuecat",
+                  });
+                } catch (err) {
+                  logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, refundTxnId});
+                }
+              }
+            }
             logger.info("RevenueCat: subscription refund — downgraded and clawed back", {app_user_id, product_id, tier});
           } else {
             // Benign auto-renew-off: entitlement stays active until EXPIRATION.
@@ -617,6 +687,22 @@ export const revenueCatWebhookHandler = async (
               "revenuecat_refund",
               `${original_transaction_id}_refund`
             );
+            {
+              const refundTxnId = resolveGa4TransactionId(rcEvent);
+              if (refundTxnId && typeof rcEvent.price_in_purchased_currency === "number" && rcEvent.currency) {
+                try {
+                  await deps.sendRefundEvent({
+                    firebaseUid: app_user_id,
+                    transactionId: refundTxnId,
+                    value: rcEvent.price_in_purchased_currency,
+                    currency: rcEvent.currency,
+                    paymentProvider: "revenuecat",
+                  });
+                } catch (err) {
+                  logger.error("RevenueCat: GA4 refund emission failed (ignored)", {err, refundTxnId});
+                }
+              }
+            }
             logger.info("RevenueCat: credit-pack refund deducted", {app_user_id, product_id, credits: CREDIT_PACK_AMOUNT});
           } else {
             logger.warn("RevenueCat: credit-pack cancellation missing original_transaction_id, cannot deduct", {app_user_id, product_id});
@@ -692,7 +778,7 @@ export const revenueCatWebhook = onRequest(
   {
     region: "us-central1",
     invoker: "public",
-    secrets: [...CLOUD_SQL_SECRETS, "REVENUECAT_WEBHOOK_SECRET"]
+    secrets: [...CLOUD_SQL_SECRETS, "REVENUECAT_WEBHOOK_SECRET", "GA4_MEASUREMENT_ID", "GA4_MP_API_SECRET"]
   },
   revenueCatWebhookHandler
 );
