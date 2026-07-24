@@ -686,6 +686,7 @@ export const generateReply = onCall(
     enforceAppCheck: true,
     invoker: "public",
     secrets: [...CLOUD_SQL_SECRETS],
+    minInstances: 1,
   },
   (request) => handler(request)
 );
