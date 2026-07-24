@@ -44,6 +44,7 @@ describe('userService profile timestamp mapping', () => {
         termsAcceptedAt: null,
         nextExpiryDate: null,
         cancelAtPeriodEnd: false,
+        subscriptionProvider: null,
       },
     })
 
