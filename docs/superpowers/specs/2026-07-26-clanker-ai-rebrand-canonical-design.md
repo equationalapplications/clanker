@@ -1,7 +1,7 @@
 # Clanker AI Rebrand — Making clanker-ai.com the Canonical Home
 
 **Date:** 2026-07-26
-**Status:** Approved
+**Status:** Implemented
 **Scope:** `src/config/landingConfig.ts`, the hardcoded markup in `scripts/generate-static-pages.js`, and the hand-maintained marketing pages under `public/`. No app code, no backend.
 **Companion spec:** `equationalapplications.com/docs/superpowers/specs/2026-07-26-clanker-ai-canonical-consolidation-design.md` — that site cedes search authority to this one. **Ship this spec first or alongside it.**
 
