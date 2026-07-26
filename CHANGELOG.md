@@ -1,3 +1,23 @@
+# [30.31.0](https://github.com/equationalapplications/clanker/compare/v30.30.0...v30.31.0) (2026-07-26)
+
+
+### Bug Fixes
+
+* **seo:** align og:title/twitter:title with page <title> per spec §3 ([f89c562](https://github.com/equationalapplications/clanker/commit/f89c5623964cdd9404d4bf6910ca6e6b3ef73781))
+* **test:** resolve CodeQL double-unescape and PR 577 review feedback ([7b7dce9](https://github.com/equationalapplications/clanker/commit/7b7dce96c74639a1d42e02624df8593967210943))
+
+
+### Features
+
+* **privacy:** add business-transfer clause for acquisition scenarios ([3ed05bb](https://github.com/equationalapplications/clanker/commit/3ed05bbc0356a2e49ef4ac924caa4cd281f6574e))
+* **seo:** rebrand /advanced-memory to Clanker AI ([bd82341](https://github.com/equationalapplications/clanker/commit/bd82341b4226b54388d5e0c5d26176b9850529ad))
+* **seo:** rebrand /memory-export-with-okf to Clanker AI ([136d53d](https://github.com/equationalapplications/clanker/commit/136d53d1fe5fa17ac40807fc3d2223fb946a4a1d))
+* **seo:** rebrand /open-source to Clanker AI and fix title collision ([56f689c](https://github.com/equationalapplications/clanker/commit/56f689c8fdce12bca193a1f5e9a545273182466c))
+* **seo:** rebrand /privacy-mode to Clanker AI ([3988981](https://github.com/equationalapplications/clanker/commit/39889814b835c62f7319878663407c6c332a17f0))
+* **seo:** rebrand /real-time-voice to Clanker AI ([7de80da](https://github.com/equationalapplications/clanker/commit/7de80da1496e4ebc62659ddbd7cb705376c38597))
+* **seo:** rebrand /support to Clanker AI and fix title collision ([1095bdb](https://github.com/equationalapplications/clanker/commit/1095bdbb444bddc63a7acf484b1f31103254ba8b))
+* **seo:** rebrand /welcome to Clanker AI with assistant-first positioning ([0c99671](https://github.com/equationalapplications/clanker/commit/0c996719c9840fddeb92d2fc23df4c551aa0ea6d))
+
 # [30.30.0](https://github.com/equationalapplications/clanker/compare/v30.29.1...v30.30.0) (2026-07-24)
 
 
