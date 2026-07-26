@@ -34,11 +34,11 @@ function readPage(slug: string): string {
 
 function decodeEntities(value: string): string {
   return value
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
 }
 
 function extractTitle(html: string): string {
@@ -91,6 +91,11 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
     expect(extractTitle(html)).toBe(title)
   })
 
+  it('aligns og:title and twitter:title with the <title>', () => {
+    expect(extractMeta(html, 'property', 'og:title')).toBe(title)
+    expect(extractMeta(html, 'name', 'twitter:title')).toBe(title)
+  })
+
   it('names the brand "Clanker AI" exactly once in the <title>', () => {
     const occurrences = extractTitle(html).split('Clanker AI').length - 1
     expect(occurrences).toBe(1)
@@ -113,8 +118,9 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
 
   it('has valid JSON-LD with no bare-brand product text', () => {
     // Organization is the publisher (Equational Applications LLC), not the product.
-    // VideoObject `name` is the literal title of a published YouTube video; renaming
-    // it here would desync the schema from the actual video, so it is exempt.
+    // VideoObject `name` must match the actual published YouTube title, so it is
+    // intentionally exempt from the branding check rather than required to say
+    // "Clanker AI".
     const exempt = new Set(['Organization', 'VideoObject'])
     const nodes = allNodes(html)
     expect(nodes.length).toBeGreaterThan(0)

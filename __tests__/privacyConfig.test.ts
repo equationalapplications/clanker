@@ -20,6 +20,7 @@ describe('privacyConfig', () => {
     expect(normalizedPrivacy).toContain(
       'We will provide notice within the App or by email before any personal information becomes subject to a materially different privacy policy'
     )
+    expect(normalizedPrivacy).toContain('unless and until you are notified of and consent to')
     expect(normalizedPrivacy).toContain('Crash Reporting and Diagnostics')
     expect(normalizedPrivacy).toContain('requires explicit opt-in')
     expect(normalizedPrivacy).toContain('We use Stripe, a third-party payment processor')
