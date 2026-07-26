@@ -5,25 +5,26 @@ import { SITE_BASE } from './siteConfig'
 export { SITE_BASE }
 
 export const SITE_META = {
-  title: 'Clanker — AI Characters with Real-Time Voice & Google OKF Memory',
+  title: 'Clanker AI — Personal AI Assistant with Real-Time Voice & OKF Memory',
   description:
-    "Design AI characters with real-time voice. Own memory with Google's OKF, edit in Obsidian, and memory that learns from chat, docs, and web search.",
+    "Clanker AI is a personal AI assistant with a personality you design and a memory that never forgets — real-time voice calls, document understanding, live web search, and OKF memory you own and export.",
   keywords:
-    'AI characters, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, export AI character, AI companion, voice assistant',
+    'personal AI assistant, Clanker AI, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, AI characters, export AI character, AI companion, voice assistant',
   canonicalPath: '/welcome',
   ogImage: `${SITE_BASE}/og-image.png`,
   ogImageWidth: 1024,
   ogImageHeight: 500,
-  siteName: 'Clanker',
+  siteName: 'Clanker AI',
 } as const
 
 export const JSONLD = {
   softwareApplication: {
-    name: 'Clanker',
+    name: 'Clanker AI',
+    alternateName: 'Clanker',
     applicationCategory: 'LifestyleApplication',
     operatingSystem: 'iOS, Android, Web',
     description:
-      "Design AI characters and talk to them in real time with natural, human-like voice. Own your character's memory with Google's Open Knowledge Format (OKF), editable in Obsidian, plus advanced memory that learns from conversation, documents, and web search.",
+      "A personal AI assistant with a personality you design and a memory that never forgets. Talk to it in real time with natural, human-like voice, and it learns from your conversations, documents, and live web search. Own your assistant's memory with Google's Open Knowledge Format (OKF), editable in Obsidian.",
     url: `${SITE_BASE}/welcome`,
     featureList: [
       'Real-time, natural voice calls with AI characters',
@@ -40,7 +41,7 @@ export const JSONLD = {
   videoObject: {
     name: 'Clanker vs. The Rest: The Ultimate Hybrid AI Architecture',
     description:
-      'See how Clanker combines real-time voice, OKF memory export, and advanced learning in one open-source AI character platform.',
+      'See how Clanker AI combines real-time voice, OKF memory export, and advanced learning in one open-source personal AI assistant.',
     thumbnailUrl: 'https://i.ytimg.com/vi/6aictXUK_lw/hqdefault.jpg',
     uploadDate: '2026-06-30T06:44:26-07:00',
     embedUrl: 'https://www.youtube.com/embed/6aictXUK_lw',
@@ -58,8 +59,8 @@ export const HERO = {
     href: '/real-time-voice',
     accessibilityLabel: 'New: Live, real-time voice calls. Learn more.',
   },
-  headline: 'Clanker',
-  tagline: 'Design, chat with, call, and share your own AI characters',
+  headline: 'Clanker AI',
+  tagline: 'A personal AI assistant you design — chat, call, and share your own AI characters',
   signInButtonLabel: 'Sign In',
   signInButtonLabelSignedIn: 'Open App',
   ctaLabelSignedOut: 'Try the App!',
@@ -113,7 +114,7 @@ export const FEATURES: LandingFeature[] = [
     icon: 'book-open-variant',
     emoji: '📖',
     title: 'Completely Open Source',
-    body: "Clanker's code is public on GitHub. Verify how your data is handled, suggest features, or contribute — built by and for its users.",
+    body: "Clanker AI's code is public on GitHub. Verify how your data is handled, suggest features, or contribute — built by and for its users.",
     learnMoreHref: '/open-source',
   },
   {
@@ -126,7 +127,7 @@ export const FEATURES: LandingFeature[] = [
     icon: 'chat-outline',
     emoji: '💬',
     title: 'Real AI Conversations',
-    body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your Clanker stays in character.',
+    body: 'Chat with characters that actually remember their personality. Long conversation memory is automatically summarized so your assistant stays in character.',
   },
   {
     icon: 'cloud-sync-outline',
@@ -138,8 +139,8 @@ export const FEATURES: LandingFeature[] = [
 
 export const VIDEO = {
   youtubeId: '6aictXUK_lw',
-  heading: 'See Clanker in action',
-  iframeTitle: 'Clanker demo',
+  heading: 'See Clanker AI in action',
+  iframeTitle: 'Clanker AI demo',
   iframeSandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
 } as const
 
@@ -158,7 +159,7 @@ export const FOOTER_LINKS: FooterLink[] = [
   { label: 'Support', href: '/support' },
   { label: 'Terms and Conditions', href: '/terms' },
   { label: 'Privacy Policy', href: '/privacy' },
-  { label: 'About Clanker', href: '/welcome' },
+  { label: 'About Clanker AI', href: '/welcome' },
   {
     label: 'Equational Applications LLC',
     href: 'https://equationalapplications.com/',

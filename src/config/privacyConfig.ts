@@ -8,8 +8,8 @@ export interface PrivacyConfig {
 }
 
 export const PRIVACY: PrivacyConfig = {
-  version: '1.10',
-  lastUpdated: 'July 8, 2026',
+  version: '1.11',
+  lastUpdated: 'July 25, 2026',
   privacy: `
 Equational Applications LLC ("we", "us", "our") is committed to protecting your privacy.
 This privacy policy explains how we collect, use, and disclose information through our
@@ -33,6 +33,15 @@ our behalf, such as payment processing and data storage. We may also share your
 information with our affiliates, as well as with law enforcement or other authorities if
 we believe it is necessary to comply with a legal obligation or to protect our rights and
 property.
+
+Business Transfers
+If we are involved in a merger, acquisition, financing, reorganization, bankruptcy, or sale
+of all or a portion of our assets, your information may be transferred or disclosed as part
+of that transaction, and may be acquired by or transferred to the successor or acquiring
+entity. Any such successor will remain bound by the commitments made in this privacy policy
+with respect to information transferred, unless and until you are notified of and consent to
+a materially different policy. We will provide notice within the App or by email before any
+personal information becomes subject to a materially different privacy policy.
 
 AI Processing of Chat Content
 When you use the chat feature, the content you submit — including your messages, character
