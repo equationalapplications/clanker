@@ -104,11 +104,14 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
     expect(extractMeta(html, 'property', 'og:site_name')).toBe('Clanker AI')
   })
 
-  it('has a self-referential canonical', () => {
+  it('has a self-referential canonical and og:url', () => {
     expect(html).toContain(`<link rel="canonical" href="https://clanker-ai.com/${slug}" />`)
+    expect(extractMeta(html, 'property', 'og:url')).toBe(
+      `https://clanker-ai.com/${slug}`
+    )
   })
 
-  it('has valid JSON-LD with no bare-brand product name', () => {
+  it('has valid JSON-LD with no bare-brand product text', () => {
     // Organization is the publisher (Equational Applications LLC), not the product.
     // VideoObject `name` is the literal title of a published YouTube video; renaming
     // it here would desync the schema from the actual video, so it is exempt.
@@ -116,9 +119,12 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
     const nodes = allNodes(html)
     expect(nodes.length).toBeGreaterThan(0)
     nodes.forEach((node) => {
-      const name = node.name
-      if (typeof name === 'string' && !exempt.has(node['@type'] as string)) {
-        expect(name).not.toMatch(/\bClanker\b(?!\s*AI)/)
+      for (const field of ['name', 'description', 'text'] as const) {
+        const value = node[field]
+        const exemptName = field === 'name' && exempt.has(node['@type'] as string)
+        if (typeof value === 'string' && !exemptName) {
+          expect(value).not.toMatch(/\bClanker\b(?!\s*AI)/)
+        }
       }
     })
   })

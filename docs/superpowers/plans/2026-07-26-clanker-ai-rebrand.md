@@ -836,13 +836,21 @@ Expected: PASS, all describe blocks, including the three whole-site assertions (
 - [ ] **Step 3: Run the acceptance greps from the spec**
 
 ```bash
-grep -rn '— Clanker<' public/ ; echo "exit=$?"
+grep -rn '— Clanker<' \
+  public/welcome \
+  public/real-time-voice \
+  public/advanced-memory \
+  public/privacy-mode \
+  public/open-source \
+  public/memory-export-with-okf \
+  public/support
+echo "exit=$?"
 grep -rn 'alt="' public/
 grep -rno '<title>[^<]*</title>' public/*/index.html
 ```
 
 Expected:
-- The first grep prints nothing and reports `exit=1` (no matches) — no bare-brand title suffix remains.
+- The first grep prints nothing and reports `exit=1` (no matches) — no bare-brand title suffix remains in the seven in-scope marketing pages. `/privacy` and `/terms` are excluded from this search (they are out of scope and retain `— Clanker`).
 - The second returns exactly one hit: `public/welcome/index.html:...: <img src="/clanker-icon.png" alt="Clanker AI logo" ... />`.
 - Every title printed contains `Clanker AI` exactly once. `/privacy` and `/terms` titles still read `— Clanker`; that is expected and out of scope.
 
