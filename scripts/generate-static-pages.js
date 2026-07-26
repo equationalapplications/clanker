@@ -489,6 +489,7 @@ function generateWelcome() {
       {
         '@type': 'SoftwareApplication',
         name: JSONLD.softwareApplication.name,
+        alternateName: JSONLD.softwareApplication.alternateName,
         applicationCategory: JSONLD.softwareApplication.applicationCategory,
         operatingSystem: JSONLD.softwareApplication.operatingSystem,
         description: JSONLD.softwareApplication.description,
@@ -557,7 +558,7 @@ function generateWelcome() {
     <main id="main-content">
       <section class="hero">
         <div class="hero-logo">
-          <img src="/clanker-icon.png" alt="Clanker" width="120" height="120" />
+          <img src="/clanker-icon.png" alt="Clanker AI logo" width="120" height="120" />
         </div>
         <a class="pill" href="${HERO.announcement.href}">${escapeHtml(HERO.announcement.text)}</a>
         <h1>${escapeHtml(HERO.headline)}</h1>
