@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Avatar } from 'react-native-paper'
+import type { ComponentProps } from 'react'
 
 /**
  * Bundled default. Nothing is written per character: previously every new
@@ -8,6 +9,11 @@ import { Avatar } from 'react-native-paper'
  * circular mask.
  */
 const DEFAULT_AVATAR = require('../../assets/default-avatar-1024.webp')
+
+// react-native-paper 5.x does not include `resizeMode` in the type definition
+// for Avatar.Image, but the underlying Image component accepts it and it is
+// needed to fill the circular mask with non-square sources.
+type AvatarImageProps = ComponentProps<typeof Avatar.Image> & { resizeMode?: string }
 
 interface CharacterAvatarProps {
   size?: number
@@ -32,8 +38,9 @@ export default function CharacterAvatar({
   }, [imageUrl])
 
   if (imageUrl && !imageError) {
+    const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
     return (
-      <Avatar.Image
+      <AvatarImage
         size={size}
         source={{ uri: imageUrl }}
         // Legacy migrated avatars can be non-square; cover fills the circle
@@ -60,8 +67,9 @@ export default function CharacterAvatar({
     }
   }
 
+  const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
   return (
-    <Avatar.Image
+    <AvatarImage
       size={size}
       source={DEFAULT_AVATAR}
       resizeMode="cover"

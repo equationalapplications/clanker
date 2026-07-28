@@ -21,6 +21,7 @@ export interface Character {
   owner_user_id: string
   name: string
   avatar: string | null
+  active_image_id?: string | null
   appearance: string | null
   traits: string | null
   emotions: string | null

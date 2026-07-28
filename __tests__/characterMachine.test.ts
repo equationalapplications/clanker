@@ -39,6 +39,7 @@ function makeCharacter(overrides: Partial<DbCharacter> = {}): DbCharacter {
     name: 'Test Character',
     is_public: false,
     avatar: null,
+    active_image_id: null,
     appearance: null,
     traits: null,
     emotions: null,

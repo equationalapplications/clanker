@@ -22,6 +22,7 @@ import { useImageGeneration } from '~/hooks/useImageGeneration'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
+import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { reportError } from '~/utilities/reportError'
 import {
   buildCharacterShareUrl,
@@ -60,7 +61,8 @@ export default function EditCharacterScreen() {
   const [voiceMenuVisible, setVoiceMenuVisible] = useState(false)
   const [saveToCloud, setSaveToCloud] = useState(false)
   const [isCharacterShareable, setIsCharacterShareable] = useState(false)
-  const [avatarUri, setAvatarUri] = useState<string | null>(null)
+  const [activeImageId, setActiveImageId] = useState<string | null>(null)
+  const avatarUri = useResolvedImage(activeImageId, 'master')
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
   const [toastState, setToastState] = useState<{
@@ -170,7 +172,7 @@ export default function EditCharacterScreen() {
       setSaveToCloud(!!character.save_to_cloud)
       setIsCharacterShareable(character.is_public || false)
       setVoice(character.voice ?? DEFAULT_VOICE)
-      setAvatarUri(character.avatar ?? null)
+      setActiveImageId(character.active_image_id ?? null)
       /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [character])
@@ -223,7 +225,7 @@ export default function EditCharacterScreen() {
     clearError,
   } = useImageGeneration({
     characterId: id || '',
-    onImageGenerated: (fileUri) => setAvatarUri(fileUri),
+    onImageGenerated: (id) => setActiveImageId(id),
   })
 
   const {
@@ -233,7 +235,7 @@ export default function EditCharacterScreen() {
     clearError: clearUploadError,
   } = useAvatarUpload({
     characterId: id || '',
-    onImageUploaded: (dataUri) => setAvatarUri(dataUri),
+    onImageUploaded: (id) => setActiveImageId(id),
   })
 
   const avatarError = uploadError || imageError
