@@ -3,6 +3,7 @@ import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { creditService, type CreditSpendAllocation } from './services/creditService.js';
+import { characterImageService } from './services/characterImageService.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
@@ -29,6 +30,10 @@ type CharacterFunctionDeps = {
     'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
   >;
   creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
+  characterImageService: Pick<
+    typeof characterImageService,
+    'syncImages' | 'deleteImages' | 'listImages' | 'setActiveImage'
+  >;
 };
 
 
@@ -96,6 +101,164 @@ function parseOptionalIsPublic(value: unknown): boolean | undefined {
   return value;
 }
 
+type CharacterImagePayload = {
+  id: string;
+  storagePath: string;
+  thumbPath?: string | null;
+  mimeType?: string | null;
+  source: string;
+  createdAt?: string;
+};
+
+const IMAGE_SOURCES = new Set(['generated', 'uploaded', 'imported']);
+
+function serializeCharacterImage(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    characterId: String(row.characterId),
+    storagePath: String(row.storagePath),
+    thumbPath: row.thumbPath == null ? null : String(row.thumbPath),
+    mimeType: String(row.mimeType ?? 'image/webp'),
+    source: String(row.source),
+    createdAt: toISO(row.createdAt),
+    deletedAt: toISO(row.deletedAt),
+  };
+}
+
+/**
+ * Validate one client-supplied image row.
+ *
+ * The storagePath check is the security boundary: the client chooses the path,
+ * so the server must confirm it lands inside the caller's own tree. Without it a
+ * caller could register a row pointing at another user's objects and have the
+ * eviction path delete them.
+ */
+function parseImagePayload(
+  value: unknown,
+  firebaseUid: string,
+  characterId: string
+): CharacterImagePayload {
+  if (!isRecord(value)) {
+    throw new HttpsError('invalid-argument', 'Each image must be an object.');
+  }
+
+  const {id, storagePath, thumbPath, mimeType, source} = value as Record<string, unknown>;
+
+  if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+    throw new HttpsError('invalid-argument', 'image.id must be a UUID.');
+  }
+  if (typeof storagePath !== 'string' || storagePath.length === 0) {
+    throw new HttpsError('invalid-argument', 'image.storagePath is required.');
+  }
+  if (typeof source !== 'string' || !IMAGE_SOURCES.has(source)) {
+    throw new HttpsError('invalid-argument', 'image.source must be generated, uploaded, or imported.');
+  }
+
+  const expectedPrefix = `users/${firebaseUid}/characters/${characterId}/`;
+  const paths = [storagePath, ...(typeof thumbPath === 'string' ? [thumbPath] : [])];
+  for (const path of paths) {
+    if (!path.startsWith(expectedPrefix) || path.includes('..')) {
+      throw new HttpsError('permission-denied', 'Image paths must live under the caller\'s own character prefix.');
+    }
+  }
+
+  return {
+    id,
+    storagePath,
+    thumbPath: typeof thumbPath === 'string' ? thumbPath : null,
+    mimeType: typeof mimeType === 'string' ? mimeType : 'image/webp',
+    source,
+  };
+}
+
+export const syncCharacterImages = onCall(
+  {
+    region: 'us-central1',
+    enforceAppCheck: true,
+    invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
+  },
+  (request) => syncCharacterImagesHandler(request)
+);
+
+export const syncCharacterImagesHandler = async (
+  request: CallableRequest,
+  deps: CharacterFunctionDeps = {userRepository, characterService, creditService, characterImageService}
+) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+  if (!isRecord(request.data)) {
+    throw new HttpsError('invalid-argument', 'characterId is required.');
+  }
+
+  const {characterId, images, deletedImageIds, activeImageId} = request.data as {
+    characterId?: unknown;
+    images?: unknown;
+    deletedImageIds?: unknown;
+    activeImageId?: unknown;
+  };
+
+  if (typeof characterId !== 'string' || !UUID_REGEX.test(characterId)) {
+    throw new HttpsError('invalid-argument', 'characterId must be a valid UUID.');
+  }
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+
+  // Ownership is checked against the caller's own character set rather than by
+  // trusting the id: images are the only payload that carries storage paths, and
+  // a mis-scoped one is destructive (eviction deletes objects).
+  const owned = await deps.characterService.getUserCharacters(user.id);
+  if (!owned.some((character) => String((character as {id: unknown}).id) === characterId)) {
+    throw new HttpsError('permission-denied', 'Character does not belong to authenticated user.');
+  }
+
+  const parsedImages = Array.isArray(images)
+    ? images.map((image) => parseImagePayload(image, request.auth!.uid, characterId))
+    : [];
+
+  const parsedDeletions = Array.isArray(deletedImageIds)
+    ? deletedImageIds.filter((id): id is string => typeof id === 'string' && UUID_REGEX.test(id))
+    : [];
+
+  try {
+    if (parsedDeletions.length > 0) {
+      await deps.characterImageService.deleteImages(characterId, user.id, parsedDeletions);
+    }
+
+    const {evictedImageIds} = await deps.characterImageService.syncImages(
+      characterId,
+      user.id,
+      parsedImages.map((image) => ({
+        id: image.id,
+        characterId,
+        userId: user.id,
+        storagePath: image.storagePath,
+        thumbPath: image.thumbPath ?? null,
+        mimeType: image.mimeType ?? 'image/webp',
+        source: image.source,
+      }))
+    );
+
+    if (typeof activeImageId === 'string' && UUID_REGEX.test(activeImageId)) {
+      await deps.characterImageService.setActiveImage(characterId, activeImageId);
+    }
+
+    const rows = await deps.characterImageService.listImages(characterId);
+    return {
+      evictedImageIds,
+      images: rows.map((row) => serializeCharacterImage(row as unknown as Record<string, unknown>)),
+    };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error('Failed to sync character images', {error, characterId});
+    throw new HttpsError('internal', 'Failed to sync character images.');
+  }
+};
+
 export const syncCharacter = onCall(
   {
     region: 'us-central1',
@@ -108,7 +271,7 @@ export const syncCharacter = onCall(
 
 export const syncCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
 ) => {
   const actualDeps: CharacterFunctionDeps = {
     ...{userRepository, characterService, creditService},
@@ -224,7 +387,7 @@ export const deleteCharacter = onCall(
 
 export const deleteCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -281,7 +444,7 @@ export const getUserCharacters = onCall(
 
 export const getUserCharactersHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -294,11 +457,21 @@ export const getUserCharactersHandler = async (
 
   try {
     const characters = await deps.characterService.getUserCharacters(user.id);
-    return {
-      characters: characters.map((character) =>
-        serializeCharacter(character as unknown as Record<string, unknown>, request.auth!.uid)
-      ),
-    };
+    const withImages = await Promise.all(
+      characters.map(async (character) => {
+        const record = character as unknown as Record<string, unknown>;
+        const rows = await deps.characterImageService.listImages(String(record.id));
+        return {
+          ...serializeCharacter(record, request.auth!.uid),
+          activeImageId: record.activeImageId ?? null,
+          // Tombstones are included deliberately: a client cannot distinguish a
+          // truncated response from a genuine remote delete, so absence must
+          // never mean "delete it locally".
+          images: rows.map((row) => serializeCharacterImage(row as unknown as Record<string, unknown>)),
+        };
+      })
+    );
+    return {characters: withImages};
   } catch (error) {
     logger.error('Failed to get user characters', { error });
     throw new HttpsError('internal', 'Failed to get user characters.');
@@ -317,7 +490,7 @@ export const getPublicCharacter = onCall(
 
 export const getPublicCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
