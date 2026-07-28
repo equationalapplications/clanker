@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 21
+export const SCHEMA_VERSION = 23
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -23,6 +23,7 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'heal_checkpoint',
     'memory_checkpoint',
     'pending_cloud_id',
+    'active_image_id',
   ],
   // wiki_entries removed — table no longer exists on fresh installs (package owns llm_wiki_* tables)
 }
@@ -60,6 +61,8 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   18: [{ table: 'messages', column: 'synced_at' }],
   19: [{ table: 'tasks', column: 'id' }],
   20: [{ table: 'characters', column: 'pending_cloud_id' }],
+  22: [{ table: 'character_images', column: 'id' }],
+  23: [{ table: 'characters', column: 'active_image_id' }],
 }
 
 /**
@@ -90,7 +93,8 @@ export const CREATE_TABLES = `
     owner_user_id TEXT NOT NULL DEFAULT '',
     voice TEXT NOT NULL DEFAULT '${DEFAULT_VOICE}',
     heal_checkpoint INTEGER NOT NULL DEFAULT 0,
-    memory_checkpoint INTEGER NOT NULL DEFAULT 0
+    memory_checkpoint INTEGER NOT NULL DEFAULT 0,
+    active_image_id TEXT
   );
 
   -- Indexes for characters
@@ -131,6 +135,28 @@ export const CREATE_TABLES = `
 
   -- Indexes for tasks
   CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id);
+
+  -- Character images (avatar gallery)
+  CREATE TABLE IF NOT EXISTS character_images (
+    id            TEXT PRIMARY KEY NOT NULL,
+    character_id  TEXT NOT NULL,
+    user_id       TEXT NOT NULL,
+    storage_kind  TEXT NOT NULL,
+    master_ref    TEXT NOT NULL,
+    thumb_ref     TEXT,
+    mime_type     TEXT NOT NULL DEFAULT 'image/webp',
+    source        TEXT NOT NULL,
+    sync_state    TEXT NOT NULL DEFAULT 'local',
+    sync_attempts INTEGER NOT NULL DEFAULT 0,
+    created_at    INTEGER NOT NULL,
+    deleted_at    INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_character_images_char
+    ON character_images(character_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_character_images_sync
+    ON character_images(sync_state)
+    WHERE sync_state IN ('pending_upload', 'pending_delete');
 
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -186,4 +212,25 @@ CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
   // default get migrated to the new default and re-marked unsynced so the
   // corrected voice propagates to the cloud row.
   21: `UPDATE characters SET voice = '${DEFAULT_VOICE}', synced_to_cloud = 0 WHERE voice = 'Umbriel';`,
+  // Avatar gallery. One row per image; storage_kind discriminates cloud objects,
+  // on-device files, and inline base64 (web privacy mode). sync_state defaults to
+  // 'local' — NOT 'synced' — so a careless sweeper WHERE clause can never treat a
+  // privacy-mode row as "already uploaded" and push it to the cloud.
+  22: `CREATE TABLE IF NOT EXISTS character_images (
+  id TEXT PRIMARY KEY NOT NULL,
+  character_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  storage_kind TEXT NOT NULL,
+  master_ref TEXT NOT NULL,
+  thumb_ref TEXT,
+  mime_type TEXT NOT NULL DEFAULT 'image/webp',
+  source TEXT NOT NULL,
+  sync_state TEXT NOT NULL DEFAULT 'local',
+  sync_attempts INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  deleted_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_character_images_char ON character_images(character_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_character_images_sync ON character_images(sync_state) WHERE sync_state IN ('pending_upload', 'pending_delete')`,
+  23: `ALTER TABLE characters ADD COLUMN active_image_id TEXT;`,
 }

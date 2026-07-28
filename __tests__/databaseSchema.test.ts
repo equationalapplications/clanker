@@ -40,7 +40,7 @@ describe('database schema migration guards', () => {
   })
 
   it('bumps schema to v21 for pending_cloud_id and voice-default migrations', () => {
-    expect(SCHEMA_VERSION).toBe(21)
+    expect(SCHEMA_VERSION).toBe(23)
     // Migration 13: adds source_hash — skipped if column exists OR wiki_entries table is missing
     expect(MIGRATION_SKIP_GUARDS[13]).toEqual([
       { table: 'wiki_entries', column: 'source_hash' },
