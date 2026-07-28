@@ -17,7 +17,12 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
-import { reconcileCharacterImages, syncCharacterImages } from './characterImageSyncService'
+import {
+    demoteCharacterImagesToLocal,
+    promoteCharacterImagesToCloud,
+    reconcileCharacterImages,
+    syncCharacterImages,
+} from './characterImageSyncService'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -478,6 +483,13 @@ export async function removeCharacterFromCloud(localCharacterId: string, userId:
         await clearCharacterCloudLink(localCharacterId, userId)
         return
     }
+
+    // MUST run before clearCharacterCloudLink. That call nulls cloud_id, and
+    // cloud_id IS the storage path — clearing it first makes every one of this
+    // character's cloud images permanently unreachable. Requires network; the
+    // throw propagates so the caller can tell the user to reconnect rather than
+    // half-completing the toggle.
+    await demoteCharacterImagesToLocal(localCharacterId, userId, cloudId)
 
     try {
         await deleteCharacterFn({ characterId: cloudId })

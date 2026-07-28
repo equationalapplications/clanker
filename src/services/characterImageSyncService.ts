@@ -7,6 +7,7 @@
  */
 
 import { File } from 'expo-file-system'
+import { Platform } from 'react-native'
 import {
   getAllImagesForCharacter,
   getCharacterImageById,
@@ -21,8 +22,8 @@ import {
 } from '~/database/characterImageDatabase'
 import type { CharacterImageSnapshot } from '~/services/apiClient'
 import { getAllCharactersIncludingDeleted } from '~/database/characterDatabase'
-import { deleteLocalImageBytes, resolveImageUri } from '~/services/localImageStore'
-import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
+import { deleteLocalImageBytes, resolveImageUri, writeLocalImageBytes } from '~/services/localImageStore'
+import { deleteStorageObject, downloadImageBase64, uploadImageBytes } from '~/services/storageService'
 import { buildStoragePath } from '~/services/characterImageService'
 import { syncCharacterImagesFn } from '~/services/apiClient'
 import { reportError } from '~/utilities/reportError'
@@ -248,6 +249,90 @@ export async function reconcileCharacterImages(
     const active = cloudImages.find((image) => image.id === cloudActiveImageId)
     if (active && !active.deletedAt) {
       await setActiveImageId(localCharacterId, cloudActiveImageId)
+    }
+  }
+}
+
+/**
+ * Toggle ON: hand every local row to the sweeper.
+ *
+ * `save_to_cloud` flips at runtime but write-path routing (file/inline vs cloud)
+ * is decided per image at creation time, so flipping the flag alone strands
+ * existing images in the mode they were created under. Marking them
+ * `pending_upload` here lets `syncCharacterImages` pick them up on the next sweep
+ * using its existing upload path — no separate upload logic to keep in sync.
+ */
+export async function promoteCharacterImagesToCloud(localCharacterId: string): Promise<void> {
+  const rows = await getAllImagesForCharacter(localCharacterId)
+  for (const row of rows) {
+    if (row.deleted_at) continue
+    if (row.storage_kind === 'cloud') continue
+    await setImageSyncState(row.id, 'pending_upload')
+  }
+}
+
+/**
+ * Toggle OFF: pull every cloud row back to local storage BEFORE destroying anything.
+ *
+ * Requires network. Offline it refuses outright rather than partially proceeding:
+ * a half-completed demotion leaves rows whose bytes are gone and whose cloud
+ * copy is also gone.
+ */
+export async function demoteCharacterImagesToLocal(
+  localCharacterId: string,
+  localUserId: string,
+  cloudCharacterId?: string,
+): Promise<void> {
+  const rows = await getAllImagesForCharacter(localCharacterId)
+  const cloudRows = rows.filter((row) => row.storage_kind === 'cloud' && !row.deleted_at)
+  if (cloudRows.length === 0) return
+
+  // Phase 1 — download everything. Any failure aborts before a single byte is
+  // destroyed, so the character is left exactly as it was.
+  const downloaded: { row: CharacterImageRow; master: string; thumb: string | null }[] = []
+  for (const row of cloudRows) {
+    const master = await downloadImageBase64(row.master_ref)
+    const thumb = row.thumb_ref ? await downloadImageBase64(row.thumb_ref) : null
+    downloaded.push({ row, master, thumb })
+  }
+
+  // Phase 2 — write locally. Native gets files; web has no file system, so bytes
+  // go inline in the row. Same platform split the write path already encodes.
+  const localKind = Platform.OS === 'web' ? 'inline' : 'file'
+  const rewritten: { row: CharacterImageRow; masterRef: string; thumbRef: string | null }[] = []
+  for (const item of downloaded) {
+    const masterRef =
+      localKind === 'inline' ? item.master : await writeLocalImageBytes(item.row.id, item.master, 'master')
+    const thumbRef = item.thumb
+      ? localKind === 'inline'
+        ? item.thumb
+        : await writeLocalImageBytes(item.row.id, item.thumb, 'thumb')
+      : null
+    rewritten.push({ row: item.row, masterRef, thumbRef })
+  }
+
+  // Phase 3 — only now is it safe to destroy the cloud copies.
+  for (const item of rewritten) {
+    await updateImageRefs(item.row.id, {
+      storage_kind: localKind,
+      master_ref: item.masterRef,
+      thumb_ref: item.thumbRef,
+      mime_type: item.row.mime_type,
+      sync_state: 'local',
+    })
+    await deleteStorageObject(item.row.master_ref)
+    if (item.row.thumb_ref) await deleteStorageObject(item.row.thumb_ref)
+  }
+
+  if (cloudCharacterId) {
+    try {
+      await syncCharacterImagesFn({
+        characterId: cloudCharacterId,
+        images: [],
+        deletedImageIds: cloudRows.map((row) => row.id),
+      })
+    } catch (error) {
+      reportError(error, 'characterImageSync:demote')
     }
   }
 }

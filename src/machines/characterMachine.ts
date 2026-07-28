@@ -16,6 +16,7 @@ import {
   restoreFromCloud,
   removeCharacterFromCloud,
 } from '~/services/characterSyncService'
+import { promoteCharacterImagesToCloud } from '~/services/characterImageSyncService'
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -409,7 +410,12 @@ export const characterMachine = createMachine(
         invoke: {
           id: 'cloudSync',
           src: 'cloudSyncActor',
-          input: ({ context }) => ({ userId: context.userId }),
+          // pendingUnsyncId is set on every UPDATE (not just unsync) and cleared
+          // once this state's onDone/onError runs, so it doubles as "the
+          // character id whose update just enabled cloud sync" here — but only
+          // when that's genuinely how we got here (an UPDATE→cloudSyncing
+          // transition), not a manual CLOUD_SYNC from idle, which never sets it.
+          input: ({ context }) => ({ userId: context.userId, toggledOnId: context.pendingUnsyncId }),
           onDone: {
             target: 'loading',
             actions: assign({
@@ -541,8 +547,16 @@ export const characterMachine = createMachine(
         },
       ),
       cloudSyncActor: fromPromise(
-        async ({ input }: { input: { userId: string | null } }) => {
+        async ({ input }: { input: { userId: string | null; toggledOnId: string | null } }) => {
           if (!input.userId) throw new Error('User not logged in')
+          // Write-path routing (file/inline vs cloud) is decided per image at
+          // creation time, so a bare save_to_cloud flip does not move images
+          // already on disk into the cloud pipeline. Promote the just-toggled
+          // character's local images to pending_upload before the sweep so
+          // syncAllToCloud's syncCharacterImages call picks them up.
+          if (input.toggledOnId) {
+            await promoteCharacterImagesToCloud(input.toggledOnId)
+          }
           await syncAllToCloud(input.userId)
           await restoreFromCloud(input.userId)
         },

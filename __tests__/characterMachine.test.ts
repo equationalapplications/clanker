@@ -21,6 +21,9 @@ jest.mock('../src/services/wikiOrchestrator', () => ({
     stop: jest.fn(),
   },
 }))
+jest.mock('../src/services/characterImageSyncService', () => ({
+  promoteCharacterImagesToCloud: jest.fn().mockResolvedValue(undefined),
+}))
 
 const mockDb = jest.mocked(characterDatabase)
 const mockSyncService = jest.mocked(characterSyncService)
