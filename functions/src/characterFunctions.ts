@@ -243,11 +243,20 @@ export const syncCharacterImagesHandler = async (
       }))
     );
 
+    const rows = await deps.characterImageService.listImages(characterId);
+
     if (typeof activeImageId === 'string' && UUID_REGEX.test(activeImageId)) {
+      const ownsActiveImage = rows.some(
+        (row) =>
+          String((row as {id: unknown}).id) === activeImageId &&
+          (row as {deletedAt: unknown}).deletedAt == null
+      );
+      if (!ownsActiveImage) {
+        throw new HttpsError('permission-denied', 'activeImageId must reference a live image belonging to this character.');
+      }
       await deps.characterImageService.setActiveImage(characterId, activeImageId);
     }
 
-    const rows = await deps.characterImageService.listImages(characterId);
     return {
       evictedImageIds,
       images: rows.map((row) => serializeCharacterImage(row as unknown as Record<string, unknown>)),

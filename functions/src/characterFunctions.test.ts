@@ -972,6 +972,63 @@ test("syncCharacterImages refuses a character the caller does not own", async ()
   );
 });
 
+test("syncCharacterImages rejects an activeImageId that is not one of the character's own images", async () => {
+  const deps = imageDeps({
+    listImages: async () => [
+      {id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: null, mimeType: "image/webp",
+        source: "generated", createdAt: new Date(0), deletedAt: null},
+    ],
+    setActiveImage: async () => {
+      throw new Error("setActiveImage should not be called for an unowned activeImageId");
+    },
+  });
+  const foreignImageId = "44444444-4444-4444-8444-444444444444";
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({characterId: CHAR_ID, images: [], activeImageId: foreignImageId}),
+      deps as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "permission-denied"
+  );
+});
+
+test("syncCharacterImages accepts an activeImageId that belongs to the character", async () => {
+  let setActiveCalledWith: [string, string] | null = null;
+  const deps = imageDeps({
+    listImages: async () => [
+      {id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: null, mimeType: "image/webp",
+        source: "generated", createdAt: new Date(0), deletedAt: null},
+    ],
+    setActiveImage: async (characterId: string, imageId: string) => {
+      setActiveCalledWith = [characterId, imageId];
+    },
+  });
+  await syncCharacterImagesHandler(
+    imageRequest({characterId: CHAR_ID, images: [], activeImageId: IMG_ID}),
+    deps as never
+  );
+  assert.deepEqual(setActiveCalledWith, [CHAR_ID, IMG_ID]);
+});
+
+test("syncCharacterImages rejects an activeImageId that matches only a tombstoned row", async () => {
+  const deps = imageDeps({
+    listImages: async () => [
+      {id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: null, mimeType: "image/webp",
+        source: "generated", createdAt: new Date(0), deletedAt: new Date(1)},
+    ],
+    setActiveImage: async () => {
+      throw new Error("setActiveImage should not be called for a tombstoned activeImageId");
+    },
+  });
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({characterId: CHAR_ID, images: [], activeImageId: IMG_ID}),
+      deps as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "permission-denied"
+  );
+});
+
 test("getUserCharacters includes images and activeImageId", async () => {
   const deps = buildDeps();
   deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
