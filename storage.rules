@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Character images live under users/{uid}/characters/{cloudCharacterId}/.
+    // The uid segment is the whole authorization story: a user can read and
+    // write their own tree and nothing else. There is deliberately no
+    // public-read path — shared characters hand out short-lived signed URLs
+    // instead, so revoking a share never requires rewriting object ACLs.
+    match /users/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && (request.resource.contentType.matches('image/webp')
+                       || request.resource.contentType.matches('image/jpeg'))
+                   && request.resource.size < 2 * 1024 * 1024;
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
