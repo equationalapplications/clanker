@@ -17,7 +17,7 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
-import { syncCharacterImages } from './characterImageSyncService'
+import { reconcileCharacterImages, syncCharacterImages } from './characterImageSyncService'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -286,6 +286,12 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
                     user_id: localUserId,
                     name: cloudChar.name,
                     avatar: cloudChar.avatar,
+                    // Deliberately hardcoded to null, not read from the cloud snapshot:
+                    // images now live in `character_images` (see reconcileCharacterImages
+                    // below), so this legacy column is inert. It was already hardcoded
+                    // to null before this change, not populated from cloud data, so this
+                    // line was never the source of the avatar-loss bug on restore — the
+                    // actual fix is the reconciliation call added below.
                     avatar_data: null,
                     avatar_mime_type: null,
                     appearance: cloudChar.appearance,
@@ -312,6 +318,26 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
         if (cloudChars.length > 0) {
             await batchInsertCharacters(cloudChars)
+
+            // Reconcile each character's image set from its cloud snapshot. This is
+            // the actual fix for avatars silently dropping on a new device/reinstall:
+            // images are restored here rather than relying on the (now-inert)
+            // avatar_data column above. Keyed on the same cloudIdToLocalId mapping
+            // used to build cloudChars, so images land on the correct local row.
+            for (const cloudChar of data as CharacterSnapshot[]) {
+                const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+                try {
+                    await reconcileCharacterImages(
+                        localId,
+                        localUserId,
+                        cloudChar.images ?? [],
+                        cloudChar.activeImageId ?? null,
+                    )
+                } catch (error) {
+                    reportError(error, 'restoreFromCloud:images')
+                }
+            }
+
             // After insert, pull wiki memory for cloud-linked characters on this device.
             // syncWikiForCloud re-queries the DB so it picks up the newly inserted rows.
             const cloudLinked = cloudChars.filter(

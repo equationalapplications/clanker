@@ -8,14 +8,18 @@
 
 import { File } from 'expo-file-system'
 import {
+  getAllImagesForCharacter,
   getCharacterImageById,
   getImagesBySyncState,
   hardDeleteCharacterImage,
   incrementSyncAttempts,
+  insertCharacterImage,
+  setActiveImageId,
   setImageSyncState,
   updateImageRefs,
   type CharacterImageRow,
 } from '~/database/characterImageDatabase'
+import type { CharacterImageSnapshot } from '~/services/apiClient'
 import { getAllCharactersIncludingDeleted } from '~/database/characterDatabase'
 import { deleteLocalImageBytes, resolveImageUri } from '~/services/localImageStore'
 import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
@@ -172,6 +176,71 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
       }
     } catch (error) {
       reportError(error, 'characterImageSync:register')
+    }
+  }
+}
+
+/**
+ * Apply the cloud's image set for one character onto local storage.
+ *
+ * Three rules, in order of how much damage getting them wrong does:
+ *
+ * 1. Insert rows we do not have.
+ * 2. Hard-delete local rows whose cloud counterpart carries `deleted_at`.
+ * 3. Leave everything else alone — in particular, a local `cloud` row merely
+ *    ABSENT from the response is not deleted. Absence is ambiguous (truncated
+ *    response, partial server failure, genuine delete) and acting on it destroys
+ *    paid-for images in bulk and silently. An explicit `deleted_at` cannot be
+ *    produced by a bug in the read path.
+ *
+ * `pending_upload` rows are excluded entirely: by definition they have no cloud
+ * counterpart yet.
+ */
+export async function reconcileCharacterImages(
+  localCharacterId: string,
+  localUserId: string,
+  cloudImages: CharacterImageSnapshot[],
+  cloudActiveImageId: string | null,
+): Promise<void> {
+  const localRows = await getAllImagesForCharacter(localCharacterId)
+  const localById = new Map(localRows.map((row) => [row.id, row]))
+
+  for (const snapshot of cloudImages) {
+    const existing = localById.get(snapshot.id)
+
+    if (snapshot.deletedAt) {
+      // The tombstone is the authoritative delete signal.
+      if (existing && existing.sync_state !== 'pending_upload') {
+        await hardDeleteCharacterImage(snapshot.id)
+      }
+      continue
+    }
+
+    if (existing) continue
+
+    await insertCharacterImage({
+      id: snapshot.id,
+      // Image ids need no translation — they are bare uuids minted on the device
+      // that created the image and reused verbatim as the cloud PK. Character ids
+      // DO need translation, which the caller has already done.
+      character_id: localCharacterId,
+      user_id: localUserId,
+      storage_kind: 'cloud',
+      master_ref: snapshot.storagePath,
+      thumb_ref: snapshot.thumbPath,
+      mime_type: snapshot.mimeType,
+      source: snapshot.source,
+      sync_state: 'synced',
+      sync_attempts: 0,
+      created_at: snapshot.createdAt ? new Date(snapshot.createdAt).getTime() : Date.now(),
+      deleted_at: null,
+    })
+  }
+
+  if (cloudActiveImageId) {
+    const active = cloudImages.find((image) => image.id === cloudActiveImageId)
+    if (active && !active.deletedAt) {
+      await setActiveImageId(localCharacterId, cloudActiveImageId)
     }
   }
 }
