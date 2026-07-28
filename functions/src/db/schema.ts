@@ -97,10 +97,28 @@ export const characters = pgTable('characters', {
   voice: text('voice').notNull().default(DEFAULT_VOICE),
   isPublic: boolean('is_public').notNull().default(false),
   saveToCloud: boolean('save_to_cloud').notNull().default(false),
+  activeImageId: uuid('active_image_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   userIdIdx: index('characters_user_id_idx').on(table.userId),
+}));
+
+export const characterImages = pgTable('character_images', {
+  id: uuid('id').primaryKey(),
+  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  storagePath: text('storage_path').notNull(),
+  thumbPath: text('thumb_path'),
+  mimeType: text('mime_type').notNull().default('image/webp'),
+  source: text('source').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Tombstone: retained 30 days so other devices can reconcile a deletion they
+  // were offline for. Absence is ambiguous; an explicit deleted_at is not.
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+  characterIdIdx: index('character_images_character_id_idx').on(table.characterId, table.createdAt.desc()),
+  userIdIdx: index('character_images_user_id_idx').on(table.userId),
 }));
 
 export const messages = pgTable('messages', {
