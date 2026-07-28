@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { FlatList, Image, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { Alert, FlatList, Image, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { Button, Dialog, HelperText, Icon, Portal, Text } from 'react-native-paper'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import {
@@ -8,6 +8,7 @@ import {
   type CharacterImageRow,
 } from '~/database/characterImageDatabase'
 import { deleteCharacterImage } from '~/services/characterImageService'
+import { pushActiveImageId } from '~/services/characterImageSyncService'
 import { resolveImageUri } from '~/services/localImageStore'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
@@ -71,17 +72,41 @@ export function AvatarPicker({
   const handleActivate = async (imageId: string) => {
     await setActiveImageId(characterId, imageId)
     onActiveImageChange(imageId)
+    // Best-effort: the regular sweep would eventually push this pointer too,
+    // but pushing it now is what lets a second device see the change without
+    // waiting for the next full sync.
+    const userId = getCurrentUser()?.uid
+    if (userId) void pushActiveImageId(characterId, userId)
     await refresh()
   }
 
-  const handleDelete = async (imageId: string) => {
+  const performDelete = async (imageId: string) => {
     const userId = getCurrentUser()?.uid
     await deleteCharacterImage(imageId, userId ?? '')
     if (imageId === activeImageId) {
       const remaining = await getCharacterImages(characterId)
-      onActiveImageChange(remaining[0]?.id ?? null)
+      const nextActiveId = remaining[0]?.id ?? null
+      onActiveImageChange(nextActiveId)
+      if (nextActiveId && userId) void pushActiveImageId(characterId, userId)
     }
     await refresh()
+  }
+
+  // Deletion is irreversible for images the user spent credits on, so a
+  // long-press must not fire it directly — confirm first. Returns a promise
+  // that resolves once the confirmed delete (if any) completes, so callers —
+  // including tests driving onLongPress directly — can await the whole flow.
+  const handleDelete = (imageId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      Alert.alert('Delete this image?', 'This cannot be undone.', [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve() },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => { void performDelete(imageId).then(resolve, resolve) },
+        },
+      ])
+    })
   }
 
   const error = uploadError || generateError

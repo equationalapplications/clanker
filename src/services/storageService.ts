@@ -14,7 +14,6 @@ import {
   putFile,
   ref,
 } from '@react-native-firebase/storage'
-import { deleteLocalImageBytes, writeLocalImageBytes } from '~/services/localImageStore'
 
 /**
  * Download URLs are stable for the lifetime of an object and cost a network
@@ -37,16 +36,34 @@ export async function uploadImageBytes(
   contentType: string,
 ): Promise<void> {
   // Stage the bytes as a file so putFile can stream them.
-  const stagedRef = await stageForUpload(base64)
+  const staged = stageForUpload(base64)
   try {
-    await putFile(storageRef(path), stagedRef, { contentType })
+    await putFile(storageRef(path), staged.uri, { contentType })
   } finally {
-    await deleteLocalImageBytes(stagedRef)
+    // Cleanup failure must never mask the real upload error (or its absence).
+    try {
+      staged.delete()
+    } catch (err) {
+      console.warn('Failed to clean up staged upload file:', err)
+    }
   }
 }
 
-async function stageForUpload(base64: string): Promise<string> {
-  return writeLocalImageBytes(`upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, base64, 'master')
+/**
+ * Stages upload bytes as a real file (`putFile` needs one — see module doc).
+ * Written under `Paths.cache`, not the `character-images` document directory
+ * `localImageStore` uses for actual gallery images: a staged upload is
+ * scratch that lives only for the duration of this call, and the cache
+ * directory is where the OS is free to reclaim leftovers if a crash mid-upload
+ * skips the `finally` cleanup above — the permanent document directory has no
+ * such sweeper.
+ */
+function stageForUpload(base64: string): File {
+  const dir = new Directory(Paths.cache, 'image-uploads')
+  if (!dir.exists) dir.create()
+  const file = new File(dir, `upload_${Date.now()}_${Math.random().toString(36).slice(2)}.webp`)
+  file.write(base64, { encoding: 'base64' })
+  return file
 }
 
 export async function getStorageDownloadUrl(path: string): Promise<string> {
@@ -76,7 +93,10 @@ export async function downloadImageBase64(path: string): Promise<string> {
   const url = await getStorageDownloadUrl(path)
   const dir = new Directory(Paths.cache, 'image-downloads')
   if (!dir.exists) dir.create()
-  const destination = new File(dir, `dl_${Date.now()}.webp`)
+  // Random suffix: two downloads racing in the same millisecond (master +
+  // thumb, or two images in the same sync batch) would otherwise collide on
+  // one destination file.
+  const destination = new File(dir, `dl_${Date.now()}_${Math.random().toString(36).slice(2)}.webp`)
 
   try {
     await File.downloadFileAsync(url, destination)

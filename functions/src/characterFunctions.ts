@@ -33,11 +33,12 @@ type CharacterFunctionDeps = {
     | 'getUserCharacters'
     | 'getPublicCharacterWithOwner'
     | 'assertCharacterOwnership'
+    | 'isOwnedByUser'
   >;
   creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   characterImageService: Pick<
     typeof characterImageService,
-    'syncImages' | 'deleteImages' | 'listImages' | 'setActiveImage' | 'purgeCharacter'
+    'syncImages' | 'deleteImages' | 'listImages' | 'listImagesByCharacters' | 'setActiveImage' | 'purgeCharacter'
   >;
   storageAdmin: Pick<typeof storageAdmin, 'createSignedUrl' | 'deletePrefix' | 'deleteObjects'>;
 };
@@ -214,11 +215,11 @@ export const syncCharacterImagesHandler = async (
     throw new HttpsError('not-found', 'User not found.');
   }
 
-  // Ownership is checked against the caller's own character set rather than by
-  // trusting the id: images are the only payload that carries storage paths, and
-  // a mis-scoped one is destructive (eviction deletes objects).
-  const owned = await deps.characterService.getUserCharacters(user.id);
-  if (!owned.some((character) => String((character as {id: unknown}).id) === characterId)) {
+  // Ownership is checked directly against this one id rather than trusting the
+  // caller: images are the only payload that carries storage paths, and a
+  // mis-scoped one is destructive (eviction deletes objects).
+  const owned = await deps.characterService.isOwnedByUser(characterId, user.id);
+  if (!owned) {
     throw new HttpsError('permission-denied', 'Character does not belong to authenticated user.');
   }
 
@@ -486,20 +487,30 @@ export const getUserCharactersHandler = async (
 
   try {
     const characters = await deps.characterService.getUserCharacters(user.id);
-    const withImages = await Promise.all(
-      characters.map(async (character) => {
-        const record = character as unknown as Record<string, unknown>;
-        const rows = await deps.characterImageService.listImages(String(record.id));
-        return {
-          ...serializeCharacter(record, request.auth!.uid),
-          activeImageId: record.activeImageId ?? null,
-          // Tombstones are included deliberately: a client cannot distinguish a
-          // truncated response from a genuine remote delete, so absence must
-          // never mean "delete it locally".
-          images: rows.map((row) => serializeCharacterImage(row as unknown as Record<string, unknown>)),
-        };
-      })
+    const characterIds = characters.map((character) =>
+      String((character as {id: unknown}).id)
     );
+    const allImages = await deps.characterImageService.listImagesByCharacters(characterIds);
+    const imagesByCharacter = new Map<string, Record<string, unknown>[]>();
+    for (const row of allImages) {
+      const record = row as unknown as Record<string, unknown>;
+      const key = String(record.characterId);
+      const bucket = imagesByCharacter.get(key) ?? [];
+      bucket.push(serializeCharacterImage(record));
+      imagesByCharacter.set(key, bucket);
+    }
+
+    const withImages = characters.map((character) => {
+      const record = character as unknown as Record<string, unknown>;
+      return {
+        ...serializeCharacter(record, request.auth!.uid),
+        activeImageId: record.activeImageId ?? null,
+        // Tombstones are included deliberately: a client cannot distinguish a
+        // truncated response from a genuine remote delete, so absence must
+        // never mean "delete it locally".
+        images: imagesByCharacter.get(String(record.id)) ?? [],
+      };
+    });
     return {characters: withImages};
   } catch (error) {
     logger.error('Failed to get user characters', { error });

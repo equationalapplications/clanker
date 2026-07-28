@@ -9,6 +9,7 @@
 import { File } from 'expo-file-system'
 import { Platform } from 'react-native'
 import {
+  getActiveCharacterImage,
   getAllImagesForCharacter,
   getCharacterImageById,
   getImagesBySyncState,
@@ -21,7 +22,7 @@ import {
   type CharacterImageRow,
 } from '~/database/characterImageDatabase'
 import type { CharacterImageSnapshot } from '~/services/apiClient'
-import { getAllCharactersIncludingDeleted } from '~/database/characterDatabase'
+import { getAllCharactersIncludingDeleted, getCharacter } from '~/database/characterDatabase'
 import { deleteLocalImageBytes, resolveImageUri, writeLocalImageBytes } from '~/services/localImageStore'
 import { deleteStorageObject, downloadImageBase64, uploadImageBytes } from '~/services/storageService'
 import { buildStoragePath } from '~/services/characterImageService'
@@ -70,9 +71,11 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
   // server later disagrees with are unreachable forever. Waiting one sweep is
   // the cheaper side of that trade.
   const confirmedCloudIds = new Map<string, string>()
+  const cloudToLocalId = new Map<string, string>()
   for (const character of characters) {
     if (character.cloud_id && UUID_REGEX.test(character.cloud_id)) {
       confirmedCloudIds.set(character.id, character.cloud_id)
+      cloudToLocalId.set(character.cloud_id, character.id)
     }
   }
 
@@ -156,6 +159,19 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
     if (bucket.uploaded.length === 0 && bucket.deleted.length === 0) continue
 
     try {
+      // Opportunistically push the active pointer alongside whatever else this
+      // character is syncing. Only meaningful once the active row itself is
+      // cloud-visible — either an existing 'cloud' row, or one of the rows this
+      // same call is registering — otherwise the server would reject an
+      // activeImageId it has never heard of.
+      const localCharacterId = cloudToLocalId.get(cloudCharacterId)
+      const activeRow = localCharacterId ? await getActiveCharacterImage(localCharacterId) : null
+      const activeImageId =
+        activeRow &&
+        (activeRow.storage_kind === 'cloud' || bucket.uploaded.some((row) => row.id === activeRow.id))
+          ? activeRow.id
+          : undefined
+
       const result = await syncCharacterImagesFn({
         characterId: cloudCharacterId,
         images: bucket.uploaded.map((row) => ({
@@ -166,6 +182,7 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           source: row.source,
         })),
         deletedImageIds: bucket.deleted,
+        ...(activeImageId ? { activeImageId } : {}),
       })
 
       // The server owns the cap for cloud characters and returns what it evicted;
@@ -173,11 +190,49 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
       for (const evictedId of result.data?.evictedImageIds ?? []) {
         const evicted = await getCharacterImageById(evictedId)
         if (!evicted) continue
+        // Bytes before row: an evicted 'file' row still has local bytes the
+        // server cannot reach and has no way to clean up.
+        if (evicted.storage_kind === 'file') {
+          await deleteLocalImageBytes(evicted.master_ref)
+          if (evicted.thumb_ref) await deleteLocalImageBytes(evicted.thumb_ref)
+        }
         await hardDeleteCharacterImage(evictedId)
       }
     } catch (error) {
       reportError(error, 'characterImageSync:register')
     }
+  }
+}
+
+/**
+ * Push the current local active-image pointer for one character to the cloud
+ * immediately, outside the regular sweep cadence.
+ *
+ * `setActiveImageId` deliberately never bumps `updated_at` (see
+ * characterImageDatabase.ts), so the character snapshot's own sync never
+ * carries this pointer — this callable is the only vehicle. Call this right
+ * after a user activates an image so a second device sees the change without
+ * waiting for the next full sweep.
+ */
+export async function pushActiveImageId(localCharacterId: string, localUserId: string): Promise<void> {
+  const character = await getCharacter(localCharacterId, localUserId)
+  if (!character?.cloud_id || !UUID_REGEX.test(character.cloud_id)) return
+
+  const active = await getActiveCharacterImage(localCharacterId)
+  // Pushing a 'file'/'inline' id the server has never seen would fail its
+  // ownership check; that image is still mid-upload and will carry the
+  // pointer itself once the sweep promotes it to 'cloud'.
+  if (!active || active.storage_kind !== 'cloud') return
+
+  try {
+    await syncCharacterImagesFn({
+      characterId: character.cloud_id,
+      images: [],
+      deletedImageIds: [],
+      activeImageId: active.id,
+    })
+  } catch (error) {
+    reportError(error, 'characterImageSync:pushActiveImageId')
   }
 }
 

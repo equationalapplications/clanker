@@ -51,6 +51,17 @@ function makeStore(initial: Row[] = []) {
           if (rows[i].characterId === characterId) rows.splice(i, 1);
         }
       },
+      async deleteTombstonesOlderThan(cutoff: Date): Promise<number> {
+        let count = 0;
+        for (let i = rows.length - 1; i >= 0; i -= 1) {
+          const deletedAt = rows[i].deletedAt;
+          if (deletedAt && deletedAt.getTime() < cutoff.getTime()) {
+            rows.splice(i, 1);
+            count += 1;
+          }
+        }
+        return count;
+      },
     },
   };
 }
@@ -152,4 +163,28 @@ test("purgeCharacter scopes the row delete by userId, not just characterId", asy
   const service = createCharacterImageService(repo as never, storage as never);
   await service.purgeCharacter("firebase-uid-1", "db-user-1", "c1");
   assert.deepEqual(receivedArgs, ["c1", "db-user-1"]);
+});
+
+test("sweepExpiredTombstones drops rows tombstoned past the retention window", async () => {
+  const now = Date.now();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const store = makeStore([
+    row("old-tombstone", 1, {deletedAt: new Date(now - 31 * DAY_MS)}),
+    row("recent-tombstone", 2, {deletedAt: new Date(now - 1 * DAY_MS)}),
+    row("live", 3, {deletedAt: null}),
+  ]);
+  const service = createCharacterImageService(store.repo as never, storage as never);
+  const deletedCount = await service.sweepExpiredTombstones(30);
+  assert.equal(deletedCount, 1);
+  assert.deepEqual(store.rows.map((r) => r.id).sort(), ["live", "recent-tombstone"]);
+});
+
+test("sweepExpiredTombstones never touches Storage — objects are already gone by tombstone time", async () => {
+  deletedObjects.length = 0;
+  const store = makeStore([
+    row("old-tombstone", 1, {deletedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)}),
+  ]);
+  const service = createCharacterImageService(store.repo as never, storage as never);
+  await service.sweepExpiredTombstones(30);
+  assert.deepEqual(deletedObjects, []);
 });

@@ -2,9 +2,9 @@ const mockPutFile = jest.fn()
 const mockGetDownloadURL = jest.fn()
 const mockDelete = jest.fn()
 const mockRefFn = jest.fn()
-const mockWriteBytes = jest.fn()
-const mockDeleteBytes = jest.fn()
 const mockFileBase64 = jest.fn()
+const mockFileWrite = jest.fn()
+const mockFileDelete = jest.fn()
 
 jest.mock('@react-native-firebase/storage', () => ({
   getStorage: jest.fn(() => ({})),
@@ -13,14 +13,15 @@ jest.mock('@react-native-firebase/storage', () => ({
   getDownloadURL: (...a: unknown[]) => mockGetDownloadURL(...a),
   deleteObject: (...a: unknown[]) => mockDelete(...a),
 }))
-jest.mock('~/services/localImageStore', () => ({
-  writeLocalImageBytes: (...a: unknown[]) => mockWriteBytes(...a),
-  deleteLocalImageBytes: (...a: unknown[]) => mockDeleteBytes(...a),
-}))
 jest.mock('expo-file-system', () => ({
   Paths: { cache: { uri: 'file:///cache/' }, document: { uri: 'file:///doc/' } },
   Directory: jest.fn(() => ({ exists: true, create: jest.fn() })),
-  File: jest.fn(() => ({ base64: mockFileBase64, delete: jest.fn() })),
+  File: jest.fn((_dir: unknown, name: string) => ({
+    uri: `file:///cache/image-uploads/${name}`,
+    base64: mockFileBase64,
+    write: mockFileWrite,
+    delete: mockFileDelete,
+  })),
 }))
 
 // Mock File.downloadFileAsync as a static method
@@ -37,32 +38,41 @@ import {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockFileDelete.mockReset()
   __clearDownloadUrlCache()
   mockRefFn.mockImplementation((_s: unknown, path: string) => ({ fullPath: path }))
   mockGetDownloadURL.mockResolvedValue('https://cdn/x.webp')
-  mockWriteBytes.mockResolvedValue('file:///tmp/upload.webp')
   mockFileBase64.mockResolvedValue('DOWNLOADED64')
 })
 
 describe('storageService (native)', () => {
   it('uploads via putFile with an explicit content type', async () => {
     await uploadImageBytes('users/u/characters/c/i.webp', 'B64', 'image/webp')
+    expect(mockFileWrite).toHaveBeenCalledWith('B64', { encoding: 'base64' })
     expect(mockPutFile).toHaveBeenCalledWith(
       { fullPath: 'users/u/characters/c/i.webp' },
-      'file:///tmp/upload.webp',
+      expect.stringMatching(/^file:\/\/\/cache\/image-uploads\/upload_/),
       { contentType: 'image/webp' },
     )
   })
 
   it('cleans up the staged local file after upload', async () => {
     await uploadImageBytes('users/u/characters/c/i.webp', 'B64', 'image/webp')
-    expect(mockDeleteBytes).toHaveBeenCalledWith('file:///tmp/upload.webp')
+    expect(mockFileDelete).toHaveBeenCalledTimes(1)
   })
 
   it('cleans up the staged file even when the upload fails', async () => {
     mockPutFile.mockRejectedValue(new Error('network'))
     await expect(uploadImageBytes('p', 'B64', 'image/webp')).rejects.toThrow('network')
-    expect(mockDeleteBytes).toHaveBeenCalledWith('file:///tmp/upload.webp')
+    expect(mockFileDelete).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not mask the upload error when staged-file cleanup also fails', async () => {
+    mockPutFile.mockRejectedValue(new Error('network'))
+    mockFileDelete.mockImplementation(() => {
+      throw new Error('cleanup failed')
+    })
+    await expect(uploadImageBytes('p', 'B64', 'image/webp')).rejects.toThrow('network')
   })
 
   it('memoizes download URLs per path for the session', async () => {

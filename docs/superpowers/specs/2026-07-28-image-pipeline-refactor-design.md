@@ -273,6 +273,15 @@ would regress a live feature, leaving imported characters avatar-less.
 > `getSignedUrl` fails with a `signBlob` permission error. This is IAM
 > configuration, not a code defect — grant it before deploying.
 
+> **Deploy-time trap #2:** on web, the importer loads the signed URL through
+> `expo-image-manipulator`'s canvas path, which needs to read the response
+> body cross-origin. `storage.googleapis.com` sends no CORS headers by
+> default — unlike `getDownloadURL()` links, which do — so an unconfigured
+> bucket makes public import silently fail to fetch the avatar on web (the
+> character itself still imports; only the avatar is lost, per §11's
+> degrade-not-fail rule). Apply `cors.json` to the bucket before deploying:
+> `gsutil cors set cors.json gs://clanker-prod.firebasestorage.app`.
+
 ---
 
 ## 9. Web WebP encoding probe

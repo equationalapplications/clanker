@@ -40,6 +40,10 @@ export {
 } from "./characterFunctions.js";
 
 export {
+  imageRetentionSweep,
+} from "./imageRetention.js";
+
+export {
   memoryRead,
   memoryWrite,
   memoryHeal,

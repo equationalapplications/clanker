@@ -45,6 +45,9 @@ function buildDeps(): CharacterFunctionDeps {
         throw new Error("Unexpected character service call");
       },
       assertCharacterOwnership: async () => {},
+      isOwnedByUser: async () => {
+        throw new Error("Unexpected character service call");
+      },
     },
     characterImageService: {
       syncImages: async () => {
@@ -54,6 +57,9 @@ function buildDeps(): CharacterFunctionDeps {
         throw new Error("Unexpected characterImageService call");
       },
       listImages: async () => {
+        throw new Error("Unexpected characterImageService call");
+      },
+      listImagesByCharacters: async () => {
         throw new Error("Unexpected characterImageService call");
       },
       setActiveImage: async () => {
@@ -555,6 +561,7 @@ test("getUserCharactersHandler returns character timestamps as ISO strings", asy
       },
       characterImageService: {
         listImages: async () => [],
+        listImagesByCharacters: async () => [],
       },
     } as unknown as CharacterFunctionDeps
   );
@@ -672,6 +679,7 @@ test("getUserCharactersHandler allows users without cloud-character subscription
       },
       characterImageService: {
         listImages: async () => [],
+        listImagesByCharacters: async () => [],
       },
     } as unknown as CharacterFunctionDeps
   );
@@ -890,7 +898,7 @@ function imageDeps(overrides: Record<string, unknown> = {}) {
       findUserByFirebaseUid: async () => ({id: "user-uuid", firebaseUid: "uid-1"}),
     },
     characterService: {
-      getUserCharacters: async () => [{id: "11111111-1111-4111-8111-111111111111"}],
+      isOwnedByUser: async () => true,
     },
     characterImageService: {
       syncImages: async () => ({evictedImageIds: []}),
@@ -977,7 +985,7 @@ test("syncCharacterImages returns the full set including tombstones", async () =
 
 test("syncCharacterImages refuses a character the caller does not own", async () => {
   const deps = imageDeps();
-  deps.characterService.getUserCharacters = async () => [];
+  deps.characterService.isOwnedByUser = async () => false;
   await assert.rejects(
     () => syncCharacterImagesHandler(imageRequest({characterId: CHAR_ID, images: []}), deps as never),
     (e: unknown) => e instanceof HttpsError && e.code === "permission-denied"
@@ -1049,6 +1057,10 @@ test("getUserCharacters includes images and activeImageId", async () => {
   ];
   (deps as Record<string, unknown>).characterImageService = {
     listImages: async () => [{
+      id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: "t",
+      mimeType: "image/webp", source: "generated", createdAt: new Date(0), deletedAt: null,
+    }],
+    listImagesByCharacters: async () => [{
       id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: "t",
       mimeType: "image/webp", source: "generated", createdAt: new Date(0), deletedAt: null,
     }],

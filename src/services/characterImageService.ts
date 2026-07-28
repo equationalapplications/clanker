@@ -23,7 +23,7 @@ import {
 } from '~/database/characterImageDatabase'
 import { prepareImageVariants } from '~/services/imageVariants'
 import { deleteLocalImageBytes, writeLocalImageBytes } from '~/services/localImageStore'
-import { uploadImageBytes } from '~/services/storageService'
+import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 export const IMAGE_CAP_PER_CHARACTER = 100
@@ -96,10 +96,11 @@ export async function saveCharacterImage(
   let thumbRef: string | null
   let syncState: CharacterImageRow['sync_state'] = 'local'
 
-  // Refs written so far. If anything between the first write and the committed
-  // row insert throws, these bytes would be orphaned — no row references them,
-  // so nothing could ever find or sweep them.
-  const writtenRefs: string[] = []
+  // Refs written so far, by where they live. If anything between the first
+  // write and the committed row insert throws, these bytes would be orphaned —
+  // no row references them, so nothing could ever find or sweep them.
+  const writtenLocalRefs: string[] = []
+  const writtenCloudRefs: string[] = []
   let row: CharacterImageRow
 
   try {
@@ -108,7 +109,9 @@ export async function saveCharacterImage(
       const thumbPath = buildStoragePath(input.userId, cloudId, imageId, 'thumb')
       try {
         await uploadImageBytes(masterPath, variants.master.base64, variants.master.mimeType)
+        writtenCloudRefs.push(masterPath)
         await uploadImageBytes(thumbPath, variants.thumb.base64, variants.thumb.mimeType)
+        writtenCloudRefs.push(thumbPath)
         storageKind = 'cloud'
         masterRef = masterPath
         thumbRef = thumbPath
@@ -132,7 +135,7 @@ export async function saveCharacterImage(
       syncState = character.save_to_cloud ? 'pending_upload' : 'local'
     }
 
-    if (storageKind !== 'cloud') writtenRefs.push(masterRef, ...(thumbRef ? [thumbRef] : []))
+    if (storageKind !== 'cloud') writtenLocalRefs.push(masterRef, ...(thumbRef ? [thumbRef] : []))
 
     row = {
       id: imageId,
@@ -152,15 +155,21 @@ export async function saveCharacterImage(
     // Commit point: once the row exists, the image is safely recorded.
     await insertCharacterImage(row)
   } catch (err) {
-    if (storageKind !== 'cloud') {
-      // Best-effort rollback. Cleanup failure must never mask the real error,
-      // so each delete is swallowed independently.
-      for (const ref of writtenRefs) {
-        try {
-          await deleteLocalImageBytes(ref)
-        } catch (cleanupErr) {
-          console.warn('Failed to clean up orphaned image bytes:', cleanupErr)
-        }
+    // Best-effort rollback, on whichever side the bytes actually landed.
+    // Cleanup failure must never mask the real error, so each delete is
+    // swallowed independently.
+    for (const ref of writtenLocalRefs) {
+      try {
+        await deleteLocalImageBytes(ref)
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up orphaned local image bytes:', cleanupErr)
+      }
+    }
+    for (const ref of writtenCloudRefs) {
+      try {
+        await deleteStorageObject(ref)
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up orphaned cloud image object:', cleanupErr)
       }
     }
     throw err
@@ -183,9 +192,13 @@ export async function saveCharacterImage(
  *
  * Cloud characters get their cap enforced server-side instead (Stage C): two
  * devices can each hold fewer than 100 while the cloud total exceeds it, so a
- * client-only cap cannot be correct there. `cloud`-kind rows are filtered out of
- * the candidate set for exactly that reason — evicting one here would race the
- * server's own cap and, worse, hard-delete a row the sweeper hasn't reconciled.
+ * client-only cap cannot be correct there. `cloud`-kind rows are now excluded
+ * from the candidate set in `getEvictionCandidates` itself (in SQL, before the
+ * LIMIT) — filtering only after the LIMIT under-evicts whenever the oldest
+ * `excess` rows happen to include cloud ones. The filter below is a second,
+ * redundant layer: "never hard-delete a cloud row locally" is load-bearing
+ * enough (it would race the server's cap and delete a row the sweeper hasn't
+ * reconciled) to defend even against a future bug in the SQL query.
  */
 export async function enforceLocalCap(characterId: string): Promise<void> {
   const count = await countCharacterImages(characterId)
@@ -244,10 +257,11 @@ async function retireImage(
 
 export async function deleteCharacterImage(imageId: string, userId: string): Promise<void> {
   const row = await getCharacterImageById(imageId)
-  if (!row) return
-  // TODO: assert row.user_id === userId once cloud ownership lands (Stage B);
-  // until then a mismatched caller is silently accepted.
-  void userId
+  // Treated the same as "row not found": the local DB is scoped to the
+  // device's signed-in user, so a mismatch means a stale caller from a
+  // previous session, not an attacker — but the check still keeps a leftover
+  // reference from one account from ever touching another's row.
+  if (!row || row.user_id !== userId) return
 
   const active = await getActiveCharacterImage(row.character_id)
 
@@ -269,8 +283,7 @@ export async function deleteAllImagesForCharacter(
   characterId: string,
   userId: string,
 ): Promise<void> {
-  void userId
-  const rows = await getAllImagesForCharacter(characterId)
+  const rows = (await getAllImagesForCharacter(characterId)).filter((row) => row.user_id === userId)
   for (const row of rows) {
     await retireImage(row)
   }

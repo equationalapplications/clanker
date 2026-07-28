@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://clanker-prod.web.app", "https://clanker-prod.firebaseapp.com", "http://localhost:8081"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

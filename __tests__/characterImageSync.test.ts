@@ -11,6 +11,8 @@ const mockDeleteObject = jest.fn()
 const mockDeleteLocalBytes = jest.fn()
 const mockSyncImagesFn = jest.fn()
 
+const mockGetActiveImage = jest.fn().mockResolvedValue(null)
+
 jest.mock('~/database/characterImageDatabase', () => ({
   getImagesBySyncState: (...a: unknown[]) => mockGetImagesBySyncState(...a),
   updateImageRefs: (...a: unknown[]) => mockUpdateRefs(...a),
@@ -21,9 +23,11 @@ jest.mock('~/database/characterImageDatabase', () => ({
   insertCharacterImage: jest.fn(),
   getAllImagesForCharacter: jest.fn().mockResolvedValue([]),
   setActiveImageId: jest.fn(),
+  getActiveCharacterImage: (...a: unknown[]) => mockGetActiveImage(...a),
 }))
 jest.mock('~/database/characterDatabase', () => ({
   getAllCharactersIncludingDeleted: (...a: unknown[]) => mockGetAllChars(...a),
+  getCharacter: jest.fn().mockResolvedValue(null),
 }))
 jest.mock('~/services/localImageStore', () => ({
   resolveImageUri: (...a: unknown[]) => mockResolveUri(...a),

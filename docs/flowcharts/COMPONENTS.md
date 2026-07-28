@@ -7,6 +7,7 @@ graph LR
   AvatarPicker --> localImageStore
   AvatarPicker --> useAvatarUpload
   AvatarPicker --> useImageGeneration
+  AvatarPicker --> characterImageSyncService
   AvatarPicker --> characterImageService
   CharacterCard --> useResolvedImage
   ChatComposer --> useCharacterWiki

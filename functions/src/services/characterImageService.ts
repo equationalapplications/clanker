@@ -1,4 +1,4 @@
-import {and, desc, eq, isNull} from "drizzle-orm";
+import {and, desc, eq, inArray, isNotNull, isNull, lt} from "drizzle-orm";
 import {getDb} from "../db/cloudSql.js";
 import {characterImages, characters} from "../db/schema.js";
 import {storageAdmin} from "./storageAdmin.js";
@@ -9,12 +9,14 @@ export type CharacterImageRecord = typeof characterImages.$inferSelect;
 
 export type CharacterImageRepository = {
   listByCharacter(characterId: string): Promise<CharacterImageRecord[]>;
+  listByCharacters(characterIds: string[]): Promise<CharacterImageRecord[]>;
   listLiveByCharacter(characterId: string): Promise<CharacterImageRecord[]>;
   upsert(row: typeof characterImages.$inferInsert): Promise<void>;
   tombstone(id: string): Promise<void>;
   getActiveImageId(characterId: string): Promise<string | null>;
   setActiveImageId(characterId: string, imageId: string | null): Promise<void>;
   deleteByCharacter(characterId: string, userId: string): Promise<void>;
+  deleteTombstonesOlderThan(cutoff: Date): Promise<number>;
 };
 
 export const createCharacterImageRepository = (): CharacterImageRepository => ({
@@ -22,6 +24,13 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
     const db = await getDb();
     return db.select().from(characterImages)
       .where(eq(characterImages.characterId, characterId))
+      .orderBy(desc(characterImages.createdAt));
+  },
+  async listByCharacters(characterIds) {
+    if (characterIds.length === 0) return [];
+    const db = await getDb();
+    return db.select().from(characterImages)
+      .where(inArray(characterImages.characterId, characterIds))
       .orderBy(desc(characterImages.createdAt));
   },
   async listLiveByCharacter(characterId) {
@@ -66,6 +75,16 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
     await db.delete(characterImages).where(
       and(eq(characterImages.characterId, characterId), eq(characterImages.userId, userId))
     );
+  },
+  async deleteTombstonesOlderThan(cutoff) {
+    const db = await getDb();
+    // The Storage objects behind a tombstoned row are already deleted at
+    // tombstone time (see tombstoneWithObjects below) — this only drops the
+    // now-unreferenced row itself, tens of bytes each.
+    const deleted = await db.delete(characterImages)
+      .where(and(isNotNull(characterImages.deletedAt), lt(characterImages.deletedAt, cutoff)))
+      .returning({id: characterImages.id});
+    return deleted.length;
   },
 });
 
@@ -120,9 +139,14 @@ export const createCharacterImageService = (
     },
 
     async deleteImages(characterId: string, userId: string, imageIds: string[]): Promise<void> {
-      void userId;
+      // The caller (syncCharacterImagesHandler) has already verified characterId
+      // belongs to userId, so every row under it already carries userId — this
+      // filter is defense in depth against that check ever being skipped or
+      // reordered, matching deleteByCharacter's own scoping above.
       const rows = await repository.listByCharacter(characterId);
-      const targets = rows.filter((row) => imageIds.includes(row.id) && !row.deletedAt);
+      const targets = rows.filter(
+        (row) => row.userId === userId && imageIds.includes(row.id) && !row.deletedAt
+      );
       for (const row of targets) {
         await tombstoneWithObjects(row);
       }
@@ -131,6 +155,15 @@ export const createCharacterImageService = (
     /** Includes tombstones — absence is ambiguous, an explicit deleted_at is not. */
     async listImages(characterId: string): Promise<CharacterImageRecord[]> {
       return repository.listByCharacter(characterId);
+    },
+
+    /**
+     * Batched form of listImages for a whole character set — getUserCharacters
+     * previously ran one listImages query per character (N+1) to attach each
+     * one's gallery.
+     */
+    async listImagesByCharacters(characterIds: string[]): Promise<CharacterImageRecord[]> {
+      return repository.listByCharacters(characterIds);
     },
 
     async setActiveImage(characterId: string, imageId: string | null): Promise<void> {
@@ -160,6 +193,16 @@ export const createCharacterImageService = (
     async purgeCharacter(firebaseUid: string, dbUserId: string, characterId: string): Promise<void> {
       await repository.deleteByCharacter(characterId, dbUserId);
       await storage.deletePrefix(`users/${firebaseUid}/characters/${characterId}/`);
+    },
+
+    /**
+     * Drop tombstones older than the retention window (spec §3.2: 30 days).
+     * Storage objects are already gone by the time a row is tombstoned — this
+     * exists purely so the table doesn't grow unbounded with dead rows.
+     */
+    async sweepExpiredTombstones(retentionDays: number): Promise<number> {
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      return repository.deleteTombstonesOlderThan(cutoff);
     },
   };
 };

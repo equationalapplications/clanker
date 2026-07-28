@@ -1,5 +1,14 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { Alert } from 'react-native'
+
+// Auto-confirm the destructive delete flow: real Alert.alert invokes the
+// tapped button's onPress asynchronously, but tests drive onLongPress
+// directly and need a deterministic outcome.
+jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+  const destructive = buttons?.find((button) => button.style === 'destructive')
+  destructive?.onPress?.()
+})
 
 const mockGetImages = jest.fn()
 const mockSetActive = jest.fn()
@@ -40,6 +49,9 @@ jest.mock('~/database/characterImageDatabase', () => ({
 }))
 jest.mock('~/services/characterImageService', () => ({
   deleteCharacterImage: (...a: unknown[]) => mockDeleteImage(...a),
+}))
+jest.mock('~/services/characterImageSyncService', () => ({
+  pushActiveImageId: jest.fn(),
 }))
 jest.mock('~/services/localImageStore', () => ({
   resolveImageUri: jest.fn(async (row: any) => `resolved:${row.id}`),

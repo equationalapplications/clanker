@@ -113,11 +113,17 @@ export async function countCharacterImages(characterId: string): Promise<number>
 }
 
 /**
- * Oldest live images for a character, excluding the active one.
+ * Oldest live, locally-capped images for a character, excluding the active one.
  *
  * `activeImageId` is coalesced to '' rather than passed as NULL: `id != NULL`
  * is NULL in SQL, not true, so a NULL parameter would silently match nothing
  * and the cap would never evict.
+ *
+ * `storage_kind != 'cloud'` is filtered here, not after the LIMIT: cloud rows
+ * are excluded from local cap enforcement entirely (their cap is server-side —
+ * see enforceLocalCap), so filtering them out post-limit would leave the cap
+ * un-enforced whenever the oldest `limit` rows happened to all be cloud-kind,
+ * even though older local rows existed further back in the ordering.
  *
  * A non-positive `limit` returns nothing: SQLite treats a negative LIMIT as
  * unbounded, so a caller computing `count - CAP` must not be able to sweep the
@@ -132,7 +138,7 @@ export async function getEvictionCandidates(
   const db = await getDatabase()
   return db.getAllAsync<CharacterImageRow>(
     `SELECT * FROM character_images
-     WHERE character_id = ? AND deleted_at IS NULL AND id != ?
+     WHERE character_id = ? AND deleted_at IS NULL AND id != ? AND storage_kind != 'cloud'
      ORDER BY created_at ASC
      LIMIT ?`,
     [characterId, activeImageId ?? '', limit],

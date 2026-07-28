@@ -48,7 +48,6 @@ graph LR
   localImageStore.web --> storageService.web
   messageService --> messageDatabase
   messageService --> analyticsService
-  storageService --> localImageStore
   userService --> apiClient
   wikiLlmProvider --> devSandboxFlag
   wikiLlmProvider --> apiClient

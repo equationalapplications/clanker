@@ -17,7 +17,7 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
-import { saveCharacterImage } from './characterImageService'
+import { deleteAllImagesForCharacter, saveCharacterImage } from './characterImageService'
 import {
     demoteCharacterImagesToLocal,
     reconcileCharacterImages,
@@ -48,6 +48,13 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+// The owner's active master is always produced by this same pipeline (§6 step
+// 2: resized to 1024 on the longest edge, never upscaled), so it is square or
+// smaller in practice. A legacy migrated avatar can be non-square, in which
+// case this over-states one edge and `resizeActions` in imageVariants.ts
+// skips a resize that a real probe would have performed — CharacterAvatar's
+// `resizeMode: 'cover'` (§16) absorbs the resulting aspect mismatch on
+// display, so this is a quality nit, not a correctness bug.
 const IMPORTED_AVATAR_DIMENSION = 1024
 
 function reportWikiOpForCharacter(err: unknown, context: string, characterId: string, summary: string): void {
@@ -477,29 +484,28 @@ export async function importSharedCharacterFromCloud(
                 height: IMPORTED_AVATAR_DIMENSION,
                 source: 'imported',
             })
-        } catch (error) {
-            // A 403 means the 15-minute URL expired between fetch and download.
-            // Re-request rather than failing: the character itself already
-            // imported successfully, and the avatar is recoverable.
-            const status = (error as { status?: number })?.status
-            if (status === 403) {
-                try {
-                    const retry = await getPublicCharacterFn({ characterId: cloudCharacterId })
-                    if (retry.data?.avatarSignedUrl) {
-                        await saveCharacterImage({
-                            characterId: localCharacterId,
-                            userId: localUserId,
-                            uri: retry.data.avatarSignedUrl,
-                            width: IMPORTED_AVATAR_DIMENSION,
-                            height: IMPORTED_AVATAR_DIMENSION,
-                            source: 'imported',
-                        })
-                    }
-                } catch (retryError) {
-                    reportError(retryError, 'importSharedCharacter:avatar')
+        } catch {
+            // The dominant failure mode is the 15-minute signed URL expiring
+            // between fetch and download. Neither the manipulator's nor the
+            // image loader's error reliably carries an HTTP status this far up
+            // the stack, so rather than gate the retry on a status code that is
+            // usually absent, retry once unconditionally: the character itself
+            // already imported successfully, the avatar alone is recoverable,
+            // and a single extra request is cheap next to losing the avatar.
+            try {
+                const retry = await getPublicCharacterFn({ characterId: cloudCharacterId })
+                if (retry.data?.avatarSignedUrl) {
+                    await saveCharacterImage({
+                        characterId: localCharacterId,
+                        userId: localUserId,
+                        uri: retry.data.avatarSignedUrl,
+                        width: IMPORTED_AVATAR_DIMENSION,
+                        height: IMPORTED_AVATAR_DIMENSION,
+                        source: 'imported',
+                    })
                 }
-            } else {
-                reportError(error, 'importSharedCharacter:avatar')
+            } catch (retryError) {
+                reportError(retryError, 'importSharedCharacter:avatar')
             }
         }
     }
@@ -554,14 +560,29 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
         const cloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
 
         if (!cloudId) {
+            // Never synced, so there is no server-side purgeCharacter to reach any
+            // cloud-kind rows — but privacy-mode 'file'/'inline' rows are entirely
+            // local, and hardDeleteCharacterLocal only drops the characters/messages
+            // rows. Without this, their bytes and character_images rows outlive the
+            // character with nothing left able to find or sweep them.
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
             await hardDeleteCharacterLocal(char.id, localUserId)
             continue
         }
 
         try {
             await deleteCharacterFn({ characterId: cloudId })
-            
-            // Cloud deletion confirmed — hard-delete locally (also removes messages)
+
+            // Cloud deletion confirmed — deleteCharacterHandler already purged the
+            // server-side rows and Storage objects, but that leaves this device's
+            // local character_images rows (and any 'file'/'inline' bytes on disk)
+            // behind, since the server never sees local-only storage kinds.
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
+            // Hard-delete locally (also removes messages)
             await hardDeleteCharacterLocal(char.id, localUserId)
         } catch (error: any) {
             reportWikiOpForCharacter(error, 'characterSync:delete', char.id, 'Character cloud deletion')

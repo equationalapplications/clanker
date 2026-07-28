@@ -220,21 +220,33 @@ function RootLayoutNav() {
             state.isConnected != null && state.isConnected && state.isInternetReachable !== false
           if (isOnline) {
             // One-shot: migrate legacy avatar_data into the character_images gallery.
-            // Runs before sync so migrated rows are picked up by the sweeper.
-            void import('~/database/migrations/migrateAvatarsToImageStore')
-              .then(async ({ migrateAvatarsToImageStore }) => {
+            // Awaited before sync starts — migrated rows must exist with their
+            // final sync_state before syncAllToCloud queries pending_upload rows,
+            // otherwise a migrated cloud-mode avatar waits a full extra launch
+            // for the sweeper to notice it (and the two writers could otherwise
+            // race the same character_images rows).
+            void (async () => {
+              try {
+                const { migrateAvatarsToImageStore } = await import(
+                  '~/database/migrations/migrateAvatarsToImageStore'
+                )
                 const { LEGACY_DEFAULT_AVATAR_BASE64 } = await import(
                   '~/database/migrations/legacyDefaultAvatarBase64'
                 )
                 await migrateAvatarsToImageStore(user.uid, LEGACY_DEFAULT_AVATAR_BASE64)
                 characterService.send({ type: 'LOAD' })
-              })
-              .catch((err) => console.warn('Avatar migration failed:', err))
+              } catch (err) {
+                console.warn('Avatar migration failed:', err)
+              }
 
-            import('~/services/characterSyncService')
-              .then(({ syncAllToCloud }) => syncAllToCloud())
-              .then(() => characterService.send({ type: 'LOAD' }))
-              .catch((err) => console.warn('Startup sync failed:', err))
+              try {
+                const { syncAllToCloud } = await import('~/services/characterSyncService')
+                await syncAllToCloud()
+                characterService.send({ type: 'LOAD' })
+              } catch (err) {
+                console.warn('Startup sync failed:', err)
+              }
+            })()
           }
         })
         .catch((err) => {

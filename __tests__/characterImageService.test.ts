@@ -209,6 +209,28 @@ describe('saveCharacterImage', () => {
     expect(mockDeleteBytes).toHaveBeenCalledWith('file:///doc/uuid-new_thumb')
   })
 
+  it('cleans up uploaded Storage objects when the row insert fails after a cloud upload', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    mockInsert.mockRejectedValue(new Error('database is locked'))
+    await expect(
+      saveCharacterImage({
+        characterId: 'char_a',
+        userId: 'user-1',
+        uri: 'file://s.jpg',
+        width: 1024,
+        height: 1024,
+        source: 'generated',
+      }),
+    ).rejects.toThrow('database is locked')
+    expect(mockDeleteStorageObject).toHaveBeenCalledWith(
+      'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp',
+    )
+    expect(mockDeleteStorageObject).toHaveBeenCalledWith(
+      'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp',
+    )
+    expect(mockDeleteBytes).not.toHaveBeenCalled()
+  })
+
   it('still resolves with the row when post-save bookkeeping fails', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     mockCount.mockRejectedValue(new Error('database is locked'))
@@ -313,6 +335,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'file',
       master_ref: 'file:///m',
       thumb_ref: 'file:///t',
@@ -325,6 +348,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'file',
       master_ref: 'file:///m',
       thumb_ref: null,
@@ -338,6 +362,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'inline',
       master_ref: 'B64',
       thumb_ref: 'T64',
@@ -351,6 +376,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'inline',
       master_ref: 'B',
       thumb_ref: null,
@@ -368,6 +394,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'inline',
       master_ref: 'B',
       thumb_ref: null,
@@ -393,6 +420,7 @@ describe('deleteCharacterImage', () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',
       character_id: 'char_a',
+      user_id: 'user-1',
       storage_kind: 'cloud',
       master_ref: 'users/u1/characters/c1/img-1.webp',
       thumb_ref: 'users/u1/characters/c1/img-1_thumb.webp',
@@ -410,6 +438,7 @@ describe('deleteAllImagesForCharacter', () => {
       {
         id: 'a',
         character_id: 'char_a',
+        user_id: 'user-1',
         storage_kind: 'file',
         master_ref: 'file:///a',
         thumb_ref: null,
@@ -417,6 +446,7 @@ describe('deleteAllImagesForCharacter', () => {
       {
         id: 'b',
         character_id: 'char_a',
+        user_id: 'user-1',
         storage_kind: 'inline',
         master_ref: 'B',
         thumb_ref: null,
@@ -434,6 +464,7 @@ describe('deleteAllImagesForCharacter', () => {
       {
         id: 'c',
         character_id: 'char_a',
+        user_id: 'user-1',
         storage_kind: 'cloud',
         master_ref: 'users/u1/characters/c1/c.webp',
         thumb_ref: null,
