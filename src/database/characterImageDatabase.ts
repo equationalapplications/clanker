@@ -82,7 +82,7 @@ export async function getActiveCharacterImage(
   const db = await getDatabase()
   return db.getFirstAsync<CharacterImageRow>(
     `SELECT i.* FROM character_images i
-     JOIN characters c ON c.active_image_id = i.id
+     JOIN characters c ON c.active_image_id = i.id AND i.character_id = c.id
      WHERE c.id = ? AND i.deleted_at IS NULL`,
     [characterId],
   )
@@ -93,9 +93,12 @@ export async function setActiveImageId(
   imageId: string | null,
 ): Promise<void> {
   const db = await getDatabase()
-  await db.runAsync('UPDATE characters SET active_image_id = ?, updated_at = ? WHERE id = ?', [
+  // Deliberately does not touch `updated_at`: the active pointer is synced via the
+  // dedicated syncCharacterImages callable, not the character snapshot's last-write-wins.
+  // Bumping it without also clearing `synced_to_cloud` would make inbound cloud rows
+  // look stale and be discarded, while never being pushed either.
+  await db.runAsync('UPDATE characters SET active_image_id = ? WHERE id = ?', [
     imageId,
-    Date.now(),
     characterId,
   ])
 }
@@ -115,12 +118,17 @@ export async function countCharacterImages(characterId: string): Promise<number>
  * `activeImageId` is coalesced to '' rather than passed as NULL: `id != NULL`
  * is NULL in SQL, not true, so a NULL parameter would silently match nothing
  * and the cap would never evict.
+ *
+ * A non-positive `limit` returns nothing: SQLite treats a negative LIMIT as
+ * unbounded, so a caller computing `count - CAP` must not be able to sweep the
+ * whole gallery.
  */
 export async function getEvictionCandidates(
   characterId: string,
   activeImageId: string | null,
   limit: number,
 ): Promise<CharacterImageRow[]> {
+  if (limit <= 0) return []
   const db = await getDatabase()
   return db.getAllAsync<CharacterImageRow>(
     `SELECT * FROM character_images

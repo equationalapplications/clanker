@@ -1,17 +1,22 @@
 const mockRunAsync = jest.fn()
 const mockGetAllAsync = jest.fn().mockResolvedValue([])
 const mockGetFirstAsync = jest.fn().mockResolvedValue(null)
-const mockWithTransactionAsync = jest.fn(async (cb: () => Promise<void>) => cb())
+
+const mockDb = {
+  runAsync: mockRunAsync,
+  getAllAsync: mockGetAllAsync,
+  getFirstAsync: mockGetFirstAsync,
+}
+
+/** Swapped to a real better-sqlite3 handle by the integration suite below. */
+let mockDbOverride: unknown = null
 
 jest.mock('../src/database/index', () => ({
-  getDatabase: jest.fn(async () => ({
-    runAsync: mockRunAsync,
-    getAllAsync: mockGetAllAsync,
-    getFirstAsync: mockGetFirstAsync,
-    withTransactionAsync: mockWithTransactionAsync,
-  })),
+  getDatabase: jest.fn(async () => mockDbOverride ?? mockDb),
 }))
 
+import { createExpoSqliteBetterSqlite3Mock } from './helpers/expoSqliteBetterSqlite3Mock'
+import { CREATE_TABLES } from '../src/database/schema'
 import {
   insertCharacterImage,
   getCharacterImages,
@@ -50,6 +55,7 @@ function row(overrides: Partial<CharacterImageRow> = {}): CharacterImageRow {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockDbOverride = null
   mockGetAllAsync.mockResolvedValue([])
   mockGetFirstAsync.mockResolvedValue(null)
 })
@@ -92,7 +98,7 @@ describe('characterImageDatabase', () => {
   it('resolves the active image through characters.active_image_id', async () => {
     await getActiveCharacterImage('char_a')
     const [sql, params] = mockGetFirstAsync.mock.calls[0]
-    expect(sql).toContain('JOIN characters c ON c.active_image_id = i.id')
+    expect(sql).toContain('JOIN characters c ON c.active_image_id = i.id AND i.character_id = c.id')
     expect(params).toEqual(['char_a'])
   })
 
@@ -102,12 +108,23 @@ describe('characterImageDatabase', () => {
     expect(mockGetFirstAsync.mock.calls[0][0]).toContain('deleted_at IS NULL')
   })
 
-  it('never returns the active image as an eviction candidate', async () => {
+  it('counts zero when the count query returns no row', async () => {
+    mockGetFirstAsync.mockResolvedValue(null)
+    await expect(countCharacterImages('char_a')).resolves.toBe(0)
+  })
+
+  it('excludes the active image id from the eviction query', async () => {
     await getEvictionCandidates('char_a', 'img-active', 3)
     const [sql, params] = mockGetAllAsync.mock.calls[0]
     expect(sql).toContain('ORDER BY created_at ASC')
     expect(sql).toContain('AND id != ?')
     expect(params).toEqual(['char_a', 'img-active', 3])
+  })
+
+  it('returns no eviction candidates for a non-positive limit', async () => {
+    await expect(getEvictionCandidates('char_a', 'img-active', 0)).resolves.toEqual([])
+    await expect(getEvictionCandidates('char_a', 'img-active', -5)).resolves.toEqual([])
+    expect(mockGetAllAsync).not.toHaveBeenCalled()
   })
 
   it('tolerates a null active id when picking eviction candidates', async () => {
@@ -150,6 +167,25 @@ describe('characterImageDatabase', () => {
     ])
   })
 
+  it('updateImageRefs accepts a null thumb ref', async () => {
+    await updateImageRefs('img-1', {
+      storage_kind: 'file',
+      master_ref: 'file:///img-1.webp',
+      thumb_ref: null,
+      mime_type: 'image/webp',
+      sync_state: 'pending_upload',
+    })
+    const [, params] = mockRunAsync.mock.calls[0]
+    expect(params).toEqual([
+      'file',
+      'file:///img-1.webp',
+      null,
+      'image/webp',
+      'pending_upload',
+      'img-1',
+    ])
+  })
+
   it('queries sweepable rows by state for one user', async () => {
     await getImagesBySyncState('user-1', ['pending_upload', 'pending_delete'])
     const [sql, params] = mockGetAllAsync.mock.calls[0]
@@ -157,11 +193,18 @@ describe('characterImageDatabase', () => {
     expect(params).toEqual(['user-1', 'pending_upload', 'pending_delete'])
   })
 
-  it('setActiveImageId writes through to characters', async () => {
+  it('setActiveImageId writes through to characters without bumping updated_at', async () => {
     await setActiveImageId('char_a', 'img-1')
     const [sql, params] = mockRunAsync.mock.calls[0]
-    expect(sql).toContain('UPDATE characters SET active_image_id = ?')
-    expect(params).toEqual(['img-1', expect.any(Number), 'char_a'])
+    expect(sql).toBe('UPDATE characters SET active_image_id = ? WHERE id = ?')
+    expect(sql).not.toContain('updated_at')
+    expect(params).toEqual(['img-1', 'char_a'])
+  })
+
+  it('setActiveImageId can clear the pointer', async () => {
+    await setActiveImageId('char_a', null)
+    const [, params] = mockRunAsync.mock.calls[0]
+    expect(params).toEqual([null, 'char_a'])
   })
 
   it('hard delete removes exactly one row by id', async () => {
@@ -182,5 +225,48 @@ describe('characterImageDatabase', () => {
       'UPDATE character_images SET sync_state = ? WHERE id = ?',
       ['failed', 'img-1'],
     )
+  })
+})
+
+/**
+ * The suite above mocks the database, so it cannot catch a column-name typo or
+ * drift from the real schema. This one runs the same statements against an
+ * in-memory SQLite built from CREATE_TABLES.
+ */
+describe('characterImageDatabase against the real schema', () => {
+  let realDb: ReturnType<ReturnType<typeof createExpoSqliteBetterSqlite3Mock>['openDatabaseSync']>
+
+  beforeAll(() => {
+    realDb = createExpoSqliteBetterSqlite3Mock().openDatabaseSync(':memory:')
+    realDb.execSync(CREATE_TABLES)
+  })
+
+  afterAll(() => {
+    realDb.closeSync()
+  })
+
+  beforeEach(() => {
+    mockDbOverride = realDb
+  })
+
+  it('round-trips insert, list, soft-delete and count', async () => {
+    await insertCharacterImage(row({ id: 'img-old', created_at: 1000 }))
+    await insertCharacterImage(row({ id: 'img-new', created_at: 2000 }))
+
+    await expect(getCharacterImages('char_a')).resolves.toMatchObject([
+      { id: 'img-new' },
+      { id: 'img-old' },
+    ])
+    await expect(countCharacterImages('char_a')).resolves.toBe(2)
+
+    await softDeleteCharacterImage('img-old', 'pending_delete')
+
+    await expect(getCharacterImages('char_a')).resolves.toMatchObject([{ id: 'img-new' }])
+    await expect(countCharacterImages('char_a')).resolves.toBe(1)
+    await expect(getAllImagesForCharacter('char_a')).resolves.toHaveLength(2)
+    await expect(getCharacterImageById('img-old')).resolves.toMatchObject({
+      sync_state: 'pending_delete',
+      deleted_at: expect.any(Number),
+    })
   })
 })
