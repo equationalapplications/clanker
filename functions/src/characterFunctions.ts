@@ -32,7 +32,7 @@ type CharacterFunctionDeps = {
   creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   characterImageService: Pick<
     typeof characterImageService,
-    'syncImages' | 'deleteImages' | 'listImages' | 'setActiveImage'
+    'syncImages' | 'deleteImages' | 'listImages' | 'setActiveImage' | 'purgeCharacter'
   >;
 };
 
@@ -422,6 +422,12 @@ export const deleteCharacterHandler = async (
   }
 
   try {
+    // Images first: the parent character row is about to disappear, so the
+    // tombstones would have nothing left to reconcile against. Prefix deletion
+    // is a list-then-delete loop — idempotent, so a partial failure is safe to
+    // re-run — and it is the only place the objects can be reached from, since
+    // the client may be offline or the rows may belong to another device.
+    await deps.characterImageService.purgeCharacter(request.auth.uid, normalizedCharacterId);
     await deps.characterService.deleteCharacter(normalizedCharacterId, user.id);
     return { success: true };
   } catch (error) {

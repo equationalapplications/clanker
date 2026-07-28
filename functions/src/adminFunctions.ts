@@ -7,6 +7,15 @@ import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {creditService} from "./services/creditService.js";
+import {storageAdmin} from "./services/storageAdmin.js";
+
+type StorageAdminDeps = {
+  storageAdmin: Pick<typeof storageAdmin, "deletePrefix">;
+  getUserById: typeof getUserById;
+  getDb: typeof getDb;
+  creditService: Pick<typeof creditService, "setCredits">;
+  deleteFirebaseAuthUser: typeof deleteFirebaseAuthUser;
+};
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -161,9 +170,10 @@ async function getSubscription(userId: string) {
 
 async function upsertSubscription(
   userId: string,
-  patch: Partial<typeof subscriptions.$inferInsert>
+  patch: Partial<typeof subscriptions.$inferInsert>,
+  dbGetter: typeof getDb = getDb
 ): Promise<void> {
-  const db = await getDb();
+  const db = await dbGetter();
   await db
     .insert(subscriptions)
     .values({
@@ -475,7 +485,10 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
   };
 };
 
-const adminResetUserStateHandler = async (request: CallableRequest) => {
+const adminResetUserStateHandler = async (
+  request: CallableRequest,
+  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminMutationData;
 
@@ -483,12 +496,16 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const user = await getUserById(userId);
+  const user = await deps.getUserById(userId);
   if (!user) {
     throw new HttpsError("not-found", "User not found.");
   }
 
-  const db = await getDb();
+  // Without this, an admin reset leaves every image the user ever generated
+  // orphaned in the bucket with no row referencing it and no way to find it.
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
+
+  const db = await deps.getDb();
 
   await db
     .delete(messages)
@@ -506,10 +523,10 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
     termsVersion: null,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
-  });
+  }, deps.getDb);
 
   // Reset the credit ledger so the user reliably has DEFAULT_RESET_CREDITS.
-  await creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
+  await deps.creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
     reason,
@@ -531,7 +548,10 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   };
 };
 
-const adminDeleteUserHandler = async (request: CallableRequest) => {
+const adminDeleteUserHandler = async (
+  request: CallableRequest,
+  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminMutationData;
 
@@ -539,14 +559,16 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const user = await getUserById(userId);
+  const user = await deps.getUserById(userId);
   if (!user) {
     throw new HttpsError("not-found", "User not found.");
   }
 
-  await deleteFirebaseAuthUser(user.firebaseUid, {userId});
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
 
-  const db = await getDb();
+  await deps.deleteFirebaseAuthUser(user.firebaseUid, {userId});
+
+  const db = await deps.getDb();
   await db
     .delete(users)
     .where(eq(users.id, userId));

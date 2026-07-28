@@ -58,6 +58,9 @@ function buildDeps(): CharacterFunctionDeps {
       setActiveImage: async () => {
         throw new Error("Unexpected characterImageService call");
       },
+      purgeCharacter: async () => {
+        throw new Error("Unexpected characterImageService call");
+      },
     },
     subscriptionService: {
       getSubscription: async () => {
@@ -817,6 +820,9 @@ test("deleteCharacterHandler rejects when character belongs to another user", as
             throw new CharacterOwnershipError();
           },
         },
+        characterImageService: {
+          purgeCharacter: async () => {},
+        },
       } as unknown as CharacterFunctionDeps
     ),
     (err: unknown) =>
@@ -1047,4 +1053,44 @@ test("getUserCharacters includes images and activeImageId", async () => {
   const result = await getUserCharactersHandler(imageRequest({}), deps as never);
   assert.equal(result.characters[0].activeImageId, IMG_ID);
   assert.equal(result.characters[0].images.length, 1);
+});
+
+test("deleteCharacter prefix-deletes the character's storage objects", async () => {
+  const prefixes: string[] = [];
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid", firebaseUid: "uid-1"} as never);
+  deps.characterService.deleteCharacter = async () => undefined as never;
+  (deps as Record<string, unknown>).characterImageService = {
+    purgeCharacter: async (uid: string, characterId: string) => {
+      prefixes.push(`${uid}/${characterId}`);
+    },
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {},
+    listImages: async () => [],
+    setActiveImage: async () => {},
+  };
+  await deleteCharacterHandler(
+    {auth: {uid: "uid-1"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.deepEqual(prefixes, [`uid-1/${CHAR_ID}`]);
+});
+
+test("deleteCharacter purges images before dropping the character row", async () => {
+  const order: string[] = [];
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid", firebaseUid: "uid-1"} as never);
+  deps.characterService.deleteCharacter = async () => { order.push("character"); return undefined as never; };
+  (deps as Record<string, unknown>).characterImageService = {
+    purgeCharacter: async () => { order.push("images"); },
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {},
+    listImages: async () => [],
+    setActiveImage: async () => {},
+  };
+  await deleteCharacterHandler(
+    {auth: {uid: "uid-1"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.deepEqual(order, ["images", "character"]);
 });
