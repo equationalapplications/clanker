@@ -249,6 +249,20 @@ describe('characterImageDatabase against the real schema', () => {
     mockDbOverride = realDb
   })
 
+  function seedCharacter(id: string, updatedAt = 5000) {
+    return realDb.runAsync(
+      'INSERT INTO characters (id, user_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [id, 'user-1', id, 1000, updatedAt],
+    )
+  }
+
+  function readUpdatedAt(id: string) {
+    return realDb.getFirstAsync<{ updated_at: number }>(
+      'SELECT updated_at FROM characters WHERE id = ?',
+      [id],
+    )
+  }
+
   it('round-trips insert, list, soft-delete and count', async () => {
     await insertCharacterImage(row({ id: 'img-old', created_at: 1000 }))
     await insertCharacterImage(row({ id: 'img-new', created_at: 2000 }))
@@ -268,5 +282,39 @@ describe('characterImageDatabase against the real schema', () => {
       sync_state: 'pending_delete',
       deleted_at: expect.any(Number),
     })
+  })
+
+  it('sets, resolves and clears the active image pointer', async () => {
+    await seedCharacter('char_active')
+    await insertCharacterImage(row({ id: 'img-active', character_id: 'char_active' }))
+
+    await setActiveImageId('char_active', 'img-active')
+    await expect(getActiveCharacterImage('char_active')).resolves.toMatchObject({
+      id: 'img-active',
+      character_id: 'char_active',
+    })
+
+    await setActiveImageId('char_active', null)
+    await expect(getActiveCharacterImage('char_active')).resolves.toBeNull()
+  })
+
+  it('setActiveImageId leaves the character updated_at untouched', async () => {
+    await seedCharacter('char_stamp')
+    await insertCharacterImage(row({ id: 'img-stamp', character_id: 'char_stamp' }))
+    const before = await readUpdatedAt('char_stamp')
+
+    await setActiveImageId('char_stamp', 'img-stamp')
+
+    await expect(readUpdatedAt('char_stamp')).resolves.toEqual(before)
+  })
+
+  it('ignores an active image id owned by a different character', async () => {
+    await seedCharacter('char_owner')
+    await seedCharacter('char_thief')
+    await insertCharacterImage(row({ id: 'img-owned', character_id: 'char_owner' }))
+
+    await setActiveImageId('char_thief', 'img-owned')
+
+    await expect(getActiveCharacterImage('char_thief')).resolves.toBeNull()
   })
 })
