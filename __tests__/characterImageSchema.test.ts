@@ -38,4 +38,35 @@ describe('character_images schema', () => {
     expect(CREATE_TABLES).toContain('active_image_id TEXT')
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toContain('active_image_id')
   })
+
+  // CREATE_TABLES runs before any migration, so migration 22 is always guard-skipped
+  // for real users. Drift between the two definitions would therefore only ever surface
+  // here — assert them column-for-column rather than just probing for the table name.
+  it('defines an identical character_images schema on both paths', () => {
+    const norm = (sql: string) => sql.replace(/\s+/g, ' ')
+    const fresh = norm(CREATE_TABLES)
+    const migrated = norm(MIGRATIONS[22])
+
+    const definitions = [
+      'id TEXT PRIMARY KEY NOT NULL',
+      'character_id TEXT NOT NULL',
+      'user_id TEXT NOT NULL',
+      'storage_kind TEXT NOT NULL',
+      'master_ref TEXT NOT NULL',
+      'thumb_ref TEXT',
+      "mime_type TEXT NOT NULL DEFAULT 'image/webp'",
+      'source TEXT NOT NULL',
+      "sync_state TEXT NOT NULL DEFAULT 'local'",
+      'sync_attempts INTEGER NOT NULL DEFAULT 0',
+      'created_at INTEGER NOT NULL',
+      'deleted_at INTEGER',
+      'idx_character_images_char ON character_images(character_id, created_at DESC)',
+      "idx_character_images_sync ON character_images(sync_state) WHERE sync_state IN ('pending_upload', 'pending_delete')",
+    ]
+
+    for (const definition of definitions) {
+      expect(migrated).toContain(definition)
+      expect(fresh).toContain(definition)
+    }
+  })
 })
