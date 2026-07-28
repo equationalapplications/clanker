@@ -219,6 +219,18 @@ function RootLayoutNav() {
           const isOnline =
             state.isConnected != null && state.isConnected && state.isInternetReachable !== false
           if (isOnline) {
+            // One-shot: migrate legacy avatar_data into the character_images gallery.
+            // Runs before sync so migrated rows are picked up by the sweeper.
+            void import('~/database/migrations/migrateAvatarsToImageStore')
+              .then(async ({ migrateAvatarsToImageStore }) => {
+                const { LEGACY_DEFAULT_AVATAR_BASE64 } = await import(
+                  '~/database/migrations/legacyDefaultAvatarBase64'
+                )
+                await migrateAvatarsToImageStore(user.uid, LEGACY_DEFAULT_AVATAR_BASE64)
+                characterService.send({ type: 'LOAD' })
+              })
+              .catch((err) => console.warn('Avatar migration failed:', err))
+
             import('~/services/characterSyncService')
               .then(({ syncAllToCloud }) => syncAllToCloud())
               .then(() => characterService.send({ type: 'LOAD' }))
