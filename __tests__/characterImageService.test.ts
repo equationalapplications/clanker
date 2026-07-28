@@ -61,6 +61,7 @@ beforeEach(() => {
   // reset explicitly or they leak into later suites.
   mockDeleteBytes.mockReset()
   mockHardDelete.mockReset()
+  mockInsert.mockReset()
   mockCount.mockResolvedValue(0)
   mockEvictionCandidates.mockResolvedValue([])
   mockGetActive.mockResolvedValue(null)
@@ -181,6 +182,92 @@ describe('saveCharacterImage', () => {
         source: 'generated',
       }),
     ).rejects.toThrow(/character not found/i)
+  })
+
+  it('cleans up written bytes when the row insert fails', async () => {
+    mockInsert.mockRejectedValue(new Error('database is locked'))
+    await expect(
+      saveCharacterImage({
+        characterId: 'char_a',
+        userId: 'user-1',
+        uri: 'file://s.jpg',
+        width: 500,
+        height: 500,
+        source: 'generated',
+      }),
+    ).rejects.toThrow('database is locked')
+    expect(mockDeleteBytes).toHaveBeenCalledWith('file:///doc/uuid-new_master')
+    expect(mockDeleteBytes).toHaveBeenCalledWith('file:///doc/uuid-new_thumb')
+  })
+
+  it('still resolves with the row when post-save bookkeeping fails', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockCount.mockRejectedValue(new Error('database is locked'))
+    const row = await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 500,
+      height: 500,
+      source: 'generated',
+    })
+    expect(row.id).toBe('uuid-new')
+    expect(mockInsert).toHaveBeenCalledWith(row)
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('evicts nothing at exactly the cap', async () => {
+    mockCount.mockResolvedValue(IMAGE_CAP_PER_CHARACTER)
+    await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 500,
+      height: 500,
+      source: 'generated',
+    })
+    expect(mockEvictionCandidates).not.toHaveBeenCalled()
+  })
+
+  it('evicts exactly one image at one over the cap', async () => {
+    mockCount.mockResolvedValue(IMAGE_CAP_PER_CHARACTER + 1)
+    mockEvictionCandidates.mockResolvedValue([
+      { id: 'old-1', storage_kind: 'inline', master_ref: 'B', thumb_ref: null },
+    ])
+    await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 500,
+      height: 500,
+      source: 'generated',
+    })
+    expect(mockEvictionCandidates).toHaveBeenCalledWith('char_a', null, 1)
+    expect(mockHardDelete).toHaveBeenCalledTimes(1)
+    expect(mockHardDelete).toHaveBeenCalledWith('old-1')
+  })
+
+  it('clears a bulk overage in a single pass', async () => {
+    mockCount.mockResolvedValue(IMAGE_CAP_PER_CHARACTER + 5)
+    mockEvictionCandidates.mockResolvedValue(
+      ['old-1', 'old-2', 'old-3', 'old-4', 'old-5'].map((id) => ({
+        id,
+        storage_kind: 'inline',
+        master_ref: 'B',
+        thumb_ref: null,
+      })),
+    )
+    await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 500,
+      height: 500,
+      source: 'generated',
+    })
+    expect(mockEvictionCandidates).toHaveBeenCalledWith('char_a', null, 5)
+    expect(mockHardDelete).toHaveBeenCalledTimes(5)
   })
 })
 

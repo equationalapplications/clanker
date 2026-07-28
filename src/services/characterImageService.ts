@@ -63,30 +63,61 @@ export async function saveCharacterImage(
   const imageId = generateSecureUuid()
   const kind = localStorageKind()
 
-  // Stage B replaces this branch with a Firebase Storage upload for
-  // save_to_cloud characters. Until then every image is stored locally, which
-  // is strictly safe: a local row is never lost, only un-backed-up.
-  const masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
-  const thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+  // Refs written so far. If anything between the first write and the committed
+  // row insert throws, these bytes would be orphaned — no row references them,
+  // so nothing could ever find or sweep them.
+  const writtenRefs: string[] = []
+  let row: CharacterImageRow
 
-  const row: CharacterImageRow = {
-    id: imageId,
-    character_id: input.characterId,
-    user_id: input.userId,
-    storage_kind: kind,
-    master_ref: masterRef,
-    thumb_ref: thumbRef,
-    mime_type: variants.master.mimeType,
-    source: input.source,
-    sync_state: 'local',
-    sync_attempts: 0,
-    created_at: Date.now(),
-    deleted_at: null,
+  try {
+    // Stage B replaces this branch with a Firebase Storage upload for
+    // save_to_cloud characters. Until then every image is stored locally, which
+    // is strictly safe: a local row is never lost, only un-backed-up.
+    const masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
+    writtenRefs.push(masterRef)
+    const thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+    writtenRefs.push(thumbRef)
+
+    row = {
+      id: imageId,
+      character_id: input.characterId,
+      user_id: input.userId,
+      storage_kind: kind,
+      master_ref: masterRef,
+      thumb_ref: thumbRef,
+      mime_type: variants.master.mimeType,
+      source: input.source,
+      sync_state: 'local',
+      sync_attempts: 0,
+      created_at: Date.now(),
+      deleted_at: null,
+    }
+
+    // Commit point: once the row exists, the image is safely recorded.
+    await insertCharacterImage(row)
+  } catch (err) {
+    if (kind === 'file') {
+      // Best-effort rollback. Cleanup failure must never mask the real error,
+      // so each delete is swallowed independently.
+      for (const ref of writtenRefs) {
+        try {
+          await deleteLocalImageBytes(ref)
+        } catch (cleanupErr) {
+          console.warn('Failed to clean up orphaned image bytes:', cleanupErr)
+        }
+      }
+    }
+    throw err
   }
 
-  await insertCharacterImage(row)
-  await setActiveImageId(input.characterId, imageId)
-  await enforceLocalCap(input.characterId)
+  try {
+    await setActiveImageId(input.characterId, imageId)
+    await enforceLocalCap(input.characterId)
+  } catch (err) {
+    // The row is already committed. Reporting a failure here would make callers
+    // retry and duplicate the image, which costs the user credits again.
+    console.warn('Image saved, but post-save bookkeeping failed:', err)
+  }
 
   return row
 }
@@ -133,19 +164,23 @@ async function removeImageBytesThenRow(
 export async function deleteCharacterImage(imageId: string, userId: string): Promise<void> {
   const row = await getCharacterImageById(imageId)
   if (!row) return
+  // TODO: assert row.user_id === userId once cloud ownership lands (Stage B);
+  // until then a mismatched caller is silently accepted.
   void userId
 
   const active = await getActiveCharacterImage(row.character_id)
-  await removeImageBytesThenRow(row)
 
   if (active?.id === imageId) {
-    // Promote the next newest surviving image so the character never renders a
-    // dangling active id; falls back to the bundled default when none remain.
+    // Repoint before removing the row so a failure in between can never leave
+    // active_image_id pointing at a row that no longer exists. Promotes the next
+    // newest surviving image; falls back to the bundled default when none remain.
     const remaining = (await getAllImagesForCharacter(row.character_id)).filter(
       (candidate) => candidate.id !== imageId && !candidate.deleted_at,
     )
     await setActiveImageId(row.character_id, remaining[0]?.id ?? null)
   }
+
+  await removeImageBytesThenRow(row)
 }
 
 /** Full cascade for character hard-delete and purge. Includes tombstoned rows. */
