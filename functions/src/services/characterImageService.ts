@@ -135,10 +135,21 @@ export const createCharacterImageService = (
     /**
      * Character hard-delete: the parent is gone, so tombstones have nothing left
      * to reconcile against and the rows go too.
+     *
+     * Rows before objects, deliberately: if the DB delete throws, no Storage
+     * object has been touched yet and the caller's error propagates before
+     * `characterService.deleteCharacter` runs, so nothing is orphaned. The
+     * reverse order would risk a rare but real gap — Storage succeeds, the row
+     * delete then throws, and the character survives with rows pointing at
+     * objects that no longer exist and no tombstone to trigger cleanup (the
+     * cascade backstop only fires when the character row itself is deleted,
+     * which never happens on this path). If Storage deletion fails after the
+     * rows are gone, the objects are merely orphaned bytes — safe to reap later,
+     * not a dangling reference a client can trip over.
      */
     async purgeCharacter(userId: string, characterId: string): Promise<void> {
-      await storage.deletePrefix(`users/${userId}/characters/${characterId}/`);
       await repository.deleteByCharacter(characterId);
+      await storage.deletePrefix(`users/${userId}/characters/${characterId}/`);
     },
   };
 };

@@ -501,10 +501,6 @@ const adminResetUserStateHandler = async (
     throw new HttpsError("not-found", "User not found.");
   }
 
-  // Without this, an admin reset leaves every image the user ever generated
-  // orphaned in the bucket with no row referencing it and no way to find it.
-  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
-
   const db = await deps.getDb();
 
   await db
@@ -514,6 +510,13 @@ const adminResetUserStateHandler = async (
   await db
     .delete(characters)
     .where(eq(characters.userId, userId));
+
+  // Storage last, deliberately: it's the one irreversible step here. Running
+  // it first and then having a DB delete throw would leave Postgres rows
+  // pointing at objects that no longer exist with nothing left to clean them
+  // up; running it last means a failure here just leaves orphaned bytes,
+  // which are safe to reap on a retry of this same reset.
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
 
   await upsertSubscription(userId, {
     planTier: "free",
@@ -564,6 +567,12 @@ const adminDeleteUserHandler = async (
     throw new HttpsError("not-found", "User not found.");
   }
 
+  // Storage first, not last: unlike adminResetUserState, this handler deletes
+  // the users row itself, so a later step failing must still leave enough
+  // state for a retry of this same call to find the user again. deletePrefix
+  // and deleteFirebaseAuthUser (see its user-not-found handling above) are
+  // both idempotent, so re-running the whole handler after a partial failure
+  // is always safe as long as the Postgres user row survives until last.
   await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
 
   await deps.deleteFirebaseAuthUser(user.firebaseUid, {userId});
