@@ -49,6 +49,7 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const IMPORTED_AVATAR_DIMENSION = 1024
 
 function reportWikiOpForCharacter(err: unknown, context: string, characterId: string, summary: string): void {
     const detail = `${summary} (character ${characterId})`
@@ -473,8 +474,8 @@ export async function importSharedCharacterFromCloud(
                 characterId: localCharacterId,
                 userId: localUserId,
                 uri: signedUrl,
-                width: 1024,
-                height: 1024,
+                width: IMPORTED_AVATAR_DIMENSION,
+                height: IMPORTED_AVATAR_DIMENSION,
                 source: 'imported',
             })
         } catch (error) {
@@ -490,8 +491,8 @@ export async function importSharedCharacterFromCloud(
                             characterId: localCharacterId,
                             userId: localUserId,
                             uri: retry.data.avatarSignedUrl,
-                            width: 1024,
-                            height: 1024,
+                            width: IMPORTED_AVATAR_DIMENSION,
+                            height: IMPORTED_AVATAR_DIMENSION,
                             source: 'imported',
                         })
                     }
