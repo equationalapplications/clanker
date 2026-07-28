@@ -18,8 +18,7 @@ import { useSelector } from '@xstate/react'
 import { useCharacter, useUpdateCharacter, useUnsyncCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import { useImageGeneration } from '~/hooks/useImageGeneration'
-import { useAvatarUpload } from '~/hooks/useAvatarUpload'
+import { AvatarPicker } from '~/components/AvatarPicker'
 import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -63,6 +62,7 @@ export default function EditCharacterScreen() {
   const [isCharacterShareable, setIsCharacterShareable] = useState(false)
   const [activeImageId, setActiveImageId] = useState<string | null>(null)
   const avatarUri = useResolvedImage(activeImageId, 'master')
+  const [pickerVisible, setPickerVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)
   const [toastState, setToastState] = useState<{
@@ -217,28 +217,6 @@ export default function EditCharacterScreen() {
       importErrorShownRef.current = importError
     }
   }, [importError])
-
-  const {
-    generateImage,
-    isGenerating,
-    error: imageError,
-    clearError,
-  } = useImageGeneration({
-    characterId: id || '',
-    onImageGenerated: (id) => setActiveImageId(id),
-  })
-
-  const {
-    uploadAvatar,
-    isUploading,
-    error: uploadError,
-    clearError: clearUploadError,
-  } = useAvatarUpload({
-    characterId: id || '',
-    onImageUploaded: (id) => setActiveImageId(id),
-  })
-
-  const avatarError = uploadError || imageError
 
   useEffect(() => {
     if (!exportError) return
@@ -457,38 +435,14 @@ export default function EditCharacterScreen() {
             <View style={styles.avatarActionsRow}>
               <Button
                 mode="outlined"
-                icon={isUploading ? undefined : 'image-plus'}
-                onPress={() => {
-                  clearError()
-                  clearUploadError()
-                  uploadAvatar()
-                }}
-                disabled={isUploading || isGenerating || !canEdit}
-                loading={isUploading}
+                icon="image-multiple"
+                onPress={() => setPickerVisible(true)}
+                disabled={!canEdit}
                 style={styles.avatarActionButton}
               >
-                Upload Photo
-              </Button>
-              <Button
-                mode="outlined"
-                icon={isGenerating ? undefined : 'image-auto-adjust'}
-                onPress={() => {
-                  clearError()
-                  clearUploadError()
-                  generateImage(buildImagePrompt({ name, appearance, traits, emotions }))
-                }}
-                disabled={isGenerating || isUploading || !canEdit}
-                loading={isGenerating}
-                style={styles.avatarActionButton}
-              >
-                {avatarUri ? 'Regenerate Image' : 'Generate Image'}
+                Change Image
               </Button>
             </View>
-            {avatarError ? (
-              <HelperText type="error" visible>
-                {avatarError}
-              </HelperText>
-            ) : null}
           </View>
 
           <Divider style={styles.avatarDivider} />
@@ -801,6 +755,15 @@ export default function EditCharacterScreen() {
       >
         {toastState?.message}
       </Snackbar>
+
+      <AvatarPicker
+        visible={pickerVisible}
+        characterId={characterId}
+        activeImageId={activeImageId}
+        imagePrompt={buildImagePrompt({ name, appearance, traits, emotions })}
+        onDismiss={() => setPickerVisible(false)}
+        onActiveImageChange={setActiveImageId}
+      />
     </View>
   )
 }
