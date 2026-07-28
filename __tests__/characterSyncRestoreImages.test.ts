@@ -30,6 +30,9 @@ jest.mock('~/services/characterImageSyncService', () => ({
   syncCharacterImages: jest.fn(),
   reconcileCharacterImages: (...args: unknown[]) => mockReconcileCharacterImages(...args),
 }))
+jest.mock('~/services/characterImageService', () => ({
+  saveCharacterImage: jest.fn(),
+}))
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: jest.fn(),
   deleteCharacterFn: jest.fn(),

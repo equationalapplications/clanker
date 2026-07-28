@@ -17,6 +17,7 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
+import { saveCharacterImage } from './characterImageService'
 import {
     demoteCharacterImagesToLocal,
     promoteCharacterImagesToCloud,
@@ -461,6 +462,47 @@ export async function importSharedCharacterFromCloud(
             voice: normalizeVoice(cloudCharacter.voice),
         },
     ])
+
+    // Download once and re-store under the importer's own account, honouring
+    // THEIR privacy mode. The importer's row never references the owner's
+    // objects, so a revoked share cannot break their avatar.
+    const signedUrl = cloudCharacter.avatarSignedUrl
+    if (signedUrl) {
+        try {
+            await saveCharacterImage({
+                characterId: localCharacterId,
+                userId: localUserId,
+                uri: signedUrl,
+                width: 1024,
+                height: 1024,
+                source: 'imported',
+            })
+        } catch (error) {
+            // A 403 means the 15-minute URL expired between fetch and download.
+            // Re-request rather than failing: the character itself already
+            // imported successfully, and the avatar is recoverable.
+            const status = (error as { status?: number })?.status
+            if (status === 403) {
+                try {
+                    const retry = await getPublicCharacterFn({ characterId: cloudCharacterId })
+                    if (retry.data?.avatarSignedUrl) {
+                        await saveCharacterImage({
+                            characterId: localCharacterId,
+                            userId: localUserId,
+                            uri: retry.data.avatarSignedUrl,
+                            width: 1024,
+                            height: 1024,
+                            source: 'imported',
+                        })
+                    }
+                } catch (retryError) {
+                    reportError(retryError, 'importSharedCharacter:avatar')
+                }
+            } else {
+                reportError(error, 'importSharedCharacter:avatar')
+            }
+        }
+    }
 
     return { localCharacterId, cloudCharacterId: cloudCharacter.id }
 }
