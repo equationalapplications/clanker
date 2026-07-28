@@ -1094,3 +1094,99 @@ test("deleteCharacter purges images before dropping the character row", async ()
   );
   assert.deepEqual(order, ["images", "character"]);
 });
+
+test("getPublicCharacter returns a signed URL for the owner's active image", async () => {
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
+  deps.characterService.getPublicCharacterWithOwner = async () => ({
+    character: {id: CHAR_ID, name: "C", isPublic: true, activeImageId: IMG_ID},
+    ownerFirebaseUid: "owner-uid",
+  } as never);
+  (deps as Record<string, unknown>).characterImageService = {
+    listImages: async () => [{
+      id: IMG_ID, characterId: CHAR_ID, storagePath: "users/owner-uid/characters/c/i.webp",
+      thumbPath: null, mimeType: "image/webp", source: "generated",
+      createdAt: new Date(0), deletedAt: null,
+    }],
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {},
+    setActiveImage: async () => {},
+  };
+  (deps as Record<string, unknown>).storageAdmin = {
+    createSignedUrl: async (p: string) => `https://signed/${p}`,
+    deletePrefix: async () => {},
+    deleteObjects: async () => {},
+  };
+  const result = await getPublicCharacterHandler(
+    {auth: {uid: "importer-uid"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.equal(result.avatarSignedUrl, "https://signed/users/owner-uid/characters/c/i.webp");
+});
+
+test("getPublicCharacter returns null when the character has no active image", async () => {
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
+  deps.characterService.getPublicCharacterWithOwner = async () => ({
+    character: {id: CHAR_ID, name: "C", isPublic: true, activeImageId: null},
+    ownerFirebaseUid: "owner-uid",
+  } as never);
+  (deps as Record<string, unknown>).characterImageService = {
+    listImages: async () => [], syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {}, setActiveImage: async () => {},
+  };
+  const result = await getPublicCharacterHandler(
+    {auth: {uid: "importer-uid"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.equal(result.avatarSignedUrl, null);
+});
+
+test("getPublicCharacter does not sign a tombstoned image", async () => {
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
+  deps.characterService.getPublicCharacterWithOwner = async () => ({
+    character: {id: CHAR_ID, name: "C", isPublic: true, activeImageId: IMG_ID},
+    ownerFirebaseUid: "owner-uid",
+  } as never);
+  (deps as Record<string, unknown>).characterImageService = {
+    listImages: async () => [{
+      id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: null,
+      mimeType: "image/webp", source: "generated", createdAt: new Date(0), deletedAt: new Date(1),
+    }],
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {}, setActiveImage: async () => {},
+  };
+  const result = await getPublicCharacterHandler(
+    {auth: {uid: "importer-uid"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.equal(result.avatarSignedUrl, null);
+});
+
+test("a signing failure does not fail the whole import", async () => {
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
+  deps.characterService.getPublicCharacterWithOwner = async () => ({
+    character: {id: CHAR_ID, name: "C", isPublic: true, activeImageId: IMG_ID},
+    ownerFirebaseUid: "owner-uid",
+  } as never);
+  (deps as Record<string, unknown>).characterImageService = {
+    listImages: async () => [{
+      id: IMG_ID, characterId: CHAR_ID, storagePath: "p", thumbPath: null,
+      mimeType: "image/webp", source: "generated", createdAt: new Date(0), deletedAt: null,
+    }],
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {}, setActiveImage: async () => {},
+  };
+  (deps as Record<string, unknown>).storageAdmin = {
+    createSignedUrl: async () => { throw new Error("signBlob permission denied"); },
+    deletePrefix: async () => {}, deleteObjects: async () => {},
+  };
+  const result = await getPublicCharacterHandler(
+    {auth: {uid: "importer-uid"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.equal(result.avatarSignedUrl, null);
+  assert.equal((result as Record<string, unknown>).name, "C");
+});

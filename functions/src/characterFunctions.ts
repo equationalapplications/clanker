@@ -4,6 +4,7 @@ import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { creditService, type CreditSpendAllocation } from './services/creditService.js';
 import { characterImageService } from './services/characterImageService.js';
+import { storageAdmin } from './services/storageAdmin.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
 
@@ -34,6 +35,7 @@ type CharacterFunctionDeps = {
     typeof characterImageService,
     'syncImages' | 'deleteImages' | 'listImages' | 'setActiveImage' | 'purgeCharacter'
   >;
+  storageAdmin: Pick<typeof storageAdmin, 'createSignedUrl' | 'deletePrefix' | 'deleteObjects'>;
 };
 
 
@@ -183,7 +185,7 @@ export const syncCharacterImages = onCall(
 
 export const syncCharacterImagesHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = {userRepository, characterService, creditService, characterImageService}
+  deps: CharacterFunctionDeps = {userRepository, characterService, creditService, characterImageService, storageAdmin}
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -280,7 +282,7 @@ export const syncCharacter = onCall(
 
 export const syncCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService, storageAdmin }
 ) => {
   const actualDeps: CharacterFunctionDeps = {
     ...{userRepository, characterService, creditService},
@@ -396,7 +398,7 @@ export const deleteCharacter = onCall(
 
 export const deleteCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService, storageAdmin }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -459,7 +461,7 @@ export const getUserCharacters = onCall(
 
 export const getUserCharactersHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService, storageAdmin }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -505,7 +507,7 @@ export const getPublicCharacter = onCall(
 
 export const getPublicCharacterHandler = async (
   request: CallableRequest,
-  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService }
+  deps: CharacterFunctionDeps = { userRepository, characterService, creditService, characterImageService, storageAdmin }
 ) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -535,10 +537,38 @@ export const getPublicCharacterHandler = async (
     if (!row) {
       throw new HttpsError('not-found', 'Public character not found.');
     }
-    return serializeCharacter(
-      row.character as unknown as Record<string, unknown>,
-      row.ownerFirebaseUid
-    );
+
+    const character = row.character as unknown as Record<string, unknown>;
+    const activeImageId = character.activeImageId ? String(character.activeImageId) : null;
+
+    let avatarSignedUrl: string | null = null;
+    if (activeImageId) {
+      const images = await deps.characterImageService.listImages(normalizedCharacterId);
+      const active = images.find(
+        (image) => String((image as {id: unknown}).id) === activeImageId &&
+          !(image as {deletedAt: unknown}).deletedAt
+      );
+      if (active) {
+        try {
+          // 15 minutes: long enough for the importer to download once, short
+          // enough that a leaked link is worthless. Sharing never grants
+          // object-level read — the storage rules have no public path.
+          avatarSignedUrl = await deps.storageAdmin.createSignedUrl(
+            String((active as {storagePath: unknown}).storagePath)
+          );
+        } catch (error) {
+          // The avatar is a nice-to-have; the character itself is the payload.
+          // Most commonly this is the IAM trap: the runtime service account
+          // needs roles/iam.serviceAccountTokenCreator on itself.
+          logger.error('Failed to sign public character avatar URL', {error, characterId: normalizedCharacterId});
+        }
+      }
+    }
+
+    return {
+      ...serializeCharacter(character, row.ownerFirebaseUid),
+      avatarSignedUrl,
+    };
   } catch (error) {
     if (error instanceof HttpsError) {
       throw error;

@@ -137,6 +137,8 @@ export interface CharacterSnapshot {
   ownerUserId: string
   activeImageId?: string | null
   images?: CharacterImageSnapshot[]
+  /** 15-minute V4 signed URL for the owner's active master, for import only. */
+  avatarSignedUrl?: string | null
 }
 
 export interface SyncCharacterRequest {
