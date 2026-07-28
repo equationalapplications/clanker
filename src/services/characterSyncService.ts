@@ -20,7 +20,6 @@ import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicChara
 import { saveCharacterImage } from './characterImageService'
 import {
     demoteCharacterImagesToLocal,
-    promoteCharacterImagesToCloud,
     reconcileCharacterImages,
     syncCharacterImages,
 } from './characterImageSyncService'

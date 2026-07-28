@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Avatar } from 'react-native-paper'
 import type { ComponentProps } from 'react'
 
@@ -29,13 +29,15 @@ export default function CharacterAvatar({
   showFallback = true,
 }: CharacterAvatarProps) {
   const [imageError, setImageError] = useState(false)
+  const [erroredUrl, setErroredUrl] = useState<string | null | undefined>(null)
 
   // A new URI is a new attempt: without this, one failed load would pin the
   // fallback for the lifetime of the component even after the user picks
-  // another image.
-  useEffect(() => {
+  // another image. Adjusted during render (not an effect) so there is no
+  // extra render pass showing the stale fallback before it clears.
+  if (imageUrl !== erroredUrl && imageError) {
     setImageError(false)
-  }, [imageUrl])
+  }
 
   if (imageUrl && !imageError) {
     const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
@@ -46,7 +48,10 @@ export default function CharacterAvatar({
         // Legacy migrated avatars can be non-square; cover fills the circle
         // instead of letterboxing it.
         resizeMode="cover"
-        onError={() => setImageError(true)}
+        onError={() => {
+          setImageError(true)
+          setErroredUrl(imageUrl)
+        }}
         accessible
         accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
       />

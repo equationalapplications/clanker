@@ -54,6 +54,11 @@ export function AvatarPicker({
   }, [characterId])
 
   useEffect(() => {
+    // Fetching the gallery from SQLite when the modal opens is exactly the
+    // "synchronize with an external system" case this lint rule allows for —
+    // `refresh`'s own setState calls happen asynchronously after the DB read
+    // resolves, not synchronously in this effect body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (visible) void refresh()
   }, [visible, refresh])
 
