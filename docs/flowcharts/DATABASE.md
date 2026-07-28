@@ -12,6 +12,7 @@ graph LR
   messageDatabase --> index
   migrateAvatarsToImageStore --> index
   migrateAvatarsToImageStore --> characterImageDatabase
+  migrateAvatarsToImageStore --> characterImageSyncService
   migrateAvatarsToImageStore --> imageVariants
   taskDatabase --> index
   webLifecycle.web --> sqliteWebWorker

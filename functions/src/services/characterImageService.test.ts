@@ -46,7 +46,7 @@ function makeStore(initial: Row[] = []) {
       async setActiveImageId(_characterId: string, id: string | null): Promise<void> {
         activeImageId = id;
       },
-      async deleteByCharacter(characterId: string): Promise<void> {
+      async deleteByCharacter(characterId: string, _userId: string): Promise<void> {
         for (let i = rows.length - 1; i >= 0; i -= 1) {
           if (rows[i].characterId === characterId) rows.splice(i, 1);
         }
@@ -140,4 +140,16 @@ test("listing returns tombstones so clients can reconcile deletions", async () =
   const service = createCharacterImageService(store.repo as never, storage as never);
   const images = await service.listImages("c1");
   assert.deepEqual(images.map((i) => i.id).sort(), ["a", "b"]);
+});
+
+test("purgeCharacter scopes the row delete by userId, not just characterId", async () => {
+  let receivedArgs: unknown[] = [];
+  const repo = {
+    deleteByCharacter: async (characterId: string, userId: string) => {
+      receivedArgs = [characterId, userId];
+    },
+  };
+  const service = createCharacterImageService(repo as never, storage as never);
+  await service.purgeCharacter("firebase-uid-1", "db-user-1", "c1");
+  assert.deepEqual(receivedArgs, ["c1", "db-user-1"]);
 });

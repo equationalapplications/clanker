@@ -14,7 +14,7 @@ export type CharacterImageRepository = {
   tombstone(id: string): Promise<void>;
   getActiveImageId(characterId: string): Promise<string | null>;
   setActiveImageId(characterId: string, imageId: string | null): Promise<void>;
-  deleteByCharacter(characterId: string): Promise<void>;
+  deleteByCharacter(characterId: string, userId: string): Promise<void>;
 };
 
 export const createCharacterImageRepository = (): CharacterImageRepository => ({
@@ -58,9 +58,14 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
     await db.update(characters).set({activeImageId: imageId})
       .where(eq(characters.id, characterId));
   },
-  async deleteByCharacter(characterId) {
+  async deleteByCharacter(characterId, userId) {
     const db = await getDb();
-    await db.delete(characterImages).where(eq(characterImages.characterId, characterId));
+    // Scoped by user_id as well as character_id: this must never be reachable
+    // for a characterId the caller does not own, even if an ownership check
+    // upstream is ever skipped or reordered. See §10.1 of the design spec.
+    await db.delete(characterImages).where(
+      and(eq(characterImages.characterId, characterId), eq(characterImages.userId, userId))
+    );
   },
 });
 
@@ -146,10 +151,15 @@ export const createCharacterImageService = (
      * which never happens on this path). If Storage deletion fails after the
      * rows are gone, the objects are merely orphaned bytes — safe to reap later,
      * not a dangling reference a client can trip over.
+     *
+     * The caller must assert ownership of `characterId` before calling this —
+     * see `characterService.assertCharacterOwnership`. `dbUserId` additionally
+     * scopes the row delete as defense in depth against that check ever being
+     * skipped or reordered.
      */
-    async purgeCharacter(userId: string, characterId: string): Promise<void> {
-      await repository.deleteByCharacter(characterId);
-      await storage.deletePrefix(`users/${userId}/characters/${characterId}/`);
+    async purgeCharacter(firebaseUid: string, dbUserId: string, characterId: string): Promise<void> {
+      await repository.deleteByCharacter(characterId, dbUserId);
+      await storage.deletePrefix(`users/${firebaseUid}/characters/${characterId}/`);
     },
   };
 };

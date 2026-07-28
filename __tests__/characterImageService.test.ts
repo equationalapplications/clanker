@@ -278,6 +278,27 @@ describe('saveCharacterImage', () => {
     expect(mockEvictionCandidates).toHaveBeenCalledWith('char_a', null, 5)
     expect(mockHardDelete).toHaveBeenCalledTimes(5)
   })
+
+  it('never evicts a cloud-kind candidate locally — that cap is server-side', async () => {
+    // Two devices can each hold fewer than 100 images while the cloud total
+    // exceeds it, so a client-only cap cannot be correct for `cloud` rows (§13.3).
+    // Hard-deleting one here would also race the sweeper's reconciliation.
+    mockCount.mockResolvedValue(IMAGE_CAP_PER_CHARACTER + 1)
+    mockEvictionCandidates.mockResolvedValue([
+      { id: 'cloud-old', storage_kind: 'cloud', master_ref: 'users/u1/characters/c1/x.webp', thumb_ref: null },
+    ])
+    await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 500,
+      height: 500,
+      source: 'generated',
+    })
+    expect(mockHardDelete).not.toHaveBeenCalled()
+    expect(mockSoftDelete).not.toHaveBeenCalled()
+    expect(mockDeleteStorageObject).not.toHaveBeenCalled()
+  })
 })
 
 describe('deleteCharacterImage', () => {
@@ -362,6 +383,25 @@ describe('deleteCharacterImage', () => {
     await expect(deleteCharacterImage('gone', 'user-1')).resolves.toBeUndefined()
     expect(mockHardDelete).not.toHaveBeenCalled()
   })
+
+  it('soft-deletes a cloud row as pending_delete instead of hard-deleting it', async () => {
+    // A cloud row has a server-side counterpart other devices reconcile against
+    // (§13.3). Hard-deleting it here would let the next pull re-insert it, since
+    // absence is not a tombstone — only an explicit deleted_at is. The sweeper
+    // (characterImageSyncService) must be the one to reap the Storage objects
+    // and the cloud row.
+    mockGetById.mockResolvedValue({
+      id: 'img-1',
+      character_id: 'char_a',
+      storage_kind: 'cloud',
+      master_ref: 'users/u1/characters/c1/img-1.webp',
+      thumb_ref: 'users/u1/characters/c1/img-1_thumb.webp',
+    })
+    await deleteCharacterImage('img-1', 'user-1')
+    expect(mockSoftDelete).toHaveBeenCalledWith('img-1', 'pending_delete')
+    expect(mockDeleteStorageObject).not.toHaveBeenCalled()
+    expect(mockHardDelete).not.toHaveBeenCalled()
+  })
 })
 
 describe('deleteAllImagesForCharacter', () => {
@@ -387,6 +427,21 @@ describe('deleteAllImagesForCharacter', () => {
     expect(mockDeleteBytes).toHaveBeenCalledWith('file:///a')
     expect(mockHardDelete).toHaveBeenCalledWith('a')
     expect(mockHardDelete).toHaveBeenCalledWith('b')
+  })
+
+  it('soft-deletes a cloud row rather than hard-deleting it directly', async () => {
+    mockGetAllForCharacter.mockResolvedValue([
+      {
+        id: 'c',
+        character_id: 'char_a',
+        storage_kind: 'cloud',
+        master_ref: 'users/u1/characters/c1/c.webp',
+        thumb_ref: null,
+      },
+    ])
+    await deleteAllImagesForCharacter('char_a', 'user-1')
+    expect(mockSoftDelete).toHaveBeenCalledWith('c', 'pending_delete')
+    expect(mockHardDelete).not.toHaveBeenCalledWith('c')
   })
 })
 

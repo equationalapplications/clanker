@@ -44,6 +44,7 @@ function buildDeps(): CharacterFunctionDeps {
       getPublicCharacterById: async () => {
         throw new Error("Unexpected character service call");
       },
+      assertCharacterOwnership: async () => {},
     },
     characterImageService: {
       syncImages: async () => {
@@ -816,12 +817,17 @@ test("deleteCharacterHandler rejects when character belongs to another user", as
           getSubscription: async () => ({planTier: "monthly_20", planStatus: "active"} as never),
         },
         characterService: {
-          deleteCharacter: async () => {
+          assertCharacterOwnership: async () => {
             throw new CharacterOwnershipError();
+          },
+          deleteCharacter: async () => {
+            throw new Error("deleteCharacter should not be reached");
           },
         },
         characterImageService: {
-          purgeCharacter: async () => {},
+          purgeCharacter: async () => {
+            throw new Error("purgeCharacter should not be reached");
+          },
         },
       } as unknown as CharacterFunctionDeps
     ),
@@ -1061,7 +1067,7 @@ test("deleteCharacter prefix-deletes the character's storage objects", async () 
   deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid", firebaseUid: "uid-1"} as never);
   deps.characterService.deleteCharacter = async () => undefined as never;
   (deps as Record<string, unknown>).characterImageService = {
-    purgeCharacter: async (uid: string, characterId: string) => {
+    purgeCharacter: async (uid: string, _dbUserId: string, characterId: string) => {
       prefixes.push(`${uid}/${characterId}`);
     },
     syncImages: async () => ({evictedImageIds: []}),

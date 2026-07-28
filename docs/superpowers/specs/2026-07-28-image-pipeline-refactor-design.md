@@ -305,8 +305,7 @@ The historical "WEBP is Android-only" limitation no longer applies.
 ## 10. Deletion cascade
 
 Any path that removes images — character hard-delete, character purge, cap
-eviction, or explicit delete from the picker — must **delete bytes before
-dropping rows**:
+eviction, or explicit delete from the picker — cleans up per kind:
 
 | Kind | Cleanup |
 |---|---|
@@ -314,9 +313,35 @@ dropping rows**:
 | `file` | Delete both files from the device |
 | `inline` | Row deletion is sufficient — bytes live in the row |
 
-Ordering matters: a failure partway through leaves recoverable rows pointing at
-possibly-missing bytes, which the resolver degrades gracefully (§11). The reverse
-order would leave orphaned bytes with nothing referencing them.
+### 10.1 Ordering
+
+**The invariant is: never destroy the last handle to the bytes before destroying
+the bytes.** For a single image the row *is* that handle — it carries the object
+path — so bytes go first. A failure partway then leaves a recoverable row
+pointing at possibly-missing bytes, which the resolver degrades gracefully (§11),
+whereas the reverse would leave orphaned bytes with nothing able to find them.
+
+"Bytes before rows" is the single-image corollary, **not** a blanket rule. Bulk
+paths delete by *prefix*, and a prefix is derived from ids the caller already
+holds rather than read out of the rows. There the rows are not the handle, so the
+invariant permits the opposite order — and avoiding stale references prefers it:
+
+| Path | Order | Why |
+|---|---|---|
+| Single image (picker, cap eviction) | bytes → row | The row is the only handle to the object path |
+| `deleteCharacterFn` → `purgeCharacter` | rows → prefix | Prefix `users/{uid}/characters/{cloudId}/` is derivable from the request. Rows-first means a Storage failure leaves only orphan bytes, which a retry's idempotent prefix delete reaps; bytes-first risks a *surviving* character whose rows point at deleted objects, with no tombstone to trigger cleanup |
+| `adminResetUserState` | rows → prefix | Same handle argument; the `users` row survives, so `firebaseUid` stays available for a retry |
+| `adminDeleteUser` | prefix → rows | **Inverted, and required.** The prefix is `users/{firebaseUid}/`, and `firebaseUid` lives on the `users` row this handler deletes. Dropping that row first makes the bytes permanently unaddressable — here the `users` row is the last handle |
+
+Prefix deletion is a list-then-delete loop, idempotent, so every one of these is
+safe to re-run after a partial failure.
+
+**Ownership is checked before any destructive step, not after.** The cloud
+`character_images` delete predicate is scoped by `user_id` as well as
+`character_id`: a caller-supplied `characterId` that belongs to someone else must
+not reach a `DELETE` at all. Storage-path scoping alone is insufficient — the
+path embeds the *caller's* uid and so silently no-ops on a foreign character,
+leaving the Postgres delete as the unguarded step.
 
 **Offline is the exception.** A `cloud` row's bytes are unreachable without a
 network, so the whole operation defers rather than proceeding half-way: the row is
@@ -480,17 +505,25 @@ Nothing today removes Storage objects when a character or a user is deleted
 server-side, and the client cannot do it — it may be offline, or the rows may
 belong to another device.
 
-- `deleteCharacterFn` prefix-deletes `users/{uid}/characters/{cloudId}/` via the
-  Admin SDK, then drops that character's `character_images` rows, tombstones
-  included: the parent is gone, so there is nothing left to reconcile against.
+- `deleteCharacterFn` drops that character's `character_images` rows — tombstones
+  included, since the parent is gone and there is nothing left to reconcile
+  against — and then prefix-deletes `users/{uid}/characters/{cloudId}/` via the
+  Admin SDK. Rows first: see §10.1 for why this path inverts the single-image
+  order, and for the ownership predicate the row delete must carry.
 - `adminResetUserState`, which deletes `characters` rows wholesale
   (`functions/src/adminFunctions.ts:496-498`), and `adminDeleteUser`
   (`adminFunctions.ts:534-547`) both prefix-delete `users/{uid}/`. Without this an
   admin reset leaves every image the user ever generated orphaned in the bucket
-  with no row referencing it and no way to find it.
+  with no row referencing it and no way to find it. The two order Storage against
+  their row deletes differently, and must — again §10.1.
 
 Prefix deletion is a list-then-delete loop rather than an atomic operation. It is
 idempotent, so a partial failure is safe to re-run.
+
+Note that cloud `character_images.character_id` carries
+`REFERENCES characters(id) ON DELETE CASCADE`, so deleting a `characters` row
+already reaps its image rows. The explicit row deletes above are therefore about
+*ordering against Storage*, not about reachability.
 
 ### 13.5 Toggling `save_to_cloud`
 
@@ -607,7 +640,9 @@ The Generate and Upload buttons move into its header, reusing
 |---|---|
 | Resolver | Dispatch per `storage_kind`; thumb→master fallback when `thumb_ref` NULL |
 | Cap eviction | Evicts oldest; **never** evicts the active image; no-op below 100; server-side eviction returns ids the client applies |
-| Deletion cascade | Bytes deleted before rows, per kind; partial-failure leaves rows; offline `cloud` delete defers as `pending_delete` |
+| Deletion cascade | Single image deletes bytes before rows, per kind; partial-failure leaves rows; offline `cloud` delete defers as `pending_delete` |
+| Deletion ordering | Each §10.1 path orders Storage against rows as tabulated; `adminDeleteUser` deletes the prefix before the `users` row |
+| Deletion authorization | A `characterId` owned by another user is rejected **before** any row or object is deleted — asserted on the DB rows, not just the storage path |
 | Sync — ids | Storage path uses `cloud_id`, never `char_…`; image id survives round-trip as the cloud PK |
 | Sync — ordering | Image with no confirmed `cloud_id` stays `pending_upload` and syncs on the next sweep |
 | Sync — reconciliation | Tombstone deletes the local row; **absence does not**; `pending_upload` rows are never reconciled away |

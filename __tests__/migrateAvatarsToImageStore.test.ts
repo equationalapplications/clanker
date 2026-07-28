@@ -7,6 +7,7 @@ const mockSetActive = jest.fn()
 const mockGetImages = jest.fn().mockResolvedValue([])
 const mockUpdateRefs = jest.fn()
 const mockPrepareVariants = jest.fn()
+const mockPromoteToCloud = jest.fn()
 
 jest.mock('../src/database/index', () => ({
   getDatabase: jest.fn(async () => ({
@@ -31,6 +32,13 @@ jest.mock('~/services/imageVariants', () => ({
 }))
 jest.mock('~/utilities/generateSecureUuid', () => ({
   generateSecureUuid: jest.fn(() => 'uuid-mig'),
+}))
+// characterImageSyncService transitively pulls in native Firebase Storage
+// modules via storageService — irrelevant to this migration's own logic and
+// unparseable under this test's jest environment, so it is mocked at the
+// boundary migrateAvatarsToImageStore actually calls through.
+jest.mock('~/services/characterImageSyncService', () => ({
+  promoteCharacterImagesToCloud: (...a: unknown[]) => mockPromoteToCloud(...a),
 }))
 
 import {
@@ -151,6 +159,36 @@ describe('migrateAvatarsToImageStore', () => {
     expect(mockInsert).toHaveBeenCalledTimes(2)
     // A partial run must not claim completion, so the next launch retries.
     expect(mockStorageSet).not.toHaveBeenCalled()
+  })
+
+  it('runs the background thumbnail pass on every row it just migrated', async () => {
+    mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a' })])
+    await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
+    // §15 step 3: a migrated row has no thumb yet — the pass derives one so the
+    // row does not resolve via the master fallback forever.
+    expect(mockUpdateRefs).toHaveBeenCalledWith(
+      'uuid-mig',
+      expect.objectContaining({ thumb_ref: 'NEWT' }),
+    )
+  })
+
+  it('promotes migrated rows to cloud for save_to_cloud characters', async () => {
+    mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a', save_to_cloud: 1 })])
+    await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
+    expect(mockPromoteToCloud).toHaveBeenCalledWith('char_a')
+  })
+
+  it('does not promote to cloud for a privacy-mode character', async () => {
+    mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a', save_to_cloud: 0 })])
+    await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
+    expect(mockPromoteToCloud).not.toHaveBeenCalled()
+  })
+
+  it('does not run the thumbnail pass or promotion for a skipped bundled-default row', async () => {
+    mockGetAllAsync.mockResolvedValue([charRow({ avatar_data: DEFAULT_B64, save_to_cloud: 1 })])
+    await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
+    expect(mockUpdateRefs).not.toHaveBeenCalled()
+    expect(mockPromoteToCloud).not.toHaveBeenCalled()
   })
 })
 

@@ -126,6 +126,27 @@ export const createCharacterService = (
       return inserted;
     },
 
+    /**
+     * Throws before any destructive step touches this character. Callers that
+     * need to delete data scoped by characterId (e.g. purging its image gallery)
+     * must call this first — the row's own delete has its own ownership check,
+     * but anything run ahead of it does not get that check for free.
+     */
+    async assertCharacterOwnership(characterId: string, userId: string): Promise<void> {
+      const db = await deps.getDb();
+      const [existing] = await db
+        .select({ id: characters.id, userId: characters.userId })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .limit(1);
+
+      if (existing && existing.userId !== userId) {
+        throw new CharacterOwnershipError();
+      }
+      // Not found at all is left to the caller's own delete to treat as
+      // idempotent success, matching deleteCharacter's existing behaviour.
+    },
+
     async deleteCharacter(characterId: string, userId: string) {
       const db = await deps.getDb();
 

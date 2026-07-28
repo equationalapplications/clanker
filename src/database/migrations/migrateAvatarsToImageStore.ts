@@ -21,6 +21,7 @@ import {
 } from '~/database/characterImageDatabase'
 import { prepareImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
+import { promoteCharacterImagesToCloud } from '~/services/characterImageSyncService'
 
 export const AVATAR_MIGRATION_FLAG = 'avatar-image-store-migration'
 
@@ -73,6 +74,8 @@ export async function migrateAvatarsToImageStore(
   )
 
   let allSucceeded = true
+  const migratedRows: CharacterImageRow[] = []
+  const cloudCharacterIds = new Set<string>()
 
   for (const row of rows) {
     try {
@@ -108,9 +111,28 @@ export async function migrateAvatarsToImageStore(
 
       await insertCharacterImage(imageRow)
       await setActiveImageId(row.id, imageId)
+      migratedRows.push(imageRow)
+      if (row.save_to_cloud) cloudCharacterIds.add(row.id)
     } catch (err) {
       console.warn('[avatarMigration] character failed, will retry next launch:', row.id, err)
       allSucceeded = false
+    }
+  }
+
+  // Step 3: derive thumbs and fix mislabelled masters for what was just
+  // migrated, then promote save_to_cloud characters' rows so the sweeper
+  // picks them up. Failures here are per-row/per-character and logged rather
+  // than clearing `allSucceeded` — the row is already a valid `inline` row
+  // that resolves via the master fallback, so it is not worth re-running the
+  // whole migration over a missing thumbnail.
+  if (migratedRows.length > 0) {
+    await backfillThumbnails(migratedRows)
+  }
+  for (const characterId of cloudCharacterIds) {
+    try {
+      await promoteCharacterImagesToCloud(characterId)
+    } catch (err) {
+      console.warn('[avatarMigration] cloud promotion failed for', characterId, err)
     }
   }
 

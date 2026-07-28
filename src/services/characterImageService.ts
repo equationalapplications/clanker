@@ -17,12 +17,13 @@ import {
   hardDeleteCharacterImage,
   insertCharacterImage,
   setActiveImageId,
+  softDeleteCharacterImage,
   type CharacterImageRow,
   type ImageSource,
 } from '~/database/characterImageDatabase'
 import { prepareImageVariants } from '~/services/imageVariants'
 import { deleteLocalImageBytes, writeLocalImageBytes } from '~/services/localImageStore'
-import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
+import { uploadImageBytes } from '~/services/storageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 export const IMAGE_CAP_PER_CHARACTER = 100
@@ -182,7 +183,9 @@ export async function saveCharacterImage(
  *
  * Cloud characters get their cap enforced server-side instead (Stage C): two
  * devices can each hold fewer than 100 while the cloud total exceeds it, so a
- * client-only cap cannot be correct there.
+ * client-only cap cannot be correct there. `cloud`-kind rows are filtered out of
+ * the candidate set for exactly that reason — evicting one here would race the
+ * server's own cap and, worse, hard-delete a row the sweeper hasn't reconciled.
  */
 export async function enforceLocalCap(characterId: string): Promise<void> {
   const count = await countCharacterImages(characterId)
@@ -190,7 +193,9 @@ export async function enforceLocalCap(characterId: string): Promise<void> {
   if (excess <= 0) return
 
   const active = await getActiveCharacterImage(characterId)
-  const candidates = await getEvictionCandidates(characterId, active?.id ?? null, excess)
+  const candidates = (
+    await getEvictionCandidates(characterId, active?.id ?? null, excess)
+  ).filter((candidate) => candidate.storage_kind !== 'cloud')
 
   for (const candidate of candidates) {
     await removeImageBytesThenRow(candidate)
@@ -198,7 +203,8 @@ export async function enforceLocalCap(characterId: string): Promise<void> {
 }
 
 /**
- * Bytes first, then the row.
+ * Bytes first, then the row. `file` and `inline` only — a `cloud` row must go
+ * through `retireImage` instead, since its bytes and cloud row need the sweeper.
  *
  * A failure partway leaves a row pointing at possibly-missing bytes, which the
  * resolver degrades gracefully. The reverse order would strand bytes in storage
@@ -210,12 +216,30 @@ async function removeImageBytesThenRow(
   if (row.storage_kind === 'file') {
     await deleteLocalImageBytes(row.master_ref)
     if (row.thumb_ref) await deleteLocalImageBytes(row.thumb_ref)
-  } else if (row.storage_kind === 'cloud') {
-    await deleteStorageObject(row.master_ref)
-    if (row.thumb_ref) await deleteStorageObject(row.thumb_ref)
   }
   // 'inline' needs no byte deletion — the bytes are the row.
   await hardDeleteCharacterImage(row.id)
+}
+
+/**
+ * Removes one row regardless of `storage_kind`.
+ *
+ * A `cloud` row has a server-side counterpart other devices reconcile against
+ * (§13.3): hard-deleting it here would let the next pull re-insert it, since
+ * absence is not a tombstone. It is instead soft-deleted and marked
+ * `pending_delete`, and `syncCharacterImages` (characterImageSyncService) reaps
+ * the Storage objects, the cloud row, and finally this local row. `file` and
+ * `inline` rows have no cloud counterpart to reconcile, so they are removed
+ * immediately.
+ */
+async function retireImage(
+  row: Pick<CharacterImageRow, 'id' | 'storage_kind' | 'master_ref' | 'thumb_ref'>,
+): Promise<void> {
+  if (row.storage_kind === 'cloud') {
+    await softDeleteCharacterImage(row.id, 'pending_delete')
+    return
+  }
+  await removeImageBytesThenRow(row)
 }
 
 export async function deleteCharacterImage(imageId: string, userId: string): Promise<void> {
@@ -237,7 +261,7 @@ export async function deleteCharacterImage(imageId: string, userId: string): Pro
     await setActiveImageId(row.character_id, remaining[0]?.id ?? null)
   }
 
-  await removeImageBytesThenRow(row)
+  await retireImage(row)
 }
 
 /** Full cascade for character hard-delete and purge. Includes tombstoned rows. */
@@ -248,7 +272,7 @@ export async function deleteAllImagesForCharacter(
   void userId
   const rows = await getAllImagesForCharacter(characterId)
   for (const row of rows) {
-    await removeImageBytesThenRow(row)
+    await retireImage(row)
   }
   await setActiveImageId(characterId, null)
 }

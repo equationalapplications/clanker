@@ -28,7 +28,11 @@ type CharacterFunctionDeps = {
   userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>;
   characterService: Pick<
     typeof characterService,
-    'upsertCharacter' | 'deleteCharacter' | 'getUserCharacters' | 'getPublicCharacterWithOwner'
+    | 'upsertCharacter'
+    | 'deleteCharacter'
+    | 'getUserCharacters'
+    | 'getPublicCharacterWithOwner'
+    | 'assertCharacterOwnership'
   >;
   creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
   characterImageService: Pick<
@@ -424,12 +428,20 @@ export const deleteCharacterHandler = async (
   }
 
   try {
+    // Ownership first: purgeCharacter's Storage prefix is keyed on the caller's
+    // own uid, so it silently no-ops on a foreign characterId — it cannot be
+    // trusted to reject one. Without this check, a caller-supplied UUID for
+    // another user's character would delete that user's cloud image rows
+    // (deleteByCharacter is additionally scoped by user_id, but asserting
+    // here rejects the request before any destructive step runs at all).
+    await deps.characterService.assertCharacterOwnership(normalizedCharacterId, user.id);
+
     // Images first: the parent character row is about to disappear, so the
     // tombstones would have nothing left to reconcile against. Prefix deletion
     // is a list-then-delete loop — idempotent, so a partial failure is safe to
     // re-run — and it is the only place the objects can be reached from, since
     // the client may be offline or the rows may belong to another device.
-    await deps.characterImageService.purgeCharacter(request.auth.uid, normalizedCharacterId);
+    await deps.characterImageService.purgeCharacter(request.auth.uid, user.id, normalizedCharacterId);
     await deps.characterService.deleteCharacter(normalizedCharacterId, user.id);
     return { success: true };
   } catch (error) {
