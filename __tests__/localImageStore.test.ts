@@ -14,7 +14,7 @@ jest.mock('expo-file-system', () => ({
 
 const MockDirectory = jest.mocked(Directory)
 const MockFile = jest.mocked(File)
-const written: Array<{ uri: string; base64: string }> = []
+const written: Array<{ uri: string; base64: string; options?: unknown }> = []
 const deleted: string[] = []
 let dirExists = true
 
@@ -46,7 +46,7 @@ beforeEach(() => {
     const uri = args.length > 1 ? `${uriOf(args[0])}${String(args[1])}` : String(args[0])
     return {
       uri,
-      write: (data: string) => written.push({ uri, base64: data }),
+      write: (data: string, options?: unknown) => written.push({ uri, base64: data, options }),
       delete: () => deleted.push(uri),
       exists: true,
     } as never
@@ -92,10 +92,21 @@ describe('localImageStore (native)', () => {
     await expect(resolveImageUri(r, 'thumb')).resolves.toBe('data:image/webp;base64,M')
   })
 
-  it('writes bytes under the document directory and returns the ref', async () => {
+  it('rejects cloud rows until the Storage seam lands', async () => {
+    const r = row({ storage_kind: 'cloud', master_ref: 'characters/char_a/img-1.webp' })
+    await expect(resolveImageUri(r, 'master')).rejects.toThrow(/cloud image resolution/i)
+  })
+
+  it('writes bytes as base64, not as utf8 text', async () => {
     const ref = await writeLocalImageBytes('img-1', 'BYTES', 'master')
     expect(ref).toBe('file:///doc/character-images/img-1.webp')
-    expect(written).toEqual([{ uri: 'file:///doc/character-images/img-1.webp', base64: 'BYTES' }])
+    expect(written).toEqual([
+      {
+        uri: 'file:///doc/character-images/img-1.webp',
+        base64: 'BYTES',
+        options: { encoding: 'base64' },
+      },
+    ])
   })
 
   it('names the thumb variant distinctly so it cannot clobber the master', async () => {
@@ -109,6 +120,13 @@ describe('localImageStore (native)', () => {
     expect(dirExists).toBe(true)
   })
 
+  it('rejects ids that could escape the image directory', async () => {
+    for (const bad of ['../escape', 'a/b', 'img 1', '', 'img.1']) {
+      await expect(writeLocalImageBytes(bad, 'BYTES', 'master')).rejects.toThrow(/unsafe image id/i)
+    }
+    expect(written).toEqual([])
+  })
+
   it('deletes bytes by ref', async () => {
     await deleteLocalImageBytes('file:///doc/character-images/img-1.webp')
     expect(deleted).toEqual(['file:///doc/character-images/img-1.webp'])
@@ -118,11 +136,25 @@ describe('localImageStore (native)', () => {
     MockFile.mockImplementation(
       () =>
         ({
+          exists: false,
           delete: () => {
-            throw new Error('ENOENT')
+            throw new Error('should not be called')
           },
         }) as never,
     )
     await expect(deleteLocalImageBytes('file:///gone.webp')).resolves.toBeUndefined()
+  })
+
+  it('propagates real delete failures instead of reporting success', async () => {
+    MockFile.mockImplementation(
+      () =>
+        ({
+          exists: true,
+          delete: () => {
+            throw new Error('EPERM')
+          },
+        }) as never,
+    )
+    await expect(deleteLocalImageBytes('file:///locked.webp')).rejects.toThrow('EPERM')
   })
 })

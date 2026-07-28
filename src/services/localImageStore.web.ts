@@ -10,8 +10,9 @@
  */
 
 import type { CharacterImageRow } from '~/database/characterImageDatabase'
+import type { ImageVariantName, LocalImageStore } from './localImageStore.types'
 
-export type ImageVariantName = 'master' | 'thumb'
+export type { ImageVariantName }
 
 function refFor(row: CharacterImageRow, variant: ImageVariantName): string {
   if (variant === 'thumb' && row.thumb_ref) return row.thumb_ref
@@ -52,3 +53,11 @@ export async function writeLocalImageBytes(
 export async function deleteLocalImageBytes(_ref: string): Promise<void> {
   return undefined
 }
+
+// Compile-time guard: both platform implementations must expose the same surface.
+const _typeCheck: LocalImageStore = {
+  resolveImageUri,
+  writeLocalImageBytes,
+  deleteLocalImageBytes,
+}
+void _typeCheck

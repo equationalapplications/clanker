@@ -49,4 +49,13 @@ describe('localImageStore (web)', () => {
       resolveImageUri(row({ storage_kind: 'file', master_ref: 'file://x' }), 'master'),
     ).rejects.toThrow(/file-backed images are not available on web/i)
   })
+
+  it('rejects cloud rows until the Storage seam lands', async () => {
+    await expect(
+      resolveImageUri(
+        row({ storage_kind: 'cloud', master_ref: 'characters/char_a/img-1.webp' }),
+        'master',
+      ),
+    ).rejects.toThrow(/cloud image resolution/i)
+  })
 })

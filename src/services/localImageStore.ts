@@ -8,10 +8,23 @@
 
 import { Directory, File, Paths } from 'expo-file-system'
 import type { CharacterImageRow } from '~/database/characterImageDatabase'
+import type { ImageVariantName, LocalImageStore } from './localImageStore.types'
 
-export type ImageVariantName = 'master' | 'thumb'
+export type { ImageVariantName }
 
 const IMAGE_DIR_NAME = 'character-images'
+
+/**
+ * Ids reach this module from the server in Stage C/D, so they are untrusted
+ * input to a path join: a `..` or `/` would escape the image directory.
+ */
+const SAFE_IMAGE_ID = /^[A-Za-z0-9_-]+$/
+
+function assertSafeImageId(imageId: string): void {
+  if (!SAFE_IMAGE_ID.test(imageId)) {
+    throw new Error(`Unsafe image id for filesystem path: ${imageId}`)
+  }
+}
 
 function imageDirectory(): Directory {
   const dir = new Directory(Paths.document, IMAGE_DIR_NAME)
@@ -60,20 +73,31 @@ export async function writeLocalImageBytes(
   base64: string,
   variant: ImageVariantName,
 ): Promise<string> {
+  assertSafeImageId(imageId)
   const dir = imageDirectory()
   const file = new File(dir, fileNameFor(imageId, variant))
-  file.write(base64)
+  // Without an explicit encoding `write` defaults to utf8 and stores the base64
+  // *text*, producing a file:// URI that no image decoder can read.
+  file.write(base64, { encoding: 'base64' })
   return file.uri
 }
 
 /**
  * Idempotent by design: the deletion cascade re-runs after partial failures and
- * an already-missing file means the work is done, not that it failed.
+ * an already-missing file means the work is done, not that it failed. Anything
+ * else — a permission error, say — must propagate rather than be reported as a
+ * successful delete.
  */
 export async function deleteLocalImageBytes(ref: string): Promise<void> {
-  try {
-    new File(ref).delete()
-  } catch (err) {
-    console.warn('Failed to delete local image bytes (already gone?):', ref, err)
-  }
+  const file = new File(ref)
+  if (!file.exists) return
+  file.delete()
 }
+
+// Compile-time guard: both platform implementations must expose the same surface.
+const _typeCheck: LocalImageStore = {
+  resolveImageUri,
+  writeLocalImageBytes,
+  deleteLocalImageBytes,
+}
+void _typeCheck
