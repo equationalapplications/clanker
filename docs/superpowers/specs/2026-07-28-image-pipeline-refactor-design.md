@@ -1,7 +1,7 @@
 # Image Pipeline Refactor — Phase 1: Avatars
 
 **Date:** 2026-07-28
-**Status:** Approved, ready for planning
+**Status:** Implemented (Phase 1)
 **Scope:** Character avatars only. Vision (user photo upload to LLM) and agent
 image generation are documented as groundwork in §18, explicitly out of scope.
 
