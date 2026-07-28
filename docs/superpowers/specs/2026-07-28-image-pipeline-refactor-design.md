@@ -3,7 +3,7 @@
 **Date:** 2026-07-28
 **Status:** Approved, ready for planning
 **Scope:** Character avatars only. Vision (user photo upload to LLM) and agent
-image generation are documented as groundwork in §17, explicitly out of scope.
+image generation are documented as groundwork in §18, explicitly out of scope.
 
 ---
 
@@ -44,7 +44,8 @@ circular mask crops an arbitrary slice the user never chose.
 | Web privacy mode | base64 in SQLite (already OPFS-backed) | See §3 |
 | Master resolution | 1024×1024 WebP | Model native output; supports future zoom/download |
 | Thumbnail | 256×256 WebP | See §4 |
-| Cap | 100 images per character, FIFO | Per-character matches gallery semantics; active image never evicted |
+| Cap | 100 images per character, FIFO | Per-character matches gallery semantics; active image never evicted. Enforced server-side for cloud characters — see §13.3 |
+| Image sync | Dedicated callable, tombstone-based | The character snapshot's last-write-wins rule cannot express a set with deletions — see §13 |
 | TTL sweeper | **Rejected** | See §12 |
 | Default avatar | Bundled asset, not stored per character | Offline, zero cost, deletes three source files |
 | Public import | Signed URL in Phase 1 | Omitting it regresses a shipped feature |
@@ -86,17 +87,24 @@ CREATE TABLE character_images (
   thumb_ref     TEXT,               -- same kind as master; NULL = fall back to master
   mime_type     TEXT NOT NULL DEFAULT 'image/webp',
   source        TEXT NOT NULL,      -- 'generated' | 'uploaded' | 'imported'
+  sync_state    TEXT NOT NULL DEFAULT 'local',
+                 -- 'local' | 'synced' | 'pending_upload' | 'pending_delete' | 'failed'
+  sync_attempts INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL,
   deleted_at    INTEGER
 );
 CREATE INDEX idx_character_images_char ON character_images(character_id, created_at DESC);
+CREATE INDEX idx_character_images_sync ON character_images(sync_state)
+  WHERE sync_state IN ('pending_upload', 'pending_delete');
 ```
 
 Migration 23 adds `characters.active_image_id TEXT`.
 
 The `storage_kind` discriminator lets one row shape serve all three routing
 modes. `mime_type` is per-row rather than a constant specifically so the web
-WebP fallback (§9) can record JPEG for the rows it affects.
+WebP fallback (§9) can record JPEG for the rows it affects. `sync_state` and
+`sync_attempts` drive the retry and reconciliation flow — see §13.1, which also
+defines how `deleted_at` and `sync_state` interact.
 
 Splitting images into their own table satisfies the performance requirement
 structurally: list queries on `characters` no longer touch image bytes, so
@@ -120,6 +128,20 @@ carries `storage_path` / `thumb_path` instead of `storage_kind` / `master_ref`:
 | `deleted_at` | timestamptz |
 
 Plus `characters.active_image_id uuid`.
+
+`deleted_at` is load-bearing here, not vestigial: a soft-deleted cloud row is the
+**tombstone** other devices reconcile against (§13.3). Cloud rows are retained for
+30 days after deletion, then dropped by a retention pass. The Storage objects are
+deleted immediately — only the row lingers, and rows are tens of bytes.
+
+### 3.3 The legacy `characters.avatar` column
+
+The Postgres `characters.avatar` URL column is now deprecated. It keeps syncing
+untouched for one release so a rollback has somewhere to land, and is dropped in
+the same follow-up that drops local `avatar_data` (§15). Nothing in Phase 1 writes
+to it, and once `active_image_id` is populated nothing reads it either — the
+`toAppFormat` fallback in `src/database/characterDatabase.ts:70-72` is removed as
+part of this work.
 
 > **Migration constraint:** hand-write `functions/drizzle/0022_character_images.sql`
 > (the highest existing file is `0021_fix_handle_new_user_trigger_power_scale.sql`).
@@ -194,8 +216,10 @@ existing component and its accessibility tests unchanged.
 
 `saveCharacterImage(characterId, base64, mimeType, source)`:
 
-1. **Normalize to square.** Generated images are already 1024×1024 and imported
-   ones inherit the owner's square, so this applies to uploads only — see §7.
+1. **Normalize to square.** Generated images are already 1024×1024, and imported
+   ones inherit the owner's aspect ratio — usually square, though a legacy
+   migrated avatar can arrive non-square. §16's `resizeMode: 'cover'` absorbs
+   that safely, so active normalization applies to uploads only — see §7.
 2. **Resize to 1024** on the longest edge, never upscaling: an 800×800 upload is
    stored at 800. Derive a 256 thumb the same way.
 3. **Route on `save_to_cloud`:**
@@ -203,9 +227,11 @@ existing component and its accessibility tests unchanged.
    - native privacy → write both under `expo-file-system` document directory; `kind='file'`
    - web privacy → `kind='inline'`, base64 in `master_ref` / `thumb_ref`
 4. **Insert the row**, set `characters.active_image_id`.
-5. **Enforce the cap:** if the character now exceeds 100 images, hard-delete the
-   oldest — with the active image always exempt. Deletion removes bytes before
-   rows (§10).
+5. **Enforce the cap:** if the character now exceeds 100 images, evict the oldest
+   — with the active image always exempt. Deletion removes bytes before rows
+   (§10). For `file` and `inline` rows the client enforces this directly; for
+   cloud characters the authoritative cap lives server-side, because no single
+   client can see the whole set (§13.3).
 
 Steps 2 and 3 are abstracted so the Vision feature reuses them verbatim.
 
@@ -292,6 +318,12 @@ Ordering matters: a failure partway through leaves recoverable rows pointing at
 possibly-missing bytes, which the resolver degrades gracefully (§11). The reverse
 order would leave orphaned bytes with nothing referencing them.
 
+**Offline is the exception.** A `cloud` row's bytes are unreachable without a
+network, so the whole operation defers rather than proceeding half-way: the row is
+soft-deleted locally and marked `pending_delete`, and the sweeper completes it in
+order later (§13.1). Deleting the local row while its objects survive would strand
+the bytes with nothing left to retry from.
+
 ---
 
 ## 11. Error handling
@@ -299,8 +331,10 @@ order would leave orphaned bytes with nothing referencing them.
 **Governing rule: never lose an image the user spent credits on.** Every
 generated image costs `IMAGE_GENERATION_COST`.
 
-- **Upload failure** keeps the image locally with the row marked for retry. The
-  avatar still displays and the credits are not wasted.
+- **Upload failure** keeps the image locally as a `file` row marked
+  `pending_upload`, retried by the sweeper on a bounded budget (§13.1). The avatar
+  still displays and the credits are not wasted, even if the upload never
+  succeeds — only cloud redundancy is lost.
 - **Resolver failure** degrades master → thumb → bundled default, via the
   existing `onError` path in `CharacterAvatar`.
 - **Signed URL expiry** during import re-requests rather than failing.
@@ -326,7 +360,169 @@ The FIFO cap (§6) already bounds storage. Revisit only if the economics change.
 
 ---
 
-## 13. Default avatar
+## 13. `character_images` sync and lifecycle
+
+Image history is an append-mostly log with deletions. It cannot ride inside the
+character snapshot `syncCharacterFn` pushes, and it cannot use the
+last-write-wins-on-`updated_at` rule `restoreFromCloud` applies to characters —
+there is no single row whose timestamp settles a set difference. It gets its own
+flow.
+
+### 13.1 Sync state on the local row
+
+`sync_state` (§3.1) takes one of:
+
+| Value | Meaning |
+|---|---|
+| `local` | a `file` or `inline` row on a privacy-mode character; terminal, the sweeper skips it |
+| `pending_upload` | bytes exist on-device, the cloud copy does not yet |
+| `synced` | cloud row and objects confirmed |
+| `pending_delete` | the user deleted it; the cloud copy still has to be reaped |
+| `failed` | retry budget exhausted — see below |
+
+The default is `local`, not `synced`, because most rows never touch the cloud and
+a sweeper reading `synced` as "nothing to do" would be one careless `WHERE` clause
+away from uploading privacy-mode images. Making the privacy state the default and
+naming it distinctly removes that failure mode.
+
+**Deletion interacts with the existing `deleted_at` column.** A user-initiated
+delete sets `deleted_at` immediately on every path, online or off, so the row
+leaves the picker and stops counting toward the cap at once. What follows depends
+on kind:
+
+| Kind | On delete |
+|---|---|
+| `file`, `inline` | bytes removed and row hard-deleted in the same local transaction (§10) |
+| `cloud` | `deleted_at` set, `sync_state='pending_delete'`; bytes then rows reaped by the sweeper |
+
+**Retry driver.** `syncAllToCloud` already runs at app start and on reconnect
+(`app/_layout.tsx:201`, `:223`) and already fans out to per-concern helpers. It
+gains `syncCharacterImages(localUserId)`, sweeping `pending_upload` and
+`pending_delete`. No new scheduler is introduced.
+
+**Retry budget.** Each failed attempt increments `sync_attempts`. Transient
+failures retry on the next sweep; after 5 attempts, or immediately on a permission
+or quota error that retrying cannot fix, the row moves to `failed` and the sweeper
+stops touching it. A `failed` row keeps `kind='file'` and its local bytes, so the
+image still resolves and still displays. **Unbounded retry is not the safe
+default here** — it burns battery and quota re-attempting an upload that a Storage
+rule will reject every time, and it buries the one signal (§11's Snackbar) that
+tells the user cloud backup is not happening.
+
+### 13.2 Identifiers and storage paths
+
+**The image `id` is minted once, on the device that creates the image, and reused
+verbatim as the cloud row's primary key.** It is a bare uuid — unlike character
+ids, which are `char_`-prefixed locally (`generateLocalCharacterId`,
+`characterSyncService.ts:59-61`) but bare uuids in the cloud. Image ids therefore
+need no translation and are what §13.3 reconciles on.
+
+Character ids do need translation, and the storage path is where getting it wrong
+is unrecoverable:
+
+```
+users/{uid}/characters/{cloudId}/{imageId}.webp
+```
+
+**`{cloudId}`, never the local `char_…` id.** The local id is device-private: a
+second device restoring the same character holds a different local id, and a path
+built from it would be unresolvable there. Cloud `character_images.character_id`
+likewise holds the cloud uuid while the local table holds the local id;
+`restoreFromCloud` maps between them using the `cloudIdToLocalId` map it already
+builds (`characterSyncService.ts:265-274`).
+
+**Ordering.** A character has no cloud id until its first successful sync, so an
+image created before then has no path to be written to. `syncCharacterImages`
+therefore runs *after* `syncUnsyncedToCloud` — sequentially, not inside the
+`Promise.all` beside it (`characterSyncService.ts:232-235`) — and skips any
+character still lacking a confirmed `cloud_id`. Those rows stay `pending_upload`
+for one more sweep.
+
+The path uses the **confirmed** `cloud_id`, deliberately not `pending_cloud_id`.
+The two are equal in the normal case, but the server's returned id is
+authoritative; building a path from a locally-guessed id that the server then
+disagrees with would strand objects at a location nothing can reach. Waiting one
+sweep cycle is the cheaper side of that trade.
+
+### 13.3 Cap enforcement and cross-device deletion
+
+**Server-side cap for cloud characters.** Two devices can each hold fewer than 100
+images while the cloud total exceeds it, so a client-only cap cannot be correct. A
+new `syncCharacterImagesFn` callable owns the cap for cloud characters: on insert
+it evicts the oldest rows beyond 100, exempting `active_image_id`, deletes their
+Storage objects, tombstones their rows, and returns the evicted ids for the client
+to apply locally. Clients keep enforcing the cap themselves only for `file` and
+`inline` rows, where by construction there is one device.
+
+**Tombstones, not absence.** `getUserCharactersFn` returns, per character,
+`active_image_id` and an `images` array **including tombstones**. On pull the
+client:
+
+- inserts rows it does not have, mapping `character_id` through `cloudIdToLocalId`;
+- hard-deletes local rows whose cloud counterpart carries `deleted_at`;
+- leaves everything else alone.
+
+A local `cloud` row merely *absent* from the response is **not** deleted. Absence
+is ambiguous — a truncated response, a partial server failure, and a genuine
+remote delete are indistinguishable at the client — and acting on it destroys
+images the user paid for, in bulk and silently, which is precisely what §11's
+governing rule forbids. An explicit `deleted_at` cannot be produced by a bug in
+the read path. The 30-day tombstone window (§3.2) covers every realistic reconnect
+gap; a device offline longer keeps rows whose bytes are gone, which the resolver's
+degrade path already handles.
+
+Rows in `pending_upload` are excluded from reconciliation entirely — by definition
+they have no cloud counterpart yet.
+
+### 13.4 Cloud-side deletion cascade
+
+Nothing today removes Storage objects when a character or a user is deleted
+server-side, and the client cannot do it — it may be offline, or the rows may
+belong to another device.
+
+- `deleteCharacterFn` prefix-deletes `users/{uid}/characters/{cloudId}/` via the
+  Admin SDK, then drops that character's `character_images` rows, tombstones
+  included: the parent is gone, so there is nothing left to reconcile against.
+- `adminResetUserState`, which deletes `characters` rows wholesale
+  (`functions/src/adminFunctions.ts:496-498`), and `adminDeleteUser`
+  (`adminFunctions.ts:534-547`) both prefix-delete `users/{uid}/`. Without this an
+  admin reset leaves every image the user ever generated orphaned in the bucket
+  with no row referencing it and no way to find it.
+
+Prefix deletion is a list-then-delete loop rather than an atomic operation. It is
+idempotent, so a partial failure is safe to re-run.
+
+### 13.5 Toggling `save_to_cloud`
+
+`save_to_cloud` flips at runtime — `removeCharacterFromCloud` already exists
+(`characterSyncService.ts:432`). Write-path routing (§6) picks a mode per image at
+creation time, so an unhandled toggle strands a character holding rows in the mode
+it just left.
+
+**On.** Existing `file` and `inline` rows are marked `pending_upload` and picked up
+by the sweeper, converting to `cloud` on success. This is the same promotion pass
+§15 step 3 uses for migration, written once and called from both.
+
+**Off.** Every `cloud` row is pulled back to local storage *before* anything is
+destroyed:
+
+1. Download master and thumb for each `cloud` row.
+2. Native → write to the `expo-file-system` document directory, `kind='file'`.
+   Web → store base64 in the row, `kind='inline'`. There is no file system to
+   write to on web; this is the same platform split §6 step 3 already encodes.
+3. Only once every row is local: delete the Storage objects and cloud rows.
+4. Then clear the cloud link.
+
+**Step 4 must come last, and this is the trap.** `removeCharacterFromCloud`
+currently calls `clearCharacterCloudLink` as its final act, nulling `cloud_id` —
+and after §13.2, `cloud_id` *is* the storage path. Clearing it before the download
+makes every one of that character's cloud images permanently unreachable. The
+toggle-off path requires network; offline it must refuse outright rather than
+partially proceed.
+
+---
+
+## 14. Default avatar
 
 A one-off script crops `assets/icon.png` to the 986×986 square at **(19, 0)** and
 resizes to 1024, producing `assets/default-avatar-1024.webp`.
@@ -348,7 +544,7 @@ the copy at `src/machines/characterMachine.ts:88`.
 
 ---
 
-## 14. Migration of existing avatars
+## 15. Migration of existing avatars
 
 DDL lives in numbered SQL migrations 22 and 23. The **data move runs in JS**
 (`migrateAvatarsToImageStore()`, guarded by a `kvStorage` flag) because it needs
@@ -357,10 +553,35 @@ conditional logic SQL cannot express cleanly.
 1. Characters whose `avatar_data` matches the bundled default get **no image row
    at all** and fall through to the bundled asset. This purges the duplicated
    default from every row carrying one.
+
+   Detection is **strict string equality** against `DEFAULT_AVATAR_BASE64`, with
+   a length pre-check to keep the common case cheap. This is safe because the
+   constant has never changed since it was embedded in commit `bf9d2f66`
+   (2026-04-09): only two commits ever touched
+   `src/utilities/defaultAvatarBase64.ts`, both inside PR #395, so no release has
+   shipped different default bytes. `characterMachine.ts:88` writes the constant
+   verbatim, so stored copies are byte-identical rather than re-encoded.
+   Characters predating the default-avatar feature have no `avatar_data` at all
+   and likewise get no row.
+
 2. Every other character with `avatar_data` gets an `inline` row holding the
    existing base64, `thumb_ref` NULL.
 3. A background pass then generates thumbs and promotes `save_to_cloud`
    characters from `inline` to `cloud`.
+
+   **This pass must sniff the actual format rather than trust `mime_type`.**
+   `saveCharacterImageLocally` and `useAvatarUpload` hardcode `'image/webp'`, but
+   on web `SaveFormat.WEBP` silently produced PNG on browsers without WebP canvas
+   encoding (§9) — so some existing rows are PNG bytes labelled WebP. Check the
+   base64 prefix: `UklGR` is WebP (RIFF), `iVBORw0KGgo` is PNG, `/9j/` is JPEG.
+
+   Correcting `mime_type` is necessary but not sufficient — §4's rules admit only
+   `image/webp` and `image/jpeg`, so even a correctly-labelled PNG is rejected at
+   upload. PNG rows are therefore **re-encoded**, not relabelled; the pass is
+   already invoking the manipulator to derive thumbs, so the master is re-encoded
+   in the same call. Rows staying `inline` (privacy mode) keep their bytes and
+   take only the corrected label — nothing rejects them, and re-encoding would
+   cost quality for no gain.
 
 `avatar_data` is **left in place and unread for one release** as a rollback net,
 then dropped in a follow-up. The migration must be idempotent — safe to re-run
@@ -368,7 +589,7 @@ if interrupted partway.
 
 ---
 
-## 15. Avatar picker UI
+## 16. Avatar picker UI
 
 A modal on the edit screen: `FlatList numColumns={3}` of thumbs, newest first,
 the active one check-marked. Tap to activate; swipe or long-press to delete.
@@ -380,14 +601,19 @@ The Generate and Upload buttons move into its header, reusing
 
 ---
 
-## 16. Testing
+## 17. Testing
 
 | Area | Cases |
 |---|---|
 | Resolver | Dispatch per `storage_kind`; thumb→master fallback when `thumb_ref` NULL |
-| Cap eviction | Evicts oldest; **never** evicts the active image; no-op below 100 |
-| Deletion cascade | Bytes deleted before rows, per kind; partial-failure leaves rows |
-| Migration | Default-purge; base64→inline row; idempotency across interruption |
+| Cap eviction | Evicts oldest; **never** evicts the active image; no-op below 100; server-side eviction returns ids the client applies |
+| Deletion cascade | Bytes deleted before rows, per kind; partial-failure leaves rows; offline `cloud` delete defers as `pending_delete` |
+| Sync — ids | Storage path uses `cloud_id`, never `char_…`; image id survives round-trip as the cloud PK |
+| Sync — ordering | Image with no confirmed `cloud_id` stays `pending_upload` and syncs on the next sweep |
+| Sync — reconciliation | Tombstone deletes the local row; **absence does not**; `pending_upload` rows are never reconciled away |
+| Sync — retries | `sync_attempts` increments; `failed` after budget; permission error fails fast; `failed` row still resolves locally |
+| Privacy toggle | On → promotes to `cloud`; off → downloads before the link is cleared, native `file` vs web `inline`; offline refuses |
+| Migration | Default-purge by strict equality; base64→inline row; PNG-mislabelled row re-encoded; idempotency across interruption |
 | Upload | Square result on native and web; no upscaling below 1024; 200×200 minimum |
 | WebP probe | JPEG fallback recorded in `mime_type` |
 | `storage.rules` | uid isolation, size cap, content-type — via emulator |
@@ -398,7 +624,7 @@ Existing `__tests__/characterAvatarAccessibility.test.tsx` and
 
 ---
 
-## 17. Groundwork for later phases (out of scope)
+## 18. Groundwork for later phases (out of scope)
 
 Phase 1 deliberately builds seams these need:
 
@@ -419,7 +645,7 @@ Neither is implemented in Phase 1.
 
 ---
 
-## 18. File map
+## 19. File map
 
 | Action | Path |
 |---|---|
@@ -429,6 +655,7 @@ Neither is implemented in Phase 1.
 | Create | `src/hooks/useResolvedImage.ts` |
 | Create | `src/components/AvatarPicker.tsx` |
 | Create | `src/database/migrations/migrateAvatarsToImageStore.ts` |
+| Create | `src/services/characterImageSyncService.ts` (sweeper, reconciliation, privacy toggle) |
 | Create | `storage.rules` |
 | Create | `assets/default-avatar-1024.webp` |
 | Create | `functions/drizzle/0022_character_images.sql` |
@@ -439,7 +666,9 @@ Neither is implemented in Phase 1.
 | Modify | `src/components/CharacterAvatar.tsx` (bundled default, `cover`) |
 | Modify | `src/components/CharacterCard.tsx` (uses `useResolvedImage`) |
 | Modify | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` (picker) |
-| Modify | `src/services/characterSyncService.ts` (stop nulling avatars; sync image rows) |
-| Modify | `functions/src/db/schema.ts`, `functions/src/characterFunctions.ts` (signed URL) |
+| Modify | `src/services/characterSyncService.ts` (stop nulling avatars; sequence image sync after character sync; reconcile on restore; download-before-unlink in `removeCharacterFromCloud`) |
+| Modify | `src/services/apiClient.ts` (`images` on `CharacterSnapshot`; `syncCharacterImagesFn`) |
+| Modify | `functions/src/db/schema.ts`, `functions/src/characterFunctions.ts` (signed URL; `syncCharacterImagesFn` with server-side cap; `images` in `getUserCharacters`; Storage prefix delete in `deleteCharacter`) |
+| Modify | `functions/src/adminFunctions.ts` (prefix-delete `users/{uid}/` in `adminResetUserState` and `adminDeleteUser`) |
 | Modify | `firebase.json` (storage block) |
 | Delete | `src/utilities/defaultAvatarBase64.ts`, `src/utilities/loadDefaultAvatar.ts`, `src/services/defaultAvatarService.ts`, `src/services/localImageStorageService.ts` |
