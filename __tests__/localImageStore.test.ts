@@ -11,6 +11,9 @@ jest.mock('expo-file-system', () => ({
   Directory: jest.fn(),
   File: jest.fn(),
 }))
+jest.mock('~/services/storageService', () => ({
+  getStorageDownloadUrl: jest.fn(async (path: string) => `https://cdn/${path}`),
+}))
 
 const MockDirectory = jest.mocked(Directory)
 const MockFile = jest.mocked(File)
@@ -92,9 +95,22 @@ describe('localImageStore (native)', () => {
     await expect(resolveImageUri(r, 'thumb')).resolves.toBe('data:image/webp;base64,M')
   })
 
-  it('rejects cloud rows until the Storage seam lands', async () => {
-    const r = row({ storage_kind: 'cloud', master_ref: 'characters/char_a/img-1.webp' })
-    await expect(resolveImageUri(r, 'master')).rejects.toThrow(/cloud image resolution/i)
+  it('resolves cloud rows to a download URL', async () => {
+    const r = row({ storage_kind: 'cloud', master_ref: 'users/u/characters/c/img-1.webp' })
+    await expect(resolveImageUri(r, 'master')).resolves.toBe(
+      'https://cdn/users/u/characters/c/img-1.webp',
+    )
+  })
+
+  it('resolves the cloud thumb path when present', async () => {
+    const r = row({
+      storage_kind: 'cloud',
+      master_ref: 'users/u/characters/c/img-1.webp',
+      thumb_ref: 'users/u/characters/c/img-1_thumb.webp',
+    })
+    await expect(resolveImageUri(r, 'thumb')).resolves.toBe(
+      'https://cdn/users/u/characters/c/img-1_thumb.webp',
+    )
   })
 
   it('writes bytes as base64, not as utf8 text', async () => {

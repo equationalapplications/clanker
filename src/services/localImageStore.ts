@@ -8,6 +8,7 @@
 
 import { Directory, File, Paths } from 'expo-file-system'
 import type { CharacterImageRow } from '~/database/characterImageDatabase'
+import { getStorageDownloadUrl } from '~/services/storageService'
 import type { ImageVariantName, LocalImageStore } from './localImageStore.types'
 
 export type { ImageVariantName }
@@ -59,8 +60,7 @@ export async function resolveImageUri(
     case 'inline':
       return `data:${row.mime_type};base64,${ref}`
     case 'cloud':
-      // Filled in by the Firebase Storage seam in Stage B.
-      throw new Error('Cloud image resolution is not available yet')
+      return getStorageDownloadUrl(ref)
     default: {
       const exhaustive: never = row.storage_kind
       throw new Error(`Unknown storage_kind: ${String(exhaustive)}`)

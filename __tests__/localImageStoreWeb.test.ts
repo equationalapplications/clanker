@@ -5,6 +5,10 @@ import {
 } from '~/services/localImageStore.web'
 import type { CharacterImageRow } from '~/database/characterImageDatabase'
 
+jest.mock('~/services/storageService.web', () => ({
+  getStorageDownloadUrl: jest.fn(async (path: string) => `https://cdn/${path}`),
+}))
+
 function row(overrides: Partial<CharacterImageRow>): CharacterImageRow {
   return {
     id: 'img-1',
@@ -50,12 +54,21 @@ describe('localImageStore (web)', () => {
     ).rejects.toThrow(/file-backed images are not available on web/i)
   })
 
-  it('rejects cloud rows until the Storage seam lands', async () => {
-    await expect(
-      resolveImageUri(
-        row({ storage_kind: 'cloud', master_ref: 'characters/char_a/img-1.webp' }),
-        'master',
-      ),
-    ).rejects.toThrow(/cloud image resolution/i)
+  it('resolves cloud rows to a download URL', async () => {
+    const r = row({ storage_kind: 'cloud', master_ref: 'users/u/characters/c/img-1.webp' })
+    await expect(resolveImageUri(r, 'master')).resolves.toBe(
+      'https://cdn/users/u/characters/c/img-1.webp',
+    )
+  })
+
+  it('resolves the cloud thumb path when present', async () => {
+    const r = row({
+      storage_kind: 'cloud',
+      master_ref: 'users/u/characters/c/img-1.webp',
+      thumb_ref: 'users/u/characters/c/img-1_thumb.webp',
+    })
+    await expect(resolveImageUri(r, 'thumb')).resolves.toBe(
+      'https://cdn/users/u/characters/c/img-1_thumb.webp',
+    )
   })
 })

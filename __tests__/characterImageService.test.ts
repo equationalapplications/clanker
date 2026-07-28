@@ -14,6 +14,8 @@ const mockWriteBytes = jest.fn(async (id: string, base64: string, variant: strin
 })
 const mockDeleteBytes = jest.fn()
 const mockPrepareVariants = jest.fn()
+const mockUploadImageBytes = jest.fn()
+const mockDeleteStorageObject = jest.fn()
 
 jest.mock('~/database/characterImageDatabase', () => ({
   insertCharacterImage: (...a: unknown[]) => mockInsert(...a),
@@ -41,6 +43,10 @@ jest.mock('~/services/imageVariants', () => ({
 jest.mock('~/utilities/generateSecureUuid', () => ({
   generateSecureUuid: jest.fn(() => 'uuid-new'),
 }))
+jest.mock('~/services/storageService', () => ({
+  uploadImageBytes: (...a: unknown[]) => mockUploadImageBytes(...a),
+  deleteStorageObject: (...a: unknown[]) => mockDeleteStorageObject(...a),
+}))
 // Mocking `react-native/Libraries/Utilities/Platform` directly breaks the
 // jest-expo preset setup, so stub the public `react-native` surface instead.
 jest.mock('react-native', () => ({
@@ -62,6 +68,9 @@ beforeEach(() => {
   mockDeleteBytes.mockReset()
   mockHardDelete.mockReset()
   mockInsert.mockReset()
+  mockUploadImageBytes.mockReset()
+  mockUploadImageBytes.mockResolvedValue(undefined)
+  mockDeleteStorageObject.mockReset()
   mockCount.mockResolvedValue(0)
   mockEvictionCandidates.mockResolvedValue([])
   mockGetActive.mockResolvedValue(null)
@@ -378,5 +387,58 @@ describe('deleteAllImagesForCharacter', () => {
     expect(mockDeleteBytes).toHaveBeenCalledWith('file:///a')
     expect(mockHardDelete).toHaveBeenCalledWith('a')
     expect(mockHardDelete).toHaveBeenCalledWith('b')
+  })
+})
+
+describe('cloud routing', () => {
+  it('uploads and stores object paths for a synced cloud character', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    expect(mockUploadImageBytes).toHaveBeenCalledWith(
+      'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp', 'M64', 'image/webp',
+    )
+    expect(mockUploadImageBytes).toHaveBeenCalledWith(
+      'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp', 'T64', 'image/webp',
+    )
+    expect(row).toMatchObject({
+      storage_kind: 'cloud',
+      master_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp',
+      thumb_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp',
+      sync_state: 'synced',
+    })
+  })
+
+  it('keeps the image locally as pending_upload when the upload fails', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    mockUploadImageBytes.mockRejectedValue(new Error('network down'))
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    expect(row).toMatchObject({ storage_kind: 'file', sync_state: 'pending_upload' })
+    expect(mockInsert).toHaveBeenCalledWith(row)
+  })
+
+  it('stays pending_upload when the character has no confirmed cloud_id yet', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: null })
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    expect(mockUploadImageBytes).not.toHaveBeenCalled()
+    expect(row.sync_state).toBe('pending_upload')
+  })
+
+  it('ignores a non-uuid cloud_id rather than building an unreachable path', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: 'char_local_x' })
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    expect(mockUploadImageBytes).not.toHaveBeenCalled()
+    expect(row.sync_state).toBe('pending_upload')
   })
 })

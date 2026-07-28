@@ -22,9 +22,12 @@ import {
 } from '~/database/characterImageDatabase'
 import { prepareImageVariants } from '~/services/imageVariants'
 import { deleteLocalImageBytes, writeLocalImageBytes } from '~/services/localImageStore'
+import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 export const IMAGE_CAP_PER_CHARACTER = 100
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export interface SaveCharacterImageInput {
   characterId: string
@@ -46,6 +49,26 @@ function localStorageKind(): 'file' | 'inline' {
   return Platform.OS === 'web' ? 'inline' : 'file'
 }
 
+/**
+ * Storage paths are keyed on the **confirmed** cloud id, never the local
+ * `char_…` id and never `pending_cloud_id`.
+ *
+ * The local id is device-private: a second device restoring the same character
+ * holds a different one, so a path built from it is unresolvable there. And the
+ * server's returned id is authoritative — building a path from a locally-guessed
+ * id the server then disagrees with would strand objects at a location nothing
+ * can reach. Waiting one sweep cycle is the cheaper side of that trade.
+ */
+export function buildStoragePath(
+  userId: string,
+  cloudCharacterId: string,
+  imageId: string,
+  variant: 'master' | 'thumb',
+): string {
+  const suffix = variant === 'thumb' ? '_thumb' : ''
+  return `users/${userId}/characters/${cloudCharacterId}/${imageId}${suffix}.webp`
+}
+
 export async function saveCharacterImage(
   input: SaveCharacterImageInput,
 ): Promise<CharacterImageRow> {
@@ -61,7 +84,16 @@ export async function saveCharacterImage(
   })
 
   const imageId = generateSecureUuid()
-  const kind = localStorageKind()
+
+  const cloudId =
+    character.save_to_cloud && character.cloud_id && UUID_REGEX.test(character.cloud_id)
+      ? character.cloud_id
+      : null
+
+  let storageKind: 'cloud' | 'file' | 'inline' = localStorageKind()
+  let masterRef: string
+  let thumbRef: string | null
+  let syncState: CharacterImageRow['sync_state'] = 'local'
 
   // Refs written so far. If anything between the first write and the committed
   // row insert throws, these bytes would be orphaned — no row references them,
@@ -70,24 +102,47 @@ export async function saveCharacterImage(
   let row: CharacterImageRow
 
   try {
-    // Stage B replaces this branch with a Firebase Storage upload for
-    // save_to_cloud characters. Until then every image is stored locally, which
-    // is strictly safe: a local row is never lost, only un-backed-up.
-    const masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
-    writtenRefs.push(masterRef)
-    const thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
-    writtenRefs.push(thumbRef)
+    if (cloudId) {
+      const masterPath = buildStoragePath(input.userId, cloudId, imageId, 'master')
+      const thumbPath = buildStoragePath(input.userId, cloudId, imageId, 'thumb')
+      try {
+        await uploadImageBytes(masterPath, variants.master.base64, variants.master.mimeType)
+        await uploadImageBytes(thumbPath, variants.thumb.base64, variants.thumb.mimeType)
+        storageKind = 'cloud'
+        masterRef = masterPath
+        thumbRef = thumbPath
+        syncState = 'synced'
+      } catch (err) {
+        // Never lose an image the user spent credits on: fall back to a local copy
+        // marked for the sweeper. The avatar still displays and the credits are not
+        // wasted even if the upload never succeeds — only cloud redundancy is lost.
+        console.warn('[characterImages] upload failed, keeping local copy:', err)
+        storageKind = localStorageKind()
+        masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
+        thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+        syncState = 'pending_upload'
+      }
+    } else {
+      masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
+      thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+      // A cloud character with no confirmed cloud_id yet has no path to write to.
+      // Marking it pending_upload lets the sweeper pick it up after the next
+      // character sync confirms the id.
+      syncState = character.save_to_cloud ? 'pending_upload' : 'local'
+    }
+
+    if (storageKind !== 'cloud') writtenRefs.push(masterRef, ...(thumbRef ? [thumbRef] : []))
 
     row = {
       id: imageId,
       character_id: input.characterId,
       user_id: input.userId,
-      storage_kind: kind,
+      storage_kind: storageKind,
       master_ref: masterRef,
       thumb_ref: thumbRef,
       mime_type: variants.master.mimeType,
       source: input.source,
-      sync_state: 'local',
+      sync_state: syncState,
       sync_attempts: 0,
       created_at: Date.now(),
       deleted_at: null,
@@ -96,7 +151,7 @@ export async function saveCharacterImage(
     // Commit point: once the row exists, the image is safely recorded.
     await insertCharacterImage(row)
   } catch (err) {
-    if (kind === 'file') {
+    if (storageKind !== 'cloud') {
       // Best-effort rollback. Cleanup failure must never mask the real error,
       // so each delete is swallowed independently.
       for (const ref of writtenRefs) {
@@ -155,9 +210,11 @@ async function removeImageBytesThenRow(
   if (row.storage_kind === 'file') {
     await deleteLocalImageBytes(row.master_ref)
     if (row.thumb_ref) await deleteLocalImageBytes(row.thumb_ref)
+  } else if (row.storage_kind === 'cloud') {
+    await deleteStorageObject(row.master_ref)
+    if (row.thumb_ref) await deleteStorageObject(row.thumb_ref)
   }
   // 'inline' needs no byte deletion — the bytes are the row.
-  // 'cloud' is handled by the sync sweeper in Stage C.
   await hardDeleteCharacterImage(row.id)
 }
 

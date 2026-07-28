@@ -10,6 +10,7 @@
  */
 
 import type { CharacterImageRow } from '~/database/characterImageDatabase'
+import { getStorageDownloadUrl } from '~/services/storageService.web'
 import type { ImageVariantName, LocalImageStore } from './localImageStore.types'
 
 export type { ImageVariantName }
@@ -31,8 +32,7 @@ export async function resolveImageUri(
     case 'file':
       throw new Error('file-backed images are not available on web')
     case 'cloud':
-      // Filled in by the Firebase Storage seam in Stage B.
-      throw new Error('Cloud image resolution is not available yet')
+      return getStorageDownloadUrl(ref)
     default: {
       const exhaustive: never = row.storage_kind
       throw new Error(`Unknown storage_kind: ${String(exhaustive)}`)
