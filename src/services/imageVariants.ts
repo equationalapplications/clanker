@@ -48,10 +48,12 @@ export async function prepareImageVariants(source: VariantSource): Promise<Image
     compress: 0.85,
   })
 
-  const masterFile = new File(master.uri)
+  let masterFile: File | null = null
   let thumbFile: File | null = null
 
   try {
+    masterFile = new File(master.uri)
+
     // Derive the thumb from the already-normalised master, not the raw source:
     // one resize chain, and the thumb is guaranteed to match what is displayed.
     const thumb = await manipulateAsync(master.uri, [{ resize: { width: THUMB_DIMENSION } }], {
