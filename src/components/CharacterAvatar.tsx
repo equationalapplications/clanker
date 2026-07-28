@@ -1,6 +1,13 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Avatar } from 'react-native-paper'
-import { defaultAvatarUrl } from '~/config/constants'
+
+/**
+ * Bundled default. Nothing is written per character: previously every new
+ * character stored its own copy of the same 7.6 KB base64 blob, and that blob
+ * was an Android adaptive icon whose padding showed as a ring under the
+ * circular mask.
+ */
+const DEFAULT_AVATAR = require('../../assets/default-avatar-1024.webp')
 
 interface CharacterAvatarProps {
   size?: number
@@ -17,12 +24,21 @@ export default function CharacterAvatar({
 }: CharacterAvatarProps) {
   const [imageError, setImageError] = useState(false)
 
-  // Use the provided image if available and no error occurred
+  // A new URI is a new attempt: without this, one failed load would pin the
+  // fallback for the lifetime of the component even after the user picks
+  // another image.
+  useEffect(() => {
+    setImageError(false)
+  }, [imageUrl])
+
   if (imageUrl && !imageError) {
     return (
       <Avatar.Image
         size={size}
         source={{ uri: imageUrl }}
+        // Legacy migrated avatars can be non-square; cover fills the circle
+        // instead of letterboxing it.
+        resizeMode="cover"
         onError={() => setImageError(true)}
         accessible
         accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
@@ -44,11 +60,13 @@ export default function CharacterAvatar({
     }
   }
 
-  // Show icon placeholder as final fallback
-  if (showFallback) {
-    return <Avatar.Icon size={size} icon="account" accessible accessibilityLabel="Character avatar" />
-  }
-
-  // Use default gravatar if no other options
-  return <Avatar.Image size={size} source={{ uri: defaultAvatarUrl }} accessible accessibilityLabel="Character avatar" />
+  return (
+    <Avatar.Image
+      size={size}
+      source={DEFAULT_AVATAR}
+      resizeMode="cover"
+      accessible
+      accessibilityLabel="Character avatar"
+    />
+  )
 }

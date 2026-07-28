@@ -11,9 +11,6 @@ jest.mock('../src/services/wikiService', () => ({
   initWiki: jest.fn().mockResolvedValue(undefined),
   _resetWikiForTests: jest.fn(),
 }))
-jest.mock('../src/services/defaultAvatarService', () => ({
-  loadDefaultAvatarBase64: jest.fn().mockResolvedValue('default-avatar'),
-}))
 jest.mock('../src/services/characterSyncService', () => ({
   syncAllToCloud: jest.fn().mockResolvedValue(undefined),
   restoreFromCloud: jest.fn().mockResolvedValue(undefined),

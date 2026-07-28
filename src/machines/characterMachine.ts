@@ -17,7 +17,6 @@ import {
   removeCharacterFromCloud,
 } from '~/services/characterSyncService'
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
-import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 
@@ -81,23 +80,9 @@ const createDefaultCharacterActor = fromPromise(
       return devCharacter
     }
 
-    let normalizedAvatarData: string | undefined
-
-    // Best-effort avatar load: do not block onboarding if this fails.
-    try {
-      const avatarData = await loadDefaultAvatarBase64()
-      normalizedAvatarData = avatarData || undefined
-    } catch (error) {
-      console.warn('Failed to load default avatar; creating default character without avatar_data', error)
-      normalizedAvatarData = undefined
-    }
-
-    const characterWithAvatar: CharacterInsert = {
-      ...DEFAULT_CHARACTER_INSERT,
-      avatar_data: normalizedAvatarData,
-    }
-
-    const newCharacter = await createCharacterDb(input.userId, characterWithAvatar)
+    // No avatar row is written: characters with no active image fall through to
+    // the bundled default in CharacterAvatar.
+    const newCharacter = await createCharacterDb(input.userId, DEFAULT_CHARACTER_INSERT)
     if (!newCharacter) {
       throw new Error('Failed to create default character')
     }
