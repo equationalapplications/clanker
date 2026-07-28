@@ -5,10 +5,14 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 graph LR
   characterDatabase --> index
   characterDatabase --> voiceDefaults
+  characterImageDatabase --> index
   index --> sqliteWebWorker
   index --> opfsRecovery
   index --> wikiService
   messageDatabase --> index
+  migrateAvatarsToImageStore --> index
+  migrateAvatarsToImageStore --> characterImageDatabase
+  migrateAvatarsToImageStore --> imageVariants
   taskDatabase --> index
   webLifecycle.web --> sqliteWebWorker
   webLifecycle.web --> index

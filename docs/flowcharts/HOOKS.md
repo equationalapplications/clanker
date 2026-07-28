@@ -19,7 +19,8 @@ graph LR
   useAdminDashboard --> adminService
   useAuthSnapshot --> useMachines
   useAvatarUpload --> useMachines
-  useAvatarUpload --> localImageStorageService
+  useAvatarUpload --> googleSignin
+  useAvatarUpload --> characterImageService
   useBootstrapRefresh --> useMachines
   useCachedResources --> index
   useCharacterWiki --> characterWikiQueue
@@ -34,7 +35,8 @@ graph LR
   useExportCharacterOKF --> okfReadmeContent
   useImageGeneration --> useMachines
   useImageGeneration --> imageGenerationService
-  useImageGeneration --> localImageStorageService
+  useImageGeneration --> googleSignin
+  useImageGeneration --> characterImageService
   useImageGeneration --> usageSnapshot
   useInitializeApp --> crashlyticsService
   useInitializeApp --> analyticsService
@@ -53,6 +55,8 @@ graph LR
   usePowerBalance --> useUserCredits
   usePowerBalance --> useAuthSnapshot
   useRegisterExpoPushToken --> googleSignin
+  useResolvedImage --> characterImageDatabase
+  useResolvedImage --> localImageStore
   useScreenTracking --> analyticsService
   useTabCharacterId --> useActiveCharacterId
   useTabCharacterId --> useMessages

@@ -12,6 +12,17 @@ graph LR
   aiChatService --> CharacterPromptBuilder
   aiChatService --> chatReplyService
   apiClient --> bootstrapSession
+  characterImageService --> characterDatabase
+  characterImageService --> imageVariants
+  characterImageService --> storageService
+  characterImageService --> localImageStore
+  characterImageService --> characterImageDatabase
+  characterImageSyncService --> localImageStore
+  characterImageSyncService --> characterDatabase
+  characterImageSyncService --> characterImageDatabase
+  characterImageSyncService --> characterImageService
+  characterImageSyncService --> storageService
+  characterImageSyncService --> apiClient
   characterService --> googleSignin
   characterService --> characterDatabase
   characterService --> analyticsService
@@ -22,7 +33,9 @@ graph LR
   characterSyncService --> wikiOrchestrator
   characterSyncService --> devSandboxFlag
   characterSyncService --> googleSignin
+  characterSyncService --> characterImageSyncService
   characterSyncService --> voiceDefaults
+  characterSyncService --> characterImageService
   chatReplyService --> groundingMetadata
   cloudAgentService --> googleSignin
   cloudAgentService --> groundingMetadata
@@ -31,9 +44,11 @@ graph LR
   liveMemoryQuery --> aiChatService
   liveMemoryQuery --> messageDatabase
   liveMemoryQuery --> characterDatabase
-  localImageStorageService --> index
+  localImageStore --> storageService
+  localImageStore.web --> storageService.web
   messageService --> messageDatabase
   messageService --> analyticsService
+  storageService --> localImageStore
   userService --> apiClient
   wikiLlmProvider --> devSandboxFlag
   wikiLlmProvider --> apiClient
