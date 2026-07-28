@@ -95,12 +95,11 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
         const thumbBytes = row.thumb_ref ? await readBase64(row, 'thumb') : null
         if (thumbBytes) await uploadImageBytes(thumbPath, thumbBytes, row.mime_type)
 
-        // Local bytes are only released after both uploads land.
-        if (row.storage_kind === 'file') {
-          await deleteLocalImageBytes(row.master_ref)
-          if (row.thumb_ref) await deleteLocalImageBytes(row.thumb_ref)
-        }
-
+        // Rows before local bytes: the DB write pointing at the new cloud paths
+        // must land first, since it's the one thing that must not silently fail
+        // after cleanup already happened. If this throws, the row is untouched,
+        // local bytes are still present, and the row stays pending_upload for
+        // retry — nothing was deleted that shouldn't have been.
         await updateImageRefs(row.id, {
           storage_kind: 'cloud',
           master_ref: masterPath,
@@ -108,6 +107,19 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           mime_type: row.mime_type,
           sync_state: 'synced',
         })
+
+        // The row is now durably pointing at the cloud copies, so the local
+        // bytes are redundant. Deleting them is best-effort: a failure here
+        // just orphans a local file (the image still resolves via the cloud
+        // row), so it must not be treated as this row's sync failure.
+        if (row.storage_kind === 'file') {
+          try {
+            await deleteLocalImageBytes(row.master_ref)
+            if (row.thumb_ref) await deleteLocalImageBytes(row.thumb_ref)
+          } catch (cleanupError) {
+            reportError(cleanupError, 'characterImageSync:cleanupLocalBytes')
+          }
+        }
 
         bucket.uploaded.push({
           ...row,

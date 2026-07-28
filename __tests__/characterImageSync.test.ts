@@ -87,6 +87,16 @@ describe('syncCharacterImages — uploads', () => {
     )
   })
 
+  it('persists the cloud refs before deleting local bytes (rows before local cleanup)', async () => {
+    const order: string[] = []
+    mockUpload.mockImplementation(async () => { order.push('upload') })
+    mockUpdateRefs.mockImplementation(async () => { order.push('updateRefs') })
+    mockDeleteLocalBytes.mockImplementation(async () => { order.push('deleteLocalBytes') })
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    await syncCharacterImages('user-1')
+    expect(order).toEqual(['upload', 'upload', 'updateRefs', 'deleteLocalBytes', 'deleteLocalBytes'])
+  })
+
   it('registers the uploaded row with the server', async () => {
     mockGetImagesBySyncState.mockResolvedValue([localImage()])
     await syncCharacterImages('user-1')
@@ -161,6 +171,23 @@ describe('syncCharacterImages — retries', () => {
     mockUpload.mockRejectedValue(new Error('network'))
     await syncCharacterImages('user-1')
     expect(mockUpdateRefs).not.toHaveBeenCalled()
+  })
+
+  it('does not delete local bytes when updateImageRefs throws, and treats it as a transient failure', async () => {
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    mockUpdateRefs.mockRejectedValue(new Error('db locked'))
+    await syncCharacterImages('user-1')
+    expect(mockDeleteLocalBytes).not.toHaveBeenCalled()
+    expect(mockIncrementAttempts).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222')
+    expect(mockSetSyncState).not.toHaveBeenCalledWith(expect.anything(), 'failed')
+  })
+
+  it('gives up after the retry budget when updateImageRefs keeps throwing', async () => {
+    mockGetImagesBySyncState.mockResolvedValue([localImage({ sync_attempts: MAX_SYNC_ATTEMPTS })])
+    mockUpdateRefs.mockRejectedValue(new Error('db locked'))
+    await syncCharacterImages('user-1')
+    expect(mockDeleteLocalBytes).not.toHaveBeenCalled()
+    expect(mockSetSyncState).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222', 'failed')
   })
 })
 
