@@ -27,6 +27,11 @@ jest.mock('../src/services/characterImageSyncService', () => ({
 
 const mockDb = jest.mocked(characterDatabase)
 const mockSyncService = jest.mocked(characterSyncService)
+const mockImageSyncService = jest.mocked(
+  jest.requireMock('../src/services/characterImageSyncService') as {
+    promoteCharacterImagesToCloud: jest.Mock
+  },
+)
 
 // Derive from the database function so synced_to_cloud and cloud_id are required,
 // matching what the mocks expect to return.
@@ -652,6 +657,28 @@ describe('CLOUD_SYNC', () => {
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
 
     expect(actor.getSnapshot().context.error).toBeInstanceOf(Error)
+    actor.stop()
+  })
+
+  it('does not leak a failed update\'s character id into a later manual CLOUD_SYNC', async () => {
+    const char = makeCharacter({ save_to_cloud: false, cloud_id: null })
+    const actor = await bootWithUser([char])
+
+    mockDb.getUserCharacters.mockResolvedValue([char])
+    mockDb.updateCharacter.mockRejectedValue(new Error('update failed'))
+
+    actor.send({ type: 'UPDATE', id: 'char-1', updates: { save_to_cloud: true } })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.error).toBeInstanceOf(Error)
+
+    mockImageSyncService.promoteCharacterImagesToCloud.mockClear()
+    actor.send({ type: 'CLOUD_SYNC' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    // A failed UPDATE must not leave pendingUnsyncId set — otherwise this
+    // unrelated manual CLOUD_SYNC would force-promote char-1's local images
+    // even though its save_to_cloud is still false.
+    expect(mockImageSyncService.promoteCharacterImagesToCloud).not.toHaveBeenCalled()
     actor.stop()
   })
 

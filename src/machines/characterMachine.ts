@@ -393,6 +393,15 @@ export const characterMachine = createMachine(
               error: ({ event }) => event.error as Error | null,
               characters: ({ context }) => context.optimisticSnapshot ?? [],
               optimisticSnapshot: null,
+              // Must reset alongside every other exit from `updating`: a failed
+              // UPDATE otherwise leaves a stale pendingUnsyncId in context, which
+              // a later unrelated manual CLOUD_SYNC (idle→cloudSyncing never sets
+              // it) would pick up as `toggledOnId` and force-promote that
+              // character's local images to cloud even though its save_to_cloud
+              // is still off.
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
             }),
           },
         },
