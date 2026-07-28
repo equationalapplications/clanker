@@ -56,6 +56,7 @@ jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
 jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: jest.fn(() => process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true'),
 }))
+jest.mock('~/services/characterImageSyncService', () => ({ syncCharacterImages: jest.fn() }))
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: jest.fn(),
   deleteCharacterFn: jest.fn(),

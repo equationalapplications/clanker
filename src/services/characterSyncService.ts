@@ -17,6 +17,7 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
+import { syncCharacterImages } from './characterImageSyncService'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -233,6 +234,10 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
             syncUnsyncedToCloud(localUserId),
             syncDeletionsToCloud(localUserId),
         ])
+        // Sequential, NOT inside the Promise.all above: a character has no cloud
+        // id until its first successful sync, and the image storage path is built
+        // from that id. Racing them would leave every first-sync image pending.
+        await syncCharacterImages(localUserId)
         await syncWikiForCloud(localUserId)
         await setLastSyncTime()
     } catch (error) {
