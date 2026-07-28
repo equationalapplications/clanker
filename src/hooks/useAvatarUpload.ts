@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { File } from 'expo-file-system'
+import { Platform } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
+import { manipulateAsync } from 'expo-image-manipulator'
 import { useCharacterMachine } from '~/hooks/useMachines'
-import { saveCharacterImageLocally } from '~/services/localImageStorageService'
+import { getCurrentUser } from '~/config/firebaseConfig'
+import { saveCharacterImage } from '~/services/characterImageService'
+import { getEncodeTarget } from '~/utilities/webpSupport'
 
 interface UseAvatarUploadProps {
   characterId: string
-  onImageUploaded?: (dataUri: string) => void
+  /** Receives the new `character_images` row id. */
+  onImageUploaded?: (imageId: string) => void
 }
 
 interface UseAvatarUploadReturn {
@@ -18,7 +21,29 @@ interface UseAvatarUploadReturn {
 }
 
 const MIN_IMAGE_DIMENSION = 200
-const MAX_IMAGE_DIMENSION = 1024
+
+/**
+ * Web has no native cropper (`allowsEditing` is a no-op there), so square it
+ * ourselves by taking the largest centred square. Native returns an
+ * already-square asset from the OS cropper and skips this entirely.
+ */
+async function centreCropToSquare(uri: string, width: number, height: number) {
+  if (width === height) return { uri, width, height }
+
+  const side = Math.min(width, height)
+  const { format } = getEncodeTarget()
+  const cropped = await manipulateAsync(
+    uri,
+    [{ crop: {
+      originX: Math.floor((width - side) / 2),
+      originY: Math.floor((height - side) / 2),
+      width: side,
+      height: side,
+    } }],
+    { format, compress: 1 },
+  )
+  return { uri: cropped.uri, width: side, height: side }
+}
 
 export function useAvatarUpload({
   characterId,
@@ -35,20 +60,24 @@ export function useAvatarUpload({
     setError(null)
 
     try {
+      const userId = getCurrentUser()?.uid
+      if (!userId) throw new Error('You must be signed in to upload an image')
+
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
+        // The user picks their own crop, and the result is guaranteed square:
+        // iOS always shows a square cropper when editing is on, and `aspect`
+        // drives Android. Previously a 16:9 photo became 1024×576 and the
+        // circular mask cropped an arbitrary slice nobody chose.
+        allowsEditing: true,
+        aspect: [1, 1],
         quality: 1,
       })
 
-      if (pickerResult.canceled) {
-        return null
-      }
+      if (pickerResult.canceled) return null
 
       const [asset] = pickerResult.assets
-      if (!asset) {
-        throw new Error('No image selected')
-      }
+      if (!asset) throw new Error('No image selected')
 
       const { uri: sourceUri, width, height } = asset
 
@@ -56,41 +85,25 @@ export function useAvatarUpload({
         throw new Error('Image too small. Minimum size is 200×200 pixels.')
       }
 
-      const actions =
-        width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION
-          ? [{ resize: width >= height ? { width: MAX_IMAGE_DIMENSION } : { height: MAX_IMAGE_DIMENSION } }]
-          : []
+      const square = Platform.OS === 'web'
+        ? await centreCropToSquare(sourceUri, width, height)
+        : { uri: sourceUri, width, height }
 
-      const manipulated = await manipulateAsync(sourceUri, actions, {
-        format: SaveFormat.WEBP,
-        compress: 0.9,
+      const row = await saveCharacterImage({
+        characterId,
+        userId,
+        uri: square.uri,
+        width: square.width,
+        height: square.height,
+        source: 'uploaded',
       })
 
-      const manipulatedFile = new File(manipulated.uri)
-      try {
-        const base64 = await manipulatedFile.base64()
-        const dataUri = await saveCharacterImageLocally(characterId, base64, 'image/webp')
-
-        characterService.send({ type: 'LOAD' })
-
-        onImageUploaded?.(dataUri)
-
-        return dataUri
-      } finally {
-        // Clean up temp WebP file created by manipulateAsync — always runs, even on error
-        try {
-          manipulatedFile.delete()
-        } catch (cleanupErr) {
-          console.warn('Failed to clean up temp avatar file:', cleanupErr)
-        }
-      }
+      characterService.send({ type: 'LOAD' })
+      onImageUploaded?.(row.id)
+      return row.id
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to upload image'
-      if (message.toLowerCase().includes('permission')) {
-        setError('Photo library access denied')
-      } else {
-        setError(message)
-      }
+      setError(message.toLowerCase().includes('permission') ? 'Photo library access denied' : message)
       return null
     } finally {
       setIsUploading(false)
