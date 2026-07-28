@@ -318,26 +318,31 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
         if (cloudChars.length > 0) {
             await batchInsertCharacters(cloudChars)
+        }
 
-            // Reconcile each character's image set from its cloud snapshot. This is
-            // the actual fix for avatars silently dropping on a new device/reinstall:
-            // images are restored here rather than relying on the (now-inert)
-            // avatar_data column above. Keyed on the same cloudIdToLocalId mapping
-            // used to build cloudChars, so images land on the correct local row.
-            for (const cloudChar of data as CharacterSnapshot[]) {
-                const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
-                try {
-                    await reconcileCharacterImages(
-                        localId,
-                        localUserId,
-                        cloudChar.images ?? [],
-                        cloudChar.activeImageId ?? null,
-                    )
-                } catch (error) {
-                    reportError(error, 'restoreFromCloud:images')
-                }
+        // Reconcile every returned character's image set from its cloud snapshot,
+        // regardless of whether the character row itself was newer. Image adds/
+        // deletes on another device do not bump the character's updated_at (the
+        // syncCharacterImages handler never touches it), so gating this on
+        // cloudChars would silently skip reconciliation for image-only changes —
+        // the same "images vanish on restore" failure this task exists to fix,
+        // just relocated to this condition. Keyed on the same cloudIdToLocalId
+        // mapping used to build cloudChars, so images land on the correct local row.
+        for (const cloudChar of data as CharacterSnapshot[]) {
+            const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+            try {
+                await reconcileCharacterImages(
+                    localId,
+                    localUserId,
+                    cloudChar.images ?? [],
+                    cloudChar.activeImageId ?? null,
+                )
+            } catch (error) {
+                reportError(error, 'restoreFromCloud:images')
             }
+        }
 
+        if (cloudChars.length > 0) {
             // After insert, pull wiki memory for cloud-linked characters on this device.
             // syncWikiForCloud re-queries the DB so it picks up the newly inserted rows.
             const cloudLinked = cloudChars.filter(

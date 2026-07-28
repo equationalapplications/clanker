@@ -17,8 +17,9 @@ jest.mock('~/database/characterImageDatabase', () => ({
 jest.mock('~/database/characterDatabase', () => ({
   getAllCharactersIncludingDeleted: jest.fn().mockResolvedValue([]),
 }))
+const mockDeleteLocalImageBytes = jest.fn()
 jest.mock('~/services/localImageStore', () => ({
-  resolveImageUri: jest.fn(), deleteLocalImageBytes: jest.fn(), writeLocalImageBytes: jest.fn(),
+  resolveImageUri: jest.fn(), deleteLocalImageBytes: (...a: unknown[]) => mockDeleteLocalImageBytes(...a), writeLocalImageBytes: jest.fn(),
 }))
 jest.mock('~/services/storageService', () => ({
   uploadImageBytes: jest.fn(), deleteStorageObject: jest.fn(), downloadImageBase64: jest.fn(),
@@ -90,6 +91,20 @@ describe('reconcileCharacterImages', () => {
   it('hard-deletes a local row whose cloud counterpart carries deleted_at', async () => {
     mockGetAllImagesForCharacter.mockResolvedValue([{ id: IMG_A, storage_kind: 'cloud', sync_state: 'synced' }])
     await reconcileCharacterImages('char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], null)
+    expect(mockHardDelete).toHaveBeenCalledWith(IMG_A)
+  })
+
+  it('cleans up on-device bytes when a failed file-backed row is tombstoned', async () => {
+    mockGetAllImagesForCharacter.mockResolvedValue([{
+      id: IMG_A,
+      storage_kind: 'file',
+      sync_state: 'failed',
+      master_ref: 'file:///a.webp',
+      thumb_ref: 'file:///a_thumb.webp',
+    }])
+    await reconcileCharacterImages('char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], null)
+    expect(mockDeleteLocalImageBytes).toHaveBeenCalledWith('file:///a.webp')
+    expect(mockDeleteLocalImageBytes).toHaveBeenCalledWith('file:///a_thumb.webp')
     expect(mockHardDelete).toHaveBeenCalledWith(IMG_A)
   })
 

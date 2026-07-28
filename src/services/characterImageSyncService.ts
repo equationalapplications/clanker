@@ -211,6 +211,13 @@ export async function reconcileCharacterImages(
     if (snapshot.deletedAt) {
       // The tombstone is the authoritative delete signal.
       if (existing && existing.sync_state !== 'pending_upload') {
+        // A 'failed' file-backed row still has real on-device bytes (by design —
+        // see syncCharacterImages); clean them up so a tombstone doesn't just
+        // orphan the file while removing the row that pointed at it.
+        if (existing.storage_kind === 'file') {
+          await deleteLocalImageBytes(existing.master_ref)
+          if (existing.thumb_ref) await deleteLocalImageBytes(existing.thumb_ref)
+        }
         await hardDeleteCharacterImage(snapshot.id)
       }
       continue
