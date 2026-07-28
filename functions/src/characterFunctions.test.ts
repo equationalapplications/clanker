@@ -1190,3 +1190,23 @@ test("a signing failure does not fail the whole import", async () => {
   assert.equal(result.avatarSignedUrl, null);
   assert.equal((result as Record<string, unknown>).name, "C");
 });
+
+test("a listImages failure does not fail the whole import either", async () => {
+  const deps = buildDeps();
+  deps.userRepository.findUserByFirebaseUid = async () => ({id: "user-uuid"} as never);
+  deps.characterService.getPublicCharacterWithOwner = async () => ({
+    character: {id: CHAR_ID, name: "C", isPublic: true, activeImageId: IMG_ID},
+    ownerFirebaseUid: "owner-uid",
+  } as never);
+  (deps as Record<string, unknown>).characterImageService = {
+    listImages: async () => { throw new Error("db blip"); },
+    syncImages: async () => ({evictedImageIds: []}),
+    deleteImages: async () => {}, setActiveImage: async () => {},
+  };
+  const result = await getPublicCharacterHandler(
+    {auth: {uid: "importer-uid"}, data: {characterId: CHAR_ID}} as never,
+    deps as never
+  );
+  assert.equal(result.avatarSignedUrl, null);
+  assert.equal((result as Record<string, unknown>).name, "C");
+});

@@ -543,25 +543,28 @@ export const getPublicCharacterHandler = async (
 
     let avatarSignedUrl: string | null = null;
     if (activeImageId) {
-      const images = await deps.characterImageService.listImages(normalizedCharacterId);
-      const active = images.find(
-        (image) => String((image as {id: unknown}).id) === activeImageId &&
-          !(image as {deletedAt: unknown}).deletedAt
-      );
-      if (active) {
-        try {
+      // The avatar is a nice-to-have; the character itself is the payload, so
+      // this whole block (listing the images, not just signing the URL) must
+      // never turn into an import-wide failure. A transient images-table blip
+      // is exactly the same class of non-fatal problem as a signBlob IAM error.
+      try {
+        const images = await deps.characterImageService.listImages(normalizedCharacterId);
+        const active = images.find(
+          (image) => String((image as {id: unknown}).id) === activeImageId &&
+            !(image as {deletedAt: unknown}).deletedAt
+        );
+        if (active) {
           // 15 minutes: long enough for the importer to download once, short
           // enough that a leaked link is worthless. Sharing never grants
           // object-level read — the storage rules have no public path.
           avatarSignedUrl = await deps.storageAdmin.createSignedUrl(
             String((active as {storagePath: unknown}).storagePath)
           );
-        } catch (error) {
-          // The avatar is a nice-to-have; the character itself is the payload.
-          // Most commonly this is the IAM trap: the runtime service account
-          // needs roles/iam.serviceAccountTokenCreator on itself.
-          logger.error('Failed to sign public character avatar URL', {error, characterId: normalizedCharacterId});
         }
+      } catch (error) {
+        // Most commonly this is the IAM trap: the runtime service account
+        // needs roles/iam.serviceAccountTokenCreator on itself.
+        logger.error('Failed to resolve public character avatar URL', {error, characterId: normalizedCharacterId});
       }
     }
 
