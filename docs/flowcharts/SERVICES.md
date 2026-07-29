@@ -18,10 +18,10 @@ graph LR
   characterImageService --> storageService
   characterImageService --> localImageStore
   characterImageSyncService --> localImageStore
-  characterImageSyncService --> characterDatabase
   characterImageSyncService --> characterImageDatabase
-  characterImageSyncService --> characterImageService
   characterImageSyncService --> storageService
+  characterImageSyncService --> characterDatabase
+  characterImageSyncService --> characterImageService
   characterImageSyncService --> apiClient
   characterService --> googleSignin
   characterService --> characterDatabase
