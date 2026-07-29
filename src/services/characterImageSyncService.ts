@@ -509,7 +509,38 @@ export async function demoteCharacterImagesToLocal(
     rewritten.push({ row: item.row, masterRef, thumbRef })
   }
 
-  // Phase 3 — only now is it safe to destroy the cloud copies.
+  // Phase 3 — tell the server these rows are gone BEFORE destroying the cloud
+  // objects. If the server call fails, the rows stay as pending_delete tombstones
+  // and the regular sweeper retries the server-side removal — the cloud objects
+  // survive alongside them, so a second device reconciling later still sees
+  // reachable rows pointing at live objects.
+  if (cloudCharacterId) {
+    try {
+      await syncCharacterImagesFn({
+        characterId: cloudCharacterId,
+        images: [],
+        deletedImageIds: cloudRows.map((row) => row.id),
+      })
+    } catch (error) {
+      // Server unreachable — mark rows as pending_delete so the sweeper retries
+      // the server-side removal. The cloud objects are still live, so a second
+      // device reconciling sees reachable rows.
+      for (const item of rewritten) {
+        await updateImageRefs(item.row.id, {
+          storage_kind: localKind,
+          master_ref: item.masterRef,
+          thumb_ref: item.thumbRef,
+          mime_type: item.row.mime_type,
+          sync_state: 'pending_delete',
+        })
+      }
+      reportError(error, 'characterImageSync:demote')
+      return
+    }
+  }
+
+  // Phase 4 — server acknowledged the deletions. Now it is safe to destroy the
+  // cloud objects and settle the local rows.
   for (const item of rewritten) {
     await updateImageRefs(item.row.id, {
       storage_kind: localKind,
@@ -520,17 +551,5 @@ export async function demoteCharacterImagesToLocal(
     })
     await deleteStorageObject(item.row.master_ref)
     if (item.row.thumb_ref) await deleteStorageObject(item.row.thumb_ref)
-  }
-
-  if (cloudCharacterId) {
-    try {
-      await syncCharacterImagesFn({
-        characterId: cloudCharacterId,
-        images: [],
-        deletedImageIds: cloudRows.map((row) => row.id),
-      })
-    } catch (error) {
-      reportError(error, 'characterImageSync:demote')
-    }
   }
 }

@@ -89,11 +89,17 @@ describe('importSharedCharacterFromCloud', () => {
   })
 
   it('re-requests the character when the signed URL has expired', async () => {
+    mockGetPublicCharacterFn
+      .mockResolvedValueOnce(publicCharacter({ avatarSignedUrl: 'https://signed/expired.webp' }))
+      .mockResolvedValueOnce(publicCharacter({ avatarSignedUrl: 'https://signed/fresh.webp' }))
     mockSaveCharacterImage
       .mockRejectedValueOnce(Object.assign(new Error('403'), { status: 403 }))
       .mockResolvedValueOnce({ id: 'img-new' })
     await importSharedCharacterFromCloud(CLOUD_ID)
     expect(mockGetPublicCharacterFn).toHaveBeenCalledTimes(2)
     expect(mockSaveCharacterImage).toHaveBeenCalledTimes(2)
+    expect(mockSaveCharacterImage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uri: 'https://signed/fresh.webp' }),
+    )
   })
 })

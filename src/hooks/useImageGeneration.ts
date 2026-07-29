@@ -3,6 +3,7 @@ import { useAuthMachine, useCharacterMachine } from '~/hooks/useMachines'
 import { generateImageViaCallable } from '~/services/imageGenerationService'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { saveCharacterImage } from '~/services/characterImageService'
+import { MASTER_DIMENSION } from '~/services/imageVariants'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 
 interface UseImageGenerationProps {
@@ -45,10 +46,13 @@ export function useImageGeneration({
     try {
       console.log('🎨 Generating local image for character:', characterId)
 
-      const generated = await generateImageViaCallable(prompt)
-
+      // Checked before the callable, not after: generateImageViaCallable spends
+      // credits, so failing on a missing uid afterwards would throw away an
+      // image the user has already paid for.
       const userId = getCurrentUser()?.uid
       if (!userId) throw new Error('You must be signed in to generate an image')
+
+      const generated = await generateImageViaCallable(prompt)
 
       // generateImage itself is unchanged — the model returns base64 and the
       // client decides where it lands. Vision reuses this same seam later.
@@ -56,8 +60,13 @@ export function useImageGeneration({
         characterId,
         userId,
         uri: `data:${generated.mimeType};base64,${generated.imageBase64}`,
-        width: 1024,
-        height: 1024,
+        // The callable returns bytes only, no dimensions. MASTER_DIMENSION is
+        // the model's output size, and these two numbers only decide whether
+        // prepareImageVariants downscales — at this value it re-encodes without
+        // resizing, which is correct for a 1024 source and never upscales a
+        // smaller one.
+        width: MASTER_DIMENSION,
+        height: MASTER_DIMENSION,
         source: 'generated',
       })
 

@@ -88,12 +88,6 @@ beforeEach(() => {
     master: { base64: 'M64', mimeType: 'image/webp' },
     thumb: { base64: 'T64', mimeType: 'image/webp' },
   })
-  mockWriteBytes.mockImplementation(
-    async (id: string, base64: string, variant: string) => {
-      void base64
-      return `file:///doc/${id}_${variant}`
-    },
-  )
 })
 
 describe('saveCharacterImage', () => {

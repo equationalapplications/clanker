@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, FlatList, Image, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { Button, Dialog, HelperText, Icon, Portal, Text } from 'react-native-paper'
 import { getCurrentUser } from '~/config/firebaseConfig'
@@ -38,8 +38,11 @@ export function AvatarPicker({
   onActiveImageChange,
 }: AvatarPickerProps) {
   const [items, setItems] = useState<PickerItem[]>([])
+  const [actionError, setActionError] = useState<string | null>(null)
 
+  const refreshEpoch = useRef(0)
   const refresh = useCallback(async () => {
+    const epoch = ++refreshEpoch.current
     const rows = await getCharacterImages(characterId)
     // Resolve thumbs, not masters: 100 masters is a ~15 MB screen, 100 thumbs
     // is ~1.2 MB — and on web every byte crosses the WASM boundary.
@@ -52,7 +55,7 @@ export function AvatarPicker({
         }
       }),
     )
-    setItems(resolved)
+    if (epoch === refreshEpoch.current) setItems(resolved)
   }, [characterId])
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export function AvatarPicker({
     // "synchronize with an external system" case this lint rule allows for —
     // `refresh`'s own setState calls happen asynchronously after the DB read
     // resolves, not synchronously in this effect body.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (visible) void refresh()
   }, [visible, refresh])
 
@@ -71,14 +74,19 @@ export function AvatarPicker({
     useImageGeneration({ characterId, onImageGenerated: (id) => { onActiveImageChange(id); void refresh() } })
 
   const handleActivate = async (imageId: string) => {
-    await setActiveImageId(characterId, imageId)
-    onActiveImageChange(imageId)
-    // Best-effort: the regular sweep would eventually push this pointer too,
-    // but pushing it now is what lets a second device see the change without
-    // waiting for the next full sync.
-    const userId = getCurrentUser()?.uid
-    if (userId) void pushActiveImageId(characterId, userId)
-    await refresh()
+    try {
+      await setActiveImageId(characterId, imageId)
+      onActiveImageChange(imageId)
+      // Best-effort: the regular sweep would eventually push this pointer too,
+      // but pushing it now is what lets a second device see the change without
+      // waiting for the next full sync.
+      const userId = getCurrentUser()?.uid
+      if (userId) void pushActiveImageId(characterId, userId)
+      await refresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to activate image'
+      setActionError(message)
+    }
   }
 
   const performDelete = async (imageId: string) => {
@@ -91,18 +99,23 @@ export function AvatarPicker({
       return
     }
 
-    await deleteCharacterImage(imageId, userId)
-    if (imageId === activeImageId) {
-      // deleteCharacterImage already repointed active_image_id in the DB
-      // (excluding 'reserved' rows); read that back instead of re-deriving
-      // next-active client-side, which would drift from its selection logic.
-      const nextActive = await getActiveCharacterImage(characterId)
-      onActiveImageChange(nextActive?.id ?? null)
-      // Pushed even when null: clearing the pointer after deleting the last
-      // image is exactly the change other devices need to see.
-      void pushActiveImageId(characterId, userId, { allowClear: true })
+    try {
+      await deleteCharacterImage(imageId, userId)
+      if (imageId === activeImageId) {
+        // deleteCharacterImage already repointed active_image_id in the DB
+        // (excluding 'reserved' rows); read that back instead of re-deriving
+        // next-active client-side, which would drift from its selection logic.
+        const nextActive = await getActiveCharacterImage(characterId)
+        onActiveImageChange(nextActive?.id ?? null)
+        // Pushed even when null: clearing the pointer after deleting the last
+        // image is exactly the change other devices need to see.
+        void pushActiveImageId(characterId, userId, { allowClear: true })
+      }
+      await refresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete image'
+      setActionError(message)
     }
-    await refresh()
   }
 
   // Deletion is irreversible for images the user spent credits on, so a
@@ -122,7 +135,7 @@ export function AvatarPicker({
     })
   }
 
-  const error = uploadError || generateError
+  const error = uploadError || generateError || actionError
 
   return (
     <Portal>

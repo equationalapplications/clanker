@@ -226,6 +226,7 @@ function RootLayoutNav() {
         // otherwise a migrated cloud-mode avatar waits a full extra launch for
         // the sweeper to notice it (and the two writers could otherwise race the
         // same character_images rows).
+        let migrationSucceeded = false
         try {
           const { migrateAvatarsToImageStore } = await import(
             '~/database/migrations/migrateAvatarsToImageStore'
@@ -235,6 +236,7 @@ function RootLayoutNav() {
           )
           await migrateAvatarsToImageStore(uid, LEGACY_DEFAULT_AVATAR_BASE64)
           characterService.send({ type: 'LOAD' })
+          migrationSucceeded = true
         } catch (err) {
           console.warn('Avatar migration failed:', err)
         }
@@ -251,6 +253,12 @@ function RootLayoutNav() {
           return
         }
         if (!isOnline) return
+
+        // Skip sync when migration failed: the comment above explains why
+        // migration must finish before syncAllToCloud — the two writers would
+        // race the same character_images rows. migrateAvatarsToImageStore
+        // retries on next launch, so deferring sync is safe.
+        if (!migrationSucceeded) return
 
         try {
           const { syncAllToCloud } = await import('~/services/characterSyncService')

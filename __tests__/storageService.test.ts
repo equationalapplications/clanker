@@ -39,6 +39,8 @@ import {
 beforeEach(() => {
   jest.clearAllMocks()
   mockFileDelete.mockReset()
+  mockPutFile.mockReset()
+  mockDelete.mockReset()
   __clearDownloadUrlCache()
   mockRefFn.mockImplementation((_s: unknown, path: string) => ({ fullPath: path }))
   mockGetDownloadURL.mockResolvedValue('https://cdn/x.webp')

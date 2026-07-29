@@ -13,8 +13,7 @@ describe('storage.rules', () => {
   })
 
   it('admits only webp and jpeg on write', () => {
-    expect(rules).toContain("request.resource.contentType.matches('image/webp')")
-    expect(rules).toContain("request.resource.contentType.matches('image/jpeg')")
+    expect(rules).toContain("request.resource.contentType in ['image/webp', 'image/jpeg']")
   })
 
   it('caps uploads at 2 MB', () => {

@@ -70,7 +70,6 @@ describe('storageService (web)', () => {
       blob: async () => new Blob([Uint8Array.from([1, 2, 3])], { type: 'image/webp' }),
     })) as never
     const result = await downloadImageBase64('users/u/a.webp')
-    expect(result).not.toContain('data:')
-    expect(typeof result).toBe('string')
+    expect(result).toBe('AQID')
   })
 })

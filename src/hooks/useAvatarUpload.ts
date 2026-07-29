@@ -42,7 +42,7 @@ async function centreCropToSquare(uri: string, width: number, height: number) {
     } }],
     { format, compress: 1 },
   )
-  return { uri: cropped.uri, width: side, height: side }
+  return { uri: cropped.uri, width: cropped.width ?? side, height: cropped.height ?? side }
 }
 
 export function useAvatarUpload({
@@ -63,16 +63,26 @@ export function useAvatarUpload({
       const userId = getCurrentUser()?.uid
       if (!userId) throw new Error('You must be signed in to upload an image')
 
-      const pickerResult = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        // The user picks their own crop, and the result is guaranteed square:
-        // iOS always shows a square cropper when editing is on, and `aspect`
-        // drives Android. Previously a 16:9 photo became 1024×576 and the
-        // circular mask cropped an arbitrary slice nobody chose.
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      })
+      // Wrap only the picker call so "Photo library access denied" is assigned
+      // only when the picker or photo-library permission operation explicitly
+      // reports denial — not for downstream upload or save errors whose message
+      // happens to contain "permission".
+      let pickerResult: ImagePicker.ImagePickerResult
+      try {
+        pickerResult = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          // The user picks their own crop, and the result is guaranteed square:
+          // iOS always shows a square cropper when editing is on, and `aspect`
+          // drives Android. Previously a 16:9 photo became 1024×576 and the
+          // circular mask cropped an arbitrary slice nobody chose.
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 1,
+        })
+      } catch {
+        setError('Photo library access denied')
+        return null
+      }
 
       if (pickerResult.canceled) return null
 
@@ -103,7 +113,7 @@ export function useAvatarUpload({
       return row.id
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to upload image'
-      setError(message.toLowerCase().includes('permission') ? 'Photo library access denied' : message)
+      setError(message)
       return null
     } finally {
       setIsUploading(false)

@@ -12,6 +12,7 @@ jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
 
 const mockGetImages = jest.fn()
 const mockSetActive = jest.fn()
+const mockGetActive = jest.fn()
 const mockDeleteImage = jest.fn()
 const mockUploadAvatar = jest.fn()
 const mockGenerateImage = jest.fn()
@@ -46,6 +47,7 @@ jest.mock('react-native-paper', () => {
 jest.mock('~/database/characterImageDatabase', () => ({
   getCharacterImages: (...a: unknown[]) => mockGetImages(...a),
   setActiveImageId: (...a: unknown[]) => mockSetActive(...a),
+  getActiveCharacterImage: (...a: unknown[]) => mockGetActive(...a),
 }))
 jest.mock('~/services/characterImageService', () => ({
   deleteCharacterImage: (...a: unknown[]) => mockDeleteImage(...a),
@@ -96,6 +98,7 @@ async function renderPicker(props: Partial<React.ComponentProps<typeof AvatarPic
 beforeEach(() => {
   jest.clearAllMocks()
   mockGetImages.mockResolvedValue(rows)
+  mockGetActive.mockResolvedValue(null)
 })
 
 describe('AvatarPicker', () => {

@@ -23,6 +23,7 @@ import {
     reconcileCharacterImages,
     syncCharacterImages,
 } from './characterImageSyncService'
+import { getAllImagesForCharacter, hardDeleteCharacterImage } from '~/database/characterImageDatabase'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -560,6 +561,26 @@ export async function removeCharacterFromCloud(localCharacterId: string, userId:
     await clearCharacterCloudLink(localCharacterId, userId)
 }
 
+/**
+ * Hard-delete any remaining cloud-kind character_images rows for a character
+ * whose server-side counterpart has already been purged.
+ *
+ * `deleteAllImagesForCharacter` marks cloud rows as `pending_delete` so the
+ * sweeper can tell the server — but when the server already purged them (via
+ * `deleteCharacterHandler`), the sweeper can never map them to a cloud_id
+ * because `hardDeleteCharacterLocal` removes the parent character first. This
+ * helper runs between those two steps to clean up the rows the sweeper can't
+ * reach.
+ */
+async function hardDeleteCloudImageRows(localCharacterId: string): Promise<void> {
+  const rows = await getAllImagesForCharacter(localCharacterId)
+  for (const row of rows) {
+    if (row.storage_kind === 'cloud') {
+      await hardDeleteCharacterImage(row.id)
+    }
+  }
+}
+
 async function syncDeletionsToCloud(localUserId: string): Promise<void> {
     const deleted = await getSoftDeletedCharacters(localUserId)
     if (deleted.length === 0) return
@@ -590,6 +611,11 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
             await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
                 reportError(error, 'characterSync:deleteLocalImages'),
             )
+            // deleteAllImagesForCharacter marks cloud rows as pending_delete so the
+            // sweeper can tell the server — but the server already purged them, and
+            // hardDeleteCharacterLocal below removes the parent character the sweeper
+            // needs to map cloud_id. Hard-delete the remaining cloud rows directly.
+            await hardDeleteCloudImageRows(char.id)
             // Hard-delete locally (also removes messages)
             await hardDeleteCharacterLocal(char.id, localUserId)
         } catch (error: any) {
@@ -608,6 +634,7 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
             await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
                 reportError(error, 'characterSync:deleteLocalImages'),
             )
+            await hardDeleteCloudImageRows(char.id)
             await hardDeleteCharacterLocal(char.id, localUserId)
         }
     }

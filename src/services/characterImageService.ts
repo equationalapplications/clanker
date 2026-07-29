@@ -172,20 +172,25 @@ export async function saveCharacterImage(
         }
 
         storageKind = localStorageKind()
+        // Tracked as each write lands, not after both: a master that succeeds
+        // before the thumb throws would otherwise leave bytes on disk that the
+        // outer catch never deletes and no row ever references.
         masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
+        writtenLocalRefs.push(masterRef)
         thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+        writtenLocalRefs.push(thumbRef)
         syncState = 'pending_upload'
       }
     } else {
       masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
+      writtenLocalRefs.push(masterRef)
       thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
+      writtenLocalRefs.push(thumbRef)
       // A cloud character with no confirmed cloud_id yet has no path to write to.
       // Marking it pending_upload lets the sweeper pick it up after the next
       // character sync confirms the id.
       syncState = character.save_to_cloud ? 'pending_upload' : 'local'
     }
-
-    if (storageKind !== 'cloud') writtenLocalRefs.push(masterRef, ...(thumbRef ? [thumbRef] : []))
 
     row = {
       id: imageId,
