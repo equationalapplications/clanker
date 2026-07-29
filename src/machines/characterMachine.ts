@@ -16,8 +16,8 @@ import {
   restoreFromCloud,
   removeCharacterFromCloud,
 } from '~/services/characterSyncService'
+import { promoteCharacterImagesToCloud } from '~/services/characterImageSyncService'
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
-import { loadDefaultAvatarBase64 } from '~/services/defaultAvatarService'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 
@@ -81,23 +81,9 @@ const createDefaultCharacterActor = fromPromise(
       return devCharacter
     }
 
-    let normalizedAvatarData: string | undefined
-
-    // Best-effort avatar load: do not block onboarding if this fails.
-    try {
-      const avatarData = await loadDefaultAvatarBase64()
-      normalizedAvatarData = avatarData || undefined
-    } catch (error) {
-      console.warn('Failed to load default avatar; creating default character without avatar_data', error)
-      normalizedAvatarData = undefined
-    }
-
-    const characterWithAvatar: CharacterInsert = {
-      ...DEFAULT_CHARACTER_INSERT,
-      avatar_data: normalizedAvatarData,
-    }
-
-    const newCharacter = await createCharacterDb(input.userId, characterWithAvatar)
+    // No avatar row is written: characters with no active image fall through to
+    // the bundled default in CharacterAvatar.
+    const newCharacter = await createCharacterDb(input.userId, DEFAULT_CHARACTER_INSERT)
     if (!newCharacter) {
       throw new Error('Failed to create default character')
     }
@@ -407,6 +393,15 @@ export const characterMachine = createMachine(
               error: ({ event }) => event.error as Error | null,
               characters: ({ context }) => context.optimisticSnapshot ?? [],
               optimisticSnapshot: null,
+              // Must reset alongside every other exit from `updating`: a failed
+              // UPDATE otherwise leaves a stale pendingUnsyncId in context, which
+              // a later unrelated manual CLOUD_SYNC (idle→cloudSyncing never sets
+              // it) would pick up as `toggledOnId` and force-promote that
+              // character's local images to cloud even though its save_to_cloud
+              // is still off.
+              priorSaveToCloud: null,
+              priorCloudId: null,
+              pendingUnsyncId: null,
             }),
           },
         },
@@ -424,7 +419,12 @@ export const characterMachine = createMachine(
         invoke: {
           id: 'cloudSync',
           src: 'cloudSyncActor',
-          input: ({ context }) => ({ userId: context.userId }),
+          // pendingUnsyncId is set on every UPDATE (not just unsync) and cleared
+          // once this state's onDone/onError runs, so it doubles as "the
+          // character id whose update just enabled cloud sync" here — but only
+          // when that's genuinely how we got here (an UPDATE→cloudSyncing
+          // transition), not a manual CLOUD_SYNC from idle, which never sets it.
+          input: ({ context }) => ({ userId: context.userId, toggledOnId: context.pendingUnsyncId }),
           onDone: {
             target: 'loading',
             actions: assign({
@@ -556,8 +556,16 @@ export const characterMachine = createMachine(
         },
       ),
       cloudSyncActor: fromPromise(
-        async ({ input }: { input: { userId: string | null } }) => {
+        async ({ input }: { input: { userId: string | null; toggledOnId: string | null } }) => {
           if (!input.userId) throw new Error('User not logged in')
+          // Write-path routing (file/inline vs cloud) is decided per image at
+          // creation time, so a bare save_to_cloud flip does not move images
+          // already on disk into the cloud pipeline. Promote the just-toggled
+          // character's local images to pending_upload before the sweep so
+          // syncAllToCloud's syncCharacterImages call picks them up.
+          if (input.toggledOnId) {
+            await promoteCharacterImagesToCloud(input.toggledOnId)
+          }
           await syncAllToCloud(input.userId)
           await restoreFromCloud(input.userId)
         },

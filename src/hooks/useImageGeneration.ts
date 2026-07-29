@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useAuthMachine, useCharacterMachine } from '~/hooks/useMachines'
 import { generateImageViaCallable } from '~/services/imageGenerationService'
-import { saveCharacterImageLocally } from '~/services/localImageStorageService'
+import { getCurrentUser } from '~/config/firebaseConfig'
+import { saveCharacterImage } from '~/services/characterImageService'
 import { usageSnapshotFromError } from '~/services/usageSnapshot'
 
 interface UseImageGenerationProps {
   characterId: string
-  onImageGenerated?: (dataUri: string) => void
+  /** Receives the new `character_images` row id. */
+  onImageGenerated?: (imageId: string) => void
 }
 
 interface UseImageGenerationReturn {
@@ -18,7 +20,7 @@ interface UseImageGenerationReturn {
 
 /**
  * Hook that generates a character avatar via secure callable function, saves
- * base64 data into SQLite avatar_data, and returns a data URI for display.
+ * it into the character_images gallery, and returns the new row id.
  */
 export function useImageGeneration({
   characterId,
@@ -44,11 +46,20 @@ export function useImageGeneration({
       console.log('🎨 Generating local image for character:', characterId)
 
       const generated = await generateImageViaCallable(prompt)
-      const dataUri = await saveCharacterImageLocally(
+
+      const userId = getCurrentUser()?.uid
+      if (!userId) throw new Error('You must be signed in to generate an image')
+
+      // generateImage itself is unchanged — the model returns base64 and the
+      // client decides where it lands. Vision reuses this same seam later.
+      const row = await saveCharacterImage({
         characterId,
-        generated.imageBase64,
-        generated.mimeType,
-      )
+        userId,
+        uri: `data:${generated.mimeType};base64,${generated.imageBase64}`,
+        width: 1024,
+        height: 1024,
+        source: 'generated',
+      })
 
       console.log('✅ Local image generation complete:', {
         characterId,
@@ -67,8 +78,8 @@ export function useImageGeneration({
 
       characterService.send({ type: 'LOAD' })
 
-      onImageGenerated?.(dataUri)
-      return dataUri
+      onImageGenerated?.(row.id)
+      return row.id
     } catch (err) {
       const usageSnapshot = usageSnapshotFromError(err)
       if (usageSnapshot) {

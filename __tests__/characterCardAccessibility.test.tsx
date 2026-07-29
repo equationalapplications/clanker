@@ -10,6 +10,10 @@ jest.mock('~/components/CharacterAvatar', () => {
   return () => React.createElement('View', { testID: 'avatar' })
 })
 
+jest.mock('~/hooks/useResolvedImage', () => ({
+  useResolvedImage: jest.fn(() => null),
+}))
+
 jest.mock('react-native', () => {
   const React = require('react')
   return {

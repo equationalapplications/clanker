@@ -36,7 +36,12 @@ export {
   deleteCharacter,
   getUserCharacters,
   getPublicCharacter,
+  syncCharacterImages,
 } from "./characterFunctions.js";
+
+export {
+  imageRetentionSweep,
+} from "./imageRetention.js";
 
 export {
   memoryRead,

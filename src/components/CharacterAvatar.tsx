@@ -1,6 +1,19 @@
 import React, { useState } from 'react'
 import { Avatar } from 'react-native-paper'
-import { defaultAvatarUrl } from '~/config/constants'
+import type { ComponentProps } from 'react'
+
+/**
+ * Bundled default. Nothing is written per character: previously every new
+ * character stored its own copy of the same 7.6 KB base64 blob, and that blob
+ * was an Android adaptive icon whose padding showed as a ring under the
+ * circular mask.
+ */
+const DEFAULT_AVATAR = require('../../assets/default-avatar-1024.webp')
+
+// react-native-paper 5.x does not include `resizeMode` in the type definition
+// for Avatar.Image, but the underlying Image component accepts it and it is
+// needed to fill the circular mask with non-square sources.
+type AvatarImageProps = ComponentProps<typeof Avatar.Image> & { resizeMode?: string }
 
 interface CharacterAvatarProps {
   size?: number
@@ -16,14 +29,29 @@ export default function CharacterAvatar({
   showFallback = true,
 }: CharacterAvatarProps) {
   const [imageError, setImageError] = useState(false)
+  const [erroredUrl, setErroredUrl] = useState<string | null | undefined>(null)
 
-  // Use the provided image if available and no error occurred
+  // A new URI is a new attempt: without this, one failed load would pin the
+  // fallback for the lifetime of the component even after the user picks
+  // another image. Adjusted during render (not an effect) so there is no
+  // extra render pass showing the stale fallback before it clears.
+  if (imageUrl !== erroredUrl && imageError) {
+    setImageError(false)
+  }
+
   if (imageUrl && !imageError) {
+    const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
     return (
-      <Avatar.Image
+      <AvatarImage
         size={size}
         source={{ uri: imageUrl }}
-        onError={() => setImageError(true)}
+        // Legacy migrated avatars can be non-square; cover fills the circle
+        // instead of letterboxing it.
+        resizeMode="cover"
+        onError={() => {
+          setImageError(true)
+          setErroredUrl(imageUrl)
+        }}
         accessible
         accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
       />
@@ -44,11 +72,14 @@ export default function CharacterAvatar({
     }
   }
 
-  // Show icon placeholder as final fallback
-  if (showFallback) {
-    return <Avatar.Icon size={size} icon="account" accessible accessibilityLabel="Character avatar" />
-  }
-
-  // Use default gravatar if no other options
-  return <Avatar.Image size={size} source={{ uri: defaultAvatarUrl }} accessible accessibilityLabel="Character avatar" />
+  const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
+  return (
+    <AvatarImage
+      size={size}
+      source={DEFAULT_AVATAR}
+      resizeMode="cover"
+      accessible
+      accessibilityLabel="Character avatar"
+    />
+  )
 }

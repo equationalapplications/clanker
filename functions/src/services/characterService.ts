@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { getDb } from '../db/cloudSql.js';
 import { characters, messages, users } from '../db/schema.js';
 import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
@@ -124,6 +124,44 @@ export const createCharacterService = (
         })
         .returning();
       return inserted;
+    },
+
+    /**
+     * Throws before any destructive step touches this character. Callers that
+     * need to delete data scoped by characterId (e.g. purging its image gallery)
+     * must call this first — the row's own delete has its own ownership check,
+     * but anything run ahead of it does not get that check for free.
+     */
+    async assertCharacterOwnership(characterId: string, userId: string): Promise<void> {
+      const db = await deps.getDb();
+      const [existing] = await db
+        .select({ id: characters.id, userId: characters.userId })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .limit(1);
+
+      if (existing && existing.userId !== userId) {
+        throw new CharacterOwnershipError();
+      }
+      // Not found at all is left to the caller's own delete to treat as
+      // idempotent success, matching deleteCharacter's existing behaviour.
+    },
+
+    /**
+     * Single-row existence-and-ownership check. Used where the caller needs a
+     * hard reject on a foreign or nonexistent id (unlike assertCharacterOwnership,
+     * which treats "not found" as idempotent success for delete paths) — e.g.
+     * syncCharacterImagesHandler, which previously fetched this user's entire
+     * character list just to scan it for one id.
+     */
+    async isOwnedByUser(characterId: string, userId: string): Promise<boolean> {
+      const db = await deps.getDb();
+      const [existing] = await db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+        .limit(1);
+      return Boolean(existing);
     },
 
     async deleteCharacter(characterId: string, userId: string) {

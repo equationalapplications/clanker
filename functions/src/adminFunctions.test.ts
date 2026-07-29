@@ -215,3 +215,74 @@ test("deleteMyAccountHandler rejects unauthenticated requests", async () => {
     (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
   );
 });
+
+function fakeDb() {
+  return {
+    delete: () => ({
+      where: async () => {},
+    }),
+    insert: () => ({
+      values: () => ({
+        onConflictDoUpdate: async () => {},
+      }),
+    }),
+  };
+}
+
+test("adminResetUserState prefix-deletes the user's entire storage tree", async () => {
+  const prefixes: string[] = [];
+  await adminResetUserStateHandler(
+    {
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+          email_verified: true,
+        },
+      },
+      data: {
+        userId: "user-1",
+        reason: "cleanup",
+        requestId: "req-reset-prefix-1",
+      },
+    } as never,
+    {
+      storageAdmin: {deletePrefix: async (p: string) => { prefixes.push(p); }},
+      getUserById: async () => ({id: "user-1", firebaseUid: "uid-1"} as never),
+      getDb: async () => fakeDb() as never,
+      creditService: {setCredits: async () => {}},
+      deleteFirebaseAuthUser: async () => {},
+    } as never
+  );
+  assert.deepEqual(prefixes, ["users/uid-1/"]);
+});
+
+test("adminDeleteUser prefix-deletes the user's entire storage tree", async () => {
+  const prefixes: string[] = [];
+  await adminDeleteUserHandler(
+    {
+      auth: {
+        uid: "firebase-admin-1",
+        token: {
+          uid: "firebase-admin-1",
+          email: "admin@example.com",
+          email_verified: true,
+        },
+      },
+      data: {
+        userId: "user-1",
+        reason: "cleanup",
+        requestId: "req-delete-prefix-1",
+      },
+    } as never,
+    {
+      storageAdmin: {deletePrefix: async (p: string) => { prefixes.push(p); }},
+      getUserById: async () => ({id: "user-1", firebaseUid: "uid-1"} as never),
+      getDb: async () => fakeDb() as never,
+      creditService: {setCredits: async () => {}},
+      deleteFirebaseAuthUser: async () => {},
+    } as never
+  );
+  assert.deepEqual(prefixes, ["users/uid-1/"]);
+});

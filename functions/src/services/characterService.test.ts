@@ -93,3 +93,54 @@ test('upsertCharacter rejects writing over a character owned by another user', a
   assert.equal(conflictTarget, characters.id);
   assert.ok(conflictWhere);
 });
+
+test('assertCharacterOwnership rejects a character owned by another user', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ id: 'char-1', userId: 'other-user' }],
+        }),
+      }),
+    }),
+  };
+
+  const service = createCharacterService({ getDb: async () => fakeDb as never });
+
+  await assert.rejects(
+    async () => service.assertCharacterOwnership('char-1', 'user-1'),
+    CharacterOwnershipError,
+  );
+});
+
+test('assertCharacterOwnership resolves for the owning user', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ id: 'char-1', userId: 'user-1' }],
+        }),
+      }),
+    }),
+  };
+
+  const service = createCharacterService({ getDb: async () => fakeDb as never });
+
+  await assert.doesNotReject(async () => service.assertCharacterOwnership('char-1', 'user-1'));
+});
+
+test('assertCharacterOwnership does not throw when the character does not exist', async () => {
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }),
+  };
+
+  const service = createCharacterService({ getDb: async () => fakeDb as never });
+
+  await assert.doesNotReject(async () => service.assertCharacterOwnership('missing', 'user-1'));
+});
