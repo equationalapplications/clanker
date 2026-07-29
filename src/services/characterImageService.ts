@@ -18,6 +18,7 @@ import {
   insertCharacterImage,
   setActiveImageId,
   softDeleteCharacterImage,
+  updateImageRefs,
   type CharacterImageRow,
   type ImageSource,
 } from '~/database/characterImageDatabase'
@@ -102,11 +103,45 @@ export async function saveCharacterImage(
   const writtenLocalRefs: string[] = []
   const writtenCloudRefs: string[] = []
   let row: CharacterImageRow
+  // Set once a reservation row exists, so the failure paths know to update that
+  // row rather than insert a second one.
+  let reserved = false
 
   try {
     if (cloudId) {
       const masterPath = buildStoragePath(input.userId, cloudId, imageId, 'master')
       const thumbPath = buildStoragePath(input.userId, cloudId, imageId, 'thumb')
+
+      // Durable reservation, written *before* the first upload.
+      //
+      // Storage paths are derived from ids we already hold, so they are known in
+      // advance — which means the row that names them can exist before the bytes
+      // do. That closes the one window compensating cleanup cannot: a process
+      // killed between a successful upload and the row insert runs no catch
+      // block at all, and would leave objects in Storage that nothing references
+      // and no sweep could ever find. Reserved rows are invisible to the picker
+      // and the cap; `reapStaleImageReservations` collects any that outlive a
+      // plausible upload.
+      //
+      // Local kinds get no reservation: `inline` refs *are* the payload, so there
+      // is nothing to name in advance, and a stranded `file` write is addressable
+      // on-device rather than invisible and billable.
+      await insertCharacterImage({
+        id: imageId,
+        character_id: input.characterId,
+        user_id: input.userId,
+        storage_kind: 'cloud',
+        master_ref: masterPath,
+        thumb_ref: thumbPath,
+        mime_type: variants.master.mimeType,
+        source: input.source,
+        sync_state: 'reserved',
+        sync_attempts: 0,
+        created_at: Date.now(),
+        deleted_at: null,
+      })
+      reserved = true
+
       try {
         await uploadImageBytes(masterPath, variants.master.base64, variants.master.mimeType)
         writtenCloudRefs.push(masterPath)
@@ -167,12 +202,35 @@ export async function saveCharacterImage(
       deleted_at: null,
     }
 
-    // Commit point: once the row exists, the image is safely recorded.
-    await insertCharacterImage(row)
+    // Commit point: the image is safely recorded once the row reaches a real
+    // state. A reservation already exists on the cloud path, so that is an
+    // update — inserting again would violate the primary key.
+    if (reserved) {
+      await updateImageRefs(imageId, {
+        storage_kind: row.storage_kind,
+        master_ref: row.master_ref,
+        thumb_ref: row.thumb_ref,
+        mime_type: row.mime_type,
+        sync_state: row.sync_state,
+      })
+    } else {
+      await insertCharacterImage(row)
+    }
   } catch (err) {
     // Best-effort rollback, on whichever side the bytes actually landed.
     // Cleanup failure must never mask the real error, so each delete is
     // swallowed independently.
+    //
+    // The reservation goes too: it exists only to make in-flight objects
+    // findable, so once they are deleted it is debris. Dropping it here is what
+    // keeps the reaper's queue empty in the ordinary failure case.
+    if (reserved) {
+      try {
+        await hardDeleteCharacterImage(imageId)
+      } catch (cleanupErr) {
+        console.warn('Failed to drop image reservation row:', cleanupErr)
+      }
+    }
     for (const ref of writtenLocalRefs) {
       try {
         await deleteLocalImageBytes(ref)

@@ -14,9 +14,9 @@ graph LR
   apiClient --> bootstrapSession
   characterImageService --> characterDatabase
   characterImageService --> imageVariants
+  characterImageService --> characterImageDatabase
   characterImageService --> storageService
   characterImageService --> localImageStore
-  characterImageService --> characterImageDatabase
   characterImageSyncService --> localImageStore
   characterImageSyncService --> characterDatabase
   characterImageSyncService --> characterImageDatabase

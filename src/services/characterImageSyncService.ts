@@ -13,6 +13,7 @@ import {
   getAllImagesForCharacter,
   getCharacterImageById,
   getImagesBySyncState,
+  getStaleImageReservations,
   hardDeleteCharacterImage,
   incrementSyncAttempts,
   insertCharacterImage,
@@ -63,7 +64,44 @@ async function readBase64(row: CharacterImageRow, variant: 'master' | 'thumb'): 
   return new File(uri).base64()
 }
 
+/**
+ * How long a reservation must sit before it counts as debris.
+ *
+ * The only thing separating "a save that is still running" from "a save whose
+ * process died" is elapsed time, so this has to comfortably exceed the slowest
+ * plausible upload. Reaping early would delete the objects of an in-flight save
+ * and leave the user's committed row pointing at nothing; reaping late costs
+ * only a little unreferenced storage for one more sweep.
+ */
+export const RESERVATION_STALE_MS = 30 * 60 * 1000
+
+/**
+ * Collect reservations left behind by a process that died mid-save.
+ *
+ * The ordinary failure paths drop their own reservation, so this only ever sees
+ * rows from a hard kill — where no catch block ran at all. Objects before the
+ * row, as everywhere else: the row is the only handle to those paths.
+ */
+export async function reapStaleImageReservations(localUserId: string): Promise<void> {
+  const stale = await getStaleImageReservations(localUserId, Date.now() - RESERVATION_STALE_MS)
+
+  for (const row of stale) {
+    try {
+      // The upload may never have started, so a missing object is the expected
+      // case rather than a failure — deleteStorageObject treats 404 as success.
+      await deleteStorageObject(row.master_ref)
+      if (row.thumb_ref) await deleteStorageObject(row.thumb_ref)
+      await hardDeleteCharacterImage(row.id)
+    } catch (error) {
+      // Leave the row for the next sweep: it is the only record of these paths.
+      reportError(error, 'characterImageSync:reapReservation')
+    }
+  }
+}
+
 export async function syncCharacterImages(localUserId: string): Promise<void> {
+  await reapStaleImageReservations(localUserId)
+
   const characters = await getAllCharactersIncludingDeleted(localUserId)
 
   // Confirmed cloud ids only. pending_cloud_id is deliberately excluded: the

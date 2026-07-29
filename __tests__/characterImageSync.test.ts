@@ -12,6 +12,7 @@ const mockDeleteLocalBytes = jest.fn()
 const mockSyncImagesFn = jest.fn()
 
 const mockGetActiveImage = jest.fn().mockResolvedValue(null)
+const mockGetStaleReservations = jest.fn()
 
 jest.mock('~/database/characterImageDatabase', () => ({
   getImagesBySyncState: (...a: unknown[]) => mockGetImagesBySyncState(...a),
@@ -24,6 +25,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
   getAllImagesForCharacter: jest.fn().mockResolvedValue([]),
   setActiveImageId: jest.fn(),
   getActiveCharacterImage: (...a: unknown[]) => mockGetActiveImage(...a),
+  getStaleImageReservations: (...a: unknown[]) => mockGetStaleReservations(...a),
 }))
 jest.mock('~/database/characterDatabase', () => ({
   getAllCharactersIncludingDeleted: (...a: unknown[]) => mockGetAllChars(...a),
@@ -45,7 +47,11 @@ jest.mock('~/services/apiClient', () => ({
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
 jest.mock('expo-file-system', () => ({ File: jest.fn(() => ({ base64: async () => 'B64' })) }))
 
-import { syncCharacterImages, MAX_SYNC_ATTEMPTS } from '~/services/characterImageSyncService'
+import {
+  syncCharacterImages,
+  MAX_SYNC_ATTEMPTS,
+  RESERVATION_STALE_MS,
+} from '~/services/characterImageSyncService'
 
 const CLOUD_ID = '11111111-1111-4111-8111-111111111111'
 
@@ -75,6 +81,42 @@ beforeEach(() => {
   mockGetImagesBySyncState.mockResolvedValue([])
   mockResolveUri.mockResolvedValue('file:///m.webp')
   mockSyncImagesFn.mockResolvedValue({ data: { evictedImageIds: [], images: [] } })
+  mockGetStaleReservations.mockResolvedValue([])
+})
+
+describe('syncCharacterImages — stale reservations', () => {
+  it('deletes the objects a dead save reserved, then the row', async () => {
+    const order: string[] = []
+    mockDeleteObject.mockImplementation(async () => { order.push('object') })
+    mockHardDelete.mockImplementation(async () => { order.push('row') })
+    mockGetStaleReservations.mockResolvedValue([
+      localImage({
+        sync_state: 'reserved', storage_kind: 'cloud',
+        master_ref: 'users/user-1/characters/c/i.webp',
+        thumb_ref: 'users/user-1/characters/c/i_thumb.webp',
+      }),
+    ])
+
+    await syncCharacterImages('user-1')
+
+    // Objects before the row: the row is the only handle to those paths.
+    expect(order).toEqual(['object', 'object', 'row'])
+  })
+
+  it('only considers reservations older than the stale window', async () => {
+    await syncCharacterImages('user-1')
+    const [, olderThan] = mockGetStaleReservations.mock.calls[0]
+    expect(Date.now() - olderThan).toBeGreaterThanOrEqual(RESERVATION_STALE_MS)
+  })
+
+  it('keeps the row when object deletion fails, since it is the only record of the paths', async () => {
+    mockGetStaleReservations.mockResolvedValue([
+      localImage({ sync_state: 'reserved', storage_kind: 'cloud', master_ref: 'p', thumb_ref: null }),
+    ])
+    mockDeleteObject.mockRejectedValue(new Error('offline'))
+    await syncCharacterImages('user-1')
+    expect(mockHardDelete).not.toHaveBeenCalled()
+  })
 })
 
 describe('syncCharacterImages — uploads', () => {

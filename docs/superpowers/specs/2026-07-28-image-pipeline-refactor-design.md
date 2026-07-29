@@ -234,22 +234,35 @@ existing component and its accessibility tests unchanged.
    - web privacy → `kind='inline'`, base64 in `master_ref` / `thumb_ref`
 4. **Insert the row**, set `characters.active_image_id`.
 
-   The row insert is the commit point, and it comes *after* the bytes are
-   written — so every byte written before it is tracked, and anything that throws
-   between the first write and the insert deletes what already landed, on
-   whichever side it landed. Without that, a failure here strands bytes no row
-   references and nothing can ever find or sweep.
+   **Cloud saves reserve the row before uploading.** Storage paths derive from
+   ids the caller already holds (§13.2), so the row that names them can be written
+   before the bytes exist. It goes in as `sync_state='reserved'` and is updated
+   into its real state once the upload resolves — the reservation is the commit
+   point's other half, not an extra row.
 
-   This applies to *partial* cloud uploads too, which is the easy case to miss:
-   when the master uploads and the thumb then fails, the write path falls back to
-   local storage and commits a `file` row successfully. No later failure occurs,
-   so a rollback keyed only on the outer failure would never run — the uploaded
-   master has to be deleted on that fallback path specifically.
+   Compensating cleanup alone cannot close this window. A process killed between a
+   successful upload and the row write runs no `catch` at all, leaving objects in
+   Storage that nothing references and no sweep could find: invisible and billable
+   forever. A row written first is the only thing that survives a hard kill.
 
-   A residual window remains: a process killed between a successful upload and
-   the row insert leaves orphaned objects, since no compensating code runs at all.
-   Bounded and rare, and the alternative (a durable pending row written before the
-   upload) costs a write on every save to close it.
+   Reserved rows are excluded from the picker, the cap count, and eviction — the
+   user never sees one. The ordinary failure paths delete their own reservation, so
+   `reapStaleImageReservations` (run at the head of each sweep) normally finds
+   nothing; it exists for the hard-kill case, and only collects reservations older
+   than 30 minutes so it cannot race a save that is merely slow.
+
+   **Local kinds get no reservation.** An `inline` row's refs *are* the payload, so
+   there is nothing to name in advance, and a stranded `file` write is addressable
+   on-device rather than invisible and billable. Those keep the compensating
+   rollback below.
+
+   The rollback still matters for everything the reservation does not cover: any
+   throw between the first write and the commit deletes what already landed, on
+   whichever side it landed. That includes *partial* cloud uploads, the easy case
+   to miss — when the master uploads and the thumb then fails, the write path falls
+   back to local storage and commits a `file` row **successfully**, so a rollback
+   keyed only on the outer failure would never run. The uploaded master has to be
+   deleted on that fallback path specifically.
 5. **Enforce the cap:** if the character now exceeds 100 images, evict the oldest
    — with the active image always exempt. Deletion removes bytes before rows
    (§10). For `file` and `inline` rows the client enforces this directly; for
@@ -449,6 +462,7 @@ flow.
 
 | Value | Meaning |
 |---|---|
+| `reserved` | a cloud row claimed before its upload began (§6); invisible to the picker, the cap and eviction, and reaped if it outlives a plausible upload |
 | `local` | a `file` or `inline` row on a privacy-mode character; terminal, the sweeper skips it |
 | `pending_upload` | the server does not yet have this row — either the bytes are still on-device, or they are uploaded and only the registration call is outstanding |
 | `synced` | cloud row and objects confirmed |

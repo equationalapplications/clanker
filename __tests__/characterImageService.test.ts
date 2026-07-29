@@ -16,6 +16,7 @@ const mockDeleteBytes = jest.fn()
 const mockPrepareVariants = jest.fn()
 const mockUploadImageBytes = jest.fn()
 const mockDeleteStorageObject = jest.fn()
+const mockUpdateImageRefs = jest.fn()
 
 jest.mock('~/database/characterImageDatabase', () => ({
   insertCharacterImage: (...a: unknown[]) => mockInsert(...a),
@@ -27,6 +28,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
   getCharacterImageById: (...a: unknown[]) => mockGetById(...a),
   getActiveCharacterImage: (...a: unknown[]) => mockGetActive(...a),
   getAllImagesForCharacter: (...a: unknown[]) => mockGetAllForCharacter(...a),
+  updateImageRefs: (...a: unknown[]) => mockUpdateImageRefs(...a),
 }))
 jest.mock('~/database/characterDatabase', () => ({
   getCharacter: (...a: unknown[]) => mockGetCharacter(...a),
@@ -71,6 +73,12 @@ beforeEach(() => {
   mockUploadImageBytes.mockReset()
   mockUploadImageBytes.mockResolvedValue(undefined)
   mockDeleteStorageObject.mockReset()
+  mockUpdateImageRefs.mockReset()
+  mockWriteBytes.mockReset()
+  mockWriteBytes.mockImplementation(async (id: string, base64: string, variant: string) => {
+    void base64
+    return `file:///doc/${id}_${variant}`
+  })
   mockCount.mockResolvedValue(0)
   mockEvictionCandidates.mockResolvedValue([])
   mockGetActive.mockResolvedValue(null)
@@ -209,9 +217,11 @@ describe('saveCharacterImage', () => {
     expect(mockDeleteBytes).toHaveBeenCalledWith('file:///doc/uuid-new_thumb')
   })
 
-  it('cleans up uploaded Storage objects when the row insert fails after a cloud upload', async () => {
+  it('cleans up uploaded Storage objects when the commit write fails after a cloud upload', async () => {
     mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
-    mockInsert.mockRejectedValue(new Error('database is locked'))
+    // The commit point on the cloud path is the finalize update, not the insert —
+    // the insert already happened as the reservation, before any upload.
+    mockUpdateImageRefs.mockRejectedValue(new Error('database is locked'))
     await expect(
       saveCharacterImage({
         characterId: 'char_a',
@@ -229,6 +239,22 @@ describe('saveCharacterImage', () => {
       'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp',
     )
     expect(mockDeleteBytes).not.toHaveBeenCalled()
+    // The reservation is debris once its objects are gone.
+    expect(mockHardDelete).toHaveBeenCalledWith('uuid-new')
+  })
+
+  it('uploads nothing when the reservation itself cannot be written', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    mockInsert.mockRejectedValue(new Error('database is locked'))
+    await expect(
+      saveCharacterImage({
+        characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+        width: 1024, height: 1024, source: 'generated',
+      }),
+    ).rejects.toThrow('database is locked')
+    // Reservation first means a failure here costs nothing: no bytes were sent.
+    expect(mockUploadImageBytes).not.toHaveBeenCalled()
+    expect(mockDeleteStorageObject).not.toHaveBeenCalled()
   })
 
   it('still resolves with the row when post-save bookkeeping fails', async () => {
@@ -505,7 +531,76 @@ describe('cloud routing', () => {
       width: 1024, height: 1024, source: 'generated',
     })
     expect(row).toMatchObject({ storage_kind: 'file', sync_state: 'pending_upload' })
-    expect(mockInsert).toHaveBeenCalledWith(row)
+    // The reservation row is updated into its final shape rather than re-inserted.
+    expect(mockUpdateImageRefs).toHaveBeenCalledWith('uuid-new', expect.objectContaining({
+      storage_kind: 'file', sync_state: 'pending_upload',
+    }))
+  })
+
+  it('reserves a durable row before the first upload, then finalizes it', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    const order: string[] = []
+    mockInsert.mockImplementation(async (row: { sync_state: string }) => {
+      order.push(`insert:${row.sync_state}`)
+    })
+    mockUploadImageBytes.mockImplementation(async () => { order.push('upload') })
+    mockUpdateImageRefs.mockImplementation(async (_id: string, refs: { sync_state: string }) => {
+      order.push(`finalize:${refs.sync_state}`)
+    })
+
+    await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+
+    // The reservation names the object paths before any byte is written, so a
+    // process killed mid-upload still leaves something that can find them.
+    expect(order).toEqual(['insert:reserved', 'upload', 'upload', 'finalize:synced'])
+  })
+
+  it('names the real storage paths on the reservation row', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      sync_state: 'reserved',
+      storage_kind: 'cloud',
+      master_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp',
+      thumb_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp',
+    }))
+  })
+
+  it('drops the reservation when the save fails outright', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    mockUploadImageBytes.mockRejectedValue(new Error('network down'))
+    // Fallback to local also fails, so the whole save throws.
+    mockWriteBytes.mockRejectedValue(new Error('disk full'))
+
+    await expect(saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })).rejects.toThrow('disk full')
+
+    // Objects are cleaned up, so the reservation has nothing left to point at.
+    expect(mockHardDelete).toHaveBeenCalledWith('uuid-new')
+  })
+
+  it('does not insert a second row when falling back to local storage', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    mockUploadImageBytes.mockRejectedValue(new Error('network down'))
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+    // One insert (the reservation); the fallback updates it rather than
+    // inserting again, which would violate the primary key.
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+    expect(mockUpdateImageRefs).toHaveBeenCalledWith('uuid-new', expect.objectContaining({
+      storage_kind: 'file', sync_state: 'pending_upload',
+    }))
+    expect(row).toMatchObject({ storage_kind: 'file', sync_state: 'pending_upload' })
   })
 
   it('deletes an already-uploaded master when the thumb upload fails', async () => {

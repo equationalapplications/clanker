@@ -11,7 +11,21 @@ import { getDatabase } from './index'
 
 export type ImageStorageKind = 'cloud' | 'file' | 'inline'
 export type ImageSource = 'generated' | 'uploaded' | 'imported'
-export type ImageSyncState = 'local' | 'synced' | 'pending_upload' | 'pending_delete' | 'failed'
+/**
+ * `reserved` is not a sync state so much as a claim: the row exists so that the
+ * Storage objects it names are discoverable, but its bytes are not confirmed and
+ * the user has never seen it. It is written before a cloud upload begins and
+ * leaves that state as soon as the upload resolves either way, so any row still
+ * `reserved` minutes later is debris from a process that died mid-save. Every
+ * user-facing query excludes it; `reapStaleImageReservations` cleans it up.
+ */
+export type ImageSyncState =
+  | 'local'
+  | 'synced'
+  | 'pending_upload'
+  | 'pending_delete'
+  | 'failed'
+  | 'reserved'
 
 export interface CharacterImageRow {
   id: string
@@ -55,7 +69,9 @@ export async function insertCharacterImage(row: CharacterImageRow): Promise<void
 export async function getCharacterImages(characterId: string): Promise<CharacterImageRow[]> {
   const db = await getDatabase()
   return db.getAllAsync<CharacterImageRow>(
-    'SELECT * FROM character_images WHERE character_id = ? AND deleted_at IS NULL ORDER BY created_at DESC',
+    `SELECT * FROM character_images
+     WHERE character_id = ? AND deleted_at IS NULL AND sync_state != 'reserved'
+     ORDER BY created_at DESC`,
     [characterId],
   )
 }
@@ -106,7 +122,8 @@ export async function setActiveImageId(
 export async function countCharacterImages(characterId: string): Promise<number> {
   const db = await getDatabase()
   const result = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM character_images WHERE character_id = ? AND deleted_at IS NULL',
+    `SELECT COUNT(*) as count FROM character_images
+     WHERE character_id = ? AND deleted_at IS NULL AND sync_state != 'reserved'`,
     [characterId],
   )
   return result?.count ?? 0
@@ -139,6 +156,7 @@ export async function getEvictionCandidates(
   return db.getAllAsync<CharacterImageRow>(
     `SELECT * FROM character_images
      WHERE character_id = ? AND deleted_at IS NULL AND id != ? AND storage_kind != 'cloud'
+       AND sync_state != 'reserved'
      ORDER BY created_at ASC
      LIMIT ?`,
     [characterId, activeImageId ?? '', limit],
@@ -193,6 +211,27 @@ export async function updateImageRefs(
      SET storage_kind = ?, master_ref = ?, thumb_ref = ?, mime_type = ?, sync_state = ?
      WHERE id = ?`,
     [refs.storage_kind, refs.master_ref, refs.thumb_ref, refs.mime_type, refs.sync_state, imageId],
+  )
+}
+
+/**
+ * Reservations left behind by a process that died mid-save.
+ *
+ * `olderThan` is what keeps this from racing a save that is simply still running:
+ * a reservation is only debris once it has outlived any plausible upload. There is
+ * no partial index for this state — `character_images` holds at most a few hundred
+ * rows per user, so a scan once per sweep is cheaper than the migration.
+ */
+export async function getStaleImageReservations(
+  userId: string,
+  olderThan: number,
+): Promise<CharacterImageRow[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<CharacterImageRow>(
+    `SELECT * FROM character_images
+     WHERE user_id = ? AND sync_state = 'reserved' AND created_at < ?
+     ORDER BY created_at ASC`,
+    [userId, olderThan],
   )
 }
 
