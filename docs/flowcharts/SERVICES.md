@@ -36,6 +36,7 @@ graph LR
   characterSyncService --> characterImageSyncService
   characterSyncService --> voiceDefaults
   characterSyncService --> characterImageService
+  characterSyncService --> characterImageDatabase
   chatReplyService --> groundingMetadata
   cloudAgentService --> googleSignin
   cloudAgentService --> groundingMetadata

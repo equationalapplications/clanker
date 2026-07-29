@@ -34,8 +34,8 @@ graph LR
   useEdgeAgent --> chatReplyService
   useExportCharacterOKF --> okfReadmeContent
   useImageGeneration --> useMachines
-  useImageGeneration --> imageGenerationService
   useImageGeneration --> googleSignin
+  useImageGeneration --> imageGenerationService
   useImageGeneration --> characterImageService
   useImageGeneration --> usageSnapshot
   useInitializeApp --> crashlyticsService
