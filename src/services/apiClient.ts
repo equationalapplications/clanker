@@ -7,6 +7,7 @@ import {
   getPublicCharacterFn as getPublicCharacterCallable,
   getUserCharactersFn as getUserCharactersCallable,
   syncCharacterFn as syncCharacterCallable,
+  syncCharacterImagesFn as syncCharacterImagesCallable,
   updateUserProfileFn as updateUserProfileCallable,
   wikiLlmFn as wikiLlmCallable,
   wikiSyncFn as wikiSyncCallable,
@@ -89,6 +90,37 @@ export interface SyncCharacterPayload {
   updatedAt?: string
 }
 
+export interface CharacterImageSnapshot {
+  id: string
+  characterId: string
+  storagePath: string
+  thumbPath: string | null
+  mimeType: string
+  source: 'generated' | 'uploaded' | 'imported'
+  createdAt: string | null
+  /** Non-null marks a tombstone: the authoritative signal to delete locally. */
+  deletedAt: string | null
+}
+
+export interface SyncCharacterImagesRequest {
+  characterId: string
+  images: {
+    id: string
+    storagePath: string
+    thumbPath?: string | null
+    mimeType?: string
+    source: 'generated' | 'uploaded' | 'imported'
+  }[]
+  deletedImageIds?: string[]
+  activeImageId?: string | null
+}
+
+export interface SyncCharacterImagesResponse {
+  /** Ids the server evicted under the cap; the client applies the same deletion. */
+  evictedImageIds: string[]
+  images: CharacterImageSnapshot[]
+}
+
 export interface CharacterSnapshot {
   id: string
   userId: string
@@ -103,6 +135,10 @@ export interface CharacterSnapshot {
   createdAt: string
   updatedAt: string
   ownerUserId: string
+  activeImageId?: string | null
+  images?: CharacterImageSnapshot[]
+  /** 15-minute V4 signed URL for the owner's active master, for import only. */
+  avatarSignedUrl?: string | null
 }
 
 export interface SyncCharacterRequest {
@@ -148,6 +184,10 @@ export const getUserCharactersFn = withAppCheckOptional(
 
 export const getPublicCharacterFn = withAppCheck(
   getPublicCharacterCallable as Callable<GetPublicCharacterRequest, CharacterSnapshot>,
+)
+
+export const syncCharacterImagesFn = withAppCheck(
+  syncCharacterImagesCallable as Callable<SyncCharacterImagesRequest, SyncCharacterImagesResponse>,
 )
 
 export interface WikiLlmRequest {

@@ -17,6 +17,13 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { reportError } from '~/utilities/reportError'
 import { syncCharacterFn, deleteCharacterFn, getUserCharactersFn, getPublicCharacterFn, wikiSync } from './apiClient'
+import { deleteAllImagesForCharacter, saveCharacterImage } from './characterImageService'
+import {
+    demoteCharacterImagesToLocal,
+    reconcileCharacterImages,
+    syncCharacterImages,
+} from './characterImageSyncService'
+import { getAllImagesForCharacter, hardDeleteCharacterImage } from '~/database/characterImageDatabase'
 import type { CharacterSnapshot, WikiSyncBundle } from './apiClient'
 import {
     getUnsyncedCharacters,
@@ -42,6 +49,14 @@ import {
 
 const LAST_SYNC_KEY = 'character-last-sync'
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+// The owner's active master is always produced by this same pipeline (§6 step
+// 2: resized to 1024 on the longest edge, never upscaled), so it is square or
+// smaller in practice. A legacy migrated avatar can be non-square, in which
+// case this over-states one edge and `resizeActions` in imageVariants.ts
+// skips a resize that a real probe would have performed — CharacterAvatar's
+// `resizeMode: 'cover'` (§16) absorbs the resulting aspect mismatch on
+// display, so this is a quality nit, not a correctness bug.
+const IMPORTED_AVATAR_DIMENSION = 1024
 
 function reportWikiOpForCharacter(err: unknown, context: string, characterId: string, summary: string): void {
     const detail = `${summary} (character ${characterId})`
@@ -233,6 +248,10 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
             syncUnsyncedToCloud(localUserId),
             syncDeletionsToCloud(localUserId),
         ])
+        // Sequential, NOT inside the Promise.all above: a character has no cloud
+        // id until its first successful sync, and the image storage path is built
+        // from that id. Racing them would leave every first-sync image pending.
+        await syncCharacterImages(localUserId)
         await syncWikiForCloud(localUserId)
         await setLastSyncTime()
     } catch (error) {
@@ -273,16 +292,28 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
             }
         }
 
+        const localById = new Map(localChars.map((c) => [c.id, c]))
+
         const cloudChars: LocalCharacter[] = data
             .map((cloudChar: CharacterSnapshot) => {
                 const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+                const existingLocal = localById.get(localId)
                 return {
                     id: localId,
                     user_id: localUserId,
                     name: cloudChar.name,
                     avatar: cloudChar.avatar,
-                    avatar_data: null,
-                    avatar_mime_type: null,
+                    // Never read from the cloud snapshot — images live in
+                    // `character_images` now (see reconcileCharacterImages below), so
+                    // this legacy column is inert. But it is carried over from the
+                    // local row rather than nulled: batchInsertCharacters is INSERT OR
+                    // REPLACE, so hardcoding null here would wipe the rollback copy of
+                    // any character the one-shot migration has not converted yet (a
+                    // partial migration retries on the next launch, and this restore
+                    // can run in between). On a genuinely new device there is no local
+                    // row and this is null anyway.
+                    avatar_data: existingLocal?.avatar_data ?? null,
+                    avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
                     appearance: cloudChar.appearance,
                     traits: cloudChar.traits,
                     emotions: cloudChar.emotions,
@@ -307,6 +338,31 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
 
         if (cloudChars.length > 0) {
             await batchInsertCharacters(cloudChars)
+        }
+
+        // Reconcile every returned character's image set from its cloud snapshot,
+        // regardless of whether the character row itself was newer. Image adds/
+        // deletes on another device do not bump the character's updated_at (the
+        // syncCharacterImages handler never touches it), so gating this on
+        // cloudChars would silently skip reconciliation for image-only changes —
+        // the same "images vanish on restore" failure this task exists to fix,
+        // just relocated to this condition. Keyed on the same cloudIdToLocalId
+        // mapping used to build cloudChars, so images land on the correct local row.
+        for (const cloudChar of data as CharacterSnapshot[]) {
+            const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+            try {
+                await reconcileCharacterImages(
+                    localId,
+                    localUserId,
+                    cloudChar.images ?? [],
+                    cloudChar.activeImageId ?? null,
+                )
+            } catch (error) {
+                reportError(error, 'restoreFromCloud:images')
+            }
+        }
+
+        if (cloudChars.length > 0) {
             // After insert, pull wiki memory for cloud-linked characters on this device.
             // syncWikiForCloud re-queries the DB so it picks up the newly inserted rows.
             const cloudLinked = cloudChars.filter(
@@ -401,8 +457,10 @@ export async function importSharedCharacterFromCloud(
             user_id: localUserId,
             name: cloudCharacter.name,
             avatar: cloudCharacter.avatar,
-            avatar_data: null,
-            avatar_mime_type: null,
+            // Same reasoning as restoreFromCloud: INSERT OR REPLACE, so preserve
+            // whatever a previous import of this character already had locally.
+            avatar_data: existingLocal?.avatar_data ?? null,
+            avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
             appearance: cloudCharacter.appearance,
             traits: cloudCharacter.traits,
             emotions: cloudCharacter.emotions,
@@ -420,6 +478,46 @@ export async function importSharedCharacterFromCloud(
             voice: normalizeVoice(cloudCharacter.voice),
         },
     ])
+
+    // Download once and re-store under the importer's own account, honouring
+    // THEIR privacy mode. The importer's row never references the owner's
+    // objects, so a revoked share cannot break their avatar.
+    const signedUrl = cloudCharacter.avatarSignedUrl
+    if (signedUrl) {
+        try {
+            await saveCharacterImage({
+                characterId: localCharacterId,
+                userId: localUserId,
+                uri: signedUrl,
+                width: IMPORTED_AVATAR_DIMENSION,
+                height: IMPORTED_AVATAR_DIMENSION,
+                source: 'imported',
+            })
+        } catch {
+            // The dominant failure mode is the 15-minute signed URL expiring
+            // between fetch and download. Neither the manipulator's nor the
+            // image loader's error reliably carries an HTTP status this far up
+            // the stack, so rather than gate the retry on a status code that is
+            // usually absent, retry once unconditionally: the character itself
+            // already imported successfully, the avatar alone is recoverable,
+            // and a single extra request is cheap next to losing the avatar.
+            try {
+                const retry = await getPublicCharacterFn({ characterId: cloudCharacterId })
+                if (retry.data?.avatarSignedUrl) {
+                    await saveCharacterImage({
+                        characterId: localCharacterId,
+                        userId: localUserId,
+                        uri: retry.data.avatarSignedUrl,
+                        width: IMPORTED_AVATAR_DIMENSION,
+                        height: IMPORTED_AVATAR_DIMENSION,
+                        source: 'imported',
+                    })
+                }
+            } catch (retryError) {
+                reportError(retryError, 'importSharedCharacter:avatar')
+            }
+        }
+    }
 
     return { localCharacterId, cloudCharacterId: cloudCharacter.id }
 }
@@ -443,6 +541,13 @@ export async function removeCharacterFromCloud(localCharacterId: string, userId:
         return
     }
 
+    // MUST run before clearCharacterCloudLink. That call nulls cloud_id, and
+    // cloud_id IS the storage path — clearing it first makes every one of this
+    // character's cloud images permanently unreachable. Requires network; the
+    // throw propagates so the caller can tell the user to reconnect rather than
+    // half-completing the toggle.
+    await demoteCharacterImagesToLocal(localCharacterId, userId, cloudId)
+
     try {
         await deleteCharacterFn({ characterId: cloudId })
     } catch (error: any) {
@@ -456,6 +561,26 @@ export async function removeCharacterFromCloud(localCharacterId: string, userId:
     await clearCharacterCloudLink(localCharacterId, userId)
 }
 
+/**
+ * Hard-delete any remaining cloud-kind character_images rows for a character
+ * whose server-side counterpart has already been purged.
+ *
+ * `deleteAllImagesForCharacter` marks cloud rows as `pending_delete` so the
+ * sweeper can tell the server — but when the server already purged them (via
+ * `deleteCharacterHandler`), the sweeper can never map them to a cloud_id
+ * because `hardDeleteCharacterLocal` removes the parent character first. This
+ * helper runs between those two steps to clean up the rows the sweeper can't
+ * reach.
+ */
+async function hardDeleteCloudImageRows(localCharacterId: string): Promise<void> {
+  const rows = await getAllImagesForCharacter(localCharacterId)
+  for (const row of rows) {
+    if (row.storage_kind === 'cloud') {
+      await hardDeleteCharacterImage(row.id)
+    }
+  }
+}
+
 async function syncDeletionsToCloud(localUserId: string): Promise<void> {
     const deleted = await getSoftDeletedCharacters(localUserId)
     if (deleted.length === 0) return
@@ -464,17 +589,53 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
         const cloudId = char.cloud_id && UUID_REGEX.test(char.cloud_id) ? char.cloud_id : null
 
         if (!cloudId) {
+            // Never synced, so there is no server-side purgeCharacter to reach any
+            // cloud-kind rows — but privacy-mode 'file'/'inline' rows are entirely
+            // local, and hardDeleteCharacterLocal only drops the characters/messages
+            // rows. Without this, their bytes and character_images rows outlive the
+            // character with nothing left able to find or sweep them.
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
             await hardDeleteCharacterLocal(char.id, localUserId)
             continue
         }
 
         try {
             await deleteCharacterFn({ characterId: cloudId })
-            
-            // Cloud deletion confirmed — hard-delete locally (also removes messages)
+
+            // Cloud deletion confirmed — deleteCharacterHandler already purged the
+            // server-side rows and Storage objects, but that leaves this device's
+            // local character_images rows (and any 'file'/'inline' bytes on disk)
+            // behind, since the server never sees local-only storage kinds.
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
+            // deleteAllImagesForCharacter marks cloud rows as pending_delete so the
+            // sweeper can tell the server — but the server already purged them, and
+            // hardDeleteCharacterLocal below removes the parent character the sweeper
+            // needs to map cloud_id. Hard-delete the remaining cloud rows directly.
+            await hardDeleteCloudImageRows(char.id)
+            // Hard-delete locally (also removes messages)
             await hardDeleteCharacterLocal(char.id, localUserId)
         } catch (error: any) {
-            reportWikiOpForCharacter(error, 'characterSync:delete', char.id, 'Character cloud deletion')
+            // A prior sync could have deleted the cloud copy successfully but been
+            // interrupted before hardDeleteCharacterLocal ran — and the
+            // deleteAllImagesForCharacter step above widened that window. Treating
+            // not-found as failure would leave the character soft-deleted forever,
+            // retried every sync, with its character_images rows never purged.
+            // removeCharacterFromCloud already treats not-found as success; match it.
+            const errorCode = typeof error?.code === 'string' ? error.code : ''
+            if (errorCode !== 'not-found' && !errorCode.endsWith('/not-found')) {
+                reportWikiOpForCharacter(error, 'characterSync:delete', char.id, 'Character cloud deletion')
+                continue
+            }
+
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
+            await hardDeleteCloudImageRows(char.id)
+            await hardDeleteCharacterLocal(char.id, localUserId)
         }
     }
 }

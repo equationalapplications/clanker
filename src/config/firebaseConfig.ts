@@ -98,6 +98,7 @@ const syncCharacterFn = httpsCallable(functionsInstance, 'syncCharacter')
 const deleteCharacterFn = httpsCallable(functionsInstance, 'deleteCharacter')
 const getUserCharactersFn = httpsCallable(functionsInstance, 'getUserCharacters')
 const getPublicCharacterFn = httpsCallable(functionsInstance, 'getPublicCharacter')
+const syncCharacterImagesFn = httpsCallable(functionsInstance, 'syncCharacterImages')
 const wikiLlmFn = httpsCallable(functionsInstance, 'wikiLlm', {
   timeout: 545_000,
 })
@@ -136,6 +137,7 @@ export {
   deleteCharacterFn,
   getUserCharactersFn,
   getPublicCharacterFn,
+  syncCharacterImagesFn,
   wikiLlmFn,
   wikiSyncFn,
   generateEmbeddingFn,

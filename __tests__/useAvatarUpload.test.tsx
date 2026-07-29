@@ -1,10 +1,9 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
-import { saveCharacterImageLocally } from '~/services/localImageStorageService'
+import { saveCharacterImage } from '~/services/characterImageService'
 import * as ImagePicker from 'expo-image-picker'
-import { File } from 'expo-file-system'
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
+import { manipulateAsync } from 'expo-image-manipulator'
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
@@ -12,17 +11,19 @@ jest.mock('expo-image-picker', () => ({
 
 jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn(),
-  SaveFormat: {
-    WEBP: 'WEBP',
-  },
 }))
 
-jest.mock('expo-file-system', () => ({
-  File: jest.fn(),
+jest.mock('~/services/characterImageService', () => ({
+  saveCharacterImage: jest.fn(),
 }))
 
-jest.mock('~/services/localImageStorageService', () => ({
-  saveCharacterImageLocally: jest.fn(),
+jest.mock('~/config/firebaseConfig', () => ({
+  getCurrentUser: jest.fn(() => ({ uid: 'user-1' })),
+  appCheckReady: Promise.resolve(),
+}))
+
+jest.mock('~/utilities/webpSupport', () => ({
+  getEncodeTarget: () => ({ format: 'webp', mimeType: 'image/webp' }),
 }))
 
 const mockCharacterSend = jest.fn()
@@ -32,31 +33,8 @@ jest.mock('~/hooks/useMachines', () => ({
 
 const mockLaunchImageLibraryAsync = jest.mocked(ImagePicker.launchImageLibraryAsync)
 const mockManipulateAsync = jest.mocked(manipulateAsync)
-const MockFile = jest.mocked(File)
-const mockSaveCharacterImageLocally = jest.mocked(saveCharacterImageLocally)
-const createdFiles: Array<{
-  base64: jest.Mock<Promise<string>, []>
-  delete: jest.Mock<Promise<void>, []>
-}> = []
+const mockSaveCharacterImage = jest.mocked(saveCharacterImage)
 
-function setupFileMock(base64 = 'BASE64_DATA') {
-  createdFiles.length = 0
-  MockFile.mockImplementation(() => {
-    const file = {
-      base64: jest.fn().mockResolvedValue(base64),
-      delete: jest.fn().mockResolvedValue(undefined),
-    }
-    createdFiles.push(file)
-    return file as never
-  })
-}
-
-afterEach(() => {
-  createdFiles.forEach((file) => {
-    expect(file.delete).toHaveBeenCalled()
-  })
-  createdFiles.length = 0
-})
 function createDeferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((res) => {
@@ -72,7 +50,7 @@ function makePickerResult(width: number, height: number, uri = 'file://source.jp
   }
 }
 
-function renderHook(onImageUploaded?: (dataUri: string) => void) {
+function renderHook(onImageUploaded?: (imageId: string) => void) {
   let hookValue: ReturnType<typeof useAvatarUpload> | null = null
 
   function Probe() {
@@ -114,41 +92,13 @@ describe('useAvatarUpload', () => {
     })
 
     expect(result).toBeNull()
-    expect(mockSaveCharacterImageLocally).not.toHaveBeenCalled()
+    expect(mockSaveCharacterImage).not.toHaveBeenCalled()
     expect(getHookValue().error).toBeNull()
   })
 
-  it('resizes large images, converts to webp, saves, and calls callback', async () => {
-    const onImageUploaded = jest.fn()
-    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1800, 1200) as never)
-    mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    setupFileMock()
-    mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
-
-    const { getHookValue } = renderHook(onImageUploaded)
-
-    let result: string | null = null
-    await act(async () => {
-      result = await getHookValue().uploadAvatar()
-    })
-
-    expect(mockManipulateAsync).toHaveBeenCalledWith(
-      'file://source.jpg',
-      [{ resize: { width: 1024 } }],
-      { format: SaveFormat.WEBP, compress: 0.9 },
-    )
-    expect(mockSaveCharacterImageLocally).toHaveBeenCalledWith('char-1', 'BASE64_DATA', 'image/webp')
-    expect(onImageUploaded).toHaveBeenCalledWith('data:image/webp;base64,BASE64_DATA')
-    expect(result).toBe('data:image/webp;base64,BASE64_DATA')
-    expect(mockCharacterSend).toHaveBeenCalledWith({ type: 'LOAD' })
-    expect(getHookValue().isUploading).toBe(false)
-  })
-
-  it('keeps valid small images unresized', async () => {
-    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(300, 300) as never)
-    mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    setupFileMock()
-    mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
+  it('requests a square crop from the picker', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(2000, 1000) as never)
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
     const { getHookValue } = renderHook()
 
@@ -156,34 +106,47 @@ describe('useAvatarUpload', () => {
       await getHookValue().uploadAvatar()
     })
 
-    expect(mockManipulateAsync).toHaveBeenCalledWith(
-      'file://source.jpg',
-      [],
-      { format: SaveFormat.WEBP, compress: 0.9 },
+    expect(mockLaunchImageLibraryAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ allowsEditing: true, aspect: [1, 1] }),
     )
   })
 
-  it('sets error and returns null when manipulateAsync fails', async () => {
-    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(600, 600) as never)
-    mockManipulateAsync.mockRejectedValue(new Error('Failed to convert image'))
+  it('routes the upload into the gallery as source "uploaded"', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1024, 1024) as never)
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
     const { getHookValue } = renderHook()
 
-    let result: string | null = 'init'
     await act(async () => {
-      result = await getHookValue().uploadAvatar()
+      await getHookValue().uploadAvatar()
     })
 
-    expect(result).toBeNull()
-    expect(getHookValue().error).toBe('Failed to convert image')
-    expect(mockSaveCharacterImageLocally).not.toHaveBeenCalled()
+    expect(mockSaveCharacterImage).toHaveBeenCalledWith({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file://source.jpg',
+      width: 1024,
+      height: 1024,
+      source: 'uploaded',
+    })
   })
 
-  it('sets error and returns null when local save fails', async () => {
-    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(600, 600) as never)
-    mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    setupFileMock()
-    mockSaveCharacterImageLocally.mockRejectedValue(new Error('SQLite write failed'))
+  it('returns the new image id so the caller can activate it', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1024, 1024) as never)
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-42' } as never)
+
+    const { getHookValue } = renderHook()
+
+    let result: string | null = null
+    await act(async () => {
+      result = await getHookValue().uploadAvatar()
+    })
+
+    expect(result).toBe('img-42')
+  })
+
+  it('still rejects images below the 200px minimum', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(150, 150) as never)
 
     const { getHookValue } = renderHook()
 
@@ -193,7 +156,8 @@ describe('useAvatarUpload', () => {
     })
 
     expect(result).toBeNull()
-    expect(getHookValue().error).toBe('SQLite write failed')
+    expect(getHookValue().error).toBe('Image too small. Minimum size is 200×200 pixels.')
+    expect(mockSaveCharacterImage).not.toHaveBeenCalled()
   })
 
   it('normalizes permission errors from picker', async () => {
@@ -213,9 +177,7 @@ describe('useAvatarUpload', () => {
   it('toggles isUploading true during request and false after completion', async () => {
     const pickerDeferred = createDeferred<ReturnType<typeof makePickerResult>>()
     mockLaunchImageLibraryAsync.mockReturnValue(pickerDeferred.promise as never)
-    mockManipulateAsync.mockResolvedValue({ uri: 'file://converted.webp' } as never)
-    setupFileMock()
-    mockSaveCharacterImageLocally.mockResolvedValue('data:image/webp;base64,BASE64_DATA')
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
     const { getHookValue } = renderHook()
 
@@ -234,8 +196,9 @@ describe('useAvatarUpload', () => {
     expect(getHookValue().isUploading).toBe(false)
   })
 
-  it('rejects images smaller than 200x200 and skips save', async () => {
-    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(180, 199) as never)
+  it('sets error and returns null when save fails', async () => {
+    mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(600, 600) as never)
+    mockSaveCharacterImage.mockRejectedValue(new Error('SQLite write failed'))
 
     const { getHookValue } = renderHook()
 
@@ -245,7 +208,6 @@ describe('useAvatarUpload', () => {
     })
 
     expect(result).toBeNull()
-    expect(getHookValue().error).toBe('Image too small. Minimum size is 200×200 pixels.')
-    expect(mockSaveCharacterImageLocally).not.toHaveBeenCalled()
+    expect(getHookValue().error).toBe('SQLite write failed')
   })
 })

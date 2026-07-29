@@ -12,7 +12,7 @@ graph LR
   characterMachine --> characterService
   characterMachine --> characterDatabase
   characterMachine --> characterSyncService
-  characterMachine --> defaultAvatarService
+  characterMachine --> characterImageSyncService
   characterMachine --> wikiOrchestrator
   characterMachine --> devSandboxFlag
   liveVoiceMachine --> analyticsService

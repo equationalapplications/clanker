@@ -3,12 +3,13 @@ import { StyleSheet, View, TouchableOpacity } from 'react-native'
 import { Card, Text, Icon, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import CharacterAvatar from '~/components/CharacterAvatar'
+import { useResolvedImage } from '~/hooks/useResolvedImage'
 
 interface CharacterCardProps {
   id: string
   name: string
   appearance?: string
-  avatar?: string
+  activeImageId?: string | null
   onPress?: () => void
   onEdit?: () => void
 }
@@ -17,11 +18,13 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   id,
   name,
   appearance,
-  avatar,
+  activeImageId,
   onPress,
   onEdit,
 }) => {
   const theme = useTheme()
+  // Thumb, not master: this renders at 48px, and the list can hold many cards.
+  const avatarUri = useResolvedImage(activeImageId, 'thumb')
 
   const handlePress = () => {
     if (onPress) {
@@ -52,7 +55,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           <Card.Content style={styles.content}>
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
-                <CharacterAvatar size={48} imageUrl={avatar} characterName={name} />
+                <CharacterAvatar size={48} imageUrl={avatarUri} characterName={name} />
               </View>
               <View style={styles.info}>
                 <Text variant="titleMedium" style={styles.name}>

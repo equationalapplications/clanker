@@ -47,11 +47,12 @@
     "@google/genai": "^2.10.0",
     "@react-native-community/netinfo": "12.0.1",
     "@react-native-firebase/analytics": "^23.8.8",
-    "@react-native-firebase/app": "^23.4.1",
+    "@react-native-firebase/app": "^23.8.8",
     "@react-native-firebase/app-check": "^23.8.8",
     "@react-native-firebase/auth": "^23.8.8",
     "@react-native-firebase/crashlytics": "^23.8.8",
     "@react-native-firebase/functions": "^23.8.8",
+    "@react-native-firebase/storage": "^23.8.8",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@speechmatics/expo-two-way-audio": "0.1.2",
     "@tanstack/react-query": "^5.101.2",
@@ -143,7 +144,7 @@
   },
   "overrides": {
     "@babel/core": "^7.29.7",
-    "postcss": "8.5.15"
+    "postcss": "8.5.24"
   },
   "license": "MIT",
   "expo": {

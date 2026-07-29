@@ -258,7 +258,7 @@ export default function CharactersListScreen() {
               id={item.id}
               name={item.name}
               appearance={item.appearance ?? undefined}
-              avatar={item.avatar ?? undefined}
+              activeImageId={item.active_image_id ?? null}
               onPress={() => router.push(`/chat/${item.id}`)}
               onEdit={() => router.push(`/characters/${item.id}/edit`)}
             />

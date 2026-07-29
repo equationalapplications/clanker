@@ -7,6 +7,15 @@ import {getDb} from "./db/cloudSql.js";
 import {users, subscriptions, characters, messages} from "./db/schema.js";
 import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
 import {creditService} from "./services/creditService.js";
+import {storageAdmin} from "./services/storageAdmin.js";
+
+type StorageAdminDeps = {
+  storageAdmin: Pick<typeof storageAdmin, "deletePrefix">;
+  getUserById: typeof getUserById;
+  getDb: typeof getDb;
+  creditService: Pick<typeof creditService, "setCredits">;
+  deleteFirebaseAuthUser: typeof deleteFirebaseAuthUser;
+};
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -161,9 +170,10 @@ async function getSubscription(userId: string) {
 
 async function upsertSubscription(
   userId: string,
-  patch: Partial<typeof subscriptions.$inferInsert>
+  patch: Partial<typeof subscriptions.$inferInsert>,
+  dbGetter: typeof getDb = getDb
 ): Promise<void> {
-  const db = await getDb();
+  const db = await dbGetter();
   await db
     .insert(subscriptions)
     .values({
@@ -475,7 +485,10 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
   };
 };
 
-const adminResetUserStateHandler = async (request: CallableRequest) => {
+const adminResetUserStateHandler = async (
+  request: CallableRequest,
+  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminMutationData;
 
@@ -483,12 +496,12 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const user = await getUserById(userId);
+  const user = await deps.getUserById(userId);
   if (!user) {
     throw new HttpsError("not-found", "User not found.");
   }
 
-  const db = await getDb();
+  const db = await deps.getDb();
 
   await db
     .delete(messages)
@@ -498,6 +511,13 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
     .delete(characters)
     .where(eq(characters.userId, userId));
 
+  // Storage last, deliberately: it's the one irreversible step here. Running
+  // it first and then having a DB delete throw would leave Postgres rows
+  // pointing at objects that no longer exist with nothing left to clean them
+  // up; running it last means a failure here just leaves orphaned bytes,
+  // which are safe to reap on a retry of this same reset.
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
+
   await upsertSubscription(userId, {
     planTier: "free",
     planStatus: "active",
@@ -506,10 +526,10 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
     termsVersion: null,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
-  });
+  }, deps.getDb);
 
   // Reset the credit ledger so the user reliably has DEFAULT_RESET_CREDITS.
-  await creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
+  await deps.creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
 
   auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
     reason,
@@ -531,7 +551,10 @@ const adminResetUserStateHandler = async (request: CallableRequest) => {
   };
 };
 
-const adminDeleteUserHandler = async (request: CallableRequest) => {
+const adminDeleteUserHandler = async (
+  request: CallableRequest,
+  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+) => {
   const adminContext = requireAdmin(request);
   const data = (request.data ?? {}) as AdminMutationData;
 
@@ -539,14 +562,22 @@ const adminDeleteUserHandler = async (request: CallableRequest) => {
   const reason = assertReason(data.reason);
   const requestId = assertRequestId(data.requestId);
 
-  const user = await getUserById(userId);
+  const user = await deps.getUserById(userId);
   if (!user) {
     throw new HttpsError("not-found", "User not found.");
   }
 
-  await deleteFirebaseAuthUser(user.firebaseUid, {userId});
+  // Storage first, not last: unlike adminResetUserState, this handler deletes
+  // the users row itself, so a later step failing must still leave enough
+  // state for a retry of this same call to find the user again. deletePrefix
+  // and deleteFirebaseAuthUser (see its user-not-found handling above) are
+  // both idempotent, so re-running the whole handler after a partial failure
+  // is always safe as long as the Postgres user row survives until last.
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
 
-  const db = await getDb();
+  await deps.deleteFirebaseAuthUser(user.firebaseUid, {userId});
+
+  const db = await deps.getDb();
   await db
     .delete(users)
     .where(eq(users.id, userId));

@@ -212,22 +212,62 @@ function RootLayoutNav() {
   // Gate on !isLoading so that Supabase session (setSession) is ready before sync.
   useEffect(() => {
     if (user && !isLoading && !prevUserRef.current) {
-      // Use NetInfo.fetch() for the real initial state — onlineManager defaults to
-      // online until the NetInfo bridge fires, which can cause false-positive syncs.
-      NetInfo.fetch()
-        .then((state) => {
-          const isOnline =
+      const uid = user.uid
+      void (async () => {
+        // One-shot: migrate legacy avatar_data into the character_images gallery.
+        //
+        // Deliberately NOT gated on connectivity — it is purely local work, and
+        // only this startup branch ever runs it (the reconnect handler retries
+        // cloud sync, not migration). Gating it would leave avatar_data
+        // unmigrated until some later launch that happens to start online.
+        //
+        // Still awaited before sync starts: migrated rows must exist with their
+        // final sync_state before syncAllToCloud queries pending_upload rows,
+        // otherwise a migrated cloud-mode avatar waits a full extra launch for
+        // the sweeper to notice it (and the two writers could otherwise race the
+        // same character_images rows).
+        let migrationSucceeded = false
+        try {
+          const { migrateAvatarsToImageStore } = await import(
+            '~/database/migrations/migrateAvatarsToImageStore'
+          )
+          const { LEGACY_DEFAULT_AVATAR_BASE64 } = await import(
+            '~/database/migrations/legacyDefaultAvatarBase64'
+          )
+          await migrateAvatarsToImageStore(uid, LEGACY_DEFAULT_AVATAR_BASE64)
+          characterService.send({ type: 'LOAD' })
+          migrationSucceeded = true
+        } catch (err) {
+          console.warn('Avatar migration failed:', err)
+        }
+
+        // Use NetInfo.fetch() for the real initial state — onlineManager defaults to
+        // online until the NetInfo bridge fires, which can cause false-positive syncs.
+        let isOnline = false
+        try {
+          const state = await NetInfo.fetch()
+          isOnline =
             state.isConnected != null && state.isConnected && state.isInternetReachable !== false
-          if (isOnline) {
-            import('~/services/characterSyncService')
-              .then(({ syncAllToCloud }) => syncAllToCloud())
-              .then(() => characterService.send({ type: 'LOAD' }))
-              .catch((err) => console.warn('Startup sync failed:', err))
-          }
-        })
-        .catch((err) => {
+        } catch (err) {
           console.warn('Startup NetInfo.fetch failed, skipping initial sync:', err)
-        })
+          return
+        }
+        if (!isOnline) return
+
+        // Skip sync when migration failed: the comment above explains why
+        // migration must finish before syncAllToCloud — the two writers would
+        // race the same character_images rows. migrateAvatarsToImageStore
+        // retries on next launch, so deferring sync is safe.
+        if (!migrationSucceeded) return
+
+        try {
+          const { syncAllToCloud } = await import('~/services/characterSyncService')
+          await syncAllToCloud()
+          characterService.send({ type: 'LOAD' })
+        } catch (err) {
+          console.warn('Startup sync failed:', err)
+        }
+      })()
     }
     prevUserRef.current = user
   }, [user, isLoading, characterService])

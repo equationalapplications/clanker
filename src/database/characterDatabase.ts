@@ -5,7 +5,6 @@
 
 import { getDatabase } from './index'
 import { normalizeVoice } from '~/constants/voiceDefaults'
-import { sanitizeImageMimeType } from '~/utilities/imageMimeType'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 export interface LocalCharacter {
@@ -30,6 +29,31 @@ export interface LocalCharacter {
     summary_checkpoint?: number | null // highest message count included in context summary
     heal_checkpoint?: number | null
     memory_checkpoint?: number | null
+    owner_user_id: string
+    voice: string
+    active_image_id?: string | null
+}
+
+export interface AppCharacter {
+    id: string
+    user_id: string
+    name: string
+    avatar: string | null
+    active_image_id?: string | null
+    appearance: string | null
+    traits: string | null
+    emotions: string | null
+    context: string | null
+    is_public: boolean
+    created_at: string
+    updated_at: string
+    synced_to_cloud: boolean
+    save_to_cloud: boolean
+    cloud_id: string | null
+    pending_cloud_id: string | null
+    summary_checkpoint: number
+    heal_checkpoint: number
+    memory_checkpoint: number
     owner_user_id: string
     voice: string
 }
@@ -67,16 +91,12 @@ export interface CharacterUpdate {
  * Convert LocalCharacter to app format
  */
 function toAppFormat(char: LocalCharacter) {
-    // Prefer avatar_data (local base64) for display; fall back to avatar (cloud URL)
-    const displayAvatar = char.avatar_data
-        ? `data:${sanitizeImageMimeType(char.avatar_mime_type)};base64,${char.avatar_data}`
-        : char.avatar
-
     return {
         id: char.id,
         user_id: char.user_id,
         name: char.name,
-        avatar: displayAvatar,
+        avatar: char.avatar,
+        active_image_id: char.active_image_id ?? null,
         appearance: char.appearance,
         traits: char.traits,
         emotions: char.emotions,

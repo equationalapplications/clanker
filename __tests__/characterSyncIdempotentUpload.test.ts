@@ -32,6 +32,8 @@ jest.mock('~/auth/devSandboxFlag', () => ({
 }))
 jest.mock('~/services/wikiService', () => ({ getWiki: jest.fn(() => null) }))
 jest.mock('~/services/wikiOrchestrator', () => ({ wikiOrchestrator: { syncAll: jest.fn() } }))
+jest.mock('~/services/characterImageSyncService', () => ({ syncCharacterImages: jest.fn() }))
+jest.mock('~/services/characterImageService', () => ({ saveCharacterImage: jest.fn() }))
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: (...args: unknown[]) => mockSyncCharacterFn(...args),
   deleteCharacterFn: jest.fn(),

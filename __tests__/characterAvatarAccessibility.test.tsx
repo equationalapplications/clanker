@@ -5,12 +5,14 @@ jest.mock('~/config/constants', () => ({
   defaultAvatarUrl: 'https://example.com/default-avatar.png',
 }))
 
+jest.mock('../assets/default-avatar-1024.webp', () => 'DEFAULT_AVATAR_ASSET', { virtual: true })
+
 jest.mock('react-native-paper', () => {
   const React = require('react')
   return {
     Avatar: {
-      Image: ({ size, source, onError, accessible, accessibilityLabel }: any) =>
-        React.createElement('AvatarImage', { size, source, onError, accessible, accessibilityLabel }),
+      Image: ({ size, source, resizeMode, onError, accessible, accessibilityLabel }: any) =>
+        React.createElement('AvatarImage', { size, source, resizeMode, onError, accessible, accessibilityLabel }),
       Text: ({ size, label, accessible, accessibilityLabel }: any) =>
         React.createElement('AvatarText', { size, label, accessible, accessibilityLabel }),
       Icon: ({ size, icon, accessible, accessibilityLabel }: any) =>
@@ -38,19 +40,32 @@ describe('CharacterAvatar accessibility', () => {
     expect(avatar.props.accessibilityLabel).toBe('Frodo Baggins avatar')
   })
 
-  it('Avatar.Icon fallback has accessible=true and "Character avatar" label', () => {
+  it('bundled default fallback has accessible=true and "Character avatar" label', () => {
     let tree: any
     act(() => { tree = create(<CharacterAvatar imageUrl={null} characterName="" />) })
-    const avatar = tree.root.findByType('AvatarIcon')
+    const avatar = tree.root.findByType('AvatarImage')
     expect(avatar.props.accessible).toBe(true)
     expect(avatar.props.accessibilityLabel).toBe('Character avatar')
   })
 
-  it('Avatar.Image default gravatar fallback has label', () => {
+  it('falls back to the bundled default asset when there is no image and no name', () => {
     let tree: any
     act(() => { tree = create(<CharacterAvatar imageUrl={null} characterName="" showFallback={false} />) })
     const avatar = tree.root.findByType('AvatarImage')
-    expect(avatar.props.accessible).toBe(true)
+    expect(avatar.props.source).toBe('DEFAULT_AVATAR_ASSET')
     expect(avatar.props.accessibilityLabel).toBe('Character avatar')
+  })
+
+  it('falls back to the bundled default after the remote image errors', () => {
+    let tree: any
+    act(() => { tree = create(<CharacterAvatar imageUrl="https://example.com/a.png" characterName="" showFallback={false} />) })
+    act(() => { tree.root.findByType('AvatarImage').props.onError() })
+    expect(tree.root.findByType('AvatarImage').props.source).toBe('DEFAULT_AVATAR_ASSET')
+  })
+
+  it('covers rather than letterboxes non-square images', () => {
+    let tree: any
+    act(() => { tree = create(<CharacterAvatar imageUrl="https://example.com/wide.png" characterName="Frodo" />) })
+    expect(tree.root.findByType('AvatarImage').props.resizeMode).toBe('cover')
   })
 })
