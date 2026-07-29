@@ -97,6 +97,19 @@ describe('migrateAvatarsToImageStore', () => {
     expect(mockGetAllAsync).not.toHaveBeenCalled()
   })
 
+  it('does not suppress migration for a second user when the first user has already completed', async () => {
+    // Simulate user-1 already migrated: their flag is set.
+    mockStorageGet.mockImplementation((key: string) =>
+      key === avatarMigrationFlagKey('user-1') ? Promise.resolve('done') : Promise.resolve(null),
+    )
+    mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_b', user_id: 'user-2' })])
+    await migrateAvatarsToImageStore('user-2', DEFAULT_B64)
+    // user-2's migration must still run — the flag is per-user.
+    expect(mockGetAllAsync).toHaveBeenCalled()
+    expect(mockInsert).toHaveBeenCalled()
+    expect(mockStorageSet).toHaveBeenCalledWith(avatarMigrationFlagKey('user-2'), 'done')
+  })
+
   it('sets the flag when it completes', async () => {
     mockGetAllAsync.mockResolvedValue([])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)

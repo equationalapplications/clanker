@@ -31,6 +31,7 @@ Stopping after Stage A leaves the app strictly better than today (history preser
 ## File structure
 
 **New — local storage layer**
+
 | Path | Responsibility |
 |---|---|
 | `src/database/characterImageDatabase.ts` | All SQL against `character_images` + `characters.active_image_id`. No business logic. |
@@ -40,12 +41,14 @@ Stopping after Stage A leaves the app strictly better than today (history preser
 | `src/services/imageVariants.ts` | Resize-to-1024 master + 256 thumb. Shared by save path and migration. |
 
 **New — write/read orchestration**
+
 | Path | Responsibility |
 |---|---|
 | `src/services/characterImageService.ts` | `saveCharacterImage`, cap eviction, deletion cascade. The only public write entry point. |
 | `src/hooks/useResolvedImage.ts` | Row id → resolved URI for React consumers. |
 
 **New — cloud**
+
 | Path | Responsibility |
 |---|---|
 | `src/services/storageService.ts` / `.web.ts` | Firebase Storage upload/download/delete/getDownloadURL, platform-split. |
@@ -56,6 +59,7 @@ Stopping after Stage A leaves the app strictly better than today (history preser
 | `functions/drizzle/0022_character_images.sql` | Hand-written DDL (do **not** run `drizzle-kit generate`). |
 
 **New — UI/assets**
+
 | Path | Responsibility |
 |---|---|
 | `src/components/AvatarPicker.tsx` | Modal grid of thumbs; activate/delete; hosts Generate + Upload. |
@@ -3524,7 +3528,7 @@ Expected: FAIL — `ENOENT: no such file or directory, open '.../storage.rules'`
 
 Create `storage.rules`:
 
-```
+```text
 rules_version = '2';
 
 service firebase.storage {
