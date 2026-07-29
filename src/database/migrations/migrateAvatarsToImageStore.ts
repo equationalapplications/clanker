@@ -14,6 +14,7 @@ import { getDatabase } from '~/database/index'
 import { Storage } from '~/utilities/kvStorage'
 import {
   getCharacterImages,
+  getInlineImagesMissingThumbForUser,
   insertCharacterImage,
   setActiveImageId,
   updateImageRefs,
@@ -88,8 +89,6 @@ export async function migrateAvatarsToImageStore(
   )
 
   let allSucceeded = true
-  const migratedRows: CharacterImageRow[] = []
-  const cloudCharacterIds = new Set<string>()
 
   for (const row of rows) {
     try {
@@ -125,28 +124,34 @@ export async function migrateAvatarsToImageStore(
 
       await insertCharacterImage(imageRow)
       await setActiveImageId(row.id, imageId)
-      migratedRows.push(imageRow)
-      if (row.save_to_cloud) cloudCharacterIds.add(row.id)
     } catch (err) {
       console.warn('[avatarMigration] character failed, will retry next launch:', row.id, err)
       allSucceeded = false
     }
   }
 
-  // Step 3: derive thumbs and fix mislabelled masters for what was just
-  // migrated, then promote save_to_cloud characters' rows so the sweeper
-  // picks them up. Failures here are per-row/per-character and logged rather
-  // than clearing `allSucceeded` — the row is already a valid `inline` row
-  // that resolves via the master fallback, so it is not worth re-running the
-  // whole migration over a missing thumbnail.
-  if (migratedRows.length > 0) {
-    await backfillThumbnails(migratedRows)
+  // Step 3: derive thumbs and fix mislabelled masters, then promote
+  // save_to_cloud characters' rows so the sweeper picks them up.
+  //
+  // Driven by fresh queries, not by what THIS pass inserted: a run interrupted
+  // between the loop above and here is retried later, but the per-character
+  // idempotency check makes every one of those characters skip the insert on
+  // retry (they already have gallery rows) — an in-memory list scoped to this
+  // pass would then never backfill their thumbnail or promote them to cloud,
+  // silently for the rest of the app's life. Failures here are per-row/
+  // per-character and logged rather than clearing `allSucceeded` — the row is
+  // already a valid `inline` row that resolves via the master fallback, so it
+  // is not worth re-running the whole migration over a missing thumbnail.
+  const pendingThumbnails = await getInlineImagesMissingThumbForUser(userId)
+  if (pendingThumbnails.length > 0) {
+    await backfillThumbnails(pendingThumbnails)
   }
-  for (const characterId of cloudCharacterIds) {
+  for (const row of rows) {
+    if (!row.save_to_cloud) continue
     try {
-      await promoteCharacterImagesToCloud(characterId)
+      await promoteCharacterImagesToCloud(row.id)
     } catch (err) {
-      console.warn('[avatarMigration] cloud promotion failed for', characterId, err)
+      console.warn('[avatarMigration] cloud promotion failed for', row.id, err)
     }
   }
 

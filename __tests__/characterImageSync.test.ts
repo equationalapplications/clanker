@@ -75,6 +75,15 @@ function localImage(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  // clearAllMocks drops recorded calls but KEEPS implementations, so the
+  // rejecting/ordering stubs individual tests install leak into every later
+  // test in the file. Reset the ones tests routinely override, or a case that
+  // asserts "no upload cleanup happened" silently inherits a throwing upload
+  // from the test above it and passes/fails for the wrong reason.
+  for (const mock of [mockUpload, mockDeleteObject, mockDeleteLocalBytes, mockUpdateRefs]) {
+    mock.mockReset()
+    mock.mockResolvedValue(undefined)
+  }
   mockGetAllChars.mockResolvedValue([
     { id: 'char_a', cloud_id: CLOUD_ID, pending_cloud_id: CLOUD_ID, save_to_cloud: 1, deleted_at: null },
   ])
@@ -251,6 +260,34 @@ describe('syncCharacterImages — retries', () => {
     mockUpload.mockRejectedValue(new Error('network'))
     await syncCharacterImages('user-1')
     expect(mockSetSyncState).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222', 'failed')
+  })
+
+  it('deletes a master that uploaded before the thumb failed', async () => {
+    // The row is still file-kind at this point, so nothing references the
+    // uploaded master. Left behind it is an orphan no sweep can find once the
+    // row exhausts its retry budget — the same class the write path's
+    // reservation closes, which does not cover the sweeper.
+    const masterPath = `users/user-1/characters/${CLOUD_ID}/22222222-2222-4222-8222-222222222222.webp`
+    const thumbPath = `users/user-1/characters/${CLOUD_ID}/22222222-2222-4222-8222-222222222222_thumb.webp`
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    mockUpload.mockImplementation(async (path: string) => {
+      if (path === thumbPath) throw new Error('network')
+    })
+    await syncCharacterImages('user-1')
+    expect(mockDeleteObject).toHaveBeenCalledWith(masterPath)
+    // The local bytes are untouched, so the image still resolves and a later
+    // sweep re-uploads to the same deterministic path.
+    expect(mockDeleteLocalBytes).not.toHaveBeenCalled()
+    expect(mockUpdateRefs).not.toHaveBeenCalled()
+  })
+
+  it('keeps uploaded objects once the row commits to them', async () => {
+    // After updateImageRefs the row points at the cloud copies, so a later
+    // failure in the same iteration must not delete them.
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    mockDeleteLocalBytes.mockRejectedValue(new Error('fs gone'))
+    await syncCharacterImages('user-1')
+    expect(mockDeleteObject).not.toHaveBeenCalled()
   })
 
   it('fails fast on a permission error rather than burning the budget', async () => {

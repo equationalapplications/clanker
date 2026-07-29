@@ -5,6 +5,7 @@ const mockStorageSet = jest.fn()
 const mockInsert = jest.fn()
 const mockSetActive = jest.fn()
 const mockGetImages = jest.fn().mockResolvedValue([])
+const mockGetPendingThumbnails = jest.fn()
 const mockUpdateRefs = jest.fn()
 const mockPrepareVariants = jest.fn()
 const mockPromoteToCloud = jest.fn()
@@ -25,6 +26,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
   insertCharacterImage: (...a: unknown[]) => mockInsert(...a),
   setActiveImageId: (...a: unknown[]) => mockSetActive(...a),
   getCharacterImages: (...a: unknown[]) => mockGetImages(...a),
+  getInlineImagesMissingThumbForUser: (...a: unknown[]) => mockGetPendingThumbnails(...a),
   updateImageRefs: (...a: unknown[]) => mockUpdateRefs(...a),
 }))
 jest.mock('~/services/imageVariants', () => ({
@@ -66,6 +68,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockStorageGet.mockResolvedValue(null)
   mockGetImages.mockResolvedValue([])
+  mockGetPendingThumbnails.mockResolvedValue([])
   mockPrepareVariants.mockResolvedValue({
     master: { base64: 'NEWM', mimeType: 'image/webp' },
     thumb: { base64: 'NEWT', mimeType: 'image/webp' },
@@ -163,6 +166,9 @@ describe('migrateAvatarsToImageStore', () => {
 
   it('runs the background thumbnail pass on every row it just migrated', async () => {
     mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a' })])
+    mockGetPendingThumbnails.mockResolvedValue([
+      { id: 'uuid-mig', storage_kind: 'inline', master_ref: 'UklGRkkAAABXRUJQVlA4CUSTOM', thumb_ref: null, mime_type: 'image/webp', sync_state: 'local' },
+    ])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
     // §15 step 3: a migrated row has no thumb yet — the pass derives one so the
     // row does not resolve via the master fallback forever.
@@ -170,6 +176,23 @@ describe('migrateAvatarsToImageStore', () => {
       'uuid-mig',
       expect.objectContaining({ thumb_ref: 'NEWT' }),
     )
+  })
+
+  it('backfills thumbnails and promotes to cloud for a character an earlier, interrupted run already migrated', async () => {
+    // Step 3 must not depend on what THIS pass inserted: a character already
+    // holding gallery rows is skipped by the per-character idempotency check
+    // below, so if step 3 were driven only from an in-memory list of rows this
+    // pass just created, an interrupted prior run's characters would never get
+    // their thumbnail backfilled or get promoted to cloud — silently, forever.
+    mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a', save_to_cloud: 1 })])
+    mockGetImages.mockResolvedValue([{ id: 'existing' }])
+    mockGetPendingThumbnails.mockResolvedValue([
+      { id: 'existing', storage_kind: 'inline', master_ref: 'X', thumb_ref: null, mime_type: 'image/webp', sync_state: 'local' },
+    ])
+    await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
+    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockUpdateRefs).toHaveBeenCalledWith('existing', expect.objectContaining({ thumb_ref: 'NEWT' }))
+    expect(mockPromoteToCloud).toHaveBeenCalledWith('char_a')
   })
 
   it('promotes migrated rows to cloud for save_to_cloud characters', async () => {
@@ -184,11 +207,15 @@ describe('migrateAvatarsToImageStore', () => {
     expect(mockPromoteToCloud).not.toHaveBeenCalled()
   })
 
-  it('does not run the thumbnail pass or promotion for a skipped bundled-default row', async () => {
+  it('does not run the thumbnail pass for a skipped bundled-default row', async () => {
+    // No row was ever created for this character, so there is nothing to
+    // backfill. Promotion is still attempted per save_to_cloud character
+    // (step 3 is driven by a fresh query, not by what this pass inserted — see
+    // the interrupted-run recovery test above), but it is a harmless no-op in
+    // production: promoteCharacterImagesToCloud finds no local rows to mark.
     mockGetAllAsync.mockResolvedValue([charRow({ avatar_data: DEFAULT_B64, save_to_cloud: 1 })])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
     expect(mockUpdateRefs).not.toHaveBeenCalled()
-    expect(mockPromoteToCloud).not.toHaveBeenCalled()
   })
 })
 

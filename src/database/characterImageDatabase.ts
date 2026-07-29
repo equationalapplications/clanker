@@ -99,7 +99,7 @@ export async function getActiveCharacterImage(
   return db.getFirstAsync<CharacterImageRow>(
     `SELECT i.* FROM character_images i
      JOIN characters c ON c.active_image_id = i.id AND i.character_id = c.id
-     WHERE c.id = ? AND i.deleted_at IS NULL`,
+     WHERE c.id = ? AND i.deleted_at IS NULL AND i.sync_state != 'reserved'`,
     [characterId],
   )
 }
@@ -232,6 +232,27 @@ export async function getStaleImageReservations(
      WHERE user_id = ? AND sync_state = 'reserved' AND created_at < ?
      ORDER BY created_at ASC`,
     [userId, olderThan],
+  )
+}
+
+/**
+ * Inline rows for a user still missing a thumbnail — what the migration's
+ * background pass (step 3) backfills.
+ *
+ * Queried fresh rather than driven from an in-memory list of rows this run
+ * just inserted: a migration interrupted after inserting rows but before this
+ * pass runs is skipped on retry by the per-character idempotency check (the
+ * character already has gallery rows), so a caller relying only on "what did
+ * this pass insert" would leave those rows without a thumbnail forever.
+ */
+export async function getInlineImagesMissingThumbForUser(
+  userId: string,
+): Promise<CharacterImageRow[]> {
+  const db = await getDatabase()
+  return db.getAllAsync<CharacterImageRow>(
+    `SELECT * FROM character_images
+     WHERE user_id = ? AND storage_kind = 'inline' AND thumb_ref IS NULL AND deleted_at IS NULL`,
+    [userId],
   )
 }
 

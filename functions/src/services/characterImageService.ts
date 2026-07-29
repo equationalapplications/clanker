@@ -47,6 +47,13 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
     // upstream ownership check only covers the characterId, not the image id.
     // Comparing the *existing* row's owner against the incoming one makes a
     // foreign id a silent no-op instead of a takeover.
+    //
+    // Known limitation: the client never sends a createdAt, so first-insert
+    // rows take the column default (now()) rather than the image's actual
+    // local creation time. The FIFO cap therefore evicts by registration order,
+    // not by when the image was made — a backlog of week-old offline images
+    // synced together looks newest. Not plumbed through: it would mean
+    // trusting a client-supplied timestamp for an ordering that deletes data.
     await db.insert(characterImages).values(row).onConflictDoUpdate({
       target: characterImages.id,
       set: {

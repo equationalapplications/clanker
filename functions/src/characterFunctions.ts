@@ -114,7 +114,6 @@ type CharacterImagePayload = {
   thumbPath?: string | null;
   mimeType?: string | null;
   source: string;
-  createdAt?: string;
 };
 
 const IMAGE_SOURCES = new Set(['generated', 'uploaded', 'imported']);
@@ -170,6 +169,13 @@ function parseImagePayload(
   }
   if (typeof source !== 'string' || !IMAGE_SOURCES.has(source)) {
     throw new HttpsError('invalid-argument', 'image.source must be generated, uploaded, or imported.');
+  }
+  // Rejected rather than silently coerced to null: a caller that sent a
+  // malformed thumbPath believes it registered a thumb, and dropping it here
+  // would leave the server (and every other device) without one while the
+  // sender never learns its request was only partially honoured.
+  if (thumbPath !== undefined && thumbPath !== null && typeof thumbPath !== 'string') {
+    throw new HttpsError('invalid-argument', 'image.thumbPath must be a string or null when provided.');
   }
 
   const expectedPrefix = `users/${firebaseUid}/characters/${characterId}/`;
@@ -255,9 +261,17 @@ export const syncCharacterImagesHandler = async (
     ? images.map((image) => parseImagePayload(image, request.auth!.uid, characterId))
     : [];
 
-  const parsedDeletions = Array.isArray(deletedImageIds)
-    ? deletedImageIds.filter((id): id is string => typeof id === 'string' && UUID_REGEX.test(id))
-    : [];
+  // Same argument as activeImageId: silently dropping a malformed id would
+  // leave that image live on the server while the sending device believes its
+  // deletion was registered, and stop retrying it.
+  if (Array.isArray(deletedImageIds)) {
+    for (const id of deletedImageIds) {
+      if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
+        throw new HttpsError('invalid-argument', 'deletedImageIds must each be a UUID.');
+      }
+    }
+  }
+  const parsedDeletions: string[] = Array.isArray(deletedImageIds) ? deletedImageIds : [];
 
   try {
     if (parsedDeletions.length > 0) {

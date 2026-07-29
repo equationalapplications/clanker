@@ -1,8 +1,24 @@
 [
   {
-    "origin": ["https://clanker-prod.web.app", "https://clanker-prod.firebaseapp.com", "http://localhost:8081"],
-    "method": ["GET", "POST", "DELETE"],
-    "responseHeader": ["Content-Type"],
+    "origin": [
+      "https://clanker-ai.com",
+      "https://clanker-prod.web.app",
+      "https://clanker-prod.firebaseapp.com",
+      "http://localhost:8081"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE"],
+    "responseHeader": [
+      "Content-Type",
+      "Content-Length",
+      "Content-Disposition",
+      "Authorization",
+      "X-Goog-Upload-Protocol",
+      "X-Goog-Upload-Command",
+      "X-Goog-Upload-URL",
+      "X-Goog-Upload-Status",
+      "X-Goog-Upload-Header-Content-Length",
+      "X-Goog-Upload-Header-Content-Type"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

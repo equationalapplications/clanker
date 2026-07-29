@@ -129,6 +129,12 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
     const bucket = perCharacter.get(cloudCharacterId) ?? { uploaded: [], deleted: [] }
     perCharacter.set(cloudCharacterId, bucket)
 
+    // Objects this attempt has put in Storage that no row references yet. Until
+    // updateImageRefs lands, the local row still points at local bytes, so a
+    // throw in between would leave these unreferenced — and a row that later
+    // exhausts its retry budget never comes back to claim them.
+    const uploadedThisAttempt: string[] = []
+
     try {
       if (row.sync_state === 'pending_upload') {
         // Bytes already in Storage, only the server row missing: an earlier sweep
@@ -146,9 +152,13 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
         const masterBytes = await readBase64(row, 'master')
         if (!masterBytes) throw new Error(`No master bytes for image ${row.id}`)
         await uploadImageBytes(masterPath, masterBytes, row.mime_type)
+        uploadedThisAttempt.push(masterPath)
 
         const thumbBytes = row.thumb_ref ? await readBase64(row, 'thumb') : null
-        if (thumbBytes) await uploadImageBytes(thumbPath, thumbBytes, row.mime_type)
+        if (thumbBytes) {
+          await uploadImageBytes(thumbPath, thumbBytes, row.mime_type)
+          uploadedThisAttempt.push(thumbPath)
+        }
 
         // Rows before local bytes: the DB write pointing at the new cloud paths
         // must land first, since it's the one thing that must not silently fail
@@ -168,6 +178,11 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           // already in Storage.
           sync_state: 'pending_upload',
         })
+
+        // Committed: the row now references these objects, so they are no longer
+        // orphans and must NOT be cleaned up if something later in this iteration
+        // throws.
+        uploadedThisAttempt.length = 0
 
         // The row is now durably pointing at the cloud copies, so the local
         // bytes are redundant. Deleting them is best-effort: a failure here
@@ -203,6 +218,22 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
         bucket.deleted.push(row.id)
       }
     } catch (error) {
+      // Drop any object this attempt uploaded but never committed a row for.
+      // The common case is a master that uploaded before the thumb failed: the
+      // row is still local-kind, so nothing references the master, and once the
+      // row exhausts its retry budget nothing ever will. This is the same orphan
+      // class the write path's reservation closes (§6), which does not cover the
+      // sweeper. A retry re-uploads to the same deterministic path, so deleting
+      // here costs one re-upload and never loses the image — the local bytes are
+      // untouched.
+      for (const path of uploadedThisAttempt) {
+        try {
+          await deleteStorageObject(path)
+        } catch (cleanupError) {
+          reportError(cleanupError, 'characterImageSync:cleanupPartialUpload')
+        }
+      }
+
       await incrementSyncAttempts(row.id)
       if (isTerminalError(error) || row.sync_attempts + 1 >= MAX_SYNC_ATTEMPTS) {
         // A failed row keeps kind='file' and its local bytes, so the image still
@@ -445,7 +476,13 @@ export async function demoteCharacterImagesToLocal(
   cloudCharacterId?: string,
 ): Promise<void> {
   const rows = await getAllImagesForCharacter(localCharacterId)
-  const cloudRows = rows.filter((row) => row.storage_kind === 'cloud' && !row.deleted_at)
+  // 'reserved' rows have no confirmed bytes yet — downloading one here would
+  // throw on a plausibly-nonexistent object and abort the whole demotion. They
+  // settle on their own (upload completion or the stale-reservation reaper) and
+  // are excluded from this pass exactly like the picker, cap, and active pointer.
+  const cloudRows = rows.filter(
+    (row) => row.storage_kind === 'cloud' && !row.deleted_at && row.sync_state !== 'reserved',
+  )
   if (cloudRows.length === 0) return
 
   // Phase 1 — download everything. Any failure aborts before a single byte is

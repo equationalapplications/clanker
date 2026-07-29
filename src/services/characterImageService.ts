@@ -342,8 +342,11 @@ export async function deleteCharacterImage(imageId: string, userId: string): Pro
     // Repoint before removing the row so a failure in between can never leave
     // active_image_id pointing at a row that no longer exists. Promotes the next
     // newest surviving image; falls back to the bundled default when none remain.
+    // 'reserved' rows are excluded: their bytes are not confirmed and the user
+    // has never seen one, so it must never become the active pointer.
     const remaining = (await getAllImagesForCharacter(row.character_id)).filter(
-      (candidate) => candidate.id !== imageId && !candidate.deleted_at,
+      (candidate) =>
+        candidate.id !== imageId && !candidate.deleted_at && candidate.sync_state !== 'reserved',
     )
     await setActiveImageId(row.character_id, remaining[0]?.id ?? null)
   }

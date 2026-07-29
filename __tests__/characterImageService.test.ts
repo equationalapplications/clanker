@@ -416,6 +416,28 @@ describe('deleteCharacterImage', () => {
     expect(mockSetActive).toHaveBeenCalledWith('char_a', 'img-0')
   })
 
+  it('skips a reserved row when promoting the next active image', async () => {
+    // A 'reserved' row's bytes are not confirmed and the user has never seen
+    // it — it must never become the active pointer, even if it is the newest
+    // surviving row after a delete.
+    mockGetById.mockResolvedValue({
+      id: 'img-1',
+      character_id: 'char_a',
+      user_id: 'user-1',
+      storage_kind: 'inline',
+      master_ref: 'B',
+      thumb_ref: null,
+    })
+    mockGetActive.mockResolvedValue({ id: 'img-1' })
+    mockGetAllForCharacter.mockResolvedValue([
+      { id: 'img-1', deleted_at: null, created_at: 3, sync_state: 'synced' },
+      { id: 'img-reserved', deleted_at: null, created_at: 2.5, sync_state: 'reserved' },
+      { id: 'img-0', deleted_at: null, created_at: 2, sync_state: 'synced' },
+    ])
+    await deleteCharacterImage('img-1', 'user-1')
+    expect(mockSetActive).toHaveBeenCalledWith('char_a', 'img-0')
+  })
+
   it('clears the active image when the last one is deleted', async () => {
     mockGetById.mockResolvedValue({
       id: 'img-1',

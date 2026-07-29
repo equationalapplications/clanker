@@ -128,4 +128,18 @@ describe('demoteCharacterImagesToLocal (toggle off)', () => {
     await demoteCharacterImagesToLocal('char_a', 'user-1')
     expect(mockDownload).not.toHaveBeenCalled()
   })
+
+  it('excludes reserved rows — their bytes may not exist yet', async () => {
+    // A 'reserved' row is a claim made before its upload began; downloading it
+    // here would throw on a plausibly-nonexistent object and abort the whole
+    // demotion. It settles on its own (upload completion or the stale-
+    // reservation reaper), same as it is excluded from the picker, the cap,
+    // and the active pointer.
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      { ...cloudRow('reserved-a'), sync_state: 'reserved' },
+    ])
+    await demoteCharacterImagesToLocal('char_a', 'user-1')
+    expect(mockDownload).not.toHaveBeenCalled()
+    expect(mockUpdateRefs).not.toHaveBeenCalled()
+  })
 })
