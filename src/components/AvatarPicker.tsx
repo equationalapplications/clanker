@@ -73,7 +73,7 @@ export function AvatarPicker({
     // "synchronize with an external system" case this lint rule allows for —
     // `refresh`'s own setState calls happen asynchronously after the DB read
     // resolves, not synchronously in this effect body.
-     
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() calls setState asynchronously after DB read
     if (visible) void refresh()
   }, [visible, refresh])
 

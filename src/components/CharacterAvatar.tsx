@@ -28,16 +28,11 @@ export default function CharacterAvatar({
   characterName = '',
   showFallback = true,
 }: CharacterAvatarProps) {
-  const [imageError, setImageError] = useState(false)
-  const [erroredUrl, setErroredUrl] = useState<string | null | undefined>(null)
-
-  // A new URI is a new attempt: without this, one failed load would pin the
-  // fallback for the lifetime of the component even after the user picks
-  // another image.
-  React.useEffect(() => {
-    setImageError(false)
-    setErroredUrl(null)
-  }, [imageUrl])
+  const [erroredUrl, setErroredUrl] = useState<string | null>(null)
+  // Derived: imageError is true only when the current URL matches the one that
+  // errored. When imageUrl changes, erroredUrl won't match, so imageError
+  // naturally resets — no effect needed.
+  const imageError = imageUrl != null && erroredUrl === imageUrl
 
   if (imageUrl && !imageError) {
     const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
@@ -49,8 +44,7 @@ export default function CharacterAvatar({
         // instead of letterboxing it.
         resizeMode="cover"
         onError={() => {
-          setImageError(true)
-          setErroredUrl(imageUrl)
+          setErroredUrl(imageUrl ?? null)
         }}
         accessible
         accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
