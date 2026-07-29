@@ -78,17 +78,72 @@ beforeEach(() => {
 })
 
 describe('syncCharacterImages — uploads', () => {
-  it('uploads pending images to the confirmed cloud path and marks them synced', async () => {
+  it('uploads pending images to the confirmed cloud path', async () => {
     mockGetImagesBySyncState.mockResolvedValue([localImage()])
     await syncCharacterImages('user-1')
     expect(mockUpload).toHaveBeenCalledWith(
       `users/user-1/characters/${CLOUD_ID}/22222222-2222-4222-8222-222222222222.webp`,
       'B64', 'image/webp',
     )
+    // Refs repointed at the cloud copies, but deliberately still pending: the
+    // server has not acknowledged the row yet.
     expect(mockUpdateRefs).toHaveBeenCalledWith(
       '22222222-2222-4222-8222-222222222222',
-      expect.objectContaining({ storage_kind: 'cloud', sync_state: 'synced' }),
+      expect.objectContaining({ storage_kind: 'cloud', sync_state: 'pending_upload' }),
     )
+  })
+
+  it('marks the row synced only after the server acknowledges it', async () => {
+    const order: string[] = []
+    mockUpdateRefs.mockImplementation(async () => { order.push('updateRefs') })
+    mockSyncImagesFn.mockImplementation(async () => {
+      order.push('register')
+      return { data: { evictedImageIds: [], images: [] } }
+    })
+    mockSetSyncState.mockImplementation(async (_id: string, state: string) => {
+      order.push(`setState:${state}`)
+    })
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    await syncCharacterImages('user-1')
+    expect(order).toEqual(['updateRefs', 'register', 'setState:synced'])
+  })
+
+  it('leaves the row pending when registration fails, so the next sweep retries it', async () => {
+    mockGetImagesBySyncState.mockResolvedValue([localImage()])
+    mockSyncImagesFn.mockRejectedValue(new Error('offline'))
+    await syncCharacterImages('user-1')
+    // Never marked synced — that would drop it out of every future sweep, leaving
+    // bytes in Storage the server never learns about.
+    expect(mockSetSyncState).not.toHaveBeenCalledWith(expect.anything(), 'synced')
+    expect(mockIncrementAttempts).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222')
+  })
+
+  it('gives up on registration after the retry budget', async () => {
+    mockGetImagesBySyncState.mockResolvedValue([
+      localImage({ sync_attempts: MAX_SYNC_ATTEMPTS - 1 }),
+    ])
+    mockSyncImagesFn.mockRejectedValue(new Error('offline'))
+    await syncCharacterImages('user-1')
+    expect(mockSetSyncState).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222', 'failed')
+  })
+
+  it('re-registers an already-uploaded cloud row without re-uploading it', async () => {
+    // A previous sweep uploaded the bytes and its registration call failed; the
+    // local bytes are gone, so re-uploading is impossible as well as wasteful.
+    mockGetImagesBySyncState.mockResolvedValue([
+      localImage({
+        storage_kind: 'cloud',
+        sync_state: 'pending_upload',
+        master_ref: `users/user-1/characters/${CLOUD_ID}/img.webp`,
+        thumb_ref: null,
+      }),
+    ])
+    await syncCharacterImages('user-1')
+    expect(mockUpload).not.toHaveBeenCalled()
+    expect(mockSyncImagesFn).toHaveBeenCalledWith(expect.objectContaining({
+      images: [expect.objectContaining({ id: '22222222-2222-4222-8222-222222222222' })],
+    }))
+    expect(mockSetSyncState).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222', 'synced')
   })
 
   it('persists the cloud refs before deleting local bytes (rows before local cleanup)', async () => {
@@ -208,8 +263,24 @@ describe('syncCharacterImages — deletions', () => {
         deleted_at: 5,
       }),
     ])
+    mockSyncImagesFn.mockImplementation(async () => {
+      order.push('register')
+      return { data: { evictedImageIds: [], images: [] } }
+    })
     await syncCharacterImages('user-1')
-    expect(order).toEqual(['object', 'object', 'row'])
+    // Row dropped only after the server acknowledged the deletion.
+    expect(order).toEqual(['object', 'object', 'register', 'row'])
+  })
+
+  it('keeps the tombstone when registration fails, so the deletion is retryable', async () => {
+    mockGetImagesBySyncState.mockResolvedValue([
+      localImage({ sync_state: 'pending_delete', storage_kind: 'cloud', master_ref: 'p', thumb_ref: null, deleted_at: 5 }),
+    ])
+    mockSyncImagesFn.mockRejectedValue(new Error('offline'))
+    await syncCharacterImages('user-1')
+    // Hard-deleting here would leave the cloud row live, and the next reconcile
+    // would re-insert the image the user just deleted.
+    expect(mockHardDelete).not.toHaveBeenCalled()
   })
 
   it('tells the server about the deletion', async () => {

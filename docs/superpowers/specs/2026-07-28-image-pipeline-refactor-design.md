@@ -127,7 +127,13 @@ carries `storage_path` / `thumb_path` instead of `storage_kind` / `master_ref`:
 | `created_at` | timestamptz NOT NULL |
 | `deleted_at` | timestamptz |
 
-Plus `characters.active_image_id uuid`.
+Plus `characters.active_image_id uuid` — deliberately **not** a foreign key to
+`character_images(id)`. `syncCharacterImages` upserts rows and sets the pointer in
+one request, and a device may also push a pointer for a row that is still
+local-only, so a FK would reject legitimate writes. The handler validates instead:
+the id must match a live, non-tombstoned row on that character. Dangling pointers
+are handled at both ends — eviction never picks the active row, and the resolver
+falls back to the newest live image, then the bundled default.
 
 `deleted_at` is load-bearing here, not vestigial: a soft-deleted cloud row is the
 **tombstone** other devices reconcile against (§13.3). Cloud rows are retained for
@@ -227,6 +233,23 @@ existing component and its accessibility tests unchanged.
    - native privacy → write both under `expo-file-system` document directory; `kind='file'`
    - web privacy → `kind='inline'`, base64 in `master_ref` / `thumb_ref`
 4. **Insert the row**, set `characters.active_image_id`.
+
+   The row insert is the commit point, and it comes *after* the bytes are
+   written — so every byte written before it is tracked, and anything that throws
+   between the first write and the insert deletes what already landed, on
+   whichever side it landed. Without that, a failure here strands bytes no row
+   references and nothing can ever find or sweep.
+
+   This applies to *partial* cloud uploads too, which is the easy case to miss:
+   when the master uploads and the thumb then fails, the write path falls back to
+   local storage and commits a `file` row successfully. No later failure occurs,
+   so a rollback keyed only on the outer failure would never run — the uploaded
+   master has to be deleted on that fallback path specifically.
+
+   A residual window remains: a process killed between a successful upload and
+   the row insert leaves orphaned objects, since no compensating code runs at all.
+   Bounded and rare, and the alternative (a durable pending row written before the
+   upload) costs a write on every save to close it.
 5. **Enforce the cap:** if the character now exceeds 100 images, evict the oldest
    — with the active image always exempt. Deletion removes bytes before rows
    (§10). For `file` and `inline` rows the client enforces this directly; for
@@ -281,6 +304,10 @@ would regress a live feature, leaving imported characters avatar-less.
 > character itself still imports; only the avatar is lost, per §11's
 > degrade-not-fail rule). Apply `cors.json` to the bucket before deploying:
 > `gsutil cors set cors.json gs://clanker-prod.firebasestorage.app`.
+>
+> `cors.json` must allow `GET`, `POST` and `DELETE`, not `GET` alone: the web
+> storage path also calls `uploadBytes` and `deleteObject`, so a read-only config
+> blocks browser uploads and cleanup deletes outright. `PUT` is not used.
 
 ---
 
@@ -308,6 +335,14 @@ resolve correctly.
 **Native needs no probe.** `expo-image-manipulator@56` encodes WebP on iOS via
 `SDImageWebPCoder` (`node_modules/expo-image-manipulator/ios/ImageManipulatorUtils.swift:79`).
 The historical "WEBP is Android-only" limitation no longer applies.
+
+**Variant derivation is platform-split, and web is not the incidental case.**
+Native reads the manipulator's output files through `expo-file-system` and deletes
+the temporaries. That module is a warn-and-noop stub on web — `new File(uri)`
+returns an object with no `base64()` — so web instead takes the manipulator's own
+`base64: true` save option and has no temp file to clean up. Native keeps the file
+read rather than adopting `base64: true` everywhere, to avoid holding a second copy
+of the payload as a JS string alongside the native buffer.
 
 ---
 
@@ -344,6 +379,12 @@ invariant permits the opposite order — and avoiding stale references prefers i
 
 Prefix deletion is a list-then-delete loop, idempotent, so every one of these is
 safe to re-run after a partial failure.
+
+**A failed Storage delete must fail loudly.** Both bulk helpers attempt every
+path — one bad object does not strand the rest — and then throw if any non-404
+failure occurred. A 404 stays idempotent success. Logging and resolving instead
+would let callers go on to delete the rows holding those paths, and the objects
+would be unreachable rather than merely orphaned: retry needs the references.
 
 **Ownership is checked before any destructive step, not after.** The cloud
 `character_images` delete predicate is scoped by `user_id` as well as
@@ -409,7 +450,7 @@ flow.
 | Value | Meaning |
 |---|---|
 | `local` | a `file` or `inline` row on a privacy-mode character; terminal, the sweeper skips it |
-| `pending_upload` | bytes exist on-device, the cloud copy does not yet |
+| `pending_upload` | the server does not yet have this row — either the bytes are still on-device, or they are uploaded and only the registration call is outstanding |
 | `synced` | cloud row and objects confirmed |
 | `pending_delete` | the user deleted it; the cloud copy still has to be reaped |
 | `failed` | retry budget exhausted — see below |
@@ -429,6 +470,22 @@ on kind:
 | `file`, `inline` | bytes removed and row hard-deleted in the same local transaction (§10) |
 | `cloud` | `deleted_at` set, `sync_state='pending_delete'`; bytes then rows reaped by the sweeper |
 
+**A row settles only on server acknowledgement.** The sweeper uploads bytes, then
+registers them with `syncCharacterImages`; the row stays `pending_upload` across
+both, and becomes `synced` only after the callable returns. Marking it `synced` at
+upload time would drop it out of every future sweep — the sweeper queries the
+`pending_*` states — so a failed registration would leave bytes in Storage that
+the server never learns about. The same rule governs deletion in reverse: objects
+are deleted, the row stays a `pending_delete` tombstone, and is hard-deleted
+locally only once the server has acknowledged. Hard-deleting first would make the
+deletion unretryable, and §13.3's reconcile would then re-insert the image from
+the still-live cloud row.
+
+A consequence: a `cloud`-kind row can legitimately be `pending_upload`. That means
+"bytes are already in Storage, registration is outstanding" — the sweeper
+re-registers it rather than re-uploading, since the local bytes were deleted after
+the successful upload.
+
 **Retry driver.** `syncAllToCloud` already runs at app start and on reconnect
 (`app/_layout.tsx:201`, `:223`) and already fans out to per-concern helpers. It
 gains `syncCharacterImages(localUserId)`, sweeping `pending_upload` and
@@ -442,6 +499,11 @@ image still resolves and still displays. **Unbounded retry is not the safe
 default here** — it burns battery and quota re-attempting an upload that a Storage
 rule will reject every time, and it buries the one signal (§11's Snackbar) that
 tells the user cloud backup is not happening.
+
+A failed *registration* charges the same budget as a failed upload. Failed
+*deletions* deliberately get none: abandoning one leaves the cloud row live, which
+resurrects an image the user deleted. Re-sending an id costs nothing, so unbounded
+retry is the safer end of that trade.
 
 ### 13.2 Identifiers and storage paths
 
@@ -486,7 +548,29 @@ new `syncCharacterImagesFn` callable owns the cap for cloud characters: on inser
 it evicts the oldest rows beyond 100, exempting `active_image_id`, deletes their
 Storage objects, tombstones their rows, and returns the evicted ids for the client
 to apply locally. Clients keep enforcing the cap themselves only for `file` and
-`inline` rows, where by construction there is one device.
+`inline` rows, where by construction there is one device. `cloud` rows are excluded
+from the client's eviction candidates in SQL, before the `LIMIT` — filtering after
+it under-evicts whenever the oldest rows happen to include cloud ones — and
+filtered again in the caller, because "never hard-delete a cloud row locally" is
+load-bearing enough to defend twice: doing so races the server's cap and destroys a
+row the sweeper has not reconciled.
+
+**Everything the callable accepts is validated, since it is client-supplied.**
+`storagePath` must sit under the caller's own prefix (the security boundary — the
+eviction path deletes whatever it is given). `mimeType` is restricted to the two
+types §4's rules admit; it is persisted and echoed to every device, where it drives
+data-URI construction, so an unvalidated `text/html` would be a stored XSS
+primitive on web. `images` and `deletedImageIds` are capped per request, since the
+FIFO cap bounds surviving rows but not write volume. `activeImageId` distinguishes
+three cases: absent means no change, an explicit `null` clears the pointer (what a
+device sends after deleting its last image), and anything else must be a live UUID
+on that character — a malformed value is rejected rather than dropped, which would
+leave the server stale while the device believed it had synced.
+
+The row upsert is additionally scoped by owner. Its conflict target is the
+client-minted image id, so without a `user_id` + `character_id` guard on the update
+a guessed or replayed id would overwrite another user's storage paths; with it, a
+foreign id no-ops.
 
 **Tombstones, not absence.** `getUserCharactersFn` returns, per character,
 `active_image_id` and an `images` array **including tombstones**. On pull the
@@ -607,7 +691,9 @@ conditional logic SQL cannot express cleanly.
    and likewise get no row.
 
 2. Every other character with `avatar_data` gets an `inline` row holding the
-   existing base64, `thumb_ref` NULL.
+   existing base64, `thumb_ref` NULL, and that row is set as the character's
+   `active_image_id`. Without that assignment the avatar would sit in the gallery
+   while rendering and public import still fell through to the bundled default.
 3. A background pass then generates thumbs and promotes `save_to_cloud`
    characters from `inline` to `cloud`.
 
@@ -626,8 +712,28 @@ conditional logic SQL cannot express cleanly.
    cost quality for no gain.
 
 `avatar_data` is **left in place and unread for one release** as a rollback net,
-then dropped in a follow-up. The migration must be idempotent — safe to re-run
-if interrupted partway.
+then dropped in a follow-up. Nothing else may clear it in the meantime — in
+particular `restoreFromCloud` and public import both go through
+`batchInsertCharacters`, which is `INSERT OR REPLACE`, so they carry the existing
+local value forward instead of writing NULL. Hardcoding NULL there would destroy
+the rollback copy of any character a partial migration has not converted yet.
+
+**Idempotency has two layers, because the completion flag alone is not enough.**
+A run interrupted before the flag is set would otherwise insert a second row for
+every avatar it had already converted. So:
+
+- Per character: a character that already has gallery rows is skipped, whatever
+  the flag says. This is what actually makes a re-run safe.
+- Per device *and per user*: the completion flag is keyed by user id. The
+  migration query is already per-user, and the flag outlives sign-out, so a
+  device-wide key would let the first account to finish suppress migration for
+  every other account that ever signs in on that device.
+
+The migration is **not gated on connectivity.** It is purely local work, and this
+startup path is the only thing that runs it — the reconnect handler retries cloud
+sync only. Gating it would strand `avatar_data` until some later launch that
+happened to begin online. It is still awaited before `syncAllToCloud`, so migrated
+rows carry their final `sync_state` before the sweeper reads them.
 
 ---
 

@@ -93,6 +93,15 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
 
     try {
       if (row.sync_state === 'pending_upload') {
+        // Bytes already in Storage, only the server row missing: an earlier sweep
+        // uploaded them and its registration call failed. Re-register rather than
+        // re-upload — the local bytes were deleted after that upload, so there is
+        // nothing left to send anyway.
+        if (row.storage_kind === 'cloud') {
+          bucket.uploaded.push(row)
+          continue
+        }
+
         const masterPath = buildStoragePath(localUserId, cloudCharacterId, row.id, 'master')
         const thumbPath = buildStoragePath(localUserId, cloudCharacterId, row.id, 'thumb')
 
@@ -113,7 +122,13 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           master_ref: masterPath,
           thumb_ref: thumbBytes ? thumbPath : null,
           mime_type: row.mime_type,
-          sync_state: 'synced',
+          // Deliberately still pending_upload. 'synced' means "the server knows
+          // about this row", which is not true until the callable below returns.
+          // Marking it here would drop the image out of every future sweep (the
+          // sweeper only queries pending_* states), so a failed registration
+          // would mean the server never learns about an image whose bytes are
+          // already in Storage.
+          sync_state: 'pending_upload',
         })
 
         // The row is now durably pointing at the cloud copies, so the local
@@ -134,14 +149,19 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           storage_kind: 'cloud',
           master_ref: masterPath,
           thumb_ref: thumbBytes ? thumbPath : null,
-          sync_state: 'synced',
+          sync_state: 'pending_upload',
         })
       } else {
         // pending_delete: objects before rows. Deleting the row while its
         // objects survive would strand the bytes with nothing left to retry from.
+        // deleteStorageObject treats a missing object as success, so a retry
+        // after a failed registration is safe.
         await deleteStorageObject(row.master_ref)
         if (row.thumb_ref) await deleteStorageObject(row.thumb_ref)
-        await hardDeleteCharacterImage(row.id)
+        // The row stays a pending_delete tombstone until the server acknowledges.
+        // Hard-deleting it here would make the deletion unretryable: the cloud row
+        // is still live, so the next reconcile would re-insert the image the user
+        // just deleted.
         bucket.deleted.push(row.id)
       }
     } catch (error) {
@@ -185,6 +205,17 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
         ...(activeImageId ? { activeImageId } : {}),
       })
 
+      // Acknowledged. Only now is it true that the server knows these rows, so
+      // only now do the local states settle: uploads become 'synced' and
+      // deletions drop their tombstone. Everything above this line is written so
+      // that a throw leaves both sets retryable on the next sweep.
+      for (const uploaded of bucket.uploaded) {
+        await setImageSyncState(uploaded.id, 'synced')
+      }
+      for (const deletedId of bucket.deleted) {
+        await hardDeleteCharacterImage(deletedId)
+      }
+
       // The server owns the cap for cloud characters and returns what it evicted;
       // apply the same deletion locally rather than waiting for the next pull.
       for (const evictedId of result.data?.evictedImageIds ?? []) {
@@ -199,6 +230,19 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
         await hardDeleteCharacterImage(evictedId)
       }
     } catch (error) {
+      // Rows stay pending, so the next sweep retries the whole batch. Charge the
+      // retry budget for uploads so a permanently-rejected batch (a terminal
+      // permission error, say) cannot re-send on every sweep forever.
+      //
+      // Deletions deliberately get no budget: giving up on one leaves the cloud
+      // row live, which resurrects an image the user deleted. Retrying an id
+      // costs nothing, so unbounded retry is the safer end of that trade.
+      for (const uploaded of bucket.uploaded) {
+        await incrementSyncAttempts(uploaded.id)
+        if (isTerminalError(error) || uploaded.sync_attempts + 1 >= MAX_SYNC_ATTEMPTS) {
+          await setImageSyncState(uploaded.id, 'failed')
+        }
+      }
       reportError(error, 'characterImageSync:register')
     }
   }

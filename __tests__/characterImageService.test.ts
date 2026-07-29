@@ -508,6 +508,27 @@ describe('cloud routing', () => {
     expect(mockInsert).toHaveBeenCalledWith(row)
   })
 
+  it('deletes an already-uploaded master when the thumb upload fails', async () => {
+    mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
+    // Master succeeds, thumb fails — the row then falls back to local storage and
+    // commits successfully, so nothing later would ever clean up that master.
+    mockUploadImageBytes
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('network down'))
+
+    const row = await saveCharacterImage({
+      characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
+      width: 1024, height: 1024, source: 'generated',
+    })
+
+    expect(row).toMatchObject({ storage_kind: 'file', sync_state: 'pending_upload' })
+    expect(mockDeleteStorageObject).toHaveBeenCalledWith(
+      'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp',
+    )
+    // Only the master landed, so only the master is cleaned up.
+    expect(mockDeleteStorageObject).toHaveBeenCalledTimes(1)
+  })
+
   it('stays pending_upload when the character has no confirmed cloud_id yet', async () => {
     mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: null })
     const row = await saveCharacterImage({

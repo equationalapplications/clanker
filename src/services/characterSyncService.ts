@@ -291,22 +291,28 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
             }
         }
 
+        const localById = new Map(localChars.map((c) => [c.id, c]))
+
         const cloudChars: LocalCharacter[] = data
             .map((cloudChar: CharacterSnapshot) => {
                 const localId = cloudIdToLocalId.get(cloudChar.id) ?? cloudChar.id
+                const existingLocal = localById.get(localId)
                 return {
                     id: localId,
                     user_id: localUserId,
                     name: cloudChar.name,
                     avatar: cloudChar.avatar,
-                    // Deliberately hardcoded to null, not read from the cloud snapshot:
-                    // images now live in `character_images` (see reconcileCharacterImages
-                    // below), so this legacy column is inert. It was already hardcoded
-                    // to null before this change, not populated from cloud data, so this
-                    // line was never the source of the avatar-loss bug on restore — the
-                    // actual fix is the reconciliation call added below.
-                    avatar_data: null,
-                    avatar_mime_type: null,
+                    // Never read from the cloud snapshot — images live in
+                    // `character_images` now (see reconcileCharacterImages below), so
+                    // this legacy column is inert. But it is carried over from the
+                    // local row rather than nulled: batchInsertCharacters is INSERT OR
+                    // REPLACE, so hardcoding null here would wipe the rollback copy of
+                    // any character the one-shot migration has not converted yet (a
+                    // partial migration retries on the next launch, and this restore
+                    // can run in between). On a genuinely new device there is no local
+                    // row and this is null anyway.
+                    avatar_data: existingLocal?.avatar_data ?? null,
+                    avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
                     appearance: cloudChar.appearance,
                     traits: cloudChar.traits,
                     emotions: cloudChar.emotions,
@@ -450,8 +456,10 @@ export async function importSharedCharacterFromCloud(
             user_id: localUserId,
             name: cloudCharacter.name,
             avatar: cloudCharacter.avatar,
-            avatar_data: null,
-            avatar_mime_type: null,
+            // Same reasoning as restoreFromCloud: INSERT OR REPLACE, so preserve
+            // whatever a previous import of this character already had locally.
+            avatar_data: existingLocal?.avatar_data ?? null,
+            avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
             appearance: cloudCharacter.appearance,
             traits: cloudCharacter.traits,
             emotions: cloudCharacter.emotions,

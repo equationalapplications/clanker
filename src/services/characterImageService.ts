@@ -121,6 +121,21 @@ export async function saveCharacterImage(
         // marked for the sweeper. The avatar still displays and the credits are not
         // wasted even if the upload never succeeds — only cloud redundancy is lost.
         console.warn('[characterImages] upload failed, keeping local copy:', err)
+
+        // The master commonly uploads before the thumb fails. This branch then
+        // commits a `file` row that references neither object, so nothing will
+        // ever point at the uploaded master again — the outer catch does not run
+        // on a successful fallback. Drop the partial upload here instead of
+        // leaving bytes in Storage that no row can find. Cleared from
+        // writtenCloudRefs so the outer catch cannot double-delete them.
+        for (const ref of writtenCloudRefs.splice(0)) {
+          try {
+            await deleteStorageObject(ref)
+          } catch (cleanupErr) {
+            console.warn('Failed to clean up partially uploaded cloud image object:', cleanupErr)
+          }
+        }
+
         storageKind = localStorageKind()
         masterRef = await writeLocalImageBytes(imageId, variants.master.base64, 'master')
         thumbRef = await writeLocalImageBytes(imageId, variants.thumb.base64, 'thumb')
