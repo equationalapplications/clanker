@@ -43,19 +43,29 @@ export function AvatarPicker({
   const refreshEpoch = useRef(0)
   const refresh = useCallback(async () => {
     const epoch = ++refreshEpoch.current
-    const rows = await getCharacterImages(characterId)
-    // Resolve thumbs, not masters: 100 masters is a ~15 MB screen, 100 thumbs
-    // is ~1.2 MB — and on web every byte crosses the WASM boundary.
-    const resolved = await Promise.all(
-      rows.map(async (row) => {
-        try {
-          return { row, uri: await resolveImageUri(row, 'thumb') }
-        } catch {
-          return { row, uri: null }
-        }
-      }),
-    )
-    if (epoch === refreshEpoch.current) setItems(resolved)
+    try {
+      const rows = await getCharacterImages(characterId)
+      // Resolve thumbs, not masters: 100 masters is a ~15 MB screen, 100 thumbs
+      // is ~1.2 MB — and on web every byte crosses the WASM boundary.
+      const resolved = await Promise.all(
+        rows.map(async (row) => {
+          try {
+            return { row, uri: await resolveImageUri(row, 'thumb') }
+          } catch {
+            return { row, uri: null }
+          }
+        }),
+      )
+      if (epoch === refreshEpoch.current) {
+        setItems(resolved)
+        setActionError(null)
+      }
+    } catch (err) {
+      if (epoch === refreshEpoch.current) {
+        setItems([])
+        setActionError(err instanceof Error ? err.message : 'Failed to load images')
+      }
+    }
   }, [characterId])
 
   useEffect(() => {
