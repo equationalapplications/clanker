@@ -1,3 +1,57 @@
+# [30.32.0](https://github.com/equationalapplications/clanker/compare/v30.31.0...v30.32.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* address CodeRabbit review findings for PR [#581](https://github.com/equationalapplications/clanker/issues/581) ([f83ff62](https://github.com/equationalapplications/clanker/commit/f83ff6288e17f5a64e0d5c60bd73eb0414d513fd))
+* **db:** register 0022_character_images.sql in dev migration order and applied-migrations log ([53de82c](https://github.com/equationalapplications/clanker/commit/53de82c1fb10cb0fb77704d11f3d00eada56ae3b))
+* **db:** stop setActiveImageId bumping updated_at ([faec059](https://github.com/equationalapplications/clanker/commit/faec0599f16f0db01992ddbbedf52a4e2d89c624))
+* **functions:** don't let a listImages failure break getPublicCharacter ([b5da1b8](https://github.com/equationalapplications/clanker/commit/b5da1b88a85643356598d35a39ae193fb8f72962))
+* **functions:** order deletion cascades so a partial failure orphans bytes, not references ([026858e](https://github.com/equationalapplications/clanker/commit/026858ec579620cb3cb931748f87846f36b77083))
+* **functions:** reject activeImageId that isn't one of the character's own images ([97a5689](https://github.com/equationalapplications/clanker/commit/97a5689470342ec043a5db49058792a9f225daad))
+* **images:** address code-review findings on the image pipeline refactor ([207dbe8](https://github.com/equationalapplications/clanker/commit/207dbe8e1cd6f598be803370fdcb131e7d7c354c))
+* **images:** address CodeRabbit review on the image pipeline refactor ([d75bff8](https://github.com/equationalapplications/clanker/commit/d75bff88d9e8ebbb173b613dee12b105d4ecd9c9))
+* **images:** clean up orphaned bytes when saving an image fails ([d8f724f](https://github.com/equationalapplications/clanker/commit/d8f724feab3488769c8a2d3517c97ff03c27246a))
+* **images:** construct master file handle inside the cleanup try ([e456098](https://github.com/equationalapplications/clanker/commit/e456098e88b6fc6eb315a18cbf69fdc4a04d7a5f))
+* **images:** fix cloud-delete tombstone gap and wire up thumbnail backfill ([d840a37](https://github.com/equationalapplications/clanker/commit/d840a37221248c72899c5ac2dfe218f1b78dcd92))
+* **images:** implement additional image pipeline refactor improvements ([4c1815b](https://github.com/equationalapplications/clanker/commit/4c1815b091d8d714713f04234976d1798e541400))
+* **images:** read back active image id after delete instead of re-deriving ([57c5997](https://github.com/equationalapplications/clanker/commit/57c5997da74f83e053db58403a0ee0c56d76a97c)), closes [#580](https://github.com/equationalapplications/clanker/issues/580)
+* **images:** reserve the image row before uploading cloud bytes ([0a2ccec](https://github.com/equationalapplications/clanker/commit/0a2ccec291e53195740fdebf24576ae10dd50158))
+* **images:** retry cloud registration, clean partial uploads, keep rollback copy ([ffb1a0f](https://github.com/equationalapplications/clanker/commit/ffb1a0f7ee8442a37914b8e169e2a9c86fce982c))
+* **images:** write image bytes with base64 encoding ([9156335](https://github.com/equationalapplications/clanker/commit/91563354072adfe7f88c6fcffaa6cc6492eec6ed))
+* **lint:** clear lint errors on image-pipeline components (Task 24 verification) ([5ecae4e](https://github.com/equationalapplications/clanker/commit/5ecae4e25c57ebc0515fd8cf9d380c5236454386))
+* **machine:** reset pendingUnsyncId on a failed UPDATE ([e1890b0](https://github.com/equationalapplications/clanker/commit/e1890b06b0de232425dc8093898e114eef173738))
+* replace avatar error effect with derived state pattern ([23da018](https://github.com/equationalapplications/clanker/commit/23da01887f14bc525eb6f5c168158419cdd12d70))
+* **sync:** persist cloud image refs before deleting local bytes ([ffa9421](https://github.com/equationalapplications/clanker/commit/ffa94216bf48fae8d2d903009789c5ce773d4d12))
+* **sync:** reconcile images on restore even when the character row isn't newer ([b0bad52](https://github.com/equationalapplications/clanker/commit/b0bad524d2e588ddeb3c517e7b693a6575af8d7c))
+
+
+### Features
+
+* **avatar:** bundle a borderless default avatar and stop copying it per character ([81dfc08](https://github.com/equationalapplications/clanker/commit/81dfc08a79d650025a3791ecf5e851ca89cd585f))
+* **db:** add character_images table and active_image_id (migrations 22, 23) ([9767a2c](https://github.com/equationalapplications/clanker/commit/9767a2c0b13bb050ff1e4b9781d664c1bc226048))
+* **db:** add characterImageDatabase CRUD layer ([8141e24](https://github.com/equationalapplications/clanker/commit/8141e24d4b9920d866ca9d0238fcd2baad9b45b1))
+* **db:** add cloud character_images table and active_image_id ([c984066](https://github.com/equationalapplications/clanker/commit/c984066b9ac2aeb1778092e0f55554e3d676a75c))
+* **functions:** add cloud image service with server-authoritative cap ([07efa8f](https://github.com/equationalapplications/clanker/commit/07efa8f4565afa47db9bee27e0f301baf3a111c4))
+* **functions:** add syncCharacterImages callable and images on character snapshot ([01a556d](https://github.com/equationalapplications/clanker/commit/01a556dd1f92929cb5f97b1c03c2e4d804bad899))
+* **functions:** prefix-delete storage objects on character and user deletion ([673d97a](https://github.com/equationalapplications/clanker/commit/673d97a243880b8669550f0fa2dd972f888c8ae0))
+* **functions:** return a signed avatar URL from getPublicCharacter ([1d8e696](https://github.com/equationalapplications/clanker/commit/1d8e69654885909877964e3e5c7b78836d00819a))
+* **images:** add avatar picker modal with gallery, activate and delete ([6fec850](https://github.com/equationalapplications/clanker/commit/6fec85047af83c6fcabeb7e52dfd743705dd29b8))
+* **images:** add canvas WebP encoding probe with JPEG fallback ([970e7b6](https://github.com/equationalapplications/clanker/commit/970e7b629e9e9cfae6fed916fd49bfda49c65cfa))
+* **images:** add characterImageService with FIFO cap and deletion cascade ([f8444f5](https://github.com/equationalapplications/clanker/commit/f8444f500136297b8f196ffab3bdcc8187b959f2))
+* **images:** add platform-split localImageStore resolver seam ([7687e83](https://github.com/equationalapplications/clanker/commit/7687e8338c5d684893b7a16bb780aa0ca2dabb59))
+* **images:** derive 1024 master and 256 thumb variants ([3a3364d](https://github.com/equationalapplications/clanker/commit/3a3364d860129bd2e576168fbd9f18ae366dfe59))
+* **images:** migrate legacy avatar_data into the image gallery ([5d59155](https://github.com/equationalapplications/clanker/commit/5d591553d51107baba991073a74bc9ff9345e289))
+* **images:** re-store imported avatars under the importer's own account ([6459fa4](https://github.com/equationalapplications/clanker/commit/6459fa4bf047a80ed2dab8dda2ab8818977a9ab7))
+* **images:** resolve avatars through useResolvedImage instead of avatar_data ([23b104a](https://github.com/equationalapplications/clanker/commit/23b104a6f5d063820c7b758afbd4ca624c454770))
+* **images:** square uploads and route generate/upload through the gallery ([2d66fa7](https://github.com/equationalapplications/clanker/commit/2d66fa71d2d19a0aa66d649cc448f2abe513c4d0))
+* **images:** upload cloud-mode avatars to Firebase Storage ([b471e88](https://github.com/equationalapplications/clanker/commit/b471e88e499cf4153d03acfb1852cdb3a8d71a6a))
+* **storage:** add platform-split Firebase Storage service ([d48b378](https://github.com/equationalapplications/clanker/commit/d48b3784d0738e4b4300d5a8ea257631fc4eae19))
+* **storage:** add uid-scoped Firebase Storage rules and native storage dep ([9503f96](https://github.com/equationalapplications/clanker/commit/9503f960fd9d7a17c1f833aedaf2e10b849f78e4))
+* **sync:** download cloud images before clearing the cloud link on privacy toggle ([048f955](https://github.com/equationalapplications/clanker/commit/048f9553dc3ca433ca34b26258e1c0e967c5542b))
+* **sync:** reconcile character images by tombstone and stop dropping avatars on restore ([6f41c37](https://github.com/equationalapplications/clanker/commit/6f41c37a47b8df8f89cb1271c478777bd27dccc3))
+* **sync:** sweep pending image uploads and deletions after character sync ([10a39b3](https://github.com/equationalapplications/clanker/commit/10a39b3b02da40d2942c70294eb0b9f815c97a19))
+
 # [30.31.0](https://github.com/equationalapplications/clanker/compare/v30.30.0...v30.31.0) (2026-07-26)
 
 
