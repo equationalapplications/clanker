@@ -20,6 +20,7 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
    */
   async deletePrefix(prefix: string): Promise<void> {
     const [files] = await bucketProvider().getFiles({prefix});
+    const failed: string[] = [];
     for (const file of files) {
       try {
         await file.delete();
@@ -31,12 +32,23 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
           name: file.name,
           error,
         });
+        failed.push(file.name);
       }
+    }
+    // Every path is attempted before throwing, so a single bad object does not
+    // strand the rest. But the throw itself matters: callers delete the DB rows
+    // that hold these paths, so swallowing the failure would leave objects no
+    // one can find again. Failing keeps the operation retryable.
+    if (failed.length > 0) {
+      throw new Error(
+        `Failed to delete ${failed.length} storage object(s) under prefix ${prefix}: ${failed.join(", ")}`
+      );
     }
   },
 
   async deleteObjects(paths: string[]): Promise<void> {
     const bucket = bucketProvider();
+    const failed: string[] = [];
     for (const path of paths) {
       try {
         await bucket.file(path).delete();
@@ -44,7 +56,15 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
         const code = (error as {code?: number}).code;
         if (code === 404) continue;
         logger.warn("Failed to delete storage object", {path, error});
+        failed.push(path);
       }
+    }
+    // Same contract as deletePrefix: attempt all, then fail loudly so the
+    // caller does not drop the rows that reference these objects.
+    if (failed.length > 0) {
+      throw new Error(
+        `Failed to delete ${failed.length} storage object(s): ${failed.join(", ")}`
+      );
     }
   },
 

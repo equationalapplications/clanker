@@ -82,12 +82,22 @@ export function AvatarPicker({
 
   const performDelete = async (imageId: string) => {
     const userId = getCurrentUser()?.uid
-    await deleteCharacterImage(imageId, userId ?? '')
+    // deleteCharacterImage's ownership check silently returns for a mismatched
+    // user, so passing '' would make the confirmed delete a no-op with no
+    // feedback at all. Say so instead.
+    if (!userId) {
+      Alert.alert('Sign in required', 'You must be signed in to delete an image.')
+      return
+    }
+
+    await deleteCharacterImage(imageId, userId)
     if (imageId === activeImageId) {
       const remaining = await getCharacterImages(characterId)
       const nextActiveId = remaining[0]?.id ?? null
       onActiveImageChange(nextActiveId)
-      if (nextActiveId && userId) void pushActiveImageId(characterId, userId)
+      // Pushed even when null: clearing the pointer after deleting the last
+      // image is exactly the change other devices need to see.
+      void pushActiveImageId(characterId, userId, { allowClear: true })
     }
     await refresh()
   }

@@ -3,7 +3,7 @@ import * as logger from 'firebase-functions/logger';
 import { userRepository } from './services/userRepository.js';
 import { characterService, CharacterOwnershipError } from './services/characterService.js';
 import { creditService, type CreditSpendAllocation } from './services/creditService.js';
-import { characterImageService } from './services/characterImageService.js';
+import { characterImageService, IMAGE_CAP_PER_CHARACTER } from './services/characterImageService.js';
 import { storageAdmin } from './services/storageAdmin.js';
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
 import { DEFAULT_VOICE } from './constants/voiceDefaults.js';
@@ -119,6 +119,17 @@ type CharacterImagePayload = {
 
 const IMAGE_SOURCES = new Set(['generated', 'uploaded', 'imported']);
 
+// Must stay in sync with storage.rules, which admits only these two at upload
+// time. The value is persisted and echoed back to every device, where it drives
+// data-URI construction — an unvalidated `text/html` or `image/svg+xml` row
+// would be a stored XSS primitive on web.
+const IMAGE_MIME_TYPES = new Set(['image/webp', 'image/jpeg']);
+
+// The server-authoritative FIFO cap bounds surviving rows, not write volume per
+// request. A little slack above the cap absorbs a device that legitimately has a
+// full gallery plus in-flight additions.
+const MAX_IMAGES_PER_SYNC_REQUEST = IMAGE_CAP_PER_CHARACTER + 20;
+
 function serializeCharacterImage(row: Record<string, unknown>) {
   return {
     id: String(row.id),
@@ -167,6 +178,10 @@ function parseImagePayload(
     if (!path.startsWith(expectedPrefix) || path.includes('..')) {
       throw new HttpsError('permission-denied', 'Image paths must live under the caller\'s own character prefix.');
     }
+  }
+
+  if (mimeType != null && (typeof mimeType !== 'string' || !IMAGE_MIME_TYPES.has(mimeType))) {
+    throw new HttpsError('invalid-argument', 'image.mimeType must be image/webp or image/jpeg.');
   }
 
   return {
@@ -223,6 +238,19 @@ export const syncCharacterImagesHandler = async (
     throw new HttpsError('permission-denied', 'Character does not belong to authenticated user.');
   }
 
+  if (Array.isArray(images) && images.length > MAX_IMAGES_PER_SYNC_REQUEST) {
+    throw new HttpsError(
+      'invalid-argument',
+      `images may contain at most ${MAX_IMAGES_PER_SYNC_REQUEST} entries.`
+    );
+  }
+  if (Array.isArray(deletedImageIds) && deletedImageIds.length > MAX_IMAGES_PER_SYNC_REQUEST) {
+    throw new HttpsError(
+      'invalid-argument',
+      `deletedImageIds may contain at most ${MAX_IMAGES_PER_SYNC_REQUEST} entries.`
+    );
+  }
+
   const parsedImages = Array.isArray(images)
     ? images.map((image) => parseImagePayload(image, request.auth!.uid, characterId))
     : [];
@@ -252,7 +280,16 @@ export const syncCharacterImagesHandler = async (
 
     const rows = await deps.characterImageService.listImages(characterId);
 
-    if (typeof activeImageId === 'string' && UUID_REGEX.test(activeImageId)) {
+    // `undefined` means "no change"; an explicit `null` clears the pointer, which
+    // is what a device sends after deleting the last image. Anything else that is
+    // not a live UUID is rejected rather than dropped — silently ignoring it would
+    // leave the server pointer stale while the device believes it synced.
+    if (activeImageId === null) {
+      await deps.characterImageService.setActiveImage(characterId, null);
+    } else if (activeImageId !== undefined) {
+      if (typeof activeImageId !== 'string' || !UUID_REGEX.test(activeImageId)) {
+        throw new HttpsError('invalid-argument', 'activeImageId must be a UUID or null.');
+      }
       const ownsActiveImage = rows.some(
         (row) =>
           String((row as {id: unknown}).id) === activeImageId &&

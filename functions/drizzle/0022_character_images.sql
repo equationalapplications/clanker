@@ -29,4 +29,15 @@ CREATE INDEX IF NOT EXISTS "character_images_live_idx"
   ON "character_images" ("character_id", "created_at")
   WHERE "deleted_at" IS NULL;
 
+-- Deliberately NOT a foreign key to character_images(id).
+--
+-- syncCharacterImages upserts the client's rows and sets the pointer in the same
+-- request, and a device may also push an activeImageId for a row that is still
+-- only local (privacy mode, or an upload the sweeper has not registered yet). A
+-- FK would reject those writes outright. The handler validates instead: the id
+-- must match a live, non-tombstoned row on this character before it is stored.
+--
+-- Dangling pointers are handled at both ends rather than by the DB: eviction
+-- never picks the active row, and the resolver falls back to the newest live
+-- image (then the bundled default) when the pointer resolves to nothing.
 ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "active_image_id" uuid;

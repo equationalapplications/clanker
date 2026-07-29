@@ -45,7 +45,7 @@ import {
   migrateAvatarsToImageStore,
   sniffImageMimeType,
   backfillThumbnails,
-  AVATAR_MIGRATION_FLAG,
+  avatarMigrationFlagKey,
 } from '../src/database/migrations/migrateAvatarsToImageStore'
 
 // Real prefix of the bundled default that shipped in commit bf9d2f66.
@@ -97,7 +97,7 @@ describe('migrateAvatarsToImageStore', () => {
   it('sets the flag when it completes', async () => {
     mockGetAllAsync.mockResolvedValue([])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
-    expect(mockStorageSet).toHaveBeenCalledWith(AVATAR_MIGRATION_FLAG, 'done')
+    expect(mockStorageSet).toHaveBeenCalledWith(avatarMigrationFlagKey('user-1'), 'done')
   })
 
   it('gives characters holding the bundled default no image row at all', async () => {

@@ -44,6 +44,50 @@ test("deletePrefix is idempotent: a missing object is not an error", async () =>
   await admin.deletePrefix("users/u1/");
 });
 
+test("deletePrefix attempts every object, then throws on a non-404 failure", async () => {
+  const attempted: string[] = [];
+  const admin = createStorageAdmin(() => ({
+    getFiles: async () => [[
+      {name: "a", delete: async () => {
+        attempted.push("a");
+        throw Object.assign(new Error("boom"), {code: 500});
+      }},
+      {name: "b", delete: async () => { attempted.push("b"); }},
+    ]],
+  }) as never);
+
+  await assert.rejects(() => admin.deletePrefix("users/u1/"), /Failed to delete 1 storage object/);
+  // The healthy object is still deleted — one bad object must not strand the rest.
+  assert.deepEqual(attempted, ["a", "b"]);
+});
+
+test("deleteObjects attempts every path, then throws on a non-404 failure", async () => {
+  const attempted: string[] = [];
+  const admin = createStorageAdmin(() => ({
+    file: (name: string) => ({
+      delete: async () => {
+        attempted.push(name);
+        if (name === "bad") throw Object.assign(new Error("boom"), {code: 500});
+      },
+    }),
+  }) as never);
+
+  await assert.rejects(
+    () => admin.deleteObjects(["bad", "good"]),
+    /Failed to delete 1 storage object/
+  );
+  assert.deepEqual(attempted, ["bad", "good"]);
+});
+
+test("deleteObjects treats a missing object as success", async () => {
+  const admin = createStorageAdmin(() => ({
+    file: () => ({
+      delete: async () => { throw Object.assign(new Error("gone"), {code: 404}); },
+    }),
+  }) as never);
+  await admin.deleteObjects(["users/u1/a.webp"]);
+});
+
 test("deleteObjects removes each named object", async () => {
   const {bucket, deleted} = fakeBucket();
   const admin = createStorageAdmin(() => bucket as never);

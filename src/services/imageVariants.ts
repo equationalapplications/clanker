@@ -8,6 +8,7 @@
  * ~15 MB of masters versus ~1.2 MB of thumbs.
  */
 
+import { Platform } from 'react-native'
 import { File } from 'expo-file-system'
 import { manipulateAsync } from 'expo-image-manipulator'
 import { getEncodeTarget } from '~/utilities/webpSupport'
@@ -40,8 +41,51 @@ function resizeActions(width: number, height: number) {
   return [{ resize: width >= height ? { width: MASTER_DIMENSION } : { height: MASTER_DIMENSION } }]
 }
 
+/**
+ * Web path: ask the manipulator for base64 directly.
+ *
+ * `expo-file-system` is a warn-and-noop stub on web — `new File(uri)` returns an
+ * object with no `base64()` at all, so the native path below throws a TypeError
+ * on every browser upload. The manipulator's own `base64` save option works on
+ * both platforms; native still prefers the file read, which avoids holding a
+ * second copy of the payload as a JS string alongside the native buffer.
+ *
+ * There is no temp file to clean up here: on web the manipulator returns an
+ * object URL, not a filesystem path.
+ */
+async function prepareImageVariantsWeb(
+  source: VariantSource,
+  format: ReturnType<typeof getEncodeTarget>['format'],
+  mimeType: ReturnType<typeof getEncodeTarget>['mimeType'],
+): Promise<ImageVariants> {
+  const master = await manipulateAsync(source.uri, resizeActions(source.width, source.height), {
+    format,
+    compress: 0.85,
+    base64: true,
+  })
+
+  const thumb = await manipulateAsync(master.uri, [{ resize: { width: THUMB_DIMENSION } }], {
+    format,
+    compress: 0.8,
+    base64: true,
+  })
+
+  if (!master.base64 || !thumb.base64) {
+    throw new Error('Image manipulator returned no base64 payload')
+  }
+
+  return {
+    master: { base64: master.base64, mimeType },
+    thumb: { base64: thumb.base64, mimeType },
+  }
+}
+
 export async function prepareImageVariants(source: VariantSource): Promise<ImageVariants> {
   const { format, mimeType } = getEncodeTarget()
+
+  if (Platform.OS === 'web') {
+    return prepareImageVariantsWeb(source, format, mimeType)
+  }
 
   const master = await manipulateAsync(source.uri, resizeActions(source.width, source.height), {
     format,

@@ -585,7 +585,22 @@ async function syncDeletionsToCloud(localUserId: string): Promise<void> {
             // Hard-delete locally (also removes messages)
             await hardDeleteCharacterLocal(char.id, localUserId)
         } catch (error: any) {
-            reportWikiOpForCharacter(error, 'characterSync:delete', char.id, 'Character cloud deletion')
+            // A prior sync could have deleted the cloud copy successfully but been
+            // interrupted before hardDeleteCharacterLocal ran — and the
+            // deleteAllImagesForCharacter step above widened that window. Treating
+            // not-found as failure would leave the character soft-deleted forever,
+            // retried every sync, with its character_images rows never purged.
+            // removeCharacterFromCloud already treats not-found as success; match it.
+            const errorCode = typeof error?.code === 'string' ? error.code : ''
+            if (errorCode !== 'not-found' && !errorCode.endsWith('/not-found')) {
+                reportWikiOpForCharacter(error, 'characterSync:delete', char.id, 'Character cloud deletion')
+                continue
+            }
+
+            await deleteAllImagesForCharacter(char.id, localUserId).catch((error) =>
+                reportError(error, 'characterSync:deleteLocalImages'),
+            )
+            await hardDeleteCharacterLocal(char.id, localUserId)
         }
     }
 }

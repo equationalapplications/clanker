@@ -200,6 +200,10 @@ export async function getImagesBySyncState(
   userId: string,
   states: ImageSyncState[],
 ): Promise<CharacterImageRow[]> {
+  // An empty list would build `sync_state IN ()`, which SQLite rejects as a
+  // syntax error. Same defensive shape as getEvictionCandidates' limit guard.
+  if (states.length === 0) return []
+
   const db = await getDatabase()
   const placeholders = states.map(() => '?').join(',')
   return db.getAllAsync<CharacterImageRow>(

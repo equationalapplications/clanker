@@ -1228,3 +1228,103 @@ test("a listImages failure does not fail the whole import either", async () => {
   assert.equal(result.avatarSignedUrl, null);
   assert.equal((result as Record<string, unknown>).name, "C");
 });
+
+test("syncCharacterImages rejects an unsupported image mimeType", async () => {
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({
+        characterId: CHAR_ID,
+        images: [{
+          id: IMG_ID,
+          storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`,
+          source: "generated",
+          mimeType: "image/svg+xml",
+        }],
+      }),
+      imageDeps() as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument"
+  );
+});
+
+test("syncCharacterImages still defaults mimeType when the client omits it", async () => {
+  let received: Record<string, unknown> | null = null;
+  const deps = imageDeps({
+    syncImages: async (_c: string, _u: string, rows: Record<string, unknown>[]) => {
+      received = rows[0] ?? null;
+      return {evictedImageIds: []};
+    },
+  });
+  await syncCharacterImagesHandler(
+    imageRequest({
+      characterId: CHAR_ID,
+      images: [{id: IMG_ID, storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`, source: "generated"}],
+    }),
+    deps as never
+  );
+  assert.equal((received as unknown as {mimeType: string}).mimeType, "image/webp");
+});
+
+test("syncCharacterImages caps the number of images accepted per request", async () => {
+  const oversized = Array.from({length: 200}, () => ({
+    id: IMG_ID,
+    storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`,
+    source: "generated",
+  }));
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({characterId: CHAR_ID, images: oversized}),
+      imageDeps() as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument"
+  );
+});
+
+test("syncCharacterImages caps the number of deletions accepted per request", async () => {
+  const oversized = Array.from({length: 200}, () => IMG_ID);
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({characterId: CHAR_ID, images: [], deletedImageIds: oversized}),
+      imageDeps() as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument"
+  );
+});
+
+test("syncCharacterImages clears the active pointer when the client sends null", async () => {
+  let setActiveCalledWith: [string, string | null] | null = null;
+  const deps = imageDeps({
+    setActiveImage: async (characterId: string, imageId: string | null) => {
+      setActiveCalledWith = [characterId, imageId];
+    },
+  });
+  await syncCharacterImagesHandler(
+    imageRequest({characterId: CHAR_ID, images: [], activeImageId: null}),
+    deps as never
+  );
+  assert.deepEqual(setActiveCalledWith, [CHAR_ID, null]);
+});
+
+test("syncCharacterImages leaves the active pointer alone when activeImageId is absent", async () => {
+  const deps = imageDeps({
+    setActiveImage: async () => {
+      throw new Error("setActiveImage should not be called when activeImageId is absent");
+    },
+  });
+  await syncCharacterImagesHandler(imageRequest({characterId: CHAR_ID, images: []}), deps as never);
+});
+
+test("syncCharacterImages rejects a malformed activeImageId instead of ignoring it", async () => {
+  const deps = imageDeps({
+    setActiveImage: async () => {
+      throw new Error("setActiveImage should not be called for a malformed activeImageId");
+    },
+  });
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({characterId: CHAR_ID, images: [], activeImageId: 42}),
+      deps as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument"
+  );
+});

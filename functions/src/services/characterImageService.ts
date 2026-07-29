@@ -41,6 +41,12 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
   },
   async upsert(row) {
     const db = await getDb();
+    // setWhere is the ownership boundary on the conflict path. The id is a
+    // client-chosen UUID, so without it a caller who guesses (or replays) an id
+    // belonging to someone else would overwrite that row's storage paths — the
+    // upstream ownership check only covers the characterId, not the image id.
+    // Comparing the *existing* row's owner against the incoming one makes a
+    // foreign id a silent no-op instead of a takeover.
     await db.insert(characterImages).values(row).onConflictDoUpdate({
       target: characterImages.id,
       set: {
@@ -49,6 +55,10 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
         mimeType: row.mimeType ?? "image/webp",
         source: row.source,
       },
+      setWhere: and(
+        eq(characterImages.userId, row.userId),
+        eq(characterImages.characterId, row.characterId)
+      ),
     });
   },
   async tombstone(id) {

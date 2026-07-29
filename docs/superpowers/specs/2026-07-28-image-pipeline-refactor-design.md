@@ -152,7 +152,7 @@ part of this work.
 
 ## 4. Storage layout and rules
 
-```
+```text
 users/{uid}/characters/{characterId}/{imageId}.webp         1024×1024
 users/{uid}/characters/{characterId}/{imageId}_thumb.webp     256×256
 ```
@@ -272,7 +272,7 @@ would regress a live feature, leaving imported characters avatar-less.
 > account to hold `roles/iam.serviceAccountTokenCreator` **on itself**, or
 > `getSignedUrl` fails with a `signBlob` permission error. This is IAM
 > configuration, not a code defect — grant it before deploying.
-
+>
 > **Deploy-time trap #2:** on web, the importer loads the signed URL through
 > `expo-image-manipulator`'s canvas path, which needs to read the response
 > body cross-origin. `storage.googleapis.com` sends no CORS headers by
@@ -454,7 +454,7 @@ need no translation and are what §13.3 reconciles on.
 Character ids do need translation, and the storage path is where getting it wrong
 is unrecoverable:
 
-```
+```text
 users/{uid}/characters/{cloudId}/{imageId}.webp
 ```
 

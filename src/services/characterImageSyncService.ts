@@ -214,15 +214,39 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
  * after a user activates an image so a second device sees the change without
  * waiting for the next full sweep.
  */
-export async function pushActiveImageId(localCharacterId: string, localUserId: string): Promise<void> {
+export async function pushActiveImageId(
+  localCharacterId: string,
+  localUserId: string,
+  options: { allowClear?: boolean } = {},
+): Promise<void> {
   const character = await getCharacter(localCharacterId, localUserId)
   if (!character?.cloud_id || !UUID_REGEX.test(character.cloud_id)) return
 
   const active = await getActiveCharacterImage(localCharacterId)
+
+  // No active image is ambiguous on its own: it is either a cleared pointer the
+  // other devices need to see, or simply a character whose pointer has not been
+  // set yet. Only the delete path knows it is the former, so it opts in — a
+  // blind null push could otherwise clear a pointer another device just set.
+  if (!active) {
+    if (!options.allowClear) return
+    try {
+      await syncCharacterImagesFn({
+        characterId: character.cloud_id,
+        images: [],
+        deletedImageIds: [],
+        activeImageId: null,
+      })
+    } catch (error) {
+      reportError(error, 'characterImageSync:pushActiveImageId')
+    }
+    return
+  }
+
   // Pushing a 'file'/'inline' id the server has never seen would fail its
   // ownership check; that image is still mid-upload and will carry the
   // pointer itself once the sweep promotes it to 'cloud'.
-  if (!active || active.storage_kind !== 'cloud') return
+  if (active.storage_kind !== 'cloud') return
 
   try {
     await syncCharacterImagesFn({

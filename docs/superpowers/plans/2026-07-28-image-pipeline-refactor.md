@@ -6957,27 +6957,18 @@ git commit -m "feat(images): re-store imported avatars under the importer's own 
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the complete app test suite**
+- [ ] **Step 1: Run the mandated root verification**
 
-Run: `npm test`
-Expected: PASS, no failures, no new skipped tests.
+Run: `npm run typecheck && npm run lint && npm run test`
+Expected: PASS — no type errors, no lint errors, no test failures, no new
+skipped tests.
 
-- [ ] **Step 2: Run the complete functions test suite**
+- [ ] **Step 2: Run the mandated functions verification**
 
-Run: `cd functions && npm test`
-Expected: PASS.
+Run: `cd functions && npm run typecheck && npm run lint && npm run test`
+Expected: PASS, same criteria.
 
-- [ ] **Step 3: Typecheck both projects**
-
-Run: `npm run typecheck && cd functions && npm run typecheck`
-Expected: no errors in either.
-
-- [ ] **Step 4: Lint**
-
-Run: `npm run lint:check && cd functions && npm run lint`
-Expected: no errors.
-
-- [ ] **Step 5: Confirm every deleted file is really gone and unreferenced**
+- [ ] **Step 3: Confirm every deleted file is really gone and unreferenced**
 
 Run:
 ```bash
@@ -6986,33 +6977,33 @@ grep -rn "defaultAvatarBase64\|loadDefaultAvatar\|defaultAvatarService\|localIma
 ```
 Expected: a clean tree, and no hits other than the deliberate migration-local copy.
 
-- [ ] **Step 6: Confirm nothing reads `avatar_data` for display any more**
+- [ ] **Step 4: Confirm nothing reads `avatar_data` for display any more**
 
 Run: `grep -rn "avatar_data" src app | grep -v migrations`
 Expected: only schema/type declarations and the sync passthrough — no data-URI construction, no reads feeding a component.
 
-- [ ] **Step 7: Manual pass on web**
+- [ ] **Step 5: Manual pass on web**
 
 Run: `npm run web`
 
 Check: characters list renders avatars; opening a character's picker shows its history newest-first with the active one checked; generating adds an image and activates it; uploading gives a square result; long-press deletes; deleting the active image promotes the next one; a character with no images shows the bundled default with no ring.
 
-- [ ] **Step 8: Manual pass on native**
+- [ ] **Step 6: Manual pass on native**
 
 Run: `npm run ios` (and/or `npm run android`)
 
 Check the same list, plus: the OS cropper appears on upload and is square; a cloud character's images appear in the Firebase console under `users/<uid>/characters/<cloudId>/`; airplane mode → generate → the avatar still displays and the row shows as pending; restore connectivity → it uploads on the next sweep.
 
-- [ ] **Step 9: Confirm the spec's out-of-scope boundary held**
+- [ ] **Step 7: Confirm the spec's out-of-scope boundary held**
 
 Run: `grep -rn "ephemeral\|source: 'agent'\|'agent'" src/services/characterImageService.ts src/database/characterImageDatabase.ts`
 Expected: no hits. Vision and agent image generation are §18 groundwork, explicitly not implemented in Phase 1.
 
-- [ ] **Step 10: Update the spec status**
+- [ ] **Step 8: Update the spec status**
 
 In `docs/superpowers/specs/2026-07-28-image-pipeline-refactor-design.md`, change the header `**Status:** Approved, ready for planning` to `**Status:** Implemented (Phase 1)`.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-07-28-image-pipeline-refactor-design.md

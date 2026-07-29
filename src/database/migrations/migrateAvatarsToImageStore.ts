@@ -23,7 +23,20 @@ import { prepareImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { promoteCharacterImagesToCloud } from '~/services/characterImageSyncService'
 
-export const AVATAR_MIGRATION_FLAG = 'avatar-image-store-migration'
+const AVATAR_MIGRATION_FLAG_PREFIX = 'avatar-image-store-migration'
+
+/**
+ * Completion flag key, namespaced per user.
+ *
+ * The migration query is already per-user, so a device-wide key would let the
+ * first account to finish suppress migration for every other account that signs
+ * in on the same device — their `avatar_data` would never move. The flag also
+ * survives sign-out (kvStorage is not cleared), so this is reachable in normal
+ * use, not just on shared devices.
+ */
+export function avatarMigrationFlagKey(userId: string): string {
+  return `${AVATAR_MIGRATION_FLAG_PREFIX}:${userId}`
+}
 
 interface LegacyAvatarRow {
   id: string
@@ -64,7 +77,8 @@ export async function migrateAvatarsToImageStore(
   userId: string,
   defaultAvatarBase64: string,
 ): Promise<void> {
-  const alreadyRun = await Storage.getItem(AVATAR_MIGRATION_FLAG)
+  const flagKey = avatarMigrationFlagKey(userId)
+  const alreadyRun = await Storage.getItem(flagKey)
   if (alreadyRun) return
 
   const db = await getDatabase()
@@ -138,7 +152,7 @@ export async function migrateAvatarsToImageStore(
 
   // Only claim completion on a clean pass — a partial run must retry.
   if (allSucceeded) {
-    await Storage.setItem(AVATAR_MIGRATION_FLAG, 'done')
+    await Storage.setItem(flagKey, 'done')
   }
 }
 
@@ -155,13 +169,15 @@ export async function migrateAvatarsToImageStore(
 export async function backfillThumbnails(rows: CharacterImageRow[]): Promise<void> {
   for (const row of rows) {
     if (row.thumb_ref) continue
+    // Only `inline` rows carry base64 in their refs. Writing a base64 thumb onto
+    // a 'file' or 'cloud' row while leaving storage_kind alone would hand the
+    // resolver a blob where it expects a path/URI. The migration only ever
+    // produces inline rows, so this is a guard against future callers.
+    if (row.storage_kind !== 'inline') continue
 
     try {
       const needsReencode = row.mime_type === 'image/png'
-      const sourceUri =
-        row.storage_kind === 'inline'
-          ? `data:${row.mime_type};base64,${row.master_ref}`
-          : row.master_ref
+      const sourceUri = `data:${row.mime_type};base64,${row.master_ref}`
 
       const variants = await prepareImageVariants({ uri: sourceUri, width: 1024, height: 1024 })
 
