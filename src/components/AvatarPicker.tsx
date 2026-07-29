@@ -3,6 +3,7 @@ import { Alert, FlatList, Image, StyleSheet, TouchableOpacity, View } from 'reac
 import { Button, Dialog, HelperText, Icon, Portal, Text } from 'react-native-paper'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import {
+  getActiveCharacterImage,
   getCharacterImages,
   setActiveImageId,
   type CharacterImageRow,
@@ -92,9 +93,11 @@ export function AvatarPicker({
 
     await deleteCharacterImage(imageId, userId)
     if (imageId === activeImageId) {
-      const remaining = await getCharacterImages(characterId)
-      const nextActiveId = remaining[0]?.id ?? null
-      onActiveImageChange(nextActiveId)
+      // deleteCharacterImage already repointed active_image_id in the DB
+      // (excluding 'reserved' rows); read that back instead of re-deriving
+      // next-active client-side, which would drift from its selection logic.
+      const nextActive = await getActiveCharacterImage(characterId)
+      onActiveImageChange(nextActive?.id ?? null)
       // Pushed even when null: clearing the pointer after deleting the last
       // image is exactly the change other devices need to see.
       void pushActiveImageId(characterId, userId, { allowClear: true })
