@@ -33,11 +33,11 @@ export default function CharacterAvatar({
 
   // A new URI is a new attempt: without this, one failed load would pin the
   // fallback for the lifetime of the component even after the user picks
-  // another image. Adjusted during render (not an effect) so there is no
-  // extra render pass showing the stale fallback before it clears.
-  if (imageUrl !== erroredUrl && imageError) {
+  // another image.
+  React.useEffect(() => {
     setImageError(false)
-  }
+    setErroredUrl(null)
+  }, [imageUrl])
 
   if (imageUrl && !imageError) {
     const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
