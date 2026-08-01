@@ -6,8 +6,9 @@ if [[ -z "${GCP_PROJECT:-}" ]]; then
   exit 1
 fi
 
-if [[ -z "${MIGRATIONS:-}" ]]; then
+if [[ -z "${MIGRATIONS:-}" && -z "${STAMP_MIGRATIONS:-}" ]]; then
   echo "Error: MIGRATIONS must be set (comma-separated filenames in functions/drizzle/, e.g. MIGRATIONS=\"0017_my_new_migration.sql\")" >&2
+  echo "       or STAMP_MIGRATIONS=<file> to baseline the schema_migrations tracking table without executing SQL." >&2
   exit 1
 fi
 
@@ -27,5 +28,9 @@ else
   echo "SKIP_BACKUP=true set, skipping pre-migration backup."
 fi
 
-echo "Applying migrations: ${MIGRATIONS}"
+if [[ -n "${STAMP_MIGRATIONS:-}" ]]; then
+  echo "Stamping migrations through: ${STAMP_MIGRATIONS} (no SQL executed)"
+else
+  echo "Applying migrations: ${MIGRATIONS}"
+fi
 node scripts/migrate.mjs
