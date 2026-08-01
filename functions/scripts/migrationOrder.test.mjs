@@ -41,6 +41,19 @@ test('a prerequisite scheduled earlier in the same batch counts as satisfied', (
   assert.deepEqual(missingPrerequisites(MIGRATION_ORDER[2], applied, batch), []);
 });
 
+test('a prerequisite scheduled later in the same batch is still reported missing', () => {
+  // Regression for reviewer feedback: passing a mis-ordered batch (e.g. the full
+  // MIGRATION_ORDER with `filename` not actually first) must not let a
+  // later-scheduled prerequisite count as satisfied, or the 0021-without-0001
+  // incident class reappears.
+  const applied = new Set();
+  const target = MIGRATION_ORDER[1];
+  const prerequisite = MIGRATION_ORDER[0];
+  // `target` is scheduled before its own prerequisite in this batch — inverted.
+  const batch = [target, prerequisite];
+  assert.deepEqual(missingPrerequisites(target, applied, batch), [prerequisite]);
+});
+
 test('untracked files are not ordering-checked', () => {
   assert.deepEqual(missingPrerequisites('9999_adhoc.sql', new Set()), []);
 });

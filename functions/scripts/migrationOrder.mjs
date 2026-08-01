@@ -55,7 +55,15 @@ export function missingPrerequisites(filename, applied, batch = []) {
   const idx = migrationIndex(filename);
   if (idx === -1) return [];
 
-  return MIGRATION_ORDER.slice(0, idx).filter(
-    (earlier) => !applied.has(earlier) && !batch.includes(earlier)
-  );
+  const posInBatch = batch.indexOf(filename);
+
+  return MIGRATION_ORDER.slice(0, idx).filter((earlier) => {
+    if (applied.has(earlier)) return false;
+    const earlierPos = batch.indexOf(earlier);
+    // Only counts as satisfied if it's scheduled strictly before `filename` in
+    // this batch. A prerequisite present but scheduled *after* is still missing —
+    // otherwise a mis-ordered batch (e.g. the full MIGRATION_ORDER passed as-is
+    // when `filename` isn't first) would slip past this guard.
+    return earlierPos === -1 || (posInBatch !== -1 && earlierPos > posInBatch);
+  });
 }
