@@ -56,7 +56,8 @@ function resolveMigrationPath(file) {
 }
 
 function parseList(value) {
-  return value.split(',').map((f) => f.trim()).filter(Boolean);
+  const files = value.split(',').map((f) => f.trim()).filter(Boolean);
+  return [...new Set(files)];
 }
 
 async function ensureMigrationsTable(client) {
@@ -187,12 +188,26 @@ try {
     }
   }
 
+  // Arbitrary constant key shared by every migrate.mjs invocation against this
+  // database, so concurrent deploys serialize on the same advisory lock instead
+  // of racing to apply the same file twice.
+  const MIGRATION_LOCK_KEY = 727163;
+
   for (const file of pending) {
     const fullPath = resolveMigrationPath(file);
     const sql = readFileSync(fullPath, 'utf8');
-    console.log(`Applying ${path.basename(file)}...`);
     await client.query('BEGIN');
     try {
+      await client.query('SELECT pg_advisory_xact_lock($1)', [MIGRATION_LOCK_KEY]);
+      // Re-check inside the lock: another concurrent runner may have already
+      // applied this file between our initial getApplied() and this point.
+      const { rows } = await client.query('SELECT 1 FROM schema_migrations WHERE filename = $1', [file]);
+      if (rows.length > 0) {
+        console.log(`Skipping ${file} (already applied by a concurrent runner).`);
+        await client.query('COMMIT');
+        continue;
+      }
+      console.log(`Applying ${path.basename(file)}...`);
       await client.query(sql);
       // Recorded inside the migration's own transaction, so a failed migration
       // never leaves a row claiming it succeeded.

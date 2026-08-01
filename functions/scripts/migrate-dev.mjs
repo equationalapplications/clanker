@@ -1,7 +1,8 @@
 /**
  * Apply Cloud SQL migration SQL files to the local docker-compose Postgres.
  *
- * Uses a dev-only dev_migrations tracking table (production has no migration journal).
+ * Uses a dev-only dev_migrations tracking table, separate from production's
+ * schema_migrations table (see migrate.mjs).
  *
  * Usage (from functions/):
  *   npm run migrate:dev
