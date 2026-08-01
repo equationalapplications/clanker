@@ -13,25 +13,60 @@ There are two independent Postgres targets, each with its own migration runner:
 
 | Target | Runner | Tracking |
 |---|---|---|
-| Production Cloud SQL | `functions/scripts/migrate.mjs` (via `npm run migrate` / `npm run deploy:migrations`) | None — no `__drizzle_migrations` table exists in production |
+| Production Cloud SQL | `functions/scripts/migrate.mjs` (via `npm run migrate` / `npm run deploy:migrations`) | `schema_migrations` table (created automatically; baselined 2026-08-01) |
 | Local docker-compose Postgres | `functions/scripts/migrate-dev.mjs` (via `npm run migrate:dev`) | `dev_migrations` table (dev-only, created automatically) |
 
-Both runners apply the same SQL files from `functions/drizzle/`.
+Both runners apply the same SQL files from `functions/drizzle/`, in the order declared by
+`functions/scripts/migrationOrder.mjs` (`MIGRATION_ORDER`) — the single source of truth both
+runners import.
 
-> **Important:** Production has no migration journal/tracking table. Migrations must be applied manually and tracked by hand — see "Applied Migrations" below. Before generating or applying migrations, verify `CLOUD_SQL_CONNECTION_NAME` points to the intended instance.
+Because applied files are now recorded, the production runner will:
+
+- **skip** any migration already recorded as applied, so re-running a deploy is safe;
+- **refuse** a migration whose predecessors in `MIGRATION_ORDER` are unapplied (override with `ALLOW_OUT_OF_ORDER=1`);
+- **refuse** a file absent from `MIGRATION_ORDER` (override with `ALLOW_UNTRACKED=1`).
+
+> **Important:** verify `CLOUD_SQL_CONNECTION_NAME` points to the intended instance before applying migrations.
 >
 > **Journal desync:** `functions/drizzle/meta/_journal.json` is stuck at `0011_credits_redesign`, but hand-written migration files `0012`–`0018`+ already exist on disk. **Do not run `npx drizzle-kit generate`** — it will assign a conflicting number/tag against the stale journal. See "Workflow for Schema Changes" below.
+
+### Incident: unapplied `0001` broke all signups (2026-07-20 → 2026-08-01)
+
+Production ran with **no** migration tracking until 2026-08-01; the "Applied Migrations" table
+below was the only record, and it was wrong in both directions — it claimed `0001` had been
+applied (it had not) and claimed `0014` had not (it had).
+
+`0001_credit_transactions_idempotency.sql` creates the partial unique index
+`credit_transactions_idempotency_idx`. It had never been applied to `clanker-prod`. This was
+harmless until `0021` (commit `83884a3b`, 2026-07-20) rewrote `handle_new_user()` to guard its
+signup grant with `ON CONFLICT (user_id, reason, reference_id) WHERE reference_id IS NOT NULL`,
+which requires that index as its arbiter. From then on **every new signup** aborted with
+Postgres `42P10` ("no unique or exclusion constraint matching the ON CONFLICT specification"),
+rolling back the `users` insert and surfacing as a generic `exchangeToken` "Failed to bootstrap
+user". Zero users were created for 12 days. Affected accounts exist in Firebase Auth with no
+Cloud SQL row; they self-heal on next sign-in.
+
+Fixed by applying `0001`, then introducing the `schema_migrations` table and the ordering guard
+above so a migration can no longer be applied on top of missing predecessors.
 
 ---
 
 ## Production: Applied Migrations
 
-Keep this table up to date — it is the source of truth for what has actually run against `clanker-prod`, since there is no tracking table to query.
+**The `schema_migrations` table in production is now the source of truth**, not this table.
+Query it directly rather than trusting the list below:
+
+```sql
+SELECT filename, applied_at FROM schema_migrations ORDER BY id;
+```
+
+This table is kept as a human-readable changelog of what each migration does. It is no longer
+load-bearing, and was demonstrably unreliable while it was (see the incident note above).
 
 | # | File | Notes |
 |---|---|---|
 | initial | `0000_dazzling_kid_colt.sql` | Initial schema |
-| 1 | `0001_credit_transactions_idempotency.sql` | Idempotency index |
+| 1 | `0001_credit_transactions_idempotency.sql` | Idempotency index. **Not actually applied until 2026-08-01** despite this table long claiming otherwise — see incident note above |
 | 2 | `0002_users_timestamps_not_null.sql` | NOT NULL constraints |
 | 3 | `0003_character_voice.sql` | `characters.voice` (applied manually, not in Drizzle journal) |
 | 4 | `0004_wiki_memory.sql` | Wiki memory tables |
@@ -54,7 +89,10 @@ Keep this table up to date — it is the source of truth for what has actually r
 | 21 | `0021_fix_handle_new_user_trigger_power_scale.sql` | Fix `handle_new_user()` trigger still hardcoding 50 (missed by 0020, which only updated existing rows) — new signups now get 5,000 |
 | 22 | `0022_character_images.sql` | `character_images` table + `characters.active_image_id` for the image pipeline refactor (PR #580) |
 
-> **Gap:** `0014_pgvector_wiki_embeddings.sql` is on disk but **not yet applied** to `clanker-prod`.
+`0014_pgvector_wiki_embeddings.sql` **is** applied to `clanker-prod` (a 2026-08-01 schema audit
+confirmed the `vector` extension, `llm_wiki_entries.embedding`, and the HNSW index
+`llm_wiki_entries_embedding_idx` all present). This document previously recorded it as an
+unapplied gap; that was incorrect.
 
 ### Prerequisites
 
@@ -86,7 +124,15 @@ cd functions && MIGRATIONS="0019_my_new_migration.sql" npm run migrate
 
 ## Local Dev: docker-compose Postgres
 
-`docker-compose.local.yml` runs a `pgvector/pgvector:pg15` container (`postgres_db`) for the `cloud-agent` service, with `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker`. A fresh or wiped volume has **no schema and no seed data** — the cloud-agent's mock-auth flow (`MOCK_FIREBASE_AUTH=true`, uid `local_test_user_123`) will fail with `relation "users" does not exist` or later `"User not found"` until both of the following are run.
+`docker-compose.local.yml` runs a `pgvector/pgvector:pg18` container (`postgres_db`) for the `cloud-agent` service, with `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker`. A fresh or wiped volume has **no schema and no seed data** — the cloud-agent's mock-auth flow (`MOCK_FIREBASE_AUTH=true`, uid `local_test_user_123`) will fail with `relation "users" does not exist` or later `"User not found"` until both of the following are run.
+
+> **Keep the major version matched to production** (Cloud SQL `POSTGRES_18`). Local ran `pg15` until 2026-08-01 — two majors behind — so local testing did not faithfully represent prod. Changing the major is not an in-place upgrade; Postgres will refuse to start on a data directory written by an older major. Recreate it:
+>
+> ```bash
+> docker compose -f docker-compose.local.yml rm -sfv postgres_db
+> docker compose -f docker-compose.local.yml up -d postgres_db
+> cd functions && npm run migrate:dev   # then re-seed, step 2 below
+> ```
 
 ### 1. Apply schema
 
@@ -119,10 +165,14 @@ docker compose -f docker-compose.local.yml exec cloud-agent npx tsx scripts/seed
 1. Edit `functions/src/db/schema.ts` to reflect the desired end state.
 2. **Do not run `npx drizzle-kit generate`** — the journal (`functions/drizzle/meta/_journal.json`) is stuck at `0011` while on-disk files go past `0018`; generating would produce a conflicting index against the stale journal.
 3. Hand-write the migration SQL as a new file at the next sequential index, e.g. `functions/drizzle/0019_my_change.sql`, matching the style of existing migrations (`CREATE TABLE`, `ALTER TABLE ... ADD CONSTRAINT` for FKs, explicit `CREATE INDEX`).
-4. Add the new filename to `MIGRATION_ORDER` in `functions/scripts/migrate-dev.mjs` (dev apply order — must match the sequential index).
-5. Add a row to the "Applied Migrations" table above **before or as part of** applying it to production — that table is the only production migration record that exists.
+4. Add the new filename to `MIGRATION_ORDER` in `functions/scripts/migrationOrder.mjs` — both runners import it, and both refuse to apply a file that is not listed. Keep it in the order it must run.
+5. Add a row to the "Applied Migrations" table above as a changelog entry (`schema_migrations` in production is the actual record).
 6. Apply locally first (`cd functions && npm run migrate:dev`) to sanity-check the SQL against a real Postgres instance.
 7. Apply to production following "Apply Migrations (production)" above.
 8. Commit `schema.ts`, the new migration SQL file, the `MIGRATION_ORDER` update, and the "Applied Migrations" table update together in one PR.
+
+If a migration depends on an object created by an earlier one (an index backing an
+`ON CONFLICT`, a column, a constraint), the ordering guard in step 4 is what enforces it — but
+state the dependency in a SQL comment too, as `0021` does.
 
 Do **not** update `_journal.json` or add Drizzle snapshot files as part of routine schema changes — that's a deliberate, separate re-sync operation, not part of normal migration authoring.
