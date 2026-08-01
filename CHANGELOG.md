@@ -1,3 +1,13 @@
+## [30.32.1](https://github.com/equationalapplications/clanker/compare/v30.32.0...v30.32.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **db:** dedupe MIGRATIONS input, serialize concurrent applies, fix stale comment ([6df9c17](https://github.com/equationalapplications/clanker/commit/6df9c17b7aee8e41a41e6f2b49cf559734b1d9f0)), closes [#584](https://github.com/equationalapplications/clanker/issues/584)
+* **db:** require prerequisite to be scheduled before target in batch ([19e7ec2](https://github.com/equationalapplications/clanker/commit/19e7ec26388e5c1025b0b32699a3ddd7f2596214))
+* **db:** track applied migrations in production and guard apply order ([3c4ba56](https://github.com/equationalapplications/clanker/commit/3c4ba5610a43e4f3cf090ec6a9d22eeff3e32692))
+* **deps:** resolve @hono/node-server to 2.0.12 in both lockfiles ([d83e8bb](https://github.com/equationalapplications/clanker/commit/d83e8bbcf61bee33b1690719955c0902a4414593))
+
 # [30.32.0](https://github.com/equationalapplications/clanker/compare/v30.31.0...v30.32.0) (2026-07-29)
 
 
