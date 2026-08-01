@@ -124,7 +124,15 @@ cd functions && MIGRATIONS="0019_my_new_migration.sql" npm run migrate
 
 ## Local Dev: docker-compose Postgres
 
-`docker-compose.local.yml` runs a `pgvector/pgvector:pg15` container (`postgres_db`) for the `cloud-agent` service, with `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker`. A fresh or wiped volume has **no schema and no seed data** — the cloud-agent's mock-auth flow (`MOCK_FIREBASE_AUTH=true`, uid `local_test_user_123`) will fail with `relation "users" does not exist` or later `"User not found"` until both of the following are run.
+`docker-compose.local.yml` runs a `pgvector/pgvector:pg18` container (`postgres_db`) for the `cloud-agent` service, with `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker`. A fresh or wiped volume has **no schema and no seed data** — the cloud-agent's mock-auth flow (`MOCK_FIREBASE_AUTH=true`, uid `local_test_user_123`) will fail with `relation "users" does not exist` or later `"User not found"` until both of the following are run.
+
+> **Keep the major version matched to production** (Cloud SQL `POSTGRES_18`). Local ran `pg15` until 2026-08-01 — two majors behind — so local testing did not faithfully represent prod. Changing the major is not an in-place upgrade; Postgres will refuse to start on a data directory written by an older major. Recreate it:
+>
+> ```bash
+> docker compose -f docker-compose.local.yml rm -sfv postgres_db
+> docker compose -f docker-compose.local.yml up -d postgres_db
+> cd functions && npm run migrate:dev   # then re-seed, step 2 below
+> ```
 
 ### 1. Apply schema
 

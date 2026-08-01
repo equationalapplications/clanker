@@ -30,7 +30,12 @@ services:
         condition: service_healthy
 
   postgres_db:
-    image: pgvector/pgvector:pg15
+    # Match production (Cloud SQL POSTGRES_18). Local was pg15 until 2026-08-01, two majors
+    # behind prod, so planner behaviour and catalog representation differed from what ships.
+    # Bumping the major is not an in-place upgrade: the PGDATA volume must be recreated
+    # (`docker compose -f docker-compose.local.yml rm -sfv postgres_db`), then re-run
+    # `cd functions && npm run migrate:dev` and the seedLocal step from docs/db-migrations.md.
+    image: pgvector/pgvector:pg18
     environment:
       - POSTGRES_USER=clanker_dev
       - POSTGRES_PASSWORD=local_pass
