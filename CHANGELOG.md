@@ -1,3 +1,10 @@
+## [30.32.2](https://github.com/equationalapplications/clanker/compare/v30.32.1...v30.32.2) (2026-08-01)
+
+
+### Bug Fixes
+
+* **deps:** resolve dependabot alerts fixable within existing semver ranges ([6b3b3df](https://github.com/equationalapplications/clanker/commit/6b3b3dffb4f27651370e2dcedbd3a410bd0e7c21))
+
 ## [30.32.1](https://github.com/equationalapplications/clanker/compare/v30.32.0...v30.32.1) (2026-08-01)
 
 
