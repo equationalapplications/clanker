@@ -14,36 +14,9 @@ import pg from 'pg';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { MIGRATION_ORDER } from './migrationOrder.mjs';
 
 const DEFAULT_DATABASE_URL = 'postgres://clanker_dev:local_pass@localhost:5432/clanker';
-
-/** Authoritative apply order — mirrors docs/architecture-and-data.md (incl. hand-written 0012–0016). */
-const MIGRATION_ORDER = [
-  '0000_dazzling_kid_colt.sql',
-  '0001_credit_transactions_idempotency.sql',
-  '0002_users_timestamps_not_null.sql',
-  '0003_character_voice.sql',
-  '0004_wiki_memory.sql',
-  '0004_lame_gwen_stacy.sql',
-  '0005_subscriptions_document_counter.sql',
-  '0006_partial_source_hash_index.sql',
-  '0007_source_ref_idx.sql',
-  '0008_wiki_memory_v2.sql',
-  '0009_odd_sandman.sql',
-  '0010_fix_source_type_check.sql',
-  '0011_credits_redesign.sql',
-  '0012_update_handle_new_user_trigger.sql',
-  '0013_cloud_agent_tasks.sql',
-  '0014_pgvector_wiki_embeddings.sql',
-  '0015_organizations.sql',
-  '0016_llm_wiki_graph.sql',
-  '0017_expo_push_token.sql',
-  '0018_billing_hardening.sql',
-  '0019_character_voice_default_fix.sql',
-  '0020_credit_power_scale.sql',
-  '0021_fix_handle_new_user_trigger_power_scale.sql',
-  '0022_character_images.sql',
-];
 
 /** seedLocal.ts creates schema through pgvector embeddings but not org/graph tables. */
 const SEED_LOCAL_BASELINE_THROUGH = '0014_pgvector_wiki_embeddings.sql';
