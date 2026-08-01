@@ -7,8 +7,9 @@ if [[ -z "${GCP_PROJECT:-}" ]]; then
 fi
 
 if [[ -z "${MIGRATIONS:-}" && -z "${STAMP_MIGRATIONS:-}" ]]; then
-  echo "Error: MIGRATIONS must be set (comma-separated filenames in functions/drizzle/, e.g. MIGRATIONS=\"0017_my_new_migration.sql\")" >&2
-  echo "       or STAMP_MIGRATIONS=<file> to baseline the schema_migrations tracking table without executing SQL." >&2
+  echo "Error: MIGRATIONS or STAMP_MIGRATIONS must be set (comma-separated filenames in functions/drizzle/)" >&2
+  echo "       MIGRATIONS=\"0017_my_new_migration.sql\"        apply the migration SQL and record it" >&2
+  echo "       STAMP_MIGRATIONS=\"0001_credit_transactions_idempotency.sql\"  baseline the schema_migrations tracking table without executing SQL" >&2
   exit 1
 fi
 
