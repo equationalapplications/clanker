@@ -13,6 +13,7 @@ import { pushActiveImageId } from '~/services/characterImageSyncService'
 import { resolveImageUri } from '~/services/localImageStore'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { useImageGeneration } from '~/hooks/useImageGeneration'
+import { useCharacterMachine } from '~/hooks/useMachines'
 
 interface AvatarPickerProps {
   visible: boolean
@@ -39,6 +40,8 @@ export function AvatarPicker({
 }: AvatarPickerProps) {
   const [items, setItems] = useState<PickerItem[]>([])
   const [actionError, setActionError] = useState<string | null>(null)
+
+  const characterService = useCharacterMachine()
 
   const refreshEpoch = useRef(0)
   const refresh = useCallback(async () => {
@@ -92,6 +95,9 @@ export function AvatarPicker({
       // waiting for the next full sync.
       const userId = getCurrentUser()?.uid
       if (userId) void pushActiveImageId(characterId, userId)
+      // The machine's cached characters carry active_image_id, which Talk and
+      // Chat now render from. Without this they keep the previous image.
+      characterService.send({ type: 'LOAD' })
       await refresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to activate image'
@@ -120,6 +126,7 @@ export function AvatarPicker({
         // Pushed even when null: clearing the pointer after deleting the last
         // image is exactly the change other devices need to see.
         void pushActiveImageId(characterId, userId, { allowClear: true })
+        characterService.send({ type: 'LOAD' })
       }
       await refresh()
     } catch (err) {
