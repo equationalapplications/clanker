@@ -1,7 +1,7 @@
 # Avatar render pipeline divergence — design
 
 **Date:** 2026-08-10
-**Status:** Approved, ready for planning
+**Status:** Implemented
 **Follows:** `2026-07-28-image-pipeline-refactor-design.md` (Phase 1, shipped PR #580)
 
 ## 1. Problem
