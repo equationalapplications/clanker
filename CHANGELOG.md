@@ -1,3 +1,37 @@
+# [30.33.0](https://github.com/equationalapplications/clanker/compare/v30.32.3...v30.33.0) (2026-08-10)
+
+
+### Bug Fixes
+
+* **avatar:** address CodeRabbit review on Phase 2 ([3402b82](https://github.com/equationalapplications/clanker/commit/3402b826a87cbbed85d84e1d2a17a26dcd62cd3a))
+* **chat:** photo bubble gate, composer state, scoping, dimensions ([3a36f65](https://github.com/equationalapplications/clanker/commit/3a36f655650e6e177500fa31c86644dbc5401ed8)), closes [#591](https://github.com/equationalapplications/clanker/issues/591)
+* **chat:** render character bubbles from CharacterAvatar ([818afb5](https://github.com/equationalapplications/clanker/commit/818afb520149d8d3bb9509394a50f2c0095e9fe5))
+* **chat:** resolve lint regressions from Phase 2 plan ([4ae0c05](https://github.com/equationalapplications/clanker/commit/4ae0c052ebe7638bc3cc96cd84d9bdb577efd39d))
+* **chat:** share one turn mutex between sendMessage and sendPhoto ([f9070cc](https://github.com/equationalapplications/clanker/commit/f9070cc8f774d35439629d517848ca9e62e88f88))
+* **images:** keep cloud-saved chat photos pending so the sweeper registers them ([665e90b](https://github.com/equationalapplications/clanker/commit/665e90b6ba5a67f3f3b6e48560eddbfe2f26f033))
+* **phase-2:** address CodeRabbit review feedback on PR [#591](https://github.com/equationalapplications/clanker/issues/591) ([2fdbba5](https://github.com/equationalapplications/clanker/commit/2fdbba5fc8e53e5d67fd8e9e0f38deec5cf5377a))
+* **phase-2:** address Copilot + CodeRabbit review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([437c85e](https://github.com/equationalapplications/clanker/commit/437c85ef4afbf53b5ed2368eac55b388288c9ce0))
+* **phase-2:** address Copilot review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([703c91f](https://github.com/equationalapplications/clanker/commit/703c91f320e2b3107b16e7f7c1728fb100fbc818))
+
+
+### Features
+
+* **avatar:** make CharacterAvatar image-role and lock its contract ([1915eeb](https://github.com/equationalapplications/clanker/commit/1915eeb8fbc186f6bb7f3dab604fc706cfbbc4d9))
+* **chat:** branch image picks between sending and memory ingestion ([52dce31](https://github.com/equationalapplications/clanker/commit/52dce31f23b1505271031414c21e56269a26ae73))
+* **chat:** keep captionless photo turns coherent in history ([d29908c](https://github.com/equationalapplications/clanker/commit/d29908c8b3398593e8f7ddd6fef1d5bec8dcfe3b))
+* **chat:** prepare picked and captured photos for sending ([85acf85](https://github.com/equationalapplications/clanker/commit/85acf85c6e1dd532e95cf0c23089c2fa48dab7bf))
+* **chat:** render chat photos in bubbles with tap-to-view ([52c8116](https://github.com/equationalapplications/clanker/commit/52c8116c048ad4478c1b2cabd707ddd27053ccd1))
+* **chat:** send photos to the cloud agent and commit them to the gallery ([4d629bb](https://github.com/equationalapplications/clanker/commit/4d629bb2c84909a7dd9c6fabf5bfca43d084c87b))
+* **cloud-agent-client:** send image attachments on both transports ([d9a2d5e](https://github.com/equationalapplications/clanker/commit/d9a2d5e280b0ed8bed9dcd4512e7c558ec37a414))
+* **cloud-agent:** single newMessage construction with inline attachments ([223e818](https://github.com/equationalapplications/clanker/commit/223e8185c5462aab2a9fe26ee950f4d1a21c7870))
+* **db:** link character images to the chat message they arrived on ([d918a95](https://github.com/equationalapplications/clanker/commit/d918a950efbb502888466784a3ef45eebbc7fb68))
+* **functions:** carry message_id and the chat source on character images ([1f40d72](https://github.com/equationalapplications/clanker/commit/1f40d72cad6629fbe1a8b13cfa2157f02f9023a7))
+* **images:** chat photos save as gallery rows without claiming the avatar ([83abab6](https://github.com/equationalapplications/clanker/commit/83abab668754c2b9e225a941c45885d725cd8f11))
+* **images:** resolve a saved image back to model-ready base64 ([3a51def](https://github.com/equationalapplications/clanker/commit/3a51defcbeb5b0d1ea45a85ecdf06ea1a26265b8))
+* **shared:** add dependency-free cloud-agent attachment constants ([b27c0ae](https://github.com/equationalapplications/clanker/commit/b27c0aebe38e27b2876ceb7b8b68fe71d46c5f86))
+* **shared:** single agent-run wire schema with attachments ([624234c](https://github.com/equationalapplications/clanker/commit/624234c73611afdd963b314295075b7196d5c771))
+* **sync:** carry chat photo message linkage across devices ([c2ce715](https://github.com/equationalapplications/clanker/commit/c2ce71551be1c184cac0ec372b4f2b4073912228))
+
 ## [30.32.3](https://github.com/equationalapplications/clanker/compare/v30.32.2...v30.32.3) (2026-08-10)
 
 
