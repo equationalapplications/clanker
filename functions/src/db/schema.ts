@@ -112,6 +112,8 @@ export const characterImages = pgTable('character_images', {
   thumbPath: text('thumb_path'),
   mimeType: text('mime_type').notNull().default('image/webp'),
   source: text('source').notNull(),
+  /** Client-minted message id this photo arrived on; null for avatars. Not an FK — see 0023. */
+  messageId: text('message_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   // Tombstone: retained 30 days so other devices can reconcile a deletion they
   // were offline for. Absence is ambiguous; an explicit deleted_at is not.
