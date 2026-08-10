@@ -1,7 +1,7 @@
 # Avatar bubble unification — design (phase 2)
 
 **Date:** 2026-08-10
-**Status:** Implemented (PR pending)
+**Status:** Implemented
 **Follows:** `2026-08-10-avatar-render-pipeline-divergence-design.md` (Phase 1, shipped PR #589)
 
 ## 1. Problem
