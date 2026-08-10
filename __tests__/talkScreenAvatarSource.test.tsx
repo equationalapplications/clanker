@@ -1,0 +1,218 @@
+/**
+ * Avatar source precedence for the Talk screen's header and body avatars.
+ *
+ * Chain: resolved(active_image_id) → legacy characters.avatar → bundled default.
+ * The header goes through drawerNav.setOptions, so it is captured and rendered
+ * separately; the body avatar is in the main tree.
+ */
+
+import React from 'react'
+import { create, act } from 'react-test-renderer'
+
+let mockCharacter: Record<string, unknown> = {}
+
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+}))
+
+jest.mock('~/hooks/useCharacters', () => ({
+  useCharacter: () => ({ data: mockCharacter, isLoading: false }),
+}))
+
+jest.mock('~/hooks/useTabCharacterId', () => ({
+  useTabCharacterId: () => ({
+    characterId: 'char-1',
+    isLoading: false,
+    isCreatingDefault: false,
+  }),
+}))
+
+jest.mock('~/hooks/useLiveVoiceChat', () => ({
+  useLiveVoiceChat: () => ({
+    isConnecting: false,
+    isLive: false,
+    isSyncing: false,
+    error: null,
+    transcript: [],
+    activeTool: null,
+    groundingMetadata: null,
+    isPlayingAudio: false,
+    startCall: jest.fn(),
+    endCall: jest.fn(),
+    cancelCall: jest.fn(),
+  }),
+}))
+
+jest.mock('~/components/GroundingHtml', () => ({
+  GroundingHtml: () => null,
+}))
+
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+  return {
+    __esModule: true,
+    default: {
+      View: ({ children, style }: any) => React.createElement('View', { style }, children),
+    },
+    useSharedValue: (v: any) => ({ value: v }),
+    useAnimatedStyle: () => ({}),
+    withRepeat: (v: any) => v,
+    withTiming: (v: any) => v,
+    cancelAnimation: jest.fn(),
+    Easing: { inOut: () => ({}), ease: {} },
+  }
+})
+
+jest.mock('react-native', () => {
+  const React = require('react')
+  return {
+    StyleSheet: { create: (s: any) => s },
+    Platform: { OS: 'web' },
+    View: ({ children, style, accessibilityRole, accessibilityLabel, testID }: any) =>
+      React.createElement('View', { style, accessibilityRole, accessibilityLabel, testID }, children),
+    Pressable: ({ children, onPress, disabled, style, accessibilityRole, accessibilityLabel }: any) =>
+      React.createElement('Pressable', { onPress, disabled, style, accessibilityRole, accessibilityLabel }, children),
+    TouchableOpacity: ({ children, onPress, accessibilityRole, accessibilityLabel }: any) =>
+      React.createElement('TouchableOpacity', { onPress, accessibilityRole, accessibilityLabel }, children),
+    ActivityIndicator: ({ size, style }: any) => React.createElement('ActivityIndicator', { size, style }),
+    Linking: { openURL: jest.fn() },
+  }
+})
+
+jest.mock('@expo/vector-icons', () => ({
+  MaterialCommunityIcons: () => null,
+}))
+
+// ── The pipeline under test ───────────────────────────────────────────────────
+let mockResolved: string | null = null
+const mockUseResolvedImage: jest.Mock = jest.fn(() => mockResolved)
+jest.mock('~/hooks/useResolvedImage', () => ({
+  useResolvedImage: (...args: any[]) => mockUseResolvedImage(...args),
+}))
+
+const capturedAvatarProps: any[] = []
+jest.mock('~/components/CharacterAvatar', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    capturedAvatarProps.push(props)
+    return null
+  },
+}))
+
+let capturedHeaderTitle: (() => React.ReactElement) | null = null
+
+jest.mock('expo-router/react-navigation', () => ({
+  useNavigation: () => ({
+    addListener: jest.fn(() => jest.fn()),
+    getParent: () => ({
+      getParent: () => ({
+        setOptions: (opts: any) => {
+          if (typeof opts?.headerTitle === 'function') capturedHeaderTitle = opts.headerTitle
+        },
+      }),
+    }),
+  }),
+}))
+
+jest.mock('react-native-paper', () => {
+  const React = require('react')
+  return {
+    Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
+  }
+})
+
+import TalkTabScreen from '../app/(drawer)/(tabs)/talk/index'
+
+function baseCharacter(overrides: Record<string, unknown>) {
+  return {
+    id: 'char-1',
+    name: 'Frodo',
+    avatar: null,
+    active_image_id: null,
+    voice: 'Aoede',
+    save_to_cloud: 1,
+    ...overrides,
+  }
+}
+
+function renderTalk(character: Record<string, unknown>) {
+  mockCharacter = character
+  let tree: any
+  act(() => { tree = create(<TalkTabScreen />) })
+  return tree
+}
+
+/** Body avatar props — the header renders separately via setOptions. */
+function bodyAvatarProps() {
+  return capturedAvatarProps[capturedAvatarProps.length - 1]
+}
+
+function headerAvatarProps() {
+  expect(capturedHeaderTitle).toBeTruthy()
+  const before = capturedAvatarProps.length
+  act(() => { create(capturedHeaderTitle!()) })
+  return capturedAvatarProps[before]
+}
+
+describe('Talk screen avatar source', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    capturedAvatarProps.length = 0
+    capturedHeaderTitle = null
+    mockResolved = null
+  })
+
+  it('body avatar prefers the resolved master over a stale legacy URL', () => {
+    mockResolved = 'file:///new-master.webp'
+    renderTalk(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
+
+    expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'master')
+    expect(bodyAvatarProps().imageUrl).toBe('file:///new-master.webp')
+  })
+
+  it('body avatar falls back to the legacy URL when nothing resolves', () => {
+    mockResolved = null
+    renderTalk(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
+
+    expect(bodyAvatarProps().imageUrl).toBe('https://old.example/legacy.png')
+  })
+
+  it('body avatar passes null when there is neither a row nor a legacy URL', () => {
+    mockResolved = null
+    renderTalk(baseCharacter({}))
+
+    expect(bodyAvatarProps().imageUrl).toBeNull()
+  })
+
+  it('header avatar requests the thumb variant and prefers the resolved image', () => {
+    mockResolved = 'file:///new-thumb.webp'
+    renderTalk(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
+
+    expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'thumb')
+    expect(headerAvatarProps().imageUrl).toBe('file:///new-thumb.webp')
+  })
+
+  it('header avatar falls back to the legacy URL', () => {
+    mockResolved = null
+    renderTalk(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
+
+    expect(headerAvatarProps().imageUrl).toBe('https://old.example/legacy.png')
+  })
+
+  // Guards the useLayoutEffect dependency array. The resolve is async, so the
+  // header is first installed with null. `character` is the same object across
+  // both renders, so only the resolved uri can retrigger the effect — drop it
+  // from the deps and the header keeps showing the bundled default forever.
+  it('reinstalls the header when the resolved image arrives after first render', () => {
+    mockResolved = null
+    const character = baseCharacter({ active_image_id: 'img-1' })
+    const tree = renderTalk(character)
+
+    expect(headerAvatarProps().imageUrl).toBeNull()
+
+    mockResolved = 'file:///late-thumb.webp'
+    act(() => { tree.update(<TalkTabScreen />) })
+
+    expect(headerAvatarProps().imageUrl).toBe('file:///late-thumb.webp')
+  })
+})

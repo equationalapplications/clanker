@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import type { GroundingMetadata } from '@google/genai'
 import { useCharacter } from '~/hooks/useCharacters'
+import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { useTabCharacterId } from '~/hooks/useTabCharacterId'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { GroundingHtml } from '~/components/GroundingHtml'
@@ -82,6 +83,15 @@ function TalkGroundingDisplay({ metadata }: { metadata: GroundingMetadata }) {
 
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
+  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
+  // tail fallback for devices whose one-shot migration has not run and for
+  // characters that predate `avatar_data`. `CharacterAvatar` supplies the
+  // bundled default when both are null. Two variants because the body avatar is
+  // the screen's focal element and the header is 40px.
+  const resolvedHeaderAvatar = useResolvedImage(character?.active_image_id, 'thumb')
+  const headerAvatar = resolvedHeaderAvatar ?? character?.avatar ?? null
+  const resolvedBodyAvatar = useResolvedImage(character?.active_image_id, 'master')
+  const bodyAvatar = resolvedBodyAvatar ?? character?.avatar ?? null
   const {
     isConnecting,
     isLive,
@@ -136,7 +146,7 @@ function TalkView({ characterId }: { characterId: string }) {
               accessibilityState={{ disabled: isLive }}
               accessibilityLabel={!isLive ? `Edit ${character.name}` : character.name}
             >
-              <CharacterAvatar size={40} imageUrl={character.avatar} characterName={character.name} />
+              <CharacterAvatar size={40} imageUrl={headerAvatar} characterName={character.name} />
             </Pressable>
             <Text variant="titleMedium" numberOfLines={1}>
               {character.name}
@@ -157,7 +167,7 @@ function TalkView({ characterId }: { characterId: string }) {
       unsubscribeBlur?.()
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     }
-  }, [character, isLive, characterId, navigation])
+  }, [character, headerAvatar, isLive, characterId, navigation])
 
   const isBusy = isConnecting || isLive || isSyncing
   const showSpinner = isSyncing || isConnecting
@@ -191,7 +201,7 @@ function TalkView({ characterId }: { characterId: string }) {
         <Animated.View style={[styles.glow, glowAnimatedStyle]} />
         <CharacterAvatar
           size={AVATAR_SIZE}
-          imageUrl={character.avatar}
+          imageUrl={bodyAvatar}
           characterName={character.name}
         />
       </View>
