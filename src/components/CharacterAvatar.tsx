@@ -19,14 +19,22 @@ interface CharacterAvatarProps {
   size?: number
   imageUrl?: string | null
   characterName?: string
-  showFallback?: boolean
 }
 
+/**
+ * Fallback chain: `imageUrl` → bundled default.
+ *
+ * There is deliberately no initials branch. Characters with no image row are
+ * expected to render the bundled asset — see `characterMachine.ts`'s default
+ * character creation and the bundled-default purge in
+ * `migrateAvatarsToImageStore`, both of which write no row on purpose. An
+ * initials branch ahead of the bundled default made that fallback unreachable
+ * for any character with a name, i.e. all of them.
+ */
 export default function CharacterAvatar({
   size = 100,
   imageUrl,
   characterName = '',
-  showFallback = true,
 }: CharacterAvatarProps) {
   const [erroredUrl, setErroredUrl] = useState<string | null>(null)
   // Derived: imageError is true only when the current URL matches the one that
@@ -34,8 +42,9 @@ export default function CharacterAvatar({
   // naturally resets — no effect needed.
   const imageError = imageUrl != null && erroredUrl === imageUrl
 
+  const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
+
   if (imageUrl && !imageError) {
-    const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
     return (
       <AvatarImage
         size={size}
@@ -52,21 +61,6 @@ export default function CharacterAvatar({
     )
   }
 
-  // If we have a character name, show initials
-  if (characterName && showFallback) {
-    const initials = characterName
-      .split(' ')
-      .map((word) => word.charAt(0))
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-
-    if (initials) {
-      return <Avatar.Text size={size} label={initials} accessible accessibilityLabel={`${characterName} avatar`} />
-    }
-  }
-
-  const AvatarImage = Avatar.Image as React.ComponentType<AvatarImageProps>
   return (
     <AvatarImage
       size={size}

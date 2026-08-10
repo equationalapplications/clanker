@@ -32,12 +32,18 @@ describe('CharacterAvatar accessibility', () => {
     expect(avatar.props.accessibilityLabel).toBe('Frodo avatar')
   })
 
-  it('Avatar.Text (initials) has accessible=true and label', () => {
+  // Regression guard for the Phase 1 divergence: the image-pipeline spec and
+  // characterMachine.ts both assume a character with no image row renders the
+  // bundled asset. An initials branch ahead of that fallback made it
+  // unreachable, so every avatar-less character showed initials instead.
+  it('renders the bundled default — not initials — when there is no image but there is a name', () => {
     let tree: any
     act(() => { tree = create(<CharacterAvatar imageUrl={null} characterName="Frodo Baggins" />) })
-    const avatar = tree.root.findByType('AvatarText')
+    expect(tree.root.findAllByType('AvatarText')).toHaveLength(0)
+    const avatar = tree.root.findByType('AvatarImage')
+    expect(avatar.props.source).toBe('DEFAULT_AVATAR_ASSET')
     expect(avatar.props.accessible).toBe(true)
-    expect(avatar.props.accessibilityLabel).toBe('Frodo Baggins avatar')
+    expect(avatar.props.accessibilityLabel).toBe('Character avatar')
   })
 
   it('bundled default fallback has accessible=true and "Character avatar" label', () => {
@@ -50,7 +56,7 @@ describe('CharacterAvatar accessibility', () => {
 
   it('falls back to the bundled default asset when there is no image and no name', () => {
     let tree: any
-    act(() => { tree = create(<CharacterAvatar imageUrl={null} characterName="" showFallback={false} />) })
+    act(() => { tree = create(<CharacterAvatar imageUrl={null} characterName="" />) })
     const avatar = tree.root.findByType('AvatarImage')
     expect(avatar.props.source).toBe('DEFAULT_AVATAR_ASSET')
     expect(avatar.props.accessibilityLabel).toBe('Character avatar')
@@ -58,7 +64,7 @@ describe('CharacterAvatar accessibility', () => {
 
   it('falls back to the bundled default after the remote image errors', () => {
     let tree: any
-    act(() => { tree = create(<CharacterAvatar imageUrl="https://example.com/a.png" characterName="" showFallback={false} />) })
+    act(() => { tree = create(<CharacterAvatar imageUrl="https://example.com/a.png" characterName="" />) })
     act(() => { tree.root.findByType('AvatarImage').props.onError() })
     expect(tree.root.findByType('AvatarImage').props.source).toBe('DEFAULT_AVATAR_ASSET')
   })
