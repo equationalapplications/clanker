@@ -213,7 +213,11 @@ at `AvatarPicker.tsx:88-89` and after the active-image reassignment on delete at
   - `active_image_id` set and `avatar` holding a different, stale URL → renders
     the resolved uri.
   - `active_image_id` null and `avatar` set → renders `avatar`.
-  - both null → renders the bundled default.
+  - both null → renders the bundled default. This case covers the Talk header,
+    the Talk body, and the Chat header — the three call sites that go through
+    `CharacterAvatar`. Chat message bubbles are out of scope: they render
+    `Avatar.Text` initials inline via GiftedChat's `renderAvatar`, and that
+    branch is unchanged (see §6).
 - **Talk header specifically** — the header avatar updates when the resolved uri
   arrives after first render, guarding the dependency-array constraint in §4.2.
 - **`AvatarPicker`** — selecting an image and deleting the active image each
@@ -227,11 +231,20 @@ call sites plus `CharacterAvatar`; no persisted state changes, so a rollback is 
 plain revert with no data to unwind.
 
 The one deliberate behavior change beyond the bug fix is that initials disappear
-from the app: every avatar-less character now renders the bundled default. This
-was chosen over preserving initials because it is what both the image-pipeline
-spec and `characterMachine.ts:84` already assume, and because preserving initials
-would require the rejected 2a/2b migration work while still leaving newly created
-characters broken.
+from every `CharacterAvatar` call site: the character list, Edit, and the Talk
+and Chat headers now render the bundled default for an avatar-less character.
+This was chosen over preserving initials because it is what both the
+image-pipeline spec and `characterMachine.ts:84` already assume, and because
+preserving initials would require the rejected 2a/2b migration work while still
+leaving newly created characters broken.
+
+Chat message bubbles are the deliberate exception. `ChatView`'s `renderAvatar`
+builds its own `Avatar.Image`/`Avatar.Text` pair rather than delegating to
+`CharacterAvatar`, and the same branch renders the *user's* avatar, where
+initials remain the right fallback. Unifying the bubble on `CharacterAvatar`
+would change user-avatar behavior too, so it stays out of this render-layer fix.
+An avatar-less character therefore still shows initials in bubbles while showing
+the bundled default in the Chat header.
 
 Verification after OTA, on the reporting device:
 

@@ -7,7 +7,7 @@
  */
 
 import React from 'react'
-import { create, act } from 'react-test-renderer'
+import { render } from '@testing-library/react-native'
 
 let mockCharacter: Record<string, unknown> = {}
 
@@ -101,17 +101,22 @@ jest.mock('~/components/CharacterAvatar', () => ({
 
 let capturedHeaderTitle: (() => React.ReactElement) | null = null
 
-jest.mock('expo-router/react-navigation', () => ({
-  useNavigation: () => ({
-    addListener: jest.fn(() => jest.fn()),
+// Referentially stable: the Talk screen's useLayoutEffect lists `navigation` in
+// its deps, so a fresh object per render would retrigger the effect every time
+// and make the dependency-array guard below vacuous.
+const mockNavigation = {
+  addListener: jest.fn(() => jest.fn()),
+  getParent: () => ({
     getParent: () => ({
-      getParent: () => ({
-        setOptions: (opts: any) => {
-          if (typeof opts?.headerTitle === 'function') capturedHeaderTitle = opts.headerTitle
-        },
-      }),
+      setOptions: (opts: any) => {
+        if (typeof opts?.headerTitle === 'function') capturedHeaderTitle = opts.headerTitle
+      },
     }),
   }),
+}
+
+jest.mock('expo-router/react-navigation', () => ({
+  useNavigation: () => mockNavigation,
 }))
 
 jest.mock('react-native-paper', () => {
@@ -137,9 +142,7 @@ function baseCharacter(overrides: Record<string, unknown>) {
 
 function renderTalk(character: Record<string, unknown>) {
   mockCharacter = character
-  let tree: any
-  act(() => { tree = create(<TalkTabScreen />) })
-  return tree
+  return render(<TalkTabScreen />)
 }
 
 /** Body avatar props — the header renders separately via setOptions. */
@@ -150,7 +153,7 @@ function bodyAvatarProps() {
 function headerAvatarProps() {
   expect(capturedHeaderTitle).toBeTruthy()
   const before = capturedAvatarProps.length
-  act(() => { create(capturedHeaderTitle!()) })
+  render(capturedHeaderTitle!())
   return capturedAvatarProps[before]
 }
 
@@ -211,7 +214,7 @@ describe('Talk screen avatar source', () => {
     expect(headerAvatarProps().imageUrl).toBeNull()
 
     mockResolved = 'file:///late-thumb.webp'
-    act(() => { tree.update(<TalkTabScreen />) })
+    tree.rerender(<TalkTabScreen />)
 
     expect(headerAvatarProps().imageUrl).toBe('file:///late-thumb.webp')
   })
