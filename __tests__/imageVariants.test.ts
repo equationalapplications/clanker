@@ -99,4 +99,26 @@ describe('prepareImageVariants', () => {
       expect.arrayContaining(['file://master.webp', 'file://thumb.webp']),
     )
   })
+
+  describe('aspect ratio', () => {
+    it('never crops — a landscape photo keeps its shape', async () => {
+      await prepareImageVariants({ uri: 'file:///landscape.jpg', width: 1600, height: 900 })
+
+      const actions = mockManipulate.mock.calls[0][1]
+      expect(actions).toEqual([{ resize: { width: 1024 } }])
+      expect(JSON.stringify(actions)).not.toContain('crop')
+    })
+
+    it('resizes a tall photo on its longest edge', async () => {
+      await prepareImageVariants({ uri: 'file:///tall.jpg', width: 900, height: 1600 })
+
+      expect(mockManipulate.mock.calls[0][1]).toEqual([{ resize: { height: 1024 } }])
+    })
+
+    it('never upscales', async () => {
+      await prepareImageVariants({ uri: 'file:///small.jpg', width: 800, height: 600 })
+
+      expect(mockManipulate.mock.calls[0][1]).toEqual([])
+    })
+  })
 })
