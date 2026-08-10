@@ -121,7 +121,7 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage } = useAIChat({
+  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage, error: chatError } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -346,10 +346,11 @@ function ChatViewContent({
         userId={currentUserId}
         onPhaseChange={setDocumentPhase}
         canSendPhoto={canSendPhoto}
+        isSending={isGeneratingResponse}
         onSendPhoto={handleSendPhoto}
       />
     ),
-    [characterId, currentUserId, canSendPhoto, handleSendPhoto],
+    [characterId, currentUserId, canSendPhoto, isGeneratingResponse, handleSendPhoto],
   )
 
   const renderCustomView = useCallback(
@@ -451,6 +452,20 @@ function ChatViewContent({
             !streamingMessage?.text && (
             <Text style={styles.statusText} accessibilityLabel="Thinking">💭 Thinking…</Text>
           )}
+        </View>
+      )}
+      {chatError && (
+        // `sendPhoto` and the text mutation both record failures here and then
+        // return normally, so this region is the only thing that tells the user
+        // a turn failed. Assertive, not polite: it interrupts, because the
+        // alternative is a photo that silently never got a reply.
+        <View
+          accessibilityLiveRegion="assertive"
+          accessibilityRole={Platform.OS === 'web' ? ('alert' as any) : undefined}
+        >
+          <Text style={[styles.errorText, { color: colors.error }]} accessibilityLabel={chatError}>
+            {chatError}
+          </Text>
         </View>
       )}
       <LowPowerBanner />
@@ -603,6 +618,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     fontSize: 12,
     opacity: 0.7,
+  },
+  errorText: {
+    textAlign: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    fontSize: 12,
   },
   sendSpinnerContainer: {
     width: 44,

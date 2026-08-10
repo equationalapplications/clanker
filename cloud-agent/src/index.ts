@@ -34,6 +34,7 @@ import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
 import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
+import { MAX_AGENT_RUN_BODY_BYTES } from '../../shared/cloudAgentAttachments.js'
 import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
 import { buildNewMessage } from './agentMessage.js'
 
@@ -151,7 +152,7 @@ export function createApp(options: AppOptions) {
     app.set('trust proxy', 1)
   }
   app.use(cors({ origin: corsOrigins() }))
-  app.use(express.json({ limit: '2mb' }))
+  app.use(express.json({ limit: MAX_AGENT_RUN_BODY_BYTES }))
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' })
@@ -409,7 +410,13 @@ export function createApp(options: AppOptions) {
 export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
   const browserBridgeAvailable = admin.apps.length > 0
-  const streamWss = new WebSocketServer({ noServer: true })
+  // `/agent/stream` takes the same agentRun payload as `/agent/run`, so it gets
+  // the same ceiling — `ws` would otherwise buffer and parse up to its 100 MiB
+  // default before the schema ever runs. The live, browser and desktop sockets
+  // carry audio frames and browser-bridge results, which have no equivalent
+  // documented bound; capping them blind risks cutting off voice and screenshot
+  // payloads, so they are deliberately left at the library default.
+  const streamWss = new WebSocketServer({ noServer: true, maxPayload: MAX_AGENT_RUN_BODY_BYTES })
   const liveWss = new WebSocketServer({ noServer: true })
   const browserWss = new WebSocketServer({ noServer: true })
   const desktopWss = new WebSocketServer({ noServer: true })

@@ -65,7 +65,12 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
       </Pressable>
 
       <Modal visible={viewerOpen} transparent onRequestClose={() => setViewerOpen(false)}>
-        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerOpen(false)}>
+        <Pressable
+          style={styles.viewerBackdrop}
+          onPress={() => setViewerOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close photo"
+        >
           {masterUri && (
             <Image
               source={{ uri: masterUri }}
@@ -75,6 +80,23 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
               accessibilityLabel="Full size photo"
             />
           )}
+          {/*
+            The image is full-bleed and sits on top of the backdrop, so tapping
+            the photo itself never reaches the backdrop's dismiss. This button is
+            the only affordance a screen-reader or keyboard user can land on —
+            and on web `onRequestClose` does not fire for Escape, so without it
+            the viewer has no reachable exit at all.
+          */}
+          <Pressable
+            style={styles.viewerClose}
+            onPress={() => setViewerOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Close photo"
+          >
+            <Text variant="labelLarge" style={styles.viewerCloseLabel}>
+              Close
+            </Text>
+          </Pressable>
         </Pressable>
       </Modal>
     </>
@@ -99,4 +121,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   viewerImage: { width: '100%', height: '100%' },
+  viewerClose: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  viewerCloseLabel: { color: '#FFFFFF' },
 })

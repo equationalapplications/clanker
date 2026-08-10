@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -55,6 +55,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  // Mutex for `sendPhoto`. Deliberately a ref and not `isSendingMessage`: two
+  // taps in the same tick both close over `isSendingMessage === false`, because
+  // React has neither flushed the state update nor re-rendered the composer
+  // with its disabled controls yet. See the guard in `sendPhoto`.
+  const sendPhotoInFlightRef = useRef(false)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [streamingMessage, setStreamingMessage] = useState<IMessage | null>(null)
   const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
@@ -461,6 +466,14 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         return
       }
 
+      // Second line of defence behind the composer's disabled controls, which
+      // only take effect on the next render. Two concurrent turns would share
+      // `streamingMessage` and `activeTool`, and whichever settled first would
+      // clear `isSendingMessage` — marking the hook idle while the other was
+      // still streaming.
+      if (sendPhotoInFlightRef.current) return
+      sendPhotoInFlightRef.current = true
+
       setError(null)
       setIsSendingMessage(true)
       try {
@@ -520,6 +533,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         reportError(err, `chat:${character.id}:sendPhoto`)
         setError(err instanceof Error ? err.message : 'Failed to send photo')
       } finally {
+        sendPhotoInFlightRef.current = false
         setIsSendingMessage(false)
         setStreamingMessage(null)
         void queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })

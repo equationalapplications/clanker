@@ -268,6 +268,48 @@ describe('useAIChat photo path', () => {
     )
   })
 
+  it('drops a second concurrent send instead of racing the first', async () => {
+    // Two taps landing in the same tick both close over `isSendingMessage ===
+    // false`, because React has not flushed the state update or re-rendered the
+    // composer's disabled controls yet. Only the ref guard stops the second.
+    //
+    // Re-entering from inside the agent call is what makes this deterministic:
+    // the second send is guaranteed to start while the first is still in flight,
+    // with no timers to race.
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    mockCallCloudAgent.mockImplementationOnce(async () => {
+      await result.current.sendPhoto(PHOTO, 'and this?')
+      return { reply: 'I see a photo.', toolCalls: [] }
+    })
+
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, 'what is this?')
+    })
+
+    // A dropped second send means the agent, the message store and the gallery
+    // each saw exactly one turn.
+    expect(mockCallCloudAgent).toHaveBeenCalledTimes(1)
+    expect(mockPersistUserMessage).toHaveBeenCalledTimes(1)
+    expect(mockSaveCharacterImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts a new photo once the previous send has settled', async () => {
+    // The guard must release in `finally`, or one failed turn wedges the photo
+    // path for the rest of the session.
+    mockCallCloudAgent.mockRejectedValueOnce(new Error('network'))
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, 'first')
+    })
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, 'second')
+    })
+
+    expect(mockCallCloudAgent).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps the photo when the reply throws', async () => {
     mockCallCloudAgent.mockRejectedValue(new Error('network'))
     const { result } = renderHook(() => useAIChat(cloudCharacterProps))

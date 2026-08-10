@@ -115,7 +115,15 @@ jest.mock('react-native-paper', () => {
           : props.icon === 'plus'
             ? { __iconButtonMock: true }
             : {}
-      return React.createElement(View, { ...tag, ...props })
+      // Same reason as the Button mock: a View ignores `disabled`, so without
+      // this a disabled camera would still fire its handler under test. No-op
+      // rather than `undefined` so RNTL does not climb to an ancestor handler.
+      return React.createElement(View, {
+        ...tag,
+        ...props,
+        onPress: props.disabled ? () => {} : props.onPress,
+        accessibilityState: { disabled: !!props.disabled },
+      })
     },
     Snackbar: (props: any) => {
       capturedSnackbarProps = props
@@ -123,7 +131,19 @@ jest.mock('react-native-paper', () => {
     },
     Portal: ({ children }: any) => children,
     Button: ({ children, onPress, disabled }: any) =>
-      React.createElement(RNText, { onPress, disabled }, children),
+      // Honour `disabled` — a bare RNText ignores it, which would let
+      // `fireEvent.press` fire handlers the real Paper Button blocks and hide
+      // any regression that drops the prop. The disabled case gets a no-op
+      // rather than `undefined` because RNTL walks up to an ancestor handler
+      // when the pressed element has none, which would defeat the assertion.
+      React.createElement(
+        RNText,
+        {
+          onPress: disabled ? () => {} : onPress,
+          accessibilityState: { disabled: !!disabled },
+        },
+        children,
+      ),
     Dialog: Object.assign(
       ({ children, visible, onDismiss }: any) =>
         visible ? React.createElement(View, { onDismiss }, children) : null,
@@ -1668,6 +1688,52 @@ describe('ChatComposer', () => {
       // disabled with a reason, so the user is not left with a character that
       // answers confidently about an image it never received.
       expect(await findByText(/only cloud-synced characters can see photos/i)).toBeTruthy()
+      expect(queryByText('Add to memory')).toBeTruthy()
+
+      // The disabled button must actually block the send, not merely look
+      // disabled — this is what the Button mock's `disabled` handling pins.
+      fireEvent.press(await findByText('Send in chat'))
+      expect(mockPrepareFromAsset).not.toHaveBeenCalled()
+    })
+
+    it('blocks photo entry while a turn is in flight, without blaming cloud sync', async () => {
+      const DocumentPicker = require('expo-document-picker')
+      DocumentPicker.getDocumentAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn()
+      const { getByLabelText, findByText, queryByText } = render(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          canSendPhoto
+          isSending
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      // Camera is a direct-to-chat entry point, so it must be inert while busy.
+      await act(async () => {
+        fireEvent.press(getByLabelText('Take a photo'))
+      })
+      expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+      fireEvent.press(await findByText('Send in chat'))
+      expect(mockPrepareFromAsset).not.toHaveBeenCalled()
+      expect(onSendPhoto).not.toHaveBeenCalled()
+
+      // The reason shown must be the real one. Reusing the cloud-sync copy here
+      // would tell a cloud-synced user their character cannot see photos.
+      expect(await findByText(/wait for the current reply to finish/i)).toBeTruthy()
+      expect(queryByText(/only cloud-synced characters can see photos/i)).toBeNull()
+
+      // Filing a document into memory is unrelated to the chat turn.
       expect(queryByText('Add to memory')).toBeTruthy()
     })
 

@@ -11,14 +11,14 @@ C4Container
   System_Boundary(clanker_b, "Clanker") {
     Container(app, "Clanker App", "Expo React Native (shared mobile/web)", "UI plus edge agent orchestration (useEdgeAgent) for text chat; Talk tab live voice via XState + WebSocket /agent/live. Expo Push receiver and browser-action approval UI. 90%+ shared code across mobile and web.")
     Container(extension, "Desktop Bridge Extension", "MV3 Chrome extension", "Idle until FCM wake. Service worker opens /agent/browser WebSocket, dispatches Task DSL to content scripts. Firebase Auth via offscreen document; device pairing via register-device.")
-    Container(sqlite, "Local SQLite", "expo-sqlite", "Offline-first store: messages, characters, character_images metadata (master_ref/thumb_ref base64 for inline images, active_image_id pointer, sync_state for pending_upload/pending_delete tombstones), wiki/memory (expo-llm-wiki), and tasks. Messages never leave device. characterImageSyncService deletes pending image objects directly from Firebase Storage during sync-time sweep.")
+    Container(sqlite, "Local SQLite", "expo-sqlite", "Offline-first store: messages, characters, character_images metadata (master_ref/thumb_ref base64 for inline images, active_image_id pointer, sync_state for pending_upload/pending_delete tombstones), wiki/memory (expo-llm-wiki), and tasks. Sole persistent store for messages — no server-side message table — though message text and chat attachments are sent to Cloud Agent for the turn being generated. characterImageSyncService deletes pending image objects directly from Firebase Storage during sync-time sweep.")
   }
 
   System_Boundary(firebase_b, "Firebase") {
     Container(auth, "Firebase Auth", "Firebase Auth", "Identity and session tokens. Google Sign-In and email (mobile app and extension side panel).")
     Container(firestore, "Firestore", "Native mode", "Session/task/auth coordination bus for browser bridge. Tenant-scoped under users/{uid}/. Client read-only on tasks; server-owned writes via Admin SDK.")
     Container(functions, "Cloud Functions", "Firebase Functions (Node.js)", "generateReply BYOI proxy, exchangeToken, summarizeText, wikiLlm/wikiSync, generateImage, character sync. HTTP webhooks: Stripe and RevenueCat.")
-    Container(storage, "Firebase Storage", "GCS (clanker-prod)", "Character avatar images: 1024 WebP master + 256 thumb under users/{uid}/characters/{characterId}/. uid-scoped rules, no public-read paths; sharing via 15-min V4 signed URLs.")
+    Container(storage, "Firebase Storage", "GCS (clanker-prod)", "Character images — both avatar picks and chat-sourced photos (source: 'chat', optional message_id): 1024 WebP master + 256 thumb under users/{uid}/characters/{characterId}/. uid-scoped rules, no public-read paths; sharing via 15-min V4 signed URLs.")
   }
 
   System_Boundary(gcp_b, "Google Cloud") {
@@ -38,7 +38,7 @@ C4Container
   Rel(app, functions, "generateReply (edge agent + fallback), bootstrap, wiki, media, character sync")
   Rel(app, cloudagent, "Escalated text chat and live voice", "WebSocket /agent/stream or /agent/live (HTTP /agent/run text fallback) + Bearer token")
   Rel(app, sqlite, "All local reads and writes")
-  Rel(app, storage, "Upload/download character avatar master+thumb (save_to_cloud characters only); direct delete of pending image objects from characterImageSyncService sync-time sweep", "Firebase Storage SDK (native @react-native-firebase/storage; web firebase JS SDK)")
+  Rel(app, storage, "Upload/download character image master+thumb — avatar picks and chat photos (save_to_cloud characters only); direct delete of pending image objects from characterImageSyncService sync-time sweep", "Firebase Storage SDK (native @react-native-firebase/storage; web firebase JS SDK)")
   Rel(app, stripe, "Checkout session redirect (web)")
   Rel(app, revenuecat, "Native IAP (SDK)")
   Rel(extension, auth, "Sign-in via offscreen Firebase Auth SDK")

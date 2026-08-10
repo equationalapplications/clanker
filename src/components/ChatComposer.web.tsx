@@ -36,6 +36,13 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
     onPhaseChange?: (phase: DocumentUploadPhase) => void
     /** False when the character has no cloud agent — the photo option is disabled, never degraded. */
     canSendPhoto?: boolean
+    /**
+     * A chat turn is in flight. Kept separate from `canSendPhoto` because the
+     * two disable for different reasons and the dialog explains each one;
+     * folding them together would tell a cloud-synced user their character
+     * cannot see photos.
+     */
+    isSending?: boolean
     onSendPhoto?: (photo: PendingChatPhoto, caption: string) => void
   }
 
@@ -70,6 +77,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   onPhaseChange,
   onInputSizeChanged,
   canSendPhoto = true,
+  isSending = false,
   onSendPhoto,
   ...props
 }: ChatComposerProps<TMessage>) {
@@ -83,7 +91,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
-  const { prepareFromAsset, isPreparing, error: photoError } = useChatPhotoUpload()
+  const { prepareFromAsset, isPreparing, error: photoError, clearError: clearPhotoError } = useChatPhotoUpload()
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -105,19 +113,21 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [text, inputHeight])
 
-  // Surface photo upload errors as a toast. The hook re-uses the same error
-  // string for the next render after `setError(null)`, so tracking the last
-  // value we acted on (via a ref, not state) is enough to fire the toast once
-  // per new error without re-triggering on a render that just re-read the same
-  // string.
+  // Surface photo upload errors as a toast. The hook holds the error as a plain
+  // string, so a second identical failure — a camera permission denied twice —
+  // would leave `photoError` unchanged and fire no effect. Clearing the hook's
+  // error after toasting makes every failure a transition, so the next one
+  // toasts again. The ref still guards the render that re-reads the same string
+  // before the clear lands.
   useEffect(() => {
     if (photoError === lastSeenPhotoErrorRef.current) return
     lastSeenPhotoErrorRef.current = photoError
     if (photoError) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fire toast once per new photoError
       setToastMessage(photoError)
+      clearPhotoError()
     }
-  }, [photoError])
+  }, [photoError, clearPhotoError])
 
   const ingestDocument = useCallback(
     async (asset: DocumentPicker.DocumentPickerAsset) => {
@@ -415,14 +425,18 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       <Portal>
         <Dialog visible={pendingImageAsset !== null} onDismiss={() => setPendingImageAsset(null)}>
           <Dialog.Title>Add this image</Dialog.Title>
-          {!canSendPhoto && (
+          {!canSendPhoto ? (
             <Dialog.Content>
               <Text>Only cloud-synced characters can see photos in chat.</Text>
             </Dialog.Content>
-          )}
+          ) : isSending ? (
+            <Dialog.Content>
+              <Text>Wait for the current reply to finish before sending a photo.</Text>
+            </Dialog.Content>
+          ) : null}
           <Dialog.Actions>
             <Button
-              disabled={!canSendPhoto}
+              disabled={!canSendPhoto || isSending}
               onPress={async () => {
                 const picked = pendingImageAsset
                 setPendingImageAsset(null)
