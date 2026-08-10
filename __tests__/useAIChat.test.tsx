@@ -99,6 +99,18 @@ jest.mock('~/services/messageService', () => ({
   sendMessage: jest.fn().mockResolvedValue(undefined),
 }))
 
+jest.mock('~/services/characterImageService', () => ({
+  saveCharacterImage: jest.fn().mockResolvedValue({}),
+}))
+
+jest.mock('~/database/characterImageDatabase', () => ({
+  findCharacterImageByMessageId: jest.fn().mockResolvedValue(null),
+}))
+
+jest.mock('~/services/imageModelBytes', () => ({
+  getImageAttachment: jest.fn().mockResolvedValue(null),
+}))
+
 jest.mock('~/hooks/useEdgeAgent', () => ({
   useEdgeAgent: jest.fn(() => ({
     sendMessage: jest.fn().mockResolvedValue({ escalated: true, text: undefined }),

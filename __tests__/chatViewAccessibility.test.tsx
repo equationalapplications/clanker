@@ -217,6 +217,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: false,
       escalationState: 'idle',
       error: null,
@@ -461,6 +463,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,
@@ -482,6 +486,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,
