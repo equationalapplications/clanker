@@ -29,19 +29,24 @@ jest.mock('react-native-gifted-chat', () => {
 // ── expo-router ──────────────────────────────────────────────────────────────
 let capturedHeaderTitle: (() => React.ReactElement) | null = null
 
-jest.mock('expo-router/react-navigation', () => ({
-  useNavigation: () => ({
-    navigate: jest.fn(),
-    goBack: jest.fn(),
+// Referentially stable: ChatView's useLayoutEffect lists `navigation` in its
+// deps, so a fresh object per render would retrigger the effect every time and
+// make the dependency-array guard below vacuous.
+const mockNavigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  getParent: () => ({
     getParent: () => ({
-      getParent: () => ({
-        setOptions: (opts: any) => {
-          if (typeof opts?.headerTitle === 'function') capturedHeaderTitle = opts.headerTitle
-        },
-      }),
+      setOptions: (opts: any) => {
+        if (typeof opts?.headerTitle === 'function') capturedHeaderTitle = opts.headerTitle
+      },
     }),
-    addListener: jest.fn(() => jest.fn()),
   }),
+  addListener: jest.fn(() => jest.fn()),
+}
+
+jest.mock('expo-router/react-navigation', () => ({
+  useNavigation: () => mockNavigation,
 }))
 
 jest.mock('expo-router', () => ({
@@ -175,7 +180,12 @@ function renderChat(character: Record<string, unknown>) {
   mockUseCharacter.mockReturnValue({ data: character, isLoading: false })
   let tree: any
   act(() => { tree = create(<ChatView characterId="char-1" />) })
-  return tree
+  return {
+    tree,
+    rerender() {
+      act(() => { tree.update(<ChatView characterId="char-1" />) })
+    },
+  }
 }
 
 /** Render the headerTitle element captured from drawerNav.setOptions. */
@@ -250,7 +260,7 @@ describe('ChatView avatar source', () => {
 
   it('message bubbles prefer the resolved image over a stale legacy avatar URL', () => {
     mockResolved = 'file:///new.webp'
-    const tree = renderChat(
+    const { tree } = renderChat(
       baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }),
     )
 
@@ -259,9 +269,27 @@ describe('ChatView avatar source', () => {
 
   it('message bubbles fall back to the legacy avatar URL', () => {
     mockResolved = null
-    const tree = renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
+    const { tree } = renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
 
     expect(bubbleAvatarUri(tree)).toBe('https://old.example/legacy.png')
+  })
+
+  // Guards the useLayoutEffect dependency array. The resolve is async, so the
+  // header is first installed with null. `character` is the same object across
+  // both renders, so only the resolved uri can retrigger the effect — drop it
+  // from the deps and the header keeps showing the bundled default forever.
+  it('reinstalls the header when the resolved image arrives after first render', () => {
+    mockResolved = null
+    const result = renderChat(baseCharacter({ active_image_id: 'img-1' }))
+    renderHeader()
+
+    expect(capturedAvatarProps[0].imageUrl).toBeNull()
+
+    mockResolved = 'file:///late-thumb.webp'
+    result.rerender()
+    renderHeader()
+
+    expect(capturedAvatarProps[1].imageUrl).toBe('file:///late-thumb.webp')
   })
 
   it('resolves the bubble avatar once per ChatView, not once per message', () => {
