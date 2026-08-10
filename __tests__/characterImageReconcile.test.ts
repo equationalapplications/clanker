@@ -56,6 +56,7 @@ function snapshot(overrides: Record<string, unknown> = {}) {
     thumbPath: 'users/u/characters/cloud-c1/a_thumb.webp',
     mimeType: 'image/webp',
     source: 'generated',
+    messageId: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     deletedAt: null,
     ...overrides,
@@ -130,6 +131,16 @@ describe('reconcileCharacterImages', () => {
   it('adopts the cloud active image id', async () => {
     await reconcileCharacterImages('char_local', 'user-1', [snapshot()], IMG_A)
     expect(mockSetActive).toHaveBeenCalledWith('char_local', IMG_A)
+  })
+
+  it('restores a chat row with its message linkage so the bubble can be rebuilt', async () => {
+    await reconcileCharacterImages('char_local', 'user-1', [
+      snapshot({ source: 'chat', messageId: 'msg-1' }),
+    ], null)
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'chat',
+      message_id: 'msg-1',
+    }))
   })
 
   it('ignores an active id pointing at a tombstone', async () => {

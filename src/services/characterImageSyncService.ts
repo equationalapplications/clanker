@@ -269,6 +269,7 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           thumbPath: row.thumb_ref,
           mimeType: row.mime_type,
           source: row.source,
+          messageId: row.message_id,
         })),
         deletedImageIds: bucket.deleted,
         ...(activeImageId ? { activeImageId } : {}),
@@ -434,7 +435,9 @@ export async function reconcileCharacterImages(
       sync_attempts: 0,
       created_at: snapshot.createdAt ? new Date(snapshot.createdAt).getTime() : Date.now(),
       deleted_at: null,
-      message_id: null,
+      // A device may receive the image before the message it names. That is a
+      // plain gallery row until the message arrives — never a reason to drop it.
+      message_id: snapshot.messageId ?? null,
     })
   }
 
