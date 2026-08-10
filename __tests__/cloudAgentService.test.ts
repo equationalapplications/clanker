@@ -278,7 +278,85 @@ describe('callCloudAgent', () => {
     })
   })
 
-  it('falls back to HTTP when WebSocket connection fails', async () => {
+  describe('attachments on the wire payload', () => {
+  afterEach(() => {
+    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
+  })
+
+  const ATTACHMENT = { mimeType: 'image/webp' as const, data: 'AAAA' }
+
+  it('sends attachments over HTTP', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reply: 'I see a photo', toolCalls: [] }),
+    })
+    const { callCloudAgent } = loadWithMocks()
+    await callCloudAgent({
+      message: 'what is this?',
+      characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      attachments: [ATTACHMENT],
+    })
+
+    const [, init] = mockFetch.mock.calls[0]
+    expect(JSON.parse(init.body).attachments).toEqual([ATTACHMENT])
+  })
+
+  it('sends attachments over WebSocket', async () => {
+    const sendMock = jest.fn()
+
+    class CapturingWebSocket {
+      static CONNECTING = 0
+      static OPEN = 1
+      readyState = CapturingWebSocket.CONNECTING
+      private listeners = new Map<string, Set<(ev: unknown) => void>>()
+
+      addEventListener(type: string, listener: (ev: unknown) => void) {
+        if (!this.listeners.has(type)) this.listeners.set(type, new Set())
+        this.listeners.get(type)!.add(listener)
+        if (type === 'open') {
+          queueMicrotask(() => {
+            listener(new Event('open'))
+            this.emit('message', {
+              data: JSON.stringify({ type: 'token', text: 'I see a photo' }),
+            })
+            this.emit('message', {
+              data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 1 }),
+            })
+            this.emit('close', { type: 'close' })
+          })
+        }
+      }
+
+      removeEventListener(type: string, listener: (ev: unknown) => void) {
+        this.listeners.get(type)?.delete(listener)
+      }
+
+      private emit(type: string, ev: unknown) {
+        for (const listener of this.listeners.get(type) ?? []) listener(ev)
+      }
+
+      send(raw: string) {
+        sendMock(raw)
+      }
+
+      close() {}
+    }
+
+    ;(global as unknown as { WebSocket: typeof CapturingWebSocket }).WebSocket = CapturingWebSocket
+    const { callCloudAgent } = loadWithMocks()
+    await callCloudAgent({
+      message: 'what is this?',
+      characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      attachments: [ATTACHMENT],
+    })
+
+    const frames = sendMock.mock.calls.map(([raw]: [string]) => JSON.parse(raw))
+    const agentRun = frames.find((f) => f.type === 'agent_run')
+    expect(agentRun.attachments).toEqual([ATTACHMENT])
+  })
+})
+
+it('falls back to HTTP when WebSocket connection fails', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
