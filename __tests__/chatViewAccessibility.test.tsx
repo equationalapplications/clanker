@@ -141,11 +141,18 @@ jest.mock('~/hooks/usePowerBalance', () => ({
 // every existing assertion in this file — they assert on Avatar.Text, not
 // on a resolved image source.
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: () => null,
+  useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────
-jest.mock('~/components/CharacterAvatar', () => () => null)
+const capturedCharacterAvatarProps: any[] = []
+jest.mock('~/components/CharacterAvatar', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    capturedCharacterAvatarProps.push(props)
+    return null
+  },
+}))
 let capturedChatComposerProps: any = null
 // Keep in sync with ChatComposer.tsx's MIN_INPUT_HEIGHT/MAX_INPUT_HEIGHT formula
 // (LINE_HEIGHT 22 * 2.5/6 + COMPOSER_VERTICAL_PADDING 8 * 2 + COMPOSER_MARGIN_VERTICAL,
@@ -203,12 +210,15 @@ describe('ChatView accessibility', () => {
     jest.clearAllMocks()
     capturedGiftedChatProps = null
     capturedChatComposerProps = null
+    capturedCharacterAvatarProps.length = 0
     mockWikiStatus = { ingesting: false, librarian: false, heal: false }
     mockPlatformOS = 'android'
     mockCreditsData = { totalCredits: 10, nextExpiryDate: null }
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: false,
       escalationState: 'idle',
       error: null,
@@ -391,13 +401,13 @@ describe('ChatView accessibility', () => {
     const avatarEl = capturedGiftedChatProps.renderAvatar({
       currentMessage: { user: { _id: 'char-1' } },
     })
+    // Render the returned element so the mocked CharacterAvatar's default
+    // export runs and pushes props into capturedCharacterAvatarProps.
+    act(() => { create(avatarEl) })
 
-    let avatarTree: any
-    act(() => { avatarTree = create(avatarEl) })
-
-    const avatarText = avatarTree.root.find((n: any) => n.props.testID === 'avatar-text')
-    expect(avatarText.props.accessibilityLabel).toContain('Nova')
-    expect(avatarText.props.accessibilityRole).toBe('image')
+    expect(capturedCharacterAvatarProps).toHaveLength(1)
+    expect(capturedCharacterAvatarProps[0].characterName).toBe('Nova')
+    expect(capturedCharacterAvatarProps[0].size).toBe(36)
   })
 
   it('renderAvatar: user avatar carries the user display name as accessibility label', () => {
@@ -453,6 +463,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,
@@ -474,6 +486,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,

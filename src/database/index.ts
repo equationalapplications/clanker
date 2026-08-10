@@ -198,16 +198,31 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // - A true fresh install where CREATE_TABLES already created the latest schema
         // - A legacy DB that predates schema_version and still needs migrations
         //
-        // Distinguish between these by confirming the DB already has the
-        // migration-added columns from the latest schema.
-        const columns = await executor.getAllAsync<{ name: string }>('PRAGMA table_info(characters)')
-        const characterColumnNames = new Set(columns.map((column) => column.name))
-        const hasCharacterColumn = (columnName: string) => characterColumnNames.has(columnName)
-        const hasLatestCharacterSchema = LATEST_SCHEMA_REQUIRED_COLUMNS.characters.every(
-            (requiredColumn) => hasCharacterColumn(requiredColumn),
+        // Distinguish between these by confirming the DB already has every
+        // required column on every table that has required columns. CREATE_TABLES
+        // runs before this check, so a missing table returns zero columns from
+        // PRAGMA table_info and is treated as "missing the latest schema" rather
+        // than a no-op — which is what sends a pre-Phase-1 DB into the migration
+        // path. Checking characters alone would miss migration 24 on a DB whose
+        // Phase-1 `character_images` table lacks the new `message_id` column.
+        const requiredTables = Object.keys(LATEST_SCHEMA_REQUIRED_COLUMNS)
+        const tableColumns = new Map<string, Set<string>>()
+        for (const tableName of requiredTables) {
+            const columns = await executor.getAllAsync<{ name: string }>(
+                `PRAGMA table_info(${tableName})`,
+            )
+            tableColumns.set(
+                tableName,
+                new Set(columns.map((column) => column.name)),
+            )
+        }
+        const hasLatestSchema = requiredTables.every((tableName) =>
+            LATEST_SCHEMA_REQUIRED_COLUMNS[tableName].every((requiredColumn) =>
+                tableColumns.get(tableName)?.has(requiredColumn),
+            ),
         )
 
-        if (hasLatestCharacterSchema) {
+        if (hasLatestSchema) {
             // Fresh DB already at latest schema: just record the current schema version
             await executor.runAsync(
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
@@ -218,6 +233,8 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
 
         // Legacy DB without schema_version can be partially migrated.
         // Infer the nearest version so we only apply missing migrations.
+        const hasCharacterColumn = (columnName: string) =>
+            tableColumns.get('characters')?.has(columnName) ?? false
         let inferredVersion = 0
         if (hasCharacterColumn('deleted_at')) inferredVersion = 2
         if (hasCharacterColumn('deleted_at') && hasCharacterColumn('avatar_data')) inferredVersion = 3

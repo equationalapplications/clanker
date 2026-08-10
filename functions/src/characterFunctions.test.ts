@@ -1328,3 +1328,76 @@ test("syncCharacterImages rejects a malformed activeImageId instead of ignoring 
     (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument"
   );
 });
+
+test("syncCharacterImages accepts source 'chat' with a messageId", async () => {
+  let received: Record<string, unknown> | null = null;
+  const deps = imageDeps({
+    syncImages: async (_c: string, _u: string, rows: Record<string, unknown>[]) => {
+      received = rows[0] ?? null;
+      return {evictedImageIds: []};
+    },
+  });
+  await syncCharacterImagesHandler(
+    imageRequest({
+      characterId: CHAR_ID,
+      images: [{
+        id: IMG_ID,
+        storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`,
+        thumbPath: null,
+        mimeType: "image/webp",
+        source: "chat",
+        messageId: "msg_1723300000000_ab12cd",
+      }],
+    }),
+    deps as never
+  );
+
+  assert.equal(
+    (received as unknown as {messageId: unknown}).messageId,
+    "msg_1723300000000_ab12cd"
+  );
+});
+
+test("syncCharacterImages defaults messageId to null for avatars", async () => {
+  let received: Record<string, unknown> | null = null;
+  const deps = imageDeps({
+    syncImages: async (_c: string, _u: string, rows: Record<string, unknown>[]) => {
+      received = rows[0] ?? null;
+      return {evictedImageIds: []};
+    },
+  });
+  await syncCharacterImagesHandler(
+    imageRequest({
+      characterId: CHAR_ID,
+      images: [{
+        id: IMG_ID,
+        storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`,
+        source: "uploaded",
+      }],
+    }),
+    deps as never
+  );
+
+  assert.equal(
+    (received as unknown as {messageId: unknown}).messageId,
+    null
+  );
+});
+
+test("syncCharacterImages rejects a non-string messageId", async () => {
+  await assert.rejects(
+    () => syncCharacterImagesHandler(
+      imageRequest({
+        characterId: CHAR_ID,
+        images: [{
+          id: IMG_ID,
+          storagePath: `users/uid-1/characters/${CHAR_ID}/${IMG_ID}.webp`,
+          source: "chat",
+          messageId: 42,
+        }],
+      }),
+      imageDeps() as never
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === "invalid-argument" && /messageId/.test(e.message)
+  );
+});

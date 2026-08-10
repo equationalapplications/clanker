@@ -4,6 +4,7 @@ import {
   GCP_CREDENTIALS_EXPIRED_CODE,
   isLikelyGcpCredentialsError,
 } from '../../shared/gcpCredentialsDev'
+import type { AttachmentMimeType } from '../../shared/cloudAgentAttachments'
 import { getCurrentUser } from '~/config/firebaseConfig'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -16,11 +17,19 @@ export interface CloudAgentUnsyncedTask {
   createdAt: number
 }
 
+export interface CloudAgentAttachment {
+  mimeType: AttachmentMimeType
+  /** Base64 of the 1024px master. Never logged — this is user photo content. */
+  data: string
+}
+
 export interface CloudAgentPayload {
   message: string
   characterId: string
   history?: Content[]
   unsyncedHistory?: CloudAgentUnsyncedTask[]
+  /** At most one in Phase 2 (MAX_ATTACHMENTS_PER_TURN). */
+  attachments?: CloudAgentAttachment[]
 }
 
 export interface CloudAgentResult {
@@ -149,7 +158,7 @@ async function runViaWebSocket(
   const token = await getCurrentUser()?.getIdToken()
   if (!token) throw new Error('No authenticated user')
 
-  const { message, characterId, history = [], unsyncedHistory = [] } = payload
+  const { message, characterId, history = [], unsyncedHistory = [], attachments } = payload
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const wsUrl = `${getCloudAgentBaseUrl().replace(/^https?/, (m) => (m === 'https' ? 'wss' : 'ws'))}/agent/stream`
 
@@ -199,6 +208,7 @@ async function runViaWebSocket(
         history,
         unsyncedHistory,
         timezone,
+        attachments,
       }))
     }
 

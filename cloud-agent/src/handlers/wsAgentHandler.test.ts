@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServer, type Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
+import type { Content } from '@google/genai'
+import { InMemoryRunner } from '@google/adk'
 import type { DrizzleClient } from '../db/client.js'
 import { handleWsUpgrade } from './wsAgentHandler.js'
 
@@ -74,6 +76,73 @@ function listen(server: Server): Promise<number> {
       else reject(new Error('failed to bind'))
     })
   })
+}
+
+async function runAgentRunFrame(options: {
+  frame: Record<string, unknown>
+  onNewMessage?: (newMessage: Content) => void
+  onError?: (err: unknown) => void
+}): Promise<void> {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+
+  const originalRunAsync = InMemoryRunner.prototype.runAsync
+  // Replace the runner so the handler doesn't reach Vertex AI and we can
+  // observe the newMessage it would have sent. The mock yields one final event
+  // so consumeAgentEvents settles cleanly and the socket closes.
+  ;(InMemoryRunner.prototype as unknown as { runAsync: (params: { newMessage: Content }) => AsyncGenerator<unknown, void, undefined> }).runAsync =
+    function runAsyncMock(params: { newMessage: Content }) {
+      options.onNewMessage?.(params.newMessage)
+      return (async function* () {
+        yield {
+          id: 'mock-event-1',
+          invocationId: 'mock-invocation-1',
+          author: 'mock-agent',
+          actions: { stateDelta: {}, artifactDelta: {} },
+          timestamp: Date.now(),
+          content: { role: 'model', parts: [{ text: 'mock reply' }] },
+        }
+      })()
+    }
+
+  const { server, close } = createTestWsServer({
+    db,
+    creditService: { ...mockCreditService, getBalance: async () => 1000 },
+    verifyToken: async () => ({ uid: 'firebase-uid' }),
+  })
+  const port = await listen(server)
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+      const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+
+      ws.on('open', () => {
+        ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
+        ws.send(JSON.stringify(options.frame))
+      })
+
+      ws.on('message', (data) => {
+        const msg = JSON.parse(data.toString()) as { type: string; code?: string }
+        if (msg.type === 'error') {
+          options.onError?.(msg)
+        }
+        if (msg.type === 'usage_snapshot') {
+          clearTimeout(timeout)
+          ws.close()
+        }
+      })
+
+      ws.on('close', () => {
+        clearTimeout(timeout)
+        resolve()
+      })
+
+      ws.on('error', reject)
+    })
+  } finally {
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync = originalRunAsync
+    await close()
+  }
 }
 
 test('accepts valid auth token and streams agent reply', async () => {
@@ -274,4 +343,39 @@ test('returns INSUFFICIENT_CREDITS error when balance is zero before agent start
   })
 
   await close()
+})
+
+test('WS agent_run forwards an attachment as a leading inlineData part', async () => {
+  const captured: unknown[] = []
+  await runAgentRunFrame({
+    frame: {
+      type: 'agent_run',
+      message: 'what is this?',
+      characterId: CHAR_UUID,
+      attachments: [{ mimeType: 'image/webp', data: 'AAAA' }],
+    },
+    onNewMessage: (newMessage) => captured.push(newMessage),
+  })
+
+  assert.deepEqual(captured[0], {
+    role: 'user',
+    parts: [
+      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
+      { text: 'what is this?' },
+    ],
+  })
+})
+
+test('WS accepts a captionless photo', async () => {
+  const errors: unknown[] = []
+  await runAgentRunFrame({
+    frame: {
+      type: 'agent_run',
+      message: '',
+      characterId: CHAR_UUID,
+      attachments: [{ mimeType: 'image/webp', data: 'AAAA' }],
+    },
+    onError: (err) => errors.push(err),
+  })
+  assert.deepEqual(errors, [])
 })

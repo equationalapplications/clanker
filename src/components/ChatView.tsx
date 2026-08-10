@@ -25,6 +25,8 @@ import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
+import ChatImageBubble from '~/components/ChatImageBubble'
+import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
 
 function getInitials(name?: string): string {
   return (
@@ -119,7 +121,7 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, escalationState, isGeneratingResponse, activeTool, streamingMessage } = useAIChat({
+  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage, error: chatError } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -146,7 +148,7 @@ function ChatViewContent({
   // characters that predate `avatar_data` entirely — those legitimately have a
   // working legacy URL and no gallery row. `CharacterAvatar` supplies the
   // bundled default when both are null.
-  const resolvedAvatar = useResolvedImage(character.active_image_id, 'thumb')
+  const { uri: resolvedAvatar } = useResolvedImage(character.active_image_id, 'thumb')
   const characterAvatar = resolvedAvatar ?? character.avatar ?? null
 
   React.useLayoutEffect(() => {
@@ -194,11 +196,25 @@ function ChatViewContent({
         return
       }
 
-      if (newMessages.length > 0) {
-        await sendMessage(newMessages[0])
+      // Photo sends reuse `onSend` with an empty message purely to trigger
+      // gifted-chat's input reset — that path must not produce a text bubble.
+      const first = newMessages[0]
+      if (newMessages.length > 0 && first && first.text.trim().length > 0) {
+        await sendMessage(first)
       }
     },
     [sendMessage, credits, creditsLoading],
+  )
+
+  const handleSendPhoto = useCallback(
+    async (photo: PendingChatPhoto, caption: string) => {
+      if (!creditsLoading && credits <= 0) {
+        router.push('/subscribe')
+        return
+      }
+      await sendPhoto(photo, caption)
+    },
+    [sendPhoto, credits, creditsLoading],
   )
 
   const renderBubble = useCallback(
@@ -329,9 +345,12 @@ function ChatViewContent({
         characterId={characterId}
         userId={currentUserId}
         onPhaseChange={setDocumentPhase}
+        canSendPhoto={canSendPhoto}
+        isSending={isGeneratingResponse}
+        onSendPhoto={handleSendPhoto}
       />
     ),
-    [characterId, currentUserId],
+    [characterId, currentUserId, canSendPhoto, isGeneratingResponse, handleSendPhoto],
   )
 
   const renderCustomView = useCallback(
@@ -435,6 +454,20 @@ function ChatViewContent({
           )}
         </View>
       )}
+      {chatError && (
+        // `sendPhoto` and the text mutation both record failures here and then
+        // return normally, so this region is the only thing that tells the user
+        // a turn failed. Assertive, not polite: it interrupts, because the
+        // alternative is a photo that silently never got a reply.
+        <View
+          accessibilityLiveRegion="assertive"
+          accessibilityRole={Platform.OS === 'web' ? ('alert' as any) : undefined}
+        >
+          <Text style={[styles.errorText, { color: colors.error }]} accessibilityLabel={chatError}>
+            {chatError}
+          </Text>
+        </View>
+      )}
       <LowPowerBanner />
       <GiftedChat
         messages={displayMessages}
@@ -442,6 +475,7 @@ function ChatViewContent({
         user={chatUser}
         renderComposer={renderComposer}
         renderBubble={renderBubble}
+        renderMessageImage={(props) => <ChatImageBubble currentMessage={props.currentMessage} />}
         renderInputToolbar={renderInputToolbar}
         renderSend={renderSend}
         alwaysShowSend={isGeneratingResponse}
@@ -459,30 +493,39 @@ function ChatViewContent({
         bottomOffset={-tabBarHeight}
         renderAvatar={(props) => {
           const isUser = props.currentMessage?.user._id === currentUserId
-          const avatarUri = isUser ? (chatUser.avatar as string | undefined) : (characterAvatar as string | null)
-          const displayName = userDisplayName?.trim()
-          const accessibilityLabel = isUser
-            ? (displayName ? `${displayName}'s avatar` : 'Your avatar')
-            : `${characterName}'s avatar`
-          const initials = isUser ? getInitials(displayName) : getInitials(characterName)
-          if (avatarUri) {
+
+          if (isUser) {
+            const displayName = userDisplayName?.trim()
+            const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
+            const userAvatarUri = chatUser.avatar as string | undefined
+
+            if (userAvatarUri) {
+              return (
+                <Avatar.Image
+                  accessible
+                  accessibilityRole="image"
+                  size={36}
+                  source={{ uri: userAvatarUri }}
+                  accessibilityLabel={accessibilityLabel}
+                />
+              )
+            }
             return (
-              <Avatar.Image
+              <Avatar.Text
                 accessible
                 accessibilityRole="image"
                 size={36}
-                source={{ uri: avatarUri }}
+                label={getInitials(displayName)}
                 accessibilityLabel={accessibilityLabel}
               />
             )
           }
+
           return (
-            <Avatar.Text
-              accessible
-              accessibilityRole="image"
+            <CharacterAvatar
               size={36}
-              label={initials}
-              accessibilityLabel={accessibilityLabel}
+              imageUrl={characterAvatar}
+              characterName={characterName}
             />
           )
         }}
@@ -575,6 +618,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     fontSize: 12,
     opacity: 0.7,
+  },
+  errorText: {
+    textAlign: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    fontSize: 12,
   },
   sendSpinnerContainer: {
     width: 44,

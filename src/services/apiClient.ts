@@ -96,7 +96,9 @@ export interface CharacterImageSnapshot {
   storagePath: string
   thumbPath: string | null
   mimeType: string
-  source: 'generated' | 'uploaded' | 'imported'
+  source: 'generated' | 'uploaded' | 'imported' | 'chat'
+  /** Client-minted message id this photo arrived on; null for avatars/imports. */
+  messageId?: string | null
   createdAt: string | null
   /** Non-null marks a tombstone: the authoritative signal to delete locally. */
   deletedAt: string | null
@@ -109,7 +111,8 @@ export interface SyncCharacterImagesRequest {
     storagePath: string
     thumbPath?: string | null
     mimeType?: string
-    source: 'generated' | 'uploaded' | 'imported'
+    source: 'generated' | 'uploaded' | 'imported' | 'chat'
+    messageId?: string | null
   }[]
   deletedImageIds?: string[]
   activeImageId?: string | null

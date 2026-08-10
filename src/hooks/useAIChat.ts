@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { IMessage } from 'react-native-gifted-chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -18,11 +18,14 @@ import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/data
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 import { toSyncMessage } from '~/services/syncMessage'
-import { callCloudAgent } from '~/services/cloudAgentService'
+import { callCloudAgent, type CloudAgentAttachment } from '~/services/cloudAgentService'
 import { listTasks } from '~/database/taskDatabase'
 import { buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
+import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
+import { saveCharacterImage } from '~/services/characterImageService'
+import { findCharacterImageByMessageId } from '~/database/characterImageDatabase'
 
 interface UseAIChatProps {
   characterId: string
@@ -33,6 +36,9 @@ interface UseAIChatProps {
 interface UseAIChatReturn {
   messages: IMessage[]
   sendMessage: (message: IMessage) => Promise<void>
+  /** Vision turn. Cloud-agent only — see `canSendPhoto`. */
+  sendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<void>
+  canSendPhoto: boolean
   isGeneratingResponse: boolean
   error: string | null
   escalationState: EscalationState
@@ -49,6 +55,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  // Mutex shared by `sendMessage` and `sendPhoto`. Deliberately a ref and not
+  // `isSendingMessage`: two taps in the same tick (text-vs-text, photo-vs-photo,
+  // or one of each) all close over `isSendingMessage === false`, because React
+  // has neither flushed the state update nor re-rendered the composer with its
+  // disabled controls yet. Without a single synchronous gate covering both
+  // paths, two concurrent turns would share `streamingMessage` and
+  // `activeTool`, and whichever settled first would clear `isSendingMessage` —
+  // marking the hook idle while the other was still streaming.
+  const turnInFlightRef = useRef(false)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [streamingMessage, setStreamingMessage] = useState<IMessage | null>(null)
   const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
@@ -74,6 +89,135 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     isCloudSynced: isCloudSynced || devSandbox,
     wiki,
   })
+
+  /**
+   * Cloud-agent turn. Shared by the text and photo paths — passing
+   * `attachments` is what makes a vision turn a vision turn; everything else
+   * (history, tasks, streaming, AI persist, observation write, usage snapshot)
+   * is byte-for-byte the same.
+   */
+  const runCloudAgentTurn = useCallback(
+    async (message: IMessage, attachments?: CloudAgentAttachment[]) => {
+      const cloudCharacterId = cloudAgentCharacterId as string
+
+      const priorHistory = messages.filter(
+        (msg) => String(msg._id) !== String(message._id),
+      )
+      const recentHistory = getRecentConversationHistory(priorHistory, 20)
+      const history = buildContentHistory(recentHistory, userId)
+
+      let localTasks = [] as Awaited<ReturnType<typeof listTasks>>
+      try {
+        localTasks = await listTasks(character.id)
+      } catch (taskErr) {
+        reportError(taskErr, `tasks:${character.id}:list`)
+      }
+      const unsyncedHistory = localTasks.map((t) => ({
+        type: 'task' as const,
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        createdAt: t.created_at,
+      }))
+
+      setActiveTool(null)
+      setStreamingMessage({
+        _id: `streaming_${Date.now()}`,
+        text: '',
+        createdAt: new Date(),
+        user: {
+          _id: character.id,
+          name: character.name,
+          avatar: character.appearance || undefined,
+        },
+      })
+
+      const agentResult = await callCloudAgent(
+        {
+          message: message.text,
+          characterId: cloudCharacterId,
+          history,
+          unsyncedHistory,
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        },
+        {
+          onToolStart: (name) => setActiveTool(name),
+          onToolEnd: () => setActiveTool(null),
+          onToken: (text) => {
+            setStreamingMessage((prev) =>
+              prev ? { ...prev, text: `${prev.text ?? ''}${text}` } : prev,
+            )
+          },
+        },
+      )
+
+      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      const aiMessageData: Partial<GroundedIMessage> = {
+        user: {
+          _id: character.id,
+          name: character.name,
+          avatar: character.appearance || undefined,
+        },
+      }
+      if (agentResult.groundingMetadata) {
+        aiMessageData.groundingMetadata = agentResult.groundingMetadata
+      }
+      const savedAIMessage = await saveAIMessage(
+        character.id,
+        userId,
+        agentResult.reply,
+        aiMsgId,
+        aiMessageData,
+      )
+
+      void triggerConversationSummary(character, userId)
+
+      // The wiki observation is text-only. A captionless photo turn has
+      // `message.text === ''` (the bytes are not re-sent — see §8), so a
+      // `User: ` line is incoherent on its own. `buildContentHistory` substitutes
+      // the `[sent a photo]` placeholder for any photo turn, so going through
+      // it keeps the wiki transcript coherent without the model re-receiving
+      // the bytes on every future turn.
+      const recentMessages = getRecentConversationHistory(
+        [...priorHistory, message, savedAIMessage],
+        20,
+      )
+      const recentHistoryContent = buildContentHistory(recentMessages, userId)
+      const chunk = recentHistoryContent
+        .map((entry) =>
+          entry.role === 'user' ? `User: ${entry.parts.map((p) => p.text).join('')}` : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+        )
+        .join('\n')
+
+      try {
+        void Promise.resolve(
+          characterWiki.write(chunk || message.text),
+        ).catch((obsErr: unknown) => {
+          if (!(obsErr instanceof WikiBusyError)) {
+            reportError(obsErr, `wiki:${character.id}:write:observation`)
+          }
+        })
+      } catch (obsErr) {
+        if (!(obsErr instanceof WikiBusyError)) {
+          reportError(obsErr, `wiki:${character.id}:write:observation`)
+        }
+      }
+
+      if (agentResult.usageSnapshot) {
+        authService.send({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'cloudAgent',
+          remainingCredits: agentResult.usageSnapshot.remainingCredits,
+          planTier: null,
+          planStatus: null,
+          verifiedAt: new Date().toISOString(),
+        })
+      }
+
+      return { usageSnapshot: null }
+    },
+    [cloudAgentCharacterId, messages, character, userId, characterWiki, authService],
+  )
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
@@ -129,8 +273,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           [...priorHistory, message, savedAIMessage],
           20,
         )
-        const chunk = recentMessages
-          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+        // See the cloud path: go through buildContentHistory so a captionless
+        // photo turn reads as `[sent a photo]` rather than a bare `User: `.
+        const recentHistoryContent = buildContentHistory(recentMessages, userId)
+        const chunk = recentHistoryContent
+          .map((entry) =>
+            entry.role === 'user'
+              ? `User: ${entry.parts.map((p) => p.text).join('')}`
+              : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+          )
           .join('\n')
 
         try {
@@ -153,113 +304,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       // Cloud Agent path — cloud-synced (or dev sandbox) characters with a cloud_id when
       // EXPO_PUBLIC_CLOUD_AGENT_URL is set. Must send character.cloud_id (Cloud SQL UUID).
       if (canUseCloudAgent && cloudAgentCharacterId) {
-        const cloudCharacterId = cloudAgentCharacterId
-
-        const priorHistory = messages.filter(
-          (msg) => String(msg._id) !== String(message._id),
-        )
-        const recentHistory = getRecentConversationHistory(priorHistory, 20)
-        const history = buildContentHistory(recentHistory, userId)
-
-        let localTasks = [] as Awaited<ReturnType<typeof listTasks>>
-        try {
-          localTasks = await listTasks(character.id)
-        } catch (taskErr) {
-          reportError(taskErr, `tasks:${character.id}:list`)
-        }
-        const unsyncedHistory = localTasks.map((t) => ({
-          type: 'task' as const,
-          id: t.id,
-          title: t.title,
-          status: t.status,
-          createdAt: t.created_at,
-        }))
-
-        setActiveTool(null)
-        setStreamingMessage({
-          _id: `streaming_${Date.now()}`,
-          text: '',
-          createdAt: new Date(),
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.appearance || undefined,
-          },
-        })
-
-        const agentResult = await callCloudAgent(
-          {
-            message: message.text,
-            characterId: cloudCharacterId,
-            history,
-            unsyncedHistory,
-          },
-          {
-            onToolStart: (name) => setActiveTool(name),
-            onToolEnd: () => setActiveTool(null),
-            onToken: (text) => {
-              setStreamingMessage((prev) =>
-                prev ? { ...prev, text: `${prev.text ?? ''}${text}` } : prev,
-              )
-            },
-          },
-        )
-
-        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-        const aiMessageData: Partial<GroundedIMessage> = {
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.appearance || undefined,
-          },
-        }
-        if (agentResult.groundingMetadata) {
-          aiMessageData.groundingMetadata = agentResult.groundingMetadata
-        }
-        const savedAIMessage = await saveAIMessage(
-          character.id,
-          userId,
-          agentResult.reply,
-          aiMsgId,
-          aiMessageData,
-        )
-
-        void triggerConversationSummary(character, userId)
-
-        const recentMessages = getRecentConversationHistory(
-          [...priorHistory, message, savedAIMessage],
-          20,
-        )
-        const chunk = recentMessages
-          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
-          .join('\n')
-
-        try {
-          void Promise.resolve(
-            onWriteObservation(character.id, chunk || message.text),
-          ).catch((obsErr: unknown) => {
-            if (!(obsErr instanceof WikiBusyError)) {
-              reportError(obsErr, `wiki:${character.id}:write:observation`)
-            }
-          })
-        } catch (obsErr) {
-          if (!(obsErr instanceof WikiBusyError)) {
-            reportError(obsErr, `wiki:${character.id}:write:observation`)
-          }
-        }
-
-        if (agentResult.usageSnapshot) {
-          authService.send({
-            type: 'USAGE_SNAPSHOT_RECEIVED',
-            source: 'cloudAgent',
-            remainingCredits: agentResult.usageSnapshot.remainingCredits,
-            planTier: null,
-            planStatus: null,
-            verifiedAt: new Date().toISOString(),
-          })
-        }
-
-        return { usageSnapshot: null }
+        return await runCloudAgentTurn(message)
       }
 
       // Escalated — Firebase path with unsynced history
@@ -412,17 +457,124 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   const sendMessage = useCallback(
     async (message: IMessage) => {
-      await aiMessageMutation.mutateAsync(message)
+      // Second line of defence behind the composer's disabled controls — see
+      // `turnInFlightRef` above.
+      if (turnInFlightRef.current) return
+      turnInFlightRef.current = true
+      try {
+        await aiMessageMutation.mutateAsync(message)
+      } finally {
+        turnInFlightRef.current = false
+      }
     },
     [aiMessageMutation],
   )
 
+  const sendPhoto = useCallback(
+    async (photo: PendingChatPhoto, caption: string) => {
+      if (!canUseCloudAgent || !cloudAgentCharacterId) {
+        // Explicit refusal, never a quiet text-only fallback.
+        setError('This character cannot see photos. Turn on cloud sync to send images.')
+        return
+      }
+
+      // Second line of defence behind the composer's disabled controls — see
+      // `turnInFlightRef` above.
+      if (turnInFlightRef.current) return
+      turnInFlightRef.current = true
+
+      setError(null)
+      setIsSendingMessage(true)
+      try {
+        const message: IMessage & { imageId: string; image: string } = {
+          _id: photo.messageId,
+          text: caption.trim(),
+          createdAt: new Date(),
+          user: { _id: userId },
+          // Render hint. Written once at message creation and never updated;
+          // `character_images.message_id` stays authoritative for the gallery.
+          // Carrying it on the message is what lets the chat list render the
+          // photo with no extra query and no new sync path — and lets a device
+          // whose message synced first show a placeholder rather than a bare
+          // text bubble that silently gains an image later.
+          imageId: photo.imageId,
+          // gifted-chat's `Bubble` gates `renderMessageImage` on `image` being
+          // truthy; without this the photo never reaches the bubble at all.
+          // `ChatImageBubble` reads `imageId`, not `image`, so the value is a
+          // sentinel only and is never dereferenced as a URI.
+          image: photo.imageId,
+        }
+
+        // Bubble first, so it is visible while the model is thinking.
+        await persistUserMessage(character.id, userId, message)
+
+        // A retried vision turn finds the row it already wrote. Writing a second
+        // one would spend two of the 100 FIFO slots on one photo.
+        const existing = await findCharacterImageByMessageId(photo.messageId, character.id, userId)
+        let attachment = photo.attachment
+
+        if (!existing) {
+          // Committed before the model call and kept regardless of the outcome:
+          // a user who framed and sent a photo should not have to re-pick it
+          // because the network dropped.
+          await saveCharacterImage({
+            characterId: character.id,
+            userId,
+            uri: photo.uri,
+            width: photo.width,
+            height: photo.height,
+            source: 'chat',
+            imageId: photo.imageId,
+            messageId: photo.messageId,
+            variants: photo.variants,
+          })
+        }
+        // Cold retry path: PendingChatPhoto is in-memory only, so a true cold
+        // retry needs the bytes re-obtained from the stored row. There is no
+        // retry queue yet — see the spec §13 "Cold retry after app restart is
+        // not implemented" gap — so this branch currently always uses
+        // `photo.attachment`. When a durable retry queue lands, branch here on
+        // its presence and call `getImageAttachment(photo.imageId)` from
+        // `~/services/imageModelBytes` as the fallback resolver.
+
+        await runCloudAgentTurn(message, [attachment])
+      } catch (err) {
+        reportError(err, `chat:${character.id}:sendPhoto`)
+        setError(err instanceof Error ? err.message : 'Failed to send photo')
+      } finally {
+        turnInFlightRef.current = false
+        setIsSendingMessage(false)
+        setStreamingMessage(null)
+        void queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })
+      }
+    },
+    [
+      canUseCloudAgent,
+      cloudAgentCharacterId,
+      character.id,
+      userId,
+      queryClient,
+      characterId,
+      runCloudAgentTurn,
+    ],
+  )
+
+  // Photo vision turns run through `sendPhoto` rather than the text mutation, so
+  // the text mutation's `isPending` does not reflect them. Without this OR,
+  // ChatView shows no spinner, leaves the Send button enabled, and never
+  // displays the "Thinking…" status while the agent is reasoning over the photo.
+  const isPhotoPending = isSendingMessage
+  const isGeneratingResponse = aiMessageMutation.isPending || isPhotoPending
+  const escalationState = isGeneratingResponse ? edgeAgent.escalationState : 'idle'
+
   return {
     messages,
     sendMessage,
-    isGeneratingResponse: aiMessageMutation.isPending,
+    sendPhoto,
+    canSendPhoto: canUseCloudAgent,
+    isGeneratingResponse,
     error,
-    escalationState: aiMessageMutation.isPending ? edgeAgent.escalationState : 'idle',
+    escalationState,
     activeTool,
     streamingMessage,
   }

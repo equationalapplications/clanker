@@ -19,6 +19,7 @@ import {
   insertCharacterImage,
   setActiveImageId,
   setImageSyncState,
+  updateImageLinkage,
   updateImageRefs,
   type CharacterImageRow,
 } from '~/database/characterImageDatabase'
@@ -269,6 +270,7 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
           thumbPath: row.thumb_ref,
           mimeType: row.mime_type,
           source: row.source,
+          messageId: row.message_id,
         })),
         deletedImageIds: bucket.deleted,
         ...(activeImageId ? { activeImageId } : {}),
@@ -416,7 +418,31 @@ export async function reconcileCharacterImages(
       continue
     }
 
-    if (existing) continue
+    if (existing) {
+      // Linkage may arrive in a later snapshot than the row itself. The image
+      // and the message that names it ride independent sync flows (§4.2), so
+      // a row restored from the cloud before the message it was sent on can
+      // legitimately show up here with `message_id = NULL` and then be
+      // promoted to a chat bubble once the next snapshot carries the link.
+      // Merge rather than skip: preserve whatever the local row already holds
+      // (a row synced by another path could have a `source` the new snapshot
+      // lacks) and only overwrite the fields the incoming snapshot actually
+      // names. The unique key (id) does not change, so this is an update, not
+      // a reinsert.
+      const mergedSource = existing.source ?? snapshot.source
+      const mergedMessageId =
+        existing.message_id ?? snapshot.messageId ?? null
+      if (
+        mergedSource !== existing.source ||
+        mergedMessageId !== existing.message_id
+      ) {
+        await updateImageLinkage(existing.id, {
+          source: mergedSource,
+          message_id: mergedMessageId,
+        })
+      }
+      continue
+    }
 
     await insertCharacterImage({
       id: snapshot.id,
@@ -434,6 +460,9 @@ export async function reconcileCharacterImages(
       sync_attempts: 0,
       created_at: snapshot.createdAt ? new Date(snapshot.createdAt).getTime() : Date.now(),
       deleted_at: null,
+      // A device may receive the image before the message it names. That is a
+      // plain gallery row until the message arrives — never a reason to drop it.
+      message_id: snapshot.messageId ?? null,
     })
   }
 

@@ -33,13 +33,12 @@ import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './h
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
+import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
+import { MAX_AGENT_RUN_BODY_BYTES } from '../../shared/cloudAgentAttachments.js'
+import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
+import { buildNewMessage } from './agentMessage.js'
 
 export { INSTANCE_ID } from './services/instanceId.js'
-
-const contentSchema = z.object({
-  role: z.enum(['user', 'model']),
-  parts: z.array(z.object({}).passthrough()).min(1),
-})
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +53,8 @@ export interface RunAgentParams {
   timezone: string
   embed: (text: string) => Promise<number[]>
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+  /** At most one in Phase 2; delivered as a leading inlineData part. */
+  attachments?: AgentAttachment[]
 }
 
 export interface AppOptions {
@@ -69,7 +70,7 @@ export interface AppOptions {
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService } = params
+  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService, attachments = [] } = params
   const bridge = admin.apps.length ? {
     firebaseUid,
     userId,
@@ -110,7 +111,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
   const events = runner.runAsync({
     userId,
     sessionId,
-    newMessage: { role: 'user', parts: [{ text: message }] },
+    newMessage: buildNewMessage(message, attachments),
   })
 
   return consumeAgentEvents(events, userId, creditService)
@@ -151,7 +152,7 @@ export function createApp(options: AppOptions) {
     app.set('trust proxy', 1)
   }
   app.use(cors({ origin: corsOrigins() }))
-  app.use(express.json({ limit: '2mb' }))
+  app.use(express.json({ limit: MAX_AGENT_RUN_BODY_BYTES }))
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' })
@@ -206,19 +207,18 @@ export function createApp(options: AppOptions) {
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
-      const parseResult = z
-        .object({
-          message: z.string().trim().min(1),
-          characterId: z.string().uuid(),
-          unsyncedHistory: z.array(z.unknown()).optional(),
-          history: z.array(contentSchema).optional(),
-        })
-        .safeParse(req.body)
+      const parseResult = agentRunSchema.safeParse(req.body)
       if (!parseResult.success) {
         res.status(400).json({ error: 'Invalid request body' })
         return
       }
-      const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
+      const {
+        message,
+        characterId,
+        unsyncedHistory = [],
+        history: rawHistory = [],
+        attachments = [],
+      } = parseResult.data
       const history = rawHistory as Content[]
       const firebaseUid = req.uid!
       const timezone = typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
@@ -258,7 +258,7 @@ export function createApp(options: AppOptions) {
 
       // Credit spend happens per internal ADK loop iteration inside runAgentFn
       // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
-      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs })
+      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs, attachments })
 
       // GET BALANCE — graceful degrade if this fails
       let newBalance: number | null = null
@@ -410,7 +410,13 @@ export function createApp(options: AppOptions) {
 export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
   const browserBridgeAvailable = admin.apps.length > 0
-  const streamWss = new WebSocketServer({ noServer: true })
+  // `/agent/stream` takes the same agentRun payload as `/agent/run`, so it gets
+  // the same ceiling — `ws` would otherwise buffer and parse up to its 100 MiB
+  // default before the schema ever runs. The live, browser and desktop sockets
+  // carry audio frames and browser-bridge results, which have no equivalent
+  // documented bound; capping them blind risks cutting off voice and screenshot
+  // payloads, so they are deliberately left at the library default.
+  const streamWss = new WebSocketServer({ noServer: true, maxPayload: MAX_AGENT_RUN_BODY_BYTES })
   const liveWss = new WebSocketServer({ noServer: true })
   const browserWss = new WebSocketServer({ noServer: true })
   const desktopWss = new WebSocketServer({ noServer: true })

@@ -70,6 +70,7 @@ function row(overrides: Partial<CharacterImageRow>): CharacterImageRow {
     sync_attempts: 0,
     created_at: 1,
     deleted_at: null,
+    message_id: null,
     ...overrides,
   }
 }

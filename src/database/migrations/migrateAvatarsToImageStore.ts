@@ -120,6 +120,7 @@ export async function migrateAvatarsToImageStore(
         sync_attempts: 0,
         created_at: Date.now(),
         deleted_at: null,
+        message_id: null,
       }
 
       await insertCharacterImage(imageRow)

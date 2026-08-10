@@ -2,7 +2,6 @@ import { WebSocket } from 'ws'
 import type { IncomingMessage } from 'http'
 import admin from 'firebase-admin'
 import { eq, and } from 'drizzle-orm'
-import { z } from 'zod'
 import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
 import { hasGroundingData } from '../groundingMetadata.js'
@@ -19,20 +18,8 @@ import {
   consumeAgentEvents,
 } from '../services/agentEventLoop.js'
 import { mapAgentExecutionError } from '../utils/agentExecutionError.js'
-
-const contentSchema = z.object({
-  role: z.enum(['user', 'model']),
-  parts: z.array(z.object({}).passthrough()).min(1),
-})
-
-const agentRunSchema = z.object({
-  type: z.literal('agent_run').optional(),
-  message: z.string().trim().min(1),
-  characterId: z.string().uuid(),
-  unsyncedHistory: z.array(z.unknown()).optional(),
-  history: z.array(contentSchema).optional(),
-  timezone: z.string().optional(),
-})
+import { agentRunSchema } from '../../../shared/cloudAgentProtocol.js'
+import { buildNewMessage } from '../agentMessage.js'
 
 export interface WsHandlerOptions {
   db: DrizzleClient
@@ -106,7 +93,7 @@ export async function handleWsUpgrade(
 
       hasRun = true
 
-      const { message, characterId, unsyncedHistory = [], history: rawHistory = [], timezone = 'UTC' } = parseResult.data
+      const { message, characterId, unsyncedHistory = [], history: rawHistory = [], timezone = 'UTC', attachments = [] } = parseResult.data
       const history = rawHistory as Content[]
 
       try {
@@ -202,7 +189,7 @@ export async function handleWsUpgrade(
         const events = runner.runAsync({
           userId,
           sessionId,
-          newMessage: { role: 'user', parts: [{ text: message }] },
+          newMessage: buildNewMessage(message, attachments),
           abortSignal: abortController.signal,
         })
 

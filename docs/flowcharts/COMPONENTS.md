@@ -3,6 +3,7 @@
 _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
+  AvatarPicker --> useMachines
   AvatarPicker --> characterImageDatabase
   AvatarPicker --> localImageStore
   AvatarPicker --> useAvatarUpload
@@ -10,14 +11,18 @@ graph LR
   AvatarPicker --> characterImageSyncService
   AvatarPicker --> characterImageService
   CharacterCard --> useResolvedImage
+  ChatComposer --> useChatPhotoUpload
   ChatComposer --> useCharacterWiki
   ChatComposer --> documentMimeTypes
   ChatComposer --> apiClient
+  ChatComposer.web --> useChatPhotoUpload
   ChatComposer.web --> useCharacterWiki
   ChatComposer.web --> documentMimeTypes
   ChatComposer.web --> apiClient
+  ChatImageBubble --> useResolvedImage
   ChatView --> usePowerBalance
   ChatView --> useAIChat
+  ChatView --> useResolvedImage
   ChatView --> isSafeHttpUrl
   ChatView --> useMachines
   ChatView --> useCharacters

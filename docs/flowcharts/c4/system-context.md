@@ -10,7 +10,7 @@ C4Context
 
   System(clanker, "Clanker", "AI character chat app (mobile/web) plus Clanker Desktop Bridge MV3 extension. Edge agent orchestrates on-device text chat; Talk tab streams live voice via Cloud Agent. Desktop extension executes browser tasks in the user's authenticated sessions when explicitly requested.")
 
-  System_Ext(firebase, "Firebase", "Auth, Firestore session/task coordination bus, Cloud Functions (generateReply BYOI proxy, bootstrap, wiki LLM/sync, media callables, payment webhooks), FCM sender for extension wake")
+  System_Ext(firebase, "Firebase", "Auth, Firestore session/task coordination bus, Cloud Functions (generateReply BYOI proxy, bootstrap, wiki LLM/sync, media callables, payment webhooks), Storage (character images — avatar picks and chat photos, GCS, uid-scoped), FCM sender for extension wake")
   System_Ext(cloudagent, "Cloud Agent", "Stateless ADK agent on Cloud Run. Text: WebSocket /agent/stream with HTTP /agent/run fallback. Voice: WebSocket /agent/live (Gemini Live API). Browser bridge: /agent/browser WebSocket (auth frame with Firebase ID token), browser_action tool, Firestore session/task coordination via watchTask, FCM wake dispatch")
   System_Ext(expo_push, "Expo Push", "Mobile push — approval cards (Phase 1); async task completion when voice session closed (Phase 2+)")
   System_Ext(google, "Google Sign-In", "OAuth identity provider (via Firebase Auth)")
@@ -20,7 +20,7 @@ C4Context
   System_Ext(crashlytics, "Crashlytics", "Error and crash reporting (native only; web stub)")
 
   Rel(user, clanker, "Uses", "Mobile app (HTTPS/native); desktop extension (Chrome)")
-  Rel(clanker, firebase, "Auth, callable functions, App Check, Firestore reads (sessions/tasks/auth approvals)")
+  Rel(clanker, firebase, "Auth, callable functions, App Check, Firestore reads (sessions/tasks/auth approvals), character image upload/download to Storage — avatar picks and chat photos (save_to_cloud characters)")
   Rel(clanker, cloudagent, "Escalated text chat, live voice, browser bridge", "WebSocket /agent/stream, /agent/live, /agent/browser (HTTP /agent/run text fallback); browser WS auth via initial auth frame with Firebase ID token")
   Rel(clanker, google, "OAuth sign-in via Firebase Auth (mobile app and extension side panel)")
   Rel(clanker, stripe, "Checkout session (web)")

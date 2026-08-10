@@ -145,7 +145,9 @@ jest.mock('~/utils/buildImagePrompt', () => ({
 }))
 jest.mock('~/components/CharacterAvatar', () => () => null)
 jest.mock('~/components/AvatarPicker', () => ({ AvatarPicker: () => null }))
-jest.mock('~/hooks/useResolvedImage', () => ({ useResolvedImage: () => null }))
+jest.mock('~/hooks/useResolvedImage', () => ({
+  useResolvedImage: () => ({ uri: null, isResolved: true }),
+}))
 jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   WikiBusyError: class WikiBusyError extends Error {},
   useWiki: jest.fn(() => null),

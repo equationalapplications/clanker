@@ -37,7 +37,7 @@ jest.mock('~/utilities/reportError', () => ({
   reportError: (...args: unknown[]) => mockReportError(...args),
 }))
 
-import { sendMessageWithAIResponse } from '~/services/aiChatService'
+import { sendMessageWithAIResponse, triggerConversationSummary } from '~/services/aiChatService'
 
 describe('sendMessageWithAIResponse', () => {
   beforeEach(() => {
@@ -430,5 +430,53 @@ describe('sendMessageWithAIResponse', () => {
     )
     expect(mockSaveAIMessage).not.toHaveBeenCalled()
     consoleErrorSpy.mockRestore()
+  })
+})
+
+describe('triggerConversationSummary — captionless photo', () => {
+  const character = {
+    id: 'char-1',
+    name: 'Nova',
+    appearance: '',
+    traits: '',
+    emotions: '',
+    context: '',
+  } as any
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', context: '' })
+    mockGetMessageCount.mockResolvedValue(40)
+    // A captionless photo turn. The text is empty and `imageId` carries the
+    // render hint — same shape `useAIChat.sendPhoto` persists.
+    mockGetMessagesForContextSummary.mockResolvedValue([
+      {
+        _id: 'm1',
+        text: '',
+        imageId: '33333333-3333-4333-8333-333333333333',
+        createdAt: new Date('2026-08-10T00:00:00.000Z'),
+        user: { _id: 'user-1' },
+      },
+      {
+        _id: 'm2',
+        text: 'Looks tasty!',
+        createdAt: new Date('2026-08-10T00:00:01.000Z'),
+        user: { _id: 'char-1' },
+      },
+    ])
+    mockSummarizeText.mockResolvedValue('A photo of food.')
+    mockPruneMessagesForCharacter.mockResolvedValue(undefined)
+  })
+
+  it('substitutes [sent a photo] for a captionless photo in the summary input', async () => {
+    // Without the placeholder, a captionless turn becomes an empty "user: "
+    // line in the summarizer's input — the photo event vanishes from durable
+    // context the moment the messages are pruned.
+    await triggerConversationSummary(character, 'user-1')
+
+    expect(mockSummarizeText).toHaveBeenCalled()
+    const summaryInput = mockSummarizeText.mock.calls[0][0].text
+    expect(summaryInput).toMatch(/user: \[sent a photo\]/)
+    expect(summaryInput).not.toMatch(/^user: $/m)
   })
 })

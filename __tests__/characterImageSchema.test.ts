@@ -7,8 +7,8 @@ import {
 } from '../src/database/schema'
 
 describe('character_images schema', () => {
-  it('bumps SCHEMA_VERSION to 23', () => {
-    expect(SCHEMA_VERSION).toBe(23)
+  it('bumps SCHEMA_VERSION to 24', () => {
+    expect(SCHEMA_VERSION).toBe(24)
   })
 
   it('migration 22 creates the character_images table and its indexes', () => {
@@ -68,5 +68,36 @@ describe('character_images schema', () => {
       expect(migrated).toContain(definition)
       expect(fresh).toContain(definition)
     }
+  })
+})
+
+describe('migration 24 — chat photo linkage', () => {
+  it('adds message_id and a partial index', () => {
+    expect(MIGRATIONS[24]).toContain('ALTER TABLE character_images ADD COLUMN message_id TEXT')
+    expect(MIGRATIONS[24]).toContain('idx_character_images_message')
+    expect(MIGRATIONS[24]).toContain('WHERE message_id IS NOT NULL')
+  })
+
+  it('is skipped when the column already exists', () => {
+    expect(MIGRATION_SKIP_GUARDS[24]).toEqual([
+      { table: 'character_images', column: 'message_id' },
+    ])
+  })
+
+  it('fresh installs get the column without running the migration', () => {
+    expect(CREATE_TABLES).toContain('message_id')
+    expect(CREATE_TABLES).toContain('idx_character_images_message')
+  })
+
+  // The bootstrap "fresh vs legacy DB" check in `applyInitializationPlan`
+  // walks every table in `LATEST_SCHEMA_REQUIRED_COLUMNS`. If a future
+  // migration adds a new required column on a different table without
+  // adding it to this constant, a legacy DB could be misclassified as
+  // already-up-to-date and skip the migration. This guard test exists so
+  // adding a column to any table in `LATEST_SCHEMA_REQUIRED_COLUMNS`
+  // forces the constant to grow alongside it — the bootstrap check covers
+  // every entry in the constant by construction.
+  it('covers every required column on every table the bootstrap checks', () => {
+    expect(LATEST_SCHEMA_REQUIRED_COLUMNS.character_images).toContain('message_id')
   })
 })
