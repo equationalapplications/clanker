@@ -210,18 +210,26 @@ function baseCharacter(overrides: Record<string, unknown>) {
   }
 }
 
-/** The character-side avatar uri GiftedChat's renderAvatar would use. */
-function bubbleAvatarUri(tree: any): string | null | undefined {
+/** Mount the character bubble and return the props CharacterAvatar received. */
+function bubbleCharacterProps() {
   const rendered = capturedGiftedChatProps.renderAvatar({
     currentMessage: { user: { _id: 'char-1' } },
   })
-  // React 19 + react-test-renderer auto-unmount renderers created outside
-  // act(), so the bubble subtree must be rendered inside act before we
-  // touch `.root`.
+  capturedAvatarProps.length = 0
+  act(() => { create(rendered) })
+  expect(capturedAvatarProps).toHaveLength(1)
+  return capturedAvatarProps[0]
+}
+
+/** Mount the user bubble and return the Avatar.Text label, or null if absent. */
+function bubbleUserLabel(): string | null {
+  const rendered = capturedGiftedChatProps.renderAvatar({
+    currentMessage: { user: { _id: 'user-1' } },
+  })
   let holder: any
   act(() => { holder = create(rendered) })
-  const img = holder.root.findAllByProps({ testID: 'avatar-img' }, { deep: false })[0]
-  return img ? img.props.source.uri : null
+  const txt = holder.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })[0]
+  return txt ? txt.props.label : null
 }
 
 describe('ChatView avatar source', () => {
@@ -260,18 +268,58 @@ describe('ChatView avatar source', () => {
 
   it('message bubbles prefer the resolved image over a stale legacy avatar URL', () => {
     mockResolved = 'file:///new.webp'
-    const { tree } = renderChat(
-      baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }),
-    )
+    renderChat(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
 
-    expect(bubbleAvatarUri(tree)).toBe('file:///new.webp')
+    expect(bubbleCharacterProps().imageUrl).toBe('file:///new.webp')
   })
 
   it('message bubbles fall back to the legacy avatar URL', () => {
     mockResolved = null
-    const { tree } = renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
+    renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
 
-    expect(bubbleAvatarUri(tree)).toBe('https://old.example/legacy.png')
+    expect(bubbleCharacterProps().imageUrl).toBe('https://old.example/legacy.png')
+  })
+
+  // The phase 2 change itself: an avatar-less character renders the bundled
+  // default (via CharacterAvatar) in the bubble, not initials. Fails against
+  // pre-phase-2 ChatView, which returns Avatar.Text here.
+  it('character bubble renders CharacterAvatar, not initials, when there is no image', () => {
+    mockResolved = null
+    renderChat(baseCharacter({}))
+
+    const rendered = capturedGiftedChatProps.renderAvatar({
+      currentMessage: { user: { _id: 'char-1' } },
+    })
+    capturedAvatarProps.length = 0
+    let holder: any
+    act(() => { holder = create(rendered) })
+
+    expect(capturedAvatarProps).toHaveLength(1)
+    expect(capturedAvatarProps[0].imageUrl).toBeNull()
+    expect(holder.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })).toHaveLength(0)
+  })
+
+  // Locks in the deliberate asymmetry: the user keeps initials when
+  // chatUser.avatar is null. The character branch runs the bundled-default
+  // fallback instead.
+  it('user bubble shows initials when user has no avatar', () => {
+    mockResolved = null
+    renderChat(baseCharacter({}))
+    expect(bubbleUserLabel()).toBe('T')  // 'Test' → 'T'
+  })
+
+  // NOT a mirror of the header's dep-array bug — renderAvatar is an inline
+  // closure with nothing to memoize, so this passes trivially today. It exists
+  // to fail if renderAvatar is later wrapped in useCallback with characterAvatar
+  // missing from the deps, which would freeze the bubble on the first resolve.
+  it('bubble tracks a resolved image that arrives after first render', () => {
+    mockResolved = null
+    const result = renderChat(baseCharacter({ active_image_id: 'img-1' }))
+    expect(bubbleCharacterProps().imageUrl).toBeNull()
+
+    mockResolved = 'file:///late-thumb.webp'
+    result.rerender()
+    expect(bubbleCharacterProps().imageUrl).toBe('file:///late-thumb.webp')
   })
 
   // Guards the useLayoutEffect dependency array. The resolve is async, so the

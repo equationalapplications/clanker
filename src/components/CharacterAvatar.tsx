@@ -7,8 +7,14 @@ import type { ComponentProps } from 'react'
  * character stored its own copy of the same 7.6 KB base64 blob, and that blob
  * was an Android adaptive icon whose padding showed as a ring under the
  * circular mask.
+ *
+ * Exported as a testing contract, not for production use. The bundled-default
+ * assertion in `__tests__/characterAvatar.test.tsx` compares `Avatar.Image`'s
+ * `source` against this by identity; inlining it back into the component
+ * breaks that suite. No production consumer reads it — that is intentional,
+ * not dead code.
  */
-const DEFAULT_AVATAR = require('../../assets/default-avatar-1024.webp')
+export const DEFAULT_AVATAR = require('../../assets/default-avatar-1024.webp')
 
 // react-native-paper 5.x does not include `resizeMode` in the type definition
 // for Avatar.Image, but the underlying Image component accepts it and it is
@@ -56,6 +62,7 @@ export default function CharacterAvatar({
           setErroredUrl(imageUrl ?? null)
         }}
         accessible
+        accessibilityRole="image"
         accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
       />
     )
@@ -67,7 +74,8 @@ export default function CharacterAvatar({
       source={DEFAULT_AVATAR}
       resizeMode="cover"
       accessible
-      accessibilityLabel="Character avatar"
+      accessibilityRole="image"
+      accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
     />
   )
 }
