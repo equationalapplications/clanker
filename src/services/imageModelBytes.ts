@@ -17,6 +17,13 @@
  * predated the cap, or a future cap change could leave legacy rows over the
  * new bound. Failing fast at the resolver means the server never sees a doomed
  * payload.
+ *
+ * **Current status: scaffolding.** Per the spec §13 "Cold retry after app
+ * restart is not implemented", `PendingChatPhoto` lives in memory only and
+ * `sendPhoto` never calls `getImageAttachment` today. This module exists so
+ * that when a durable retry queue lands, the resolver is already present and
+ * covered by tests — calling it from `sendPhoto`'s cold-retry branch is the
+ * follow-up, not this phase.
  */
 
 import { getCharacterImageById } from '~/database/characterImageDatabase'

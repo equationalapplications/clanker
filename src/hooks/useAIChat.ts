@@ -509,10 +509,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         }
         // Cold retry path: PendingChatPhoto is in-memory only, so a true cold
         // retry needs the bytes re-obtained from the stored row. There is no
-        // retry queue yet, so this only fires if the caller already had an
-        // unresolved attachment (e.g. the resolver failed on first send) — in
-        // which case we surface the error rather than silently re-sending the
-        // stale bytes. When a retry queue lands, branch here on its presence.
+        // retry queue yet — see the spec §13 "Cold retry after app restart is
+        // not implemented" gap — so this branch currently always uses
+        // `photo.attachment`. When a durable retry queue lands, branch here on
+        // its presence and call `getImageAttachment(photo.imageId)` from
+        // `~/services/imageModelBytes` as the fallback resolver.
 
         await runCloudAgentTurn(message, [attachment])
       } catch (err) {

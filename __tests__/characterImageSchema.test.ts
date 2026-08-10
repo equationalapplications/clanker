@@ -88,4 +88,16 @@ describe('migration 24 — chat photo linkage', () => {
     expect(CREATE_TABLES).toContain('message_id')
     expect(CREATE_TABLES).toContain('idx_character_images_message')
   })
+
+  // The bootstrap "fresh vs legacy DB" check in `applyInitializationPlan`
+  // walks every table in `LATEST_SCHEMA_REQUIRED_COLUMNS`. If a future
+  // migration adds a new required column on a different table without
+  // adding it to this constant, a legacy DB could be misclassified as
+  // already-up-to-date and skip the migration. This guard test exists so
+  // adding a column to any table in `LATEST_SCHEMA_REQUIRED_COLUMNS`
+  // forces the constant to grow alongside it — the bootstrap check covers
+  // every entry in the constant by construction.
+  it('covers every required column on every table the bootstrap checks', () => {
+    expect(LATEST_SCHEMA_REQUIRED_COLUMNS.character_images).toContain('message_id')
+  })
 })
