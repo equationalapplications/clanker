@@ -459,30 +459,39 @@ function ChatViewContent({
         bottomOffset={-tabBarHeight}
         renderAvatar={(props) => {
           const isUser = props.currentMessage?.user._id === currentUserId
-          const avatarUri = isUser ? (chatUser.avatar as string | undefined) : (characterAvatar as string | null)
-          const displayName = userDisplayName?.trim()
-          const accessibilityLabel = isUser
-            ? (displayName ? `${displayName}'s avatar` : 'Your avatar')
-            : `${characterName}'s avatar`
-          const initials = isUser ? getInitials(displayName) : getInitials(characterName)
-          if (avatarUri) {
+
+          if (isUser) {
+            const displayName = userDisplayName?.trim()
+            const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
+            const userAvatarUri = chatUser.avatar as string | undefined
+
+            if (userAvatarUri) {
+              return (
+                <Avatar.Image
+                  accessible
+                  accessibilityRole="image"
+                  size={36}
+                  source={{ uri: userAvatarUri }}
+                  accessibilityLabel={accessibilityLabel}
+                />
+              )
+            }
             return (
-              <Avatar.Image
+              <Avatar.Text
                 accessible
                 accessibilityRole="image"
                 size={36}
-                source={{ uri: avatarUri }}
+                label={getInitials(displayName)}
                 accessibilityLabel={accessibilityLabel}
               />
             )
           }
+
           return (
-            <Avatar.Text
-              accessible
-              accessibilityRole="image"
+            <CharacterAvatar
               size={36}
-              label={initials}
-              accessibilityLabel={accessibilityLabel}
+              imageUrl={characterAvatar}
+              characterName={characterName}
             />
           )
         }}
