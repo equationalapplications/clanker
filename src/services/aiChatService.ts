@@ -243,12 +243,17 @@ export async function triggerConversationSummary(character: Character, userId: s
     }
 
     const previousSummary = latestCharacter?.context ?? character.context ?? ''
+    // A captionless photo turn has empty text. `buildContentHistory` substitutes
+    // `[sent a photo]` (the same placeholder the wiki observation uses), so the
+    // summary input stays coherent and the photo turn survives any later prune
+    // — otherwise the summarizer could compress it to a single empty exchange
+    // and lose the user-action signal.
     const summaryInput = buildSummaryInput(
       latestCharacter?.name ?? character.name,
       previousSummary,
-      recentMessages.map((message) => ({
-        role: message.user._id === userId ? 'user' : 'assistant',
-        content: message.text,
+      buildContentHistory(recentMessages, userId).map((entry) => ({
+        role: entry.role === 'user' ? 'user' : 'assistant',
+        content: entry.parts.map((part) => part.text).join(''),
       })),
     )
 

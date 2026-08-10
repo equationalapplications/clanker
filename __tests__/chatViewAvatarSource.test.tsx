@@ -146,7 +146,7 @@ jest.mock('~/hooks/usePowerBalance', () => ({
 
 // ── The pipeline under test ───────────────────────────────────────────────────
 let mockResolved: string | null = null
-const mockUseResolvedImage: jest.Mock = jest.fn(() => mockResolved)
+const mockUseResolvedImage: jest.Mock = jest.fn(() => ({ uri: mockResolved, isResolved: true }))
 jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: (...args: any[]) => mockUseResolvedImage(...args),
 }))

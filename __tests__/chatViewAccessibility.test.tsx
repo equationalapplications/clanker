@@ -141,7 +141,7 @@ jest.mock('~/hooks/usePowerBalance', () => ({
 // every existing assertion in this file — they assert on Avatar.Text, not
 // on a resolved image source.
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: () => null,
+  useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────

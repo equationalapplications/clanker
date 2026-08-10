@@ -163,12 +163,21 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       void triggerConversationSummary(character, userId)
 
+      // The wiki observation is text-only. A captionless photo turn has
+      // `message.text === ''` (the bytes are not re-sent — see §8), so a
+      // `User: ` line is incoherent on its own. `buildContentHistory` substitutes
+      // the `[sent a photo]` placeholder for any photo turn, so going through
+      // it keeps the wiki transcript coherent without the model re-receiving
+      // the bytes on every future turn.
       const recentMessages = getRecentConversationHistory(
         [...priorHistory, message, savedAIMessage],
         20,
       )
-      const chunk = recentMessages
-        .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+      const recentHistoryContent = buildContentHistory(recentMessages, userId)
+      const chunk = recentHistoryContent
+        .map((entry) =>
+          entry.role === 'user' ? `User: ${entry.parts.map((p) => p.text).join('')}` : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+        )
         .join('\n')
 
       try {
@@ -255,8 +264,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           [...priorHistory, message, savedAIMessage],
           20,
         )
-        const chunk = recentMessages
-          .map((msg) => `${msg.user._id === userId ? 'User' : character.name}: ${msg.text}`)
+        // See the cloud path: go through buildContentHistory so a captionless
+        // photo turn reads as `[sent a photo]` rather than a bare `User: `.
+        const recentHistoryContent = buildContentHistory(recentMessages, userId)
+        const chunk = recentHistoryContent
+          .map((entry) =>
+            entry.role === 'user'
+              ? `User: ${entry.parts.map((p) => p.text).join('')}`
+              : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+          )
           .join('\n')
 
         try {

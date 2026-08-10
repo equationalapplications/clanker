@@ -233,10 +233,16 @@ attachments)`, called by both handlers, so the two transports cannot feed
 structurally different prompts to the model:
 
 ```ts
-{ role: 'user', parts: [...attachments.map((a) => ({ inlineData: a })), { text: message }] }
+{ role: 'user', parts: [
+  ...attachments.map((a) => ({ inlineData: a })),
+  ...(message.length > 0 ? [{ text: message }] : []),
+] }
 ```
 
-Attachments precede the text so the question reads as being *about* the image.
+Attachments precede the text so the question reads as being *about* the image,
+and the trailing text part is omitted when the caption is empty (per §6.2).
+A captionless photo therefore produces a single `inlineData` part, not
+`{ text: '' }` next to it.
 
 `CloudAgentPayload` gains `attachments?: { mimeType: string; data: string }[]`.
 The schema admits at most **one** attachment in Phase 2, restricts `mimeType` to
@@ -296,6 +302,26 @@ history. The one-attachment cap keeps it that way; raising it later means
 revisiting this limit deliberately rather than discovering it as a 413 in
 production.
 
+There are two distinct rejection paths the client can hit, and they are not
+symmetric:
+
+- **413 Payload Too Large** — the body exceeds `express.json`'s 2 MB limit
+  *before* the handler runs. `agentRunSchema` never gets to see it; the body is
+  gone by the time validation could log a useful reason. `runViaHttp`
+  surfaces this as `Cloud Agent responded with 413` (status only, no body), so
+  the user sees a generic failure. The mitigation is keeping the budget here,
+  not making the schema stricter.
+- **400 Bad Request** — the body fits, but `agentRunSchema.safeParse` rejects
+  it (e.g. wrong mime, `data` over `MAX_ATTACHMENT_BASE64_CHARS`, an extra
+  attachment). The handler returns `{ error: 'Invalid request body' }` with no
+  field-level detail, and `runViaHttp` again discards the body. The user
+  sees the same generic status-only message.
+
+`runViaHttp` deliberately does not parse the response body for non-2xx
+outcomes — only the status reaches `useAIChat`. Documenting this so the next
+person looking at a "413 vs 400" bug in the client knows that schema
+validation is not where every oversize rejection is caught.
+
 ### 6.4 Credits
 
 A vision turn costs the same as any other cloud-agent turn. No new pricing, no
@@ -313,18 +339,24 @@ a photo should not have to re-pick it because the network dropped.
 
 **Retry reuses the row.** A retried vision turn finds the existing row by
 `message_id` rather than writing a second one, which would otherwise consume two
-slots against the FIFO cap for one photo. It re-obtains base64 through the
-Phase 1 resolver (`resolveImageUri`) rather than the in-memory copy, because a
-`cloud`-kind row's local bytes are deleted after a successful upload — so on a
-cold retry, or a retry after app restart, the original base64 is gone and only
-the resolver can produce it.
+slots against the FIFO cap for one photo. The retry path uses the original
+base64 the user just prepared, because `PendingChatPhoto` lives in memory for
+the duration of the turn.
+
+**The cold-retry path is not implemented.** `PendingChatPhoto` is in-memory
+only — process death or app restart loses the bytes the user just sent. A
+durable retry queue (or committing the base64 alongside the image row) is a
+follow-up; the current implementation surfaces the original error on a true
+cold retry rather than silently re-sending stale bytes from Storage. The
+test matrix reflects this: in-memory retry reuses the row and the bytes; cold
+retry after restart is not yet supported and is the documented gap in §13.
 
 **Dangling pointers are tolerated in both directions**, matching §4.2's decision
 not to enforce referential integrity:
 
 | Event | Effect |
 |---|---|
-| Photo deleted from the Avatar Picker | Message keeps its text; the bubble degrades via `CharacterAvatar`'s existing `onError` fallback (Phase 1 §11) |
+| Photo deleted from the Avatar Picker | Message keeps its text; the bubble degrades via `ChatImageBubble`'s `Photo unavailable` placeholder. The placeholder renders only after `useResolvedImage` completes the lookup and finds no row — a row still in flight shows nothing rather than the misleading "unavailable" label. |
 | Message deleted | Image **stays** in the gallery — it is a gallery image now, and §11 forbids destroying it. `message_id` becomes dangling, which nothing reads destructively |
 | Cap eviction takes a chat photo | Same degrade as the first row. Not prevented; only the active image is exempt |
 
@@ -429,7 +461,7 @@ that fails on divergence is the next-best control — and unlike a comment sayin
 | Cross-boundary | `storage.rules` content types match `ATTACHMENT_MIME_TYPES` (extends `__tests__/storageRules.test.ts`); if the client keeps its own constants (§6.1), they equal the shared module's |
 | Edge gating | A character without `canUseCloudAgent` disables the photo option; no silent text-only send |
 | Persistence | Image row committed when the reply throws; row carries `source:'chat'` and `message_id` |
-| Retry | Retry reuses the existing row rather than inserting a second; base64 re-obtained via the resolver after local bytes are gone |
+| Retry | Retry reuses the existing row rather than inserting a second; the same in-memory `PendingChatPhoto` bytes are used. Cold retry after app restart is not yet supported (see §13) |
 | Dangling | Deleting the image degrades the bubble without touching the message; deleting the message leaves the image in the gallery; evicted chat photo degrades |
 | Cross-device | Message-before-image renders a placeholder then resolves; image-before-message is a plain gallery row; neither ordering deletes anything |
 | Gallery | A chat photo is pickable as an avatar and displays cropped-to-fill, not letterboxed |
@@ -494,11 +526,13 @@ with no referential integrity and two independent sync flows — would delete us
 images on the strength of a counterpart's absence, which Phase 1 §13.3 rejects
 explicitly.
 
-**The retry path re-encodes.** Re-obtaining base64 through the resolver after a
-cloud upload means downloading and re-encoding bytes the device just uploaded.
-This only happens on a cold retry of a failed vision turn, which is rare, and the
-alternative — caching base64 across app restarts — is a second copy of user photo
-content in a second place with its own lifecycle. Not worth it at this frequency.
+**Cold retry after app restart is not implemented.** `PendingChatPhoto` lives
+in memory for the lifetime of the turn; process death loses the bytes the
+user just sent. A durable retry queue (or committing the base64 alongside the
+image row) is a follow-up that costs a second copy of user photo content in
+a second place with its own lifecycle — not in scope for this phase. Until
+that lands, the client surfaces the original error on a true cold retry
+rather than silently re-sending stale bytes from Storage.
 
 **`message_data.imageId` is denormalised.** Justified in §8 by the write-once
 property and the query it removes from every page render. If a future feature

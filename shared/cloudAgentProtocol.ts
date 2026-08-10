@@ -24,7 +24,10 @@ export const contentSchema = z.object({
 
 export const attachmentSchema = z.object({
   mimeType: z.enum(ATTACHMENT_MIME_TYPES),
-  data: z.string().min(1).max(MAX_ATTACHMENT_BASE64_CHARS),
+  // Upload paths produce raw standard base64 (see `expo-file-system` /
+  // `expo-image-manipulator` returns in §6.1). `z.base64()` rejects whitespace,
+  // URL-safe alphabets, and other encodings the model would not round-trip.
+  data: z.base64().min(1).max(MAX_ATTACHMENT_BASE64_CHARS),
 })
 
 export const agentRunSchema = z

@@ -23,16 +23,23 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   const imageId = currentMessage?.imageId ?? null
   const [viewerOpen, setViewerOpen] = useState(false)
 
-  const thumbUri = useResolvedImage(imageId, 'thumb')
+  // `useResolvedImage` returns null both while the lookup is in flight and
+  // after a completed lookup that found no row (see `useResolvedImage.ts`).
+  // `isResolved` is the only signal that distinguishes the two: a null thumb
+  // before that is just the spinner for the row fetch, not a real absence.
+  const { uri: thumbUri, isResolved: thumbResolved } = useResolvedImage(imageId, 'thumb')
   // Resolved only while the viewer is open so scrollback never pulls masters.
-  const masterUri = useResolvedImage(viewerOpen ? imageId : null, 'master')
+  const { uri: masterUri } = useResolvedImage(viewerOpen ? imageId : null, 'master')
 
   if (!imageId) return null
 
   if (!thumbUri) {
-    // A dangling render hint is expected, not exceptional: the row may be
-    // mid-sync on this device, deleted from the gallery, or cap-evicted. The
-    // message keeps its text; only the picture degrades.
+    // Don't render the "Photo unavailable" placeholder until the lookup has
+    // completed — the row may simply be mid-sync on this device (message
+    // arrived first, image row still en route from another device). Once the
+    // lookup completes with no thumbUri, the row is genuinely missing or
+    // evicted, and the placeholder is the correct fallback.
+    if (!thumbResolved) return null
     return (
       <View style={styles.placeholder} accessible accessibilityLabel="Photo unavailable">
         <Text variant="labelSmall">Photo unavailable</Text>

@@ -221,6 +221,29 @@ export async function updateImageRefs(
 }
 
 /**
+ * Update the cross-references that may arrive on a later snapshot than the row.
+ *
+ * `updateImageRefs` covers the bytes-side fields a sweeper promotes as the
+ * upload completes; linkage (`message_id`, `source`) is independent and may
+ * legitimately show up in a *later* cloud snapshot than the row itself, since
+ * the image and the message ride different sync flows (§4.2). Keeping this
+ * separate keeps `updateImageRefs` focused on the bytes-side invariant and
+ * makes the merge intent obvious at the call site.
+ */
+export async function updateImageLinkage(
+  imageId: string,
+  linkage: { source: ImageSource; message_id: string | null },
+): Promise<void> {
+  const db = await getDatabase()
+  await db.runAsync(
+    `UPDATE character_images
+     SET source = ?, message_id = ?
+     WHERE id = ?`,
+    [linkage.source, linkage.message_id, imageId],
+  )
+}
+
+/**
  * Reservations left behind by a process that died mid-save.
  *
  * `olderThan` is what keeps this from racing a save that is simply still running:

@@ -61,7 +61,7 @@ export default function EditCharacterScreen() {
   const [saveToCloud, setSaveToCloud] = useState(false)
   const [isCharacterShareable, setIsCharacterShareable] = useState(false)
   const [activeImageId, setActiveImageId] = useState<string | null>(null)
-  const avatarUri = useResolvedImage(activeImageId, 'master')
+  const { uri: avatarUri } = useResolvedImage(activeImageId, 'master')
   const [pickerVisible, setPickerVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [didAttemptSave, setDidAttemptSave] = useState(false)

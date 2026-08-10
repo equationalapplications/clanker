@@ -319,7 +319,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               style={styles.spinnerContainer}
               accessible
               accessibilityRole="progressbar"
-              accessibilityLabel="Adding document to memory"
+              // Two operations share this slot: a photo being prepared for
+              // chat (isPreparing), and a document being ingested into the
+              // character's memory. Reading the wrong label confuses assistive
+              // tech, so the label tracks the active operation.
+              accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'}
               accessibilityState={{ busy: true }}
             >
               <ActivityIndicator size={20} />

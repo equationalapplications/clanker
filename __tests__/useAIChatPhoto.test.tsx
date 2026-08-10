@@ -332,4 +332,34 @@ describe('useAIChat photo path', () => {
     // about an image it never received is worse than a refusal.
     expect(result.current.error).toMatch(/cannot see photos/i)
   })
+
+  it('writes a captionless photo with empty text and the placeholder reaches the wiki', async () => {
+    // The bytes are not re-sent on every turn (see §8). A captionless photo
+    // therefore persists with `text: ''`; if the wiki observation were built
+    // from raw `message.text`, it would record `User: ` with nothing after
+    // it, which is incoherent once the conversation has scrolled. The chunk
+    // goes through `buildContentHistory`, which substitutes `[sent a photo]`.
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, '')
+    })
+
+    expect(mockPersistUserMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      expect.objectContaining({
+        text: '',
+        imageId: PHOTO.imageId,
+      }),
+    )
+    expect(mockCharacterWikiWrite).toHaveBeenCalled()
+    // The mock `saveAIMessage` is hardcoded to return `text: 'Hello!'` in
+    // beforeEach, so the chunk carries that as the character reply. The
+    // important assertion is the user turn reading as `[sent a photo]`,
+    // not the empty caption leaking through as a bare `User: `.
+    const wikiText = mockCharacterWikiWrite.mock.calls[0][0]
+    expect(wikiText).toMatch(/User: \[sent a photo\]/)
+    expect(wikiText).not.toMatch(/^User: $/m)
+  })
 })

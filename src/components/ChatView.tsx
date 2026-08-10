@@ -148,7 +148,7 @@ function ChatViewContent({
   // characters that predate `avatar_data` entirely — those legitimately have a
   // working legacy URL and no gallery row. `CharacterAvatar` supplies the
   // bundled default when both are null.
-  const resolvedAvatar = useResolvedImage(character.active_image_id, 'thumb')
+  const { uri: resolvedAvatar } = useResolvedImage(character.active_image_id, 'thumb')
   const characterAvatar = resolvedAvatar ?? character.avatar ?? null
 
   React.useLayoutEffect(() => {

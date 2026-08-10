@@ -21,7 +21,8 @@ describe('useResolvedImage', () => {
   it('returns null while nothing is requested', async () => {
     const { result } = renderHook(() => useResolvedImage(null, 'master'))
     await waitFor(() => {
-      expect(result.current).toBeNull()
+      expect(result.current.uri).toBeNull()
+      expect(result.current.isResolved).toBe(false)
     })
     expect(mockGetById).not.toHaveBeenCalled()
   })
@@ -29,16 +30,17 @@ describe('useResolvedImage', () => {
   it('resolves the row for the requested variant', async () => {
     const { result } = renderHook(() => useResolvedImage('img-1', 'thumb'))
     await waitFor(() => {
-      expect(result.current).toBe('data:image/webp;base64,M')
+      expect(result.current.uri).toBe('data:image/webp;base64,M')
     })
     expect(mockResolve).toHaveBeenCalledWith(expect.objectContaining({ id: 'img-1' }), 'thumb')
   })
 
-  it('yields null when the row is gone', async () => {
+  it('yields null when the row is gone, and isResolved=true once the lookup completes', async () => {
     mockGetById.mockResolvedValue(null)
     const { result } = renderHook(() => useResolvedImage('missing', 'master'))
     await waitFor(() => {
-      expect(result.current).toBeNull()
+      expect(result.current.uri).toBeNull()
+      expect(result.current.isResolved).toBe(true)
     })
   })
 
@@ -46,7 +48,8 @@ describe('useResolvedImage', () => {
     mockResolve.mockRejectedValue(new Error('offline'))
     const { result } = renderHook(() => useResolvedImage('img-1', 'master'))
     await waitFor(() => {
-      expect(result.current).toBeNull()
+      expect(result.current.uri).toBeNull()
+      expect(result.current.isResolved).toBe(true)
     })
   })
 })

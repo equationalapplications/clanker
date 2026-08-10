@@ -6,8 +6,17 @@ jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: jest.fn(),
 }))
 
+const resolvedUri = (uri: string | null) => ({ uri, isResolved: true })
+const pendingResolve = { uri: null, isResolved: false }
+
+beforeEach(() => {
+  ;(useResolvedImage as jest.Mock).mockReset()
+  // Default: no row found. Individual tests override with the shape they need.
+  ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri(null))
+})
+
 it('renders the thumb variant, not the master', () => {
-  ;(useResolvedImage as jest.Mock).mockReturnValue('file:///thumb.webp')
+  ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
 
   const { getByLabelText } = render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
@@ -18,7 +27,7 @@ it('renders the thumb variant, not the master', () => {
 })
 
 it('opens the master in a viewer on tap', () => {
-  ;(useResolvedImage as jest.Mock).mockReturnValue('file:///thumb.webp')
+  ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
 
   const { getByLabelText, queryByLabelText } = render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
@@ -31,10 +40,12 @@ it('opens the master in a viewer on tap', () => {
   expect(useResolvedImage).toHaveBeenCalledWith('img-1', 'master')
 })
 
-it('degrades to nothing when the image no longer resolves', () => {
+it('degrades to a placeholder only after the lookup completes with no row', () => {
   // The photo may have been deleted from the Avatar Picker, evicted by the FIFO
-  // cap, or not yet synced to this device. The message keeps its text either way.
-  ;(useResolvedImage as jest.Mock).mockReturnValue(null)
+  // cap, or genuinely absent. The message keeps its text either way. The
+  // placeholder must NOT appear while the lookup is still in flight — the row
+  // may simply be mid-sync on this device (message-before-image ordering).
+  ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri(null))
 
   const { queryByLabelText, getByLabelText } = render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
@@ -42,6 +53,20 @@ it('degrades to nothing when the image no longer resolves', () => {
 
   expect(queryByLabelText('Photo in this message')).toBeNull()
   expect(getByLabelText('Photo unavailable')).toBeTruthy()
+})
+
+it('renders nothing while the thumbnail lookup is in flight', () => {
+  // The image row may not have arrived on this device yet. Announcing
+  // "Photo unavailable" before the lookup completes is wrong: the row is
+  // coming, the bubble just hasn't been able to find it yet.
+  ;(useResolvedImage as jest.Mock).mockReturnValue(pendingResolve)
+
+  const { queryByLabelText } = render(
+    <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
+  )
+
+  expect(queryByLabelText('Photo in this message')).toBeNull()
+  expect(queryByLabelText('Photo unavailable')).toBeNull()
 })
 
 it('renders nothing for a message with no image', () => {
@@ -69,7 +94,7 @@ const BubbleStub = ({ currentMessage, renderMessageImage }: any) => {
 
 describe('Bubble integration with ChatImageBubble', () => {
   beforeEach(() => {
-    ;(useResolvedImage as jest.Mock).mockReturnValue('file:///thumb.webp')
+    ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
   })
 
   it('renders ChatImageBubble when image is set (truthy gate passes)', () => {

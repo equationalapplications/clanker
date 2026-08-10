@@ -88,9 +88,9 @@ function TalkView({ characterId }: { characterId: string }) {
   // characters that predate `avatar_data`. `CharacterAvatar` supplies the
   // bundled default when both are null. Two variants because the body avatar is
   // the screen's focal element and the header is 40px.
-  const resolvedHeaderAvatar = useResolvedImage(character?.active_image_id, 'thumb')
+  const { uri: resolvedHeaderAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
   const headerAvatar = resolvedHeaderAvatar ?? character?.avatar ?? null
-  const resolvedBodyAvatar = useResolvedImage(character?.active_image_id, 'master')
+  const { uri: resolvedBodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
   const bodyAvatar = resolvedBodyAvatar ?? character?.avatar ?? null
   const {
     isConnecting,

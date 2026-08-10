@@ -2,6 +2,7 @@ const mockGetAllImagesForCharacter = jest.fn()
 const mockInsert = jest.fn()
 const mockHardDelete = jest.fn()
 const mockSetActive = jest.fn()
+const mockUpdateImageLinkage = jest.fn()
 
 jest.mock('~/database/characterImageDatabase', () => ({
   getAllImagesForCharacter: (...a: unknown[]) => mockGetAllImagesForCharacter(...a),
@@ -10,6 +11,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
   setActiveImageId: (...a: unknown[]) => mockSetActive(...a),
   getImagesBySyncState: jest.fn().mockResolvedValue([]),
   updateImageRefs: jest.fn(),
+  updateImageLinkage: (...a: unknown[]) => mockUpdateImageLinkage(...a),
   setImageSyncState: jest.fn(),
   incrementSyncAttempts: jest.fn(),
   getCharacterImageById: jest.fn(),
@@ -148,5 +150,52 @@ describe('reconcileCharacterImages', () => {
       'char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], IMG_A,
     )
     expect(mockSetActive).not.toHaveBeenCalled()
+  })
+
+  it('merges a later snapshot\'s message linkage into an existing row that arrived without it', async () => {
+    // The image and the message ride independent sync flows (§4.2). A row may
+    // be restored from the cloud before the snapshot that carries the
+    // `messageId` it was sent on. The next snapshot must promote the row
+    // from a plain gallery entry to the chat-photo the message bubble needs,
+    // not skip it. The merge only fills in fields the local row is missing —
+    // an existing `source` is the local user's intent and must not be
+    // silently overwritten by a snapshot's value.
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      {
+        id: IMG_A,
+        storage_kind: 'cloud',
+        sync_state: 'synced',
+        source: 'generated',
+        message_id: null,
+      },
+    ])
+    await reconcileCharacterImages('char_local', 'user-1', [
+      snapshot({ source: 'chat', messageId: 'msg-late' }),
+    ], null)
+    expect(mockInsert).not.toHaveBeenCalled()
+    expect(mockHardDelete).not.toHaveBeenCalled()
+    expect(mockUpdateImageLinkage).toHaveBeenCalledWith(IMG_A, {
+      source: 'generated',
+      message_id: 'msg-late',
+    })
+  })
+
+  it('preserves a non-null local source/message when a later snapshot lacks them', async () => {
+    // The merge must not overwrite fields the local row already has with
+    // nulls. A snapshot that omits the source and messageId is the snapshot
+    // that is missing data, not the row.
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      {
+        id: IMG_A,
+        storage_kind: 'cloud',
+        sync_state: 'synced',
+        source: 'chat',
+        message_id: 'msg-original',
+      },
+    ])
+    await reconcileCharacterImages('char_local', 'user-1', [
+      snapshot({ source: 'generated', messageId: null }),
+    ], null)
+    expect(mockUpdateImageLinkage).not.toHaveBeenCalled()
   })
 })

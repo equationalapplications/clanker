@@ -101,7 +101,7 @@ jest.mock('~/components/CharacterAvatar', () => () => null)
 // suite does not transitively import the database stack (and ultimately
 // expo-crypto, which fails to initialize under Jest).
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: () => null,
+  useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
 jest.mock('expo-router/react-navigation', () => ({

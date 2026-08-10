@@ -104,6 +104,14 @@ export async function saveCharacterImage(
       height: input.height,
     }))
 
+  // A caller-supplied imageId is what lets the chat path write the message's
+  // render hint before the image row is committed (§6.1). The sync callable
+  // validates it as a UUID, so an invalid value would create a local row that
+  // silently never makes it to the cloud — reject up front instead of writing
+  // bytes the user will never see reconcile.
+  if (input.imageId && !UUID_REGEX.test(input.imageId)) {
+    throw new Error('imageId must be a valid UUID')
+  }
   const imageId = input.imageId ?? generateSecureUuid()
 
   const cloudId =
