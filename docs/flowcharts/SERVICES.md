@@ -42,6 +42,8 @@ graph LR
   cloudAgentService --> groundingMetadata
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
+  imageModelBytes --> characterImageDatabase
+  imageModelBytes --> localImageStore
   liveMemoryQuery --> aiChatService
   liveMemoryQuery --> messageDatabase
   liveMemoryQuery --> characterDatabase

@@ -61,6 +61,7 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
         thumbPath: row.thumbPath ?? null,
         mimeType: row.mimeType ?? "image/webp",
         source: row.source,
+        messageId: row.messageId ?? null,
       },
       setWhere: and(
         eq(characterImages.userId, row.userId),

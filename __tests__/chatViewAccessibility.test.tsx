@@ -141,7 +141,7 @@ jest.mock('~/hooks/usePowerBalance', () => ({
 // every existing assertion in this file — they assert on Avatar.Text, not
 // on a resolved image source.
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: () => null,
+  useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
 // ── Child components / services ───────────────────────────────────────────────
@@ -217,6 +217,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: false,
       escalationState: 'idle',
       error: null,
@@ -461,6 +463,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,
@@ -482,6 +486,8 @@ describe('ChatView accessibility', () => {
     mockUseAIChat.mockReturnValue({
       messages: [],
       sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
       isGeneratingResponse: true,
       escalationState: 'idle',
       error: null,

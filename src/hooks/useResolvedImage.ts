@@ -10,11 +10,17 @@ export type ImageVariantName = 'master' | 'thumb'
  * Returns null rather than throwing on any failure: CharacterAvatar's own
  * fallback chain (master → thumb → bundled default) is the recovery path, and a
  * throwing hook would take the whole screen down for a missing thumbnail.
+ *
+ * `isResolved` is true once a lookup has completed for the current
+ * (imageId, variant). Callers that need to distinguish "still loading" from
+ * "completed with no row" (e.g. ChatImageBubble, which renders a placeholder
+ * only after the lookup finishes empty) read this rather than guessing from
+ * a null URI.
  */
 export function useResolvedImage(
   imageId: string | null | undefined,
   variant: ImageVariantName = 'master',
-): string | null {
+): { uri: string | null; isResolved: boolean } {
   const [uri, setUri] = useState<string | null>(null)
   // What (imageId, variant) `uri` was actually resolved for. When the props
   // move on before the effect below has a chance to catch up, render derives
@@ -52,7 +58,9 @@ export function useResolvedImage(
     return () => { cancelled = true }
   }, [imageId, variant])
 
-  if (!imageId) return null
-  if (!resolvedFor || resolvedFor.imageId !== imageId || resolvedFor.variant !== variant) return null
-  return uri
+  if (!imageId) return { uri: null, isResolved: false }
+  if (!resolvedFor || resolvedFor.imageId !== imageId || resolvedFor.variant !== variant) {
+    return { uri: null, isResolved: false }
+  }
+  return { uri, isResolved: true }
 }

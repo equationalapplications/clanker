@@ -1,0 +1,171 @@
+/**
+ * Turns a picked or captured photo into everything the chat send path needs.
+ *
+ * Lives outside `ChatComposer` so that component does not grow a second large
+ * async handler beside the wiki-ingestion one.
+ *
+ * Deliberately does NOT crop. `useAvatarUpload` squares its result because an
+ * avatar fills a circle; a photo the user is asking a question about must reach
+ * the model with the subject intact — a landscape centre-cropped to a square can
+ * remove the very thing being asked about. Non-square gallery rows are already
+ * safe: `CharacterAvatar` covers rather than letterboxes, so promoting a chat
+ * photo to avatar crops at display time (reversible) instead of capture time.
+ */
+
+import { useCallback, useState } from 'react'
+import { Image } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
+import {
+  MAX_ATTACHMENT_BASE64_CHARS,
+  isAttachmentMimeType,
+} from '../../shared/cloudAgentAttachments'
+import type { CloudAgentAttachment } from '~/services/cloudAgentService'
+
+export interface PendingChatPhoto {
+  /** Pre-minted so the message row can carry the render hint before the save. */
+  imageId: string
+  messageId: string
+  uri: string
+  width: number
+  height: number
+  /** Encoded once here; handed to `saveCharacterImage` so it does not re-encode. */
+  variants: ImageVariants
+  attachment: CloudAgentAttachment
+}
+
+interface UseChatPhotoUploadReturn {
+  prepareFromAsset: (asset: { uri: string; width: number; height: number }) => Promise<PendingChatPhoto>
+  pickFromLibrary: () => Promise<PendingChatPhoto | null>
+  captureFromCamera: () => Promise<PendingChatPhoto | null>
+  isPreparing: boolean
+  error: string | null
+  clearError: () => void
+}
+
+function newMessageId(): string {
+  // Matches ChatView's messageIdGenerator so photo turns and text turns are
+  // indistinguishable downstream.
+  return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+}
+
+/**
+ * Read the pixel dimensions of a URI when the caller can't supply them.
+ *
+ * `expo-image-picker` returns width/height on its assets, but `expo-document-picker`
+ * only does so when the source advertises them — many image MIME types come back
+ * as 0/0. Without dimensions, `prepareImageVariants` skips the resize stage and
+ * the master blows past `MAX_ATTACHMENT_BASE64_CHARS`. `Image.getSize` reads
+ * just the header; the underlying file is never decoded.
+ */
+function getDimensions(
+  uri: string,
+  hint: { width?: number; height?: number },
+): Promise<{ width: number; height: number }> {
+  const hintedWidth = hint.width ?? 0
+  const hintedHeight = hint.height ?? 0
+  if (hintedWidth > 0 && hintedHeight > 0) {
+    return Promise.resolve({ width: hintedWidth, height: hintedHeight })
+  }
+  return new Promise((resolve, reject) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      (err) => reject(err instanceof Error ? err : new Error(String(err))),
+    )
+  })
+}
+
+export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
+  const [isPreparing, setIsPreparing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const clearError = useCallback(() => setError(null), [])
+
+  const prepareFromAsset = useCallback(
+    async (asset: { uri: string; width: number; height: number }): Promise<PendingChatPhoto> => {
+      setIsPreparing(true)
+      try {
+        let dimensions: { width: number; height: number }
+        try {
+          dimensions = await getDimensions(asset.uri, asset)
+        } catch {
+          throw new Error('Could not read that image. Try a different file.')
+        }
+
+        const variants = await prepareImageVariants({
+          uri: asset.uri,
+          width: dimensions.width,
+          height: dimensions.height,
+        })
+
+        if (!isAttachmentMimeType(variants.master.mimeType)) {
+          throw new Error('This image format cannot be sent in chat.')
+        }
+        // Fail here rather than after a wasted round-trip: the server rejects the
+        // same bound, and a 400 mid-send costs the user their photo and their wait.
+        if (variants.master.base64.length > MAX_ATTACHMENT_BASE64_CHARS) {
+          throw new Error('That photo is too large to send.')
+        }
+
+        return {
+          imageId: generateSecureUuid(),
+          messageId: newMessageId(),
+          uri: asset.uri,
+          width: dimensions.width,
+          height: dimensions.height,
+          variants,
+          attachment: { mimeType: variants.master.mimeType, data: variants.master.base64 },
+        }
+      } finally {
+        setIsPreparing(false)
+      }
+    },
+    [],
+  )
+
+  const fromPickerResult = useCallback(
+    async (result: ImagePicker.ImagePickerResult): Promise<PendingChatPhoto | null> => {
+      if (result.canceled) return null
+      const [asset] = result.assets
+      if (!asset) return null
+      return await prepareFromAsset({ uri: asset.uri, width: asset.width, height: asset.height })
+    },
+    [prepareFromAsset],
+  )
+
+  const pickFromLibrary = useCallback(async (): Promise<PendingChatPhoto | null> => {
+    setError(null)
+    try {
+      // No allowsEditing: the OS cropper would force a square (see the module doc).
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      })
+      return await fromPickerResult(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo library access denied')
+      return null
+    }
+  }, [fromPickerResult])
+
+  const captureFromCamera = useCallback(async (): Promise<PendingChatPhoto | null> => {
+    setError(null)
+    try {
+      const result = await ImagePicker.launchCameraAsync({ quality: 1 })
+      return await fromPickerResult(result)
+    } catch (err) {
+      // Matches useAvatarUpload's handling of a denied photo library: the picker
+      // call is the only thing wrapped, so a downstream encode failure does not
+      // get mislabelled as a permission problem.
+      const message = err instanceof Error && !/denied/i.test(err.message)
+        ? err.message
+        : 'Camera access denied'
+      setError(message)
+      return null
+    }
+  }, [fromPickerResult])
+
+  return { prepareFromAsset, pickFromLibrary, captureFromCamera, isPreparing, error, clearError }
+}

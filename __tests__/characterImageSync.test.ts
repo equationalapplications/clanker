@@ -216,6 +216,24 @@ describe('syncCharacterImages — uploads', () => {
     }))
   })
 
+  it('pushes message_id to the cloud for chat-sourced rows', async () => {
+    // A device that uploaded a chat photo carries the message it arrived on,
+    // so the other device can rebuild the bubble once the message itself
+    // arrives. A generated row has no message — the field is undefined, not
+    // a fabricated string.
+    mockGetImagesBySyncState.mockResolvedValue([
+      localImage({ source: 'chat', message_id: 'msg-1' }),
+    ])
+    await syncCharacterImages('user-1')
+    expect(mockSyncImagesFn).toHaveBeenCalledWith(expect.objectContaining({
+      images: [expect.objectContaining({
+        id: '22222222-2222-4222-8222-222222222222',
+        source: 'chat',
+        messageId: 'msg-1',
+      })],
+    }))
+  })
+
   it('leaves an image whose character has no confirmed cloud_id for the next sweep', async () => {
     mockGetAllChars.mockResolvedValue([
       { id: 'char_a', cloud_id: null, pending_cloud_id: CLOUD_ID, save_to_cloud: 1, deleted_at: null },

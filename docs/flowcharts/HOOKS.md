@@ -9,13 +9,15 @@ graph LR
   useAIChat --> useCharacterWiki
   useAIChat --> devSandboxFlag
   useAIChat --> useEdgeAgent
-  useAIChat --> messageDatabase
   useAIChat --> aiChatService
   useAIChat --> CharacterPromptBuilder
   useAIChat --> taskDatabase
   useAIChat --> cloudAgentService
+  useAIChat --> messageDatabase
   useAIChat --> syncMessage
   useAIChat --> usageSnapshot
+  useAIChat --> characterImageDatabase
+  useAIChat --> characterImageService
   useAdminDashboard --> adminService
   useAuthSnapshot --> useMachines
   useAvatarUpload --> useMachines
@@ -28,6 +30,7 @@ graph LR
   useCharacterWiki --> wikiSourceType
   useCharacterWiki --> apiClient
   useCharacters --> useMachines
+  useChatPhotoUpload --> imageVariants
   useCurrentPlan --> useMachines
   useEdgeAgent --> CharacterPromptBuilder
   useEdgeAgent --> edgeToolExecutors

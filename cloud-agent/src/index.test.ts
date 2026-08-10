@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import request from 'supertest'
+import { InMemoryRunner } from '@google/adk'
 import type { DrizzleClient } from './db/client.js'
 import type { RunAgentParams } from './index.js'
 
@@ -90,7 +91,7 @@ const mockCreditService = {
 const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const MISSING_CHAR_UUID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
-const { createApp } = await import('./index.js')
+const { createApp, runAgentReal } = await import('./index.js')
 
 // ── /health ──────────────────────────────────────────────────────────────────
 
@@ -384,6 +385,93 @@ test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', a
     .set('X-Timezone', 'America/Chicago')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(capturedTimezone, 'America/Chicago')
+})
+
+// ── Shared /agent/run contract (Phase 2 vision/chat-uploads) ────────────────
+
+async function runAgentRunRequest(options: {
+  body: Record<string, unknown>
+  onNewMessage?: (newMessage: unknown) => void
+}) {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+
+  const originalRunAsync = InMemoryRunner.prototype.runAsync
+  ;(InMemoryRunner.prototype as unknown as { runAsync: (params: { newMessage: unknown }) => AsyncGenerator<unknown, void, undefined> }).runAsync =
+    function runAsyncMock(params: { newMessage: unknown }) {
+      options.onNewMessage?.(params.newMessage)
+      return (async function* () {
+        yield {
+          id: 'mock-event-1',
+          invocationId: 'mock-invocation-1',
+          author: 'mock-agent',
+          actions: { stateDelta: {}, artifactDelta: {} },
+          timestamp: Date.now(),
+          content: { role: 'model', parts: [{ text: 'mock reply' }] },
+        }
+      })()
+    }
+
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: runAgentReal,
+    creditService: mockCreditService,
+  })
+
+  try {
+    return await request(app)
+      .post('/agent/run')
+      .set('Authorization', 'Bearer valid-token')
+      .send(options.body)
+  } finally {
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync = originalRunAsync
+  }
+}
+
+test('POST /agent/run forwards an attachment as a leading inlineData part', async () => {
+  const captured: unknown[] = []
+  const res = await runAgentRunRequest({
+    body: {
+      message: 'what is this?',
+      characterId: CHAR_UUID,
+      attachments: [{ mimeType: 'image/webp', data: 'AAAA' }],
+    },
+    onNewMessage: (newMessage) => captured.push(newMessage),
+  })
+
+  assert.equal(res.status, 200)
+  assert.deepEqual(captured[0], {
+    role: 'user',
+    parts: [
+      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
+      { text: 'what is this?' },
+    ],
+  })
+})
+
+test('POST /agent/run accepts a captionless photo and rejects an empty turn', async () => {
+  const withPhoto = await runAgentRunRequest({
+    body: {
+      message: '',
+      characterId: CHAR_UUID,
+      attachments: [{ mimeType: 'image/webp', data: 'AAAA' }],
+    },
+  })
+  assert.equal(withPhoto.status, 200)
+
+  // Empty turn (no message, no attachments) must short-circuit at the schema.
+  const db = makeMockDb()
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => ({ reply: 'never called', toolCalls: [] }),
+    creditService: mockCreditService,
+  })
+  const empty = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: '', characterId: CHAR_UUID })
+  assert.equal(empty.status, 400)
 })
 
 test('POST /agent/browser/scheduler-trigger returns 401 with no secret', async () => {

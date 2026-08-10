@@ -114,9 +114,10 @@ type CharacterImagePayload = {
   thumbPath?: string | null;
   mimeType?: string | null;
   source: string;
+  messageId: string | null;
 };
 
-const IMAGE_SOURCES = new Set(['generated', 'uploaded', 'imported']);
+const IMAGE_SOURCES = new Set(['generated', 'uploaded', 'imported', 'chat']);
 
 // Must stay in sync with storage.rules, which admits only these two at upload
 // time. The value is persisted and echoed back to every device, where it drives
@@ -137,6 +138,7 @@ function serializeCharacterImage(row: Record<string, unknown>) {
     thumbPath: row.thumbPath == null ? null : String(row.thumbPath),
     mimeType: String(row.mimeType ?? 'image/webp'),
     source: String(row.source),
+    messageId: row.messageId == null ? null : String(row.messageId),
     createdAt: toISO(row.createdAt),
     deletedAt: toISO(row.deletedAt),
   };
@@ -159,7 +161,7 @@ function parseImagePayload(
     throw new HttpsError('invalid-argument', 'Each image must be an object.');
   }
 
-  const {id, storagePath, thumbPath, mimeType, source} = value as Record<string, unknown>;
+  const {id, storagePath, thumbPath, mimeType, source, messageId} = value as Record<string, unknown>;
 
   if (typeof id !== 'string' || !UUID_REGEX.test(id)) {
     throw new HttpsError('invalid-argument', 'image.id must be a UUID.');
@@ -168,7 +170,7 @@ function parseImagePayload(
     throw new HttpsError('invalid-argument', 'image.storagePath is required.');
   }
   if (typeof source !== 'string' || !IMAGE_SOURCES.has(source)) {
-    throw new HttpsError('invalid-argument', 'image.source must be generated, uploaded, or imported.');
+    throw new HttpsError('invalid-argument', 'image.source must be generated, uploaded, imported, or chat.');
   }
   // Rejected rather than silently coerced to null: a caller that sent a
   // malformed thumbPath believes it registered a thumb, and dropping it here
@@ -176,6 +178,12 @@ function parseImagePayload(
   // sender never learns its request was only partially honoured.
   if (thumbPath !== undefined && thumbPath !== null && typeof thumbPath !== 'string') {
     throw new HttpsError('invalid-argument', 'image.thumbPath must be a string or null when provided.');
+  }
+  // Same argument as thumbPath: a caller that sent a malformed messageId
+  // believes the photo is linked to its message, and silently nulling it
+  // strands the bubble on every other device.
+  if (messageId !== undefined && messageId !== null && typeof messageId !== 'string') {
+    throw new HttpsError('invalid-argument', 'image.messageId must be a string or null when provided.');
   }
 
   const expectedPrefix = `users/${firebaseUid}/characters/${characterId}/`;
@@ -196,6 +204,7 @@ function parseImagePayload(
     thumbPath: typeof thumbPath === 'string' ? thumbPath : null,
     mimeType: typeof mimeType === 'string' ? mimeType : 'image/webp',
     source,
+    messageId: typeof messageId === 'string' ? messageId : null,
   };
 }
 
@@ -289,6 +298,7 @@ export const syncCharacterImagesHandler = async (
         thumbPath: image.thumbPath ?? null,
         mimeType: image.mimeType ?? 'image/webp',
         source: image.source,
+        messageId: image.messageId ?? null,
       }))
     );
 

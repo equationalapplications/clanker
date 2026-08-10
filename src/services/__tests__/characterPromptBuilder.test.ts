@@ -124,3 +124,40 @@ describe('buildContentHistory', () => {
     expect(buildContentHistory([], userId)).toEqual([])
   })
 })
+
+describe('photo turns in history', () => {
+  const base = { createdAt: new Date(1), user: { _id: 'user-1' } }
+
+  it('substitutes a marker for a captionless photo rather than dropping the turn', () => {
+    const history = buildContentHistory(
+      [{ ...base, _id: 'm1', text: '', imageId: 'img-1' } as never],
+      'user-1',
+    )
+
+    expect(history).toEqual([{ role: 'user', parts: [{ text: '[sent a photo]' }] }])
+  })
+
+  it('keeps the caption when there is one', () => {
+    const history = buildContentHistory(
+      [{ ...base, _id: 'm1', text: 'what is this?', imageId: 'img-1' } as never],
+      'user-1',
+    )
+
+    expect(history).toEqual([{ role: 'user', parts: [{ text: 'what is this?' }] }])
+  })
+
+  it('still drops an empty message with no photo', () => {
+    expect(buildContentHistory([{ ...base, _id: 'm1', text: '' } as never], 'user-1')).toEqual([])
+  })
+
+  // History stays text-only: re-sending every past photo on every turn grows the
+  // payload without bound. Recall of older images is a Phase 3 agent tool.
+  it('never puts inlineData in history', () => {
+    const history = buildContentHistory(
+      [{ ...base, _id: 'm1', text: 'hi', imageId: 'img-1' } as never],
+      'user-1',
+    )
+
+    expect(JSON.stringify(history)).not.toContain('inlineData')
+  })
+})

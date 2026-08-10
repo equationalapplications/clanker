@@ -11,7 +11,7 @@ jest.mock('~/components/CharacterAvatar', () => {
 })
 
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: jest.fn(() => null),
+  useResolvedImage: jest.fn(() => ({ uri: null, isResolved: true })),
 }))
 
 jest.mock('react-native', () => {

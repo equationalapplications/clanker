@@ -24,7 +24,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
 }) => {
   const theme = useTheme()
   // Thumb, not master: this renders at 48px, and the list can hold many cards.
-  const avatarUri = useResolvedImage(activeImageId, 'thumb')
+  const { uri: avatarUri } = useResolvedImage(activeImageId, 'thumb')
 
   const handlePress = () => {
     if (onPress) {
