@@ -434,6 +434,7 @@ export async function reconcileCharacterImages(
       sync_attempts: 0,
       created_at: snapshot.createdAt ? new Date(snapshot.createdAt).getTime() : Date.now(),
       deleted_at: null,
+      message_id: null,
     })
   }
 

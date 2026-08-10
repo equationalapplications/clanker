@@ -109,7 +109,7 @@ export interface SyncCharacterImagesRequest {
     storagePath: string
     thumbPath?: string | null
     mimeType?: string
-    source: 'generated' | 'uploaded' | 'imported'
+    source: 'generated' | 'uploaded' | 'imported' | 'chat'
   }[]
   deletedImageIds?: string[]
   activeImageId?: string | null

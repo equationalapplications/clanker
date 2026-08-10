@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 23
+export const SCHEMA_VERSION = 24
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -24,6 +24,9 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'memory_checkpoint',
     'pending_cloud_id',
     'active_image_id',
+  ],
+  character_images: [
+    'message_id',
   ],
   // wiki_entries removed — table no longer exists on fresh installs (package owns llm_wiki_* tables)
 }
@@ -63,6 +66,7 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   20: [{ table: 'characters', column: 'pending_cloud_id' }],
   22: [{ table: 'character_images', column: 'id' }],
   23: [{ table: 'characters', column: 'active_image_id' }],
+  24: [{ table: 'character_images', column: 'message_id' }],
 }
 
 /**
@@ -149,7 +153,8 @@ export const CREATE_TABLES = `
     sync_state    TEXT NOT NULL DEFAULT 'local',
     sync_attempts INTEGER NOT NULL DEFAULT 0,
     created_at    INTEGER NOT NULL,
-    deleted_at    INTEGER
+    deleted_at    INTEGER,
+    message_id    TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_character_images_char
@@ -157,6 +162,9 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_character_images_sync
     ON character_images(sync_state)
     WHERE sync_state IN ('pending_upload', 'pending_delete');
+  CREATE INDEX IF NOT EXISTS idx_character_images_message
+    ON character_images(message_id)
+    WHERE message_id IS NOT NULL;
 
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -233,4 +241,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_character ON tasks(character_id)`,
 CREATE INDEX IF NOT EXISTS idx_character_images_char ON character_images(character_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_character_images_sync ON character_images(sync_state) WHERE sync_state IN ('pending_upload', 'pending_delete')`,
   23: `ALTER TABLE characters ADD COLUMN active_image_id TEXT;`,
+  // Chat photos are gallery rows with a message they arrived on. Nullable and
+  // deliberately unconstrained: message sync and image sync are independent
+  // flows that can land in either order, so a row may legitimately name a
+  // message this device has not received yet. Dangling is tolerated and handled
+  // at read time; a foreign key would reject the write and strand the image.
+  24: `ALTER TABLE character_images ADD COLUMN message_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_character_images_message ON character_images(message_id) WHERE message_id IS NOT NULL`,
 }

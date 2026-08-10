@@ -32,6 +32,7 @@ import {
   updateImageRefs,
   getImagesBySyncState,
   getAllImagesForCharacter,
+  findCharacterImageByMessageId,
   type CharacterImageRow,
 } from '../src/database/characterImageDatabase'
 
@@ -49,6 +50,7 @@ function row(overrides: Partial<CharacterImageRow> = {}): CharacterImageRow {
     sync_attempts: 0,
     created_at: 1000,
     deleted_at: null,
+    message_id: null,
     ...overrides,
   }
 }
@@ -77,6 +79,7 @@ describe('characterImageDatabase', () => {
       'local',
       0,
       1000,
+      null,
       null,
     ])
   })
@@ -316,5 +319,39 @@ describe('characterImageDatabase against the real schema', () => {
     await setActiveImageId('char_thief', 'img-owned')
 
     await expect(getActiveCharacterImage('char_thief')).resolves.toBeNull()
+  })
+
+  describe('message_id linkage', () => {
+    it('round-trips message_id and source chat', async () => {
+      await insertCharacterImage(
+        row({
+          id: 'img-chat-1',
+          source: 'chat',
+          message_id: 'msg-1',
+        }),
+      )
+
+      const found = await findCharacterImageByMessageId('msg-1')
+      expect(found?.id).toBe('img-chat-1')
+      expect(found?.source).toBe('chat')
+    })
+
+    it('returns null for a message with no image', async () => {
+      expect(await findCharacterImageByMessageId('msg-none')).toBeNull()
+    })
+
+    it('ignores soft-deleted rows so a retry does not resurrect a deleted photo', async () => {
+      await insertCharacterImage(
+        row({
+          id: 'img-chat-2',
+          source: 'chat',
+          sync_state: 'pending_delete',
+          deleted_at: 2,
+          message_id: 'msg-2',
+        }),
+      )
+
+      expect(await findCharacterImageByMessageId('msg-2')).toBeNull()
+    })
   })
 })

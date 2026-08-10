@@ -10,7 +10,7 @@
 import { getDatabase } from './index'
 
 export type ImageStorageKind = 'cloud' | 'file' | 'inline'
-export type ImageSource = 'generated' | 'uploaded' | 'imported'
+export type ImageSource = 'generated' | 'uploaded' | 'imported' | 'chat'
 /**
  * `reserved` is not a sync state so much as a claim: the row exists so that the
  * Storage objects it names are discoverable, but its bytes are not confirmed and
@@ -40,14 +40,19 @@ export interface CharacterImageRow {
   sync_attempts: number
   created_at: number
   deleted_at: number | null
+  /**
+   * The chat message this photo arrived on, for `source: 'chat'` rows; null for
+   * avatars. Not a foreign key — see migration 24.
+   */
+  message_id: string | null
 }
 
 export async function insertCharacterImage(row: CharacterImageRow): Promise<void> {
   const db = await getDatabase()
   await db.runAsync(
     `INSERT INTO character_images
-     (id, character_id, user_id, storage_kind, master_ref, thumb_ref, mime_type, source, sync_state, sync_attempts, created_at, deleted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, character_id, user_id, storage_kind, master_ref, thumb_ref, mime_type, source, sync_state, sync_attempts, created_at, deleted_at, message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.id,
       row.character_id,
@@ -61,6 +66,7 @@ export async function insertCharacterImage(row: CharacterImageRow): Promise<void
       row.sync_attempts,
       row.created_at,
       row.deleted_at,
+      row.message_id ?? null,
     ],
   )
 }
@@ -271,5 +277,27 @@ export async function getImagesBySyncState(
      WHERE user_id = ? AND sync_state IN (${placeholders})
      ORDER BY created_at ASC`,
     [userId, ...states],
+  )
+}
+
+/**
+ * The live image a message carries, if any.
+ *
+ * Used by the retry path: a retried vision turn must reuse the existing row
+ * rather than write a second one, which would consume two slots against the
+ * FIFO cap for one photo. Soft-deleted and reserved rows are excluded — a photo
+ * the user deleted must not come back on retry, and a reservation's bytes are
+ * not confirmed.
+ */
+export async function findCharacterImageByMessageId(
+  messageId: string,
+): Promise<CharacterImageRow | null> {
+  const db = await getDatabase()
+  return db.getFirstAsync<CharacterImageRow>(
+    `SELECT * FROM character_images
+     WHERE message_id = ? AND deleted_at IS NULL AND sync_state != 'reserved'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [messageId],
   )
 }

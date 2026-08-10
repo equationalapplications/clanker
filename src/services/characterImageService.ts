@@ -139,6 +139,7 @@ export async function saveCharacterImage(
         sync_attempts: 0,
         created_at: Date.now(),
         deleted_at: null,
+        message_id: null,
       })
       reserved = true
 
@@ -205,6 +206,7 @@ export async function saveCharacterImage(
       sync_attempts: 0,
       created_at: Date.now(),
       deleted_at: null,
+      message_id: null,
     }
 
     // Commit point: the image is safely recorded once the row reaches a real
