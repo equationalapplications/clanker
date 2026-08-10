@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { render, fireEvent, waitFor } from '@testing-library/react-native'
 
 jest.mock('react-native-gifted-chat', () => {
   const React = require('react')
@@ -60,6 +61,24 @@ const mockConvertDocumentText = jest.fn()
 jest.mock('~/services/apiClient', () => ({
   convertDocumentText: (...args: unknown[]) => mockConvertDocumentText(...args),
 }))
+const convertDocumentText = mockConvertDocumentText
+const ingest = mockIngest
+const mockCaptureFromCamera = jest.fn()
+const mockPrepareFromAsset = jest.fn()
+jest.mock('~/hooks/useChatPhotoUpload', () => ({
+  useChatPhotoUpload: () => ({
+    prepareFromAsset: (...args: unknown[]) => mockPrepareFromAsset(...args),
+    pickFromLibrary: jest.fn(),
+    captureFromCamera: (...args: unknown[]) => mockCaptureFromCamera(...args),
+    isPreparing: false,
+    error: null,
+    clearError: jest.fn(),
+  }),
+}))
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
+}))
 const mockFetch = jest.fn()
 global.fetch = mockFetch as unknown as typeof fetch
 
@@ -85,13 +104,36 @@ let capturedSnackbarProps: any = null
 
 jest.mock('react-native-paper', () => {
   const React = require('react')
+  const { View, Text: RNText } = require('react-native')
   return {
-    IconButton: (props: any) => React.createElement('IconButton', { __iconButtonMock: true, ...props }),
+    IconButton: (props: any) => {
+      // Tag the plus and camera buttons separately so the existing plus-only
+      // assertions still match exactly one node after Task 15 added a camera.
+      const tag =
+        props.icon === 'camera'
+          ? { __cameraButtonMock: true }
+          : props.icon === 'plus'
+            ? { __iconButtonMock: true }
+            : {}
+      return React.createElement(View, { ...tag, ...props })
+    },
     Snackbar: (props: any) => {
       capturedSnackbarProps = props
       return null
     },
     Portal: ({ children }: any) => children,
+    Button: ({ children, onPress, disabled }: any) =>
+      React.createElement(RNText, { onPress, disabled }, children),
+    Dialog: Object.assign(
+      ({ children, visible, onDismiss }: any) =>
+        visible ? React.createElement(View, { onDismiss }, children) : null,
+      {
+        Title: ({ children }: any) => React.createElement(RNText, null, children),
+        Content: ({ children }: any) => React.createElement(RNText, null, children),
+        Actions: ({ children }: any) => React.createElement(RNText, null, children),
+      },
+    ),
+    Text: ({ children }: any) => React.createElement(RNText, null, children),
     useTheme: () => ({ colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' }, roundness: 4 }),
   }
 })
@@ -1554,5 +1596,110 @@ describe('ChatComposer', () => {
     expect(spinner.length).toBeGreaterThan(0)
     expect(tree.root.findAll((n: any) => n.props?.__iconButtonMock === true).length).toBe(0)
     expect(mockUseCharacterWikiResult.isIngesting).toBe(false)
+  })
+
+  describe('image pick: send vs memory (Task 15)', () => {
+    beforeEach(() => {
+      mockCaptureFromCamera.mockReset()
+      mockPrepareFromAsset.mockReset()
+    })
+
+    it('prompts send-vs-memory when the pick is an image', async () => {
+      const DocumentPicker = require('expo-document-picker')
+      DocumentPicker.getDocumentAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText, findByText } = render(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+
+      expect(await findByText('Send in chat')).toBeTruthy()
+      expect(await findByText('Add to memory')).toBeTruthy()
+      expect(convertDocumentText).not.toHaveBeenCalled()
+    })
+
+    it('does not prompt for a text document and still ingests it', async () => {
+      const DocumentPicker = require('expo-document-picker')
+      DocumentPicker.getDocumentAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///notes.txt', name: 'notes.txt', mimeType: 'text/plain', size: 100 }],
+      })
+      mockText.mockResolvedValue('hello world')
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText, queryByText } = render(
+        <ChatComposer text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
+      )
+
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
+
+      expect(queryByText('Send in chat')).toBeNull()
+      await waitFor(() => expect(ingest).toHaveBeenCalled())
+    })
+
+    it('offers no photo option when the character cannot use the cloud agent', async () => {
+      const DocumentPicker = require('expo-document-picker')
+      DocumentPicker.getDocumentAsync.mockResolvedValue({
+        canceled: false,
+        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText, findByText, queryByText } = render(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          canSendPhoto={false}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+
+      // Never silently degraded to a text-only turn: the option is present and
+      // disabled with a reason, so the user is not left with a character that
+      // answers confidently about an image it never received.
+      expect(await findByText(/only cloud-synced characters can see photos/i)).toBeTruthy()
+      expect(queryByText('Add to memory')).toBeTruthy()
+    })
+
+    it('sends a captured photo straight to chat', async () => {
+      mockCaptureFromCamera.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///snap.jpg',
+        width: 1200,
+        height: 900,
+        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn()
+      const { getByLabelText } = render(
+        <ChatComposer
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      await act(async () => {
+        fireEvent.press(getByLabelText('Take a photo'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      expect(convertDocumentText).not.toHaveBeenCalled()
+    })
   })
 })

@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { Composer } from 'react-native-gifted-chat'
 import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
-import { IconButton, Portal, Snackbar, useTheme } from 'react-native-paper'
+import { Button, Dialog, IconButton, Portal, Snackbar, Text, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import * as Crypto from 'expo-crypto'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { convertDocumentText } from '~/services/apiClient'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
+import { useChatPhotoUpload, type PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
 import { ingestPromptOverride } from './ingestPromptOverride'
 import {
   CONVERT_MIME_TYPES,
@@ -33,6 +34,9 @@ type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
     characterId?: string
     userId?: string
     onPhaseChange?: (phase: DocumentUploadPhase) => void
+    /** False when the character has no cloud agent — the photo option is disabled, never degraded. */
+    canSendPhoto?: boolean
+    onSendPhoto?: (photo: PendingChatPhoto, caption: string) => void
   }
 
 async function readAsBase64Web(uri: string): Promise<string> {
@@ -65,13 +69,20 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   userId,
   onPhaseChange,
   onInputSizeChanged,
+  canSendPhoto = true,
+  onSendPhoto,
   ...props
 }: ChatComposerProps<TMessage>) {
   const { colors, roundness } = useTheme()
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
+  const [pendingImageAsset, setPendingImageAsset] = useState<
+    { uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null
+  >(null)
   const activeRequestIdRef = useRef(0)
+
+  const { prepareFromAsset, isPreparing, error: photoError, clearError } = useChatPhotoUpload()
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -82,172 +93,205 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
+  useEffect(() => {
+    if (photoError) {
+      setToastMessage(photoError)
+      clearError()
+    }
+  }, [photoError, clearError])
+
   if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
     setInputHeight(MIN_INPUT_HEIGHT)
   }
 
-  const handlePlusPress = useCallback(async () => {
-    if (!characterId || !userId) return
+  const ingestDocument = useCallback(
+    async (asset: DocumentPicker.DocumentPickerAsset) => {
+      let requestId = 0
+      const isStaleRequest = () => requestId !== 0 && activeRequestIdRef.current !== requestId
 
-    let requestId = 0
-    const isStaleRequest = () => requestId !== 0 && activeRequestIdRef.current !== requestId
-
-    try {
-      const pickerResult = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: false,
-        type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
-      })
-      if (pickerResult.canceled || !pickerResult.assets?.[0]) return
-
-      const asset = pickerResult.assets[0]
-      if (typeof asset.size === 'number' && asset.size > MAX_DOCUMENT_RAW_BYTES) {
-        setToastMessage('File too large.')
-        return
-      }
-      if (activeRequestIdRef.current === -1) return
-      requestId = ++activeRequestIdRef.current
-
-      setPhase('reading')
-      onPhaseChange?.('reading')
-
-      const uri = asset.uri
-      const rawRef = asset.name ?? uri
-      const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
-
-      const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
-      const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
-      const isConvertType = Boolean(normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType))
-
-      let fileContent: string
       try {
-        if (isConvertType) {
-          fileContent = await readAsBase64Web(uri)
-        } else {
-          const response = await fetch(uri)
-          if (!response.ok) {
-            throw new Error(`Failed to read file (HTTP ${response.status})`)
-          }
-          fileContent = await response.text()
+        if (typeof asset.size === 'number' && asset.size > MAX_DOCUMENT_RAW_BYTES) {
+          setToastMessage('File too large.')
+          return
         }
-      } catch {
-        if (isStaleRequest()) return
-        setToastMessage('Failed to read file.')
-        setPhase(null)
-        onPhaseChange?.(null)
-        return
-      }
-      if (isStaleRequest()) return
+        if (activeRequestIdRef.current === -1) return
+        requestId = ++activeRequestIdRef.current
 
-      let rawText: string
-      if (isConvertType && normalizedMimeType) {
-        setPhase('converting')
-        onPhaseChange?.('converting')
+        setPhase('reading')
+        onPhaseChange?.('reading')
+
+        const uri = asset.uri
+        const rawRef = asset.name ?? uri
+        const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
+
+        const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
+        const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
+        const isConvertType = Boolean(normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType))
+
+        let fileContent: string
         try {
-          const convertResult = await convertDocumentText({
-            filename: sourceRef,
-            mimeType: normalizedMimeType,
-            contentBase64: fileContent,
-          })
-          rawText = convertResult.data.text
-        } catch (error) {
-          if (isStaleRequest()) return
-          const firebaseCode = (error as { code?: unknown } | null)?.code
-          const message = (error as { message?: unknown } | null)?.message
-          if (
-            firebaseCode === 'functions/failed-precondition' &&
-            typeof message === 'string' &&
-            message.toLowerCase().includes('insufficient credits')
-          ) {
-            setToastMessage('Out of Power — recharge to keep chatting.')
-          } else if (firebaseCode === 'functions/invalid-argument') {
-            setToastMessage('File too large or unsupported format.')
+          if (isConvertType) {
+            fileContent = await readAsBase64Web(uri)
           } else {
-            setToastMessage('Failed to convert document.')
+            const response = await fetch(uri)
+            if (!response.ok) {
+              throw new Error(`Failed to read file (HTTP ${response.status})`)
+            }
+            fileContent = await response.text()
           }
+        } catch {
+          if (isStaleRequest()) return
+          setToastMessage('Failed to read file.')
           setPhase(null)
           onPhaseChange?.(null)
           return
         }
         if (isStaleRequest()) return
-      } else {
-        rawText = fileContent
-      }
 
-      setPhase('checking')
-      onPhaseChange?.('checking')
+        let rawText: string
+        if (isConvertType && normalizedMimeType) {
+          setPhase('converting')
+          onPhaseChange?.('converting')
+          try {
+            const convertResult = await convertDocumentText({
+              filename: sourceRef,
+              mimeType: normalizedMimeType,
+              contentBase64: fileContent,
+            })
+            rawText = convertResult.data.text
+          } catch (error) {
+            if (isStaleRequest()) return
+            const firebaseCode = (error as { code?: unknown } | null)?.code
+            const message = (error as { message?: unknown } | null)?.message
+            if (
+              firebaseCode === 'functions/failed-precondition' &&
+              typeof message === 'string' &&
+              message.toLowerCase().includes('insufficient credits')
+            ) {
+              setToastMessage('Out of Power — recharge to keep chatting.')
+            } else if (firebaseCode === 'functions/invalid-argument') {
+              setToastMessage('File too large or unsupported format.')
+            } else {
+              setToastMessage('Failed to convert document.')
+            }
+            setPhase(null)
+            onPhaseChange?.(null)
+            return
+          }
+          if (isStaleRequest()) return
+        } else {
+          rawText = fileContent
+        }
 
-      let documentChunk: string
-      let sourceHash: string
-      let changed: boolean
-      try {
-        documentChunk = rawText
-          .replace(/^\uFEFF/, '')
-          .replace(/\0/g, '')
-          .normalize('NFC')
-          .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        sourceHash = await Crypto.digestStringAsync(
-          Crypto.CryptoDigestAlgorithm.SHA256,
+        setPhase('checking')
+        onPhaseChange?.('checking')
+
+        let documentChunk: string
+        let sourceHash: string
+        let changed: boolean
+        try {
+          documentChunk = rawText
+            .replace(/^﻿/, '')
+            .replace(/\0/g, '')
+            .normalize('NFC')
+            .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          sourceHash = await Crypto.digestStringAsync(
+            Crypto.CryptoDigestAlgorithm.SHA256,
+            documentChunk,
+          )
+          changed = await hasChanged(sourceRef, sourceHash)
+        } catch {
+          if (isStaleRequest()) return
+          setToastMessage('Failed to check for changes.')
+          setPhase(null)
+          onPhaseChange?.(null)
+          return
+        }
+        if (isStaleRequest()) return
+
+        if (!changed) {
+          setToastMessage(`"${sourceRef}" is already up to date.`)
+          setPhase(null)
+          onPhaseChange?.(null)
+          return
+        }
+
+        setPhase('forgetting')
+        onPhaseChange?.('forgetting')
+        try {
+          await forget({ sourceRef })
+        } catch {
+          if (isStaleRequest()) return
+          setToastMessage('Failed to remove previous version.')
+          setPhase(null)
+          onPhaseChange?.(null)
+          return
+        }
+        if (isStaleRequest()) return
+
+        setPhase(null)
+        onPhaseChange?.(null)
+
+        const ingestResult = await ingest({
+          sourceRef,
+          sourceHash,
           documentChunk,
+          promptOverride: ingestPromptOverride,
+        })
+        if (isStaleRequest()) return
+        setToastMessage(
+          `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
         )
-        changed = await hasChanged(sourceRef, sourceHash)
-      } catch {
-        if (isStaleRequest()) return
-        setToastMessage('Failed to check for changes.')
+      } catch (error) {
+        if (activeRequestIdRef.current === -1 || isStaleRequest()) return
         setPhase(null)
         onPhaseChange?.(null)
-        return
+        if (error instanceof WikiBusyError) {
+          setToastMessage('Memory is busy. Please try again shortly.')
+        } else if (
+          error instanceof SyntaxError ||
+          (error instanceof Error && error.message.includes('No JSON object/array found'))
+        ) {
+          setToastMessage('Failed to ingest document: AI response could not be parsed.')
+        } else {
+          setToastMessage('Failed to ingest document.')
+        }
       }
-      if (isStaleRequest()) return
+    },
+    [hasChanged, forget, ingest, onPhaseChange],
+  )
 
-      if (!changed) {
-        setToastMessage(`"${sourceRef}" is already up to date.`)
-        setPhase(null)
-        onPhaseChange?.(null)
-        return
-      }
+  const handlePlusPress = useCallback(async () => {
+    if (!characterId || !userId) return
 
-      setPhase('forgetting')
-      onPhaseChange?.('forgetting')
-      try {
-        await forget({ sourceRef })
-      } catch {
-        if (isStaleRequest()) return
-        setToastMessage('Failed to remove previous version.')
-        setPhase(null)
-        onPhaseChange?.(null)
-        return
-      }
-      if (isStaleRequest()) return
+    const pickerResult = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: false,
+      type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
+    })
+    if (pickerResult.canceled || !pickerResult.assets?.[0]) return
 
-      setPhase(null)
-      onPhaseChange?.(null)
+    const asset = pickerResult.assets[0]
+    const mimeType = resolveDocumentMimeType(asset.name ?? asset.uri, asset.mimeType)
+      ?.trim()
+      .toLowerCase()
 
-      const ingestResult = await ingest({
-        sourceRef,
-        sourceHash,
-        documentChunk,
-        promptOverride: ingestPromptOverride,
+    // Same branch as on native: a user who has been dropping screenshots in to
+    // build the character's memory must not find those screenshots silently
+    // becoming chat messages, so the question is asked. Non-image picks are
+    // untouched. Camera button is omitted on web — there is no useful web
+    // behaviour for launchCameraAsync, and the file picker already covers it.
+    if (mimeType?.startsWith('image/')) {
+      setPendingImageAsset({
+        uri: asset.uri,
+        width: (asset as { width?: number }).width ?? 0,
+        height: (asset as { height?: number }).height ?? 0,
+        asset,
       })
-      if (isStaleRequest()) return
-      setToastMessage(
-        `Document ingested (${ingestResult.chunks} chunk${ingestResult.chunks === 1 ? '' : 's'})`,
-      )
-    } catch (error) {
-      if (activeRequestIdRef.current === -1 || isStaleRequest()) return
-      setPhase(null)
-      onPhaseChange?.(null)
-      if (error instanceof WikiBusyError) {
-        setToastMessage('Memory is busy. Please try again shortly.')
-      } else if (
-        error instanceof SyntaxError ||
-        (error instanceof Error && error.message.includes('No JSON object/array found'))
-      ) {
-        setToastMessage('Failed to ingest document: AI response could not be parsed.')
-      } else {
-        setToastMessage('Failed to ingest document.')
-      }
+      return
     }
-  }, [characterId, userId, hasChanged, forget, ingest, onPhaseChange])
+
+    await ingestDocument(asset)
+  }, [characterId, userId, ingestDocument])
 
   const sendCurrentText = useCallback(() => {
     const trimmedText = text?.trim()
@@ -270,7 +314,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     <View style={styles.container}>
       <View style={styles.row}>
         {showPlusButton && (
-          (isIngesting || phase !== null) ? (
+          (isIngesting || isPreparing || phase !== null) ? (
             <View
               style={styles.spinnerContainer}
               accessible
@@ -281,14 +325,16 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
               <ActivityIndicator size={20} />
             </View>
           ) : (
-            <IconButton
-              icon="plus"
-              size={20}
-              onPress={handlePlusPress}
-              style={styles.plusButton}
-              accessibilityLabel="Add document to memory"
-              accessibilityHint="Opens file picker to add a document to this character's memory"
-            />
+            <View style={styles.attachmentRow}>
+              <IconButton
+                icon="plus"
+                size={20}
+                onPress={handlePlusPress}
+                style={styles.plusButton}
+                accessibilityLabel="Attach a photo or document"
+                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
+              />
+            </View>
           )
         )}
         <View style={[styles.composerWrapper, {
@@ -348,6 +394,45 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         </View>
       </View>
       <Portal>
+        <Dialog visible={pendingImageAsset !== null} onDismiss={() => setPendingImageAsset(null)}>
+          <Dialog.Title>Add this image</Dialog.Title>
+          {!canSendPhoto && (
+            <Dialog.Content>
+              <Text>Only cloud-synced characters can see photos in chat.</Text>
+            </Dialog.Content>
+          )}
+          <Dialog.Actions>
+            <Button
+              disabled={!canSendPhoto}
+              onPress={async () => {
+                const picked = pendingImageAsset
+                setPendingImageAsset(null)
+                if (!picked) return
+                try {
+                  const photo = await prepareFromAsset({
+                    uri: picked.uri,
+                    width: picked.width,
+                    height: picked.height,
+                  })
+                  onSendPhoto?.(photo, text ?? '')
+                } catch (err) {
+                  setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
+                }
+              }}
+            >
+              Send in chat
+            </Button>
+            <Button
+              onPress={async () => {
+                const picked = pendingImageAsset
+                setPendingImageAsset(null)
+                if (picked) await ingestDocument(picked.asset)
+              }}
+            >
+              Add to memory
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
         <Snackbar
           visible={toastMessage !== null}
           onDismiss={() => setToastMessage(null)}
@@ -370,6 +455,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   composerWrapper: {
     flex: 1,
