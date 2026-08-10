@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { ATTACHMENT_MIME_TYPES } from '../shared/cloudAgentAttachments'
 const { SITE_BASE } = require('../src/config/siteConfig')
 
 const rules = readFileSync(join(__dirname, '..', 'storage.rules'), 'utf8')
@@ -12,8 +13,13 @@ describe('storage.rules', () => {
     expect(rules).toContain('request.auth != null && request.auth.uid == uid')
   })
 
-  it('admits only webp and jpeg on write', () => {
-    expect(rules).toContain("request.resource.contentType in ['image/webp', 'image/jpeg']")
+  // The agent's allowlist and the Storage rules' allowlist must agree. A type
+  // the agent accepts but the rules reject produces a photo the model sees and
+  // the gallery then fails to store — quietly breaking the promise that a photo
+  // is kept regardless of how the reply goes.
+  it('admits exactly the mime types the agent accepts as attachments', () => {
+    const expected = `request.resource.contentType in [${ATTACHMENT_MIME_TYPES.map((t) => `'${t}'`).join(', ')}]`
+    expect(rules).toContain(expected)
   })
 
   it('caps uploads at 2 MB', () => {
