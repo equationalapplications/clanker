@@ -11,6 +11,15 @@ module.exports = {
   globals: {
     __DEV__: true,
   },
+  // NodeNext (`cloud-agent/tsconfig.json`) requires `.js` extensions on relative
+  // imports so emitted JS can resolve them at runtime. The shared/ files use
+  // those extensions to satisfy both NodeNext typechecking and cloud-agent's
+  // production runtime, but Jest's CJS resolver doesn't auto-strip `.js` to
+  // `.ts`. Stripping them here keeps the shared source NodeNext-correct while
+  // letting Jest pick up the `.ts` source files.
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   setupFiles: [
     '<rootDir>/jest.setup.early.js',
     '<rootDir>/jest.setup.js'
