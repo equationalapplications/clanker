@@ -660,3 +660,84 @@ describe('cloud routing', () => {
     expect(row.sync_state).toBe('pending_upload')
   })
 })
+
+describe('chat photos', () => {
+  it('does not become the active avatar', async () => {
+    await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///photo.jpg',
+      width: 1600,
+      height: 900,
+      source: 'chat',
+      messageId: 'msg-1',
+    })
+
+    expect(mockSetActive).not.toHaveBeenCalled()
+  })
+
+  it('still promotes an uploaded avatar to active', async () => {
+    await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///avatar.jpg',
+      width: 1024,
+      height: 1024,
+      source: 'uploaded',
+    })
+
+    expect(mockSetActive).toHaveBeenCalledWith('char-1', expect.any(String))
+  })
+
+  it('writes message_id onto the row', async () => {
+    const row = await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///photo.jpg',
+      width: 1600,
+      height: 900,
+      source: 'chat',
+      messageId: 'msg-1',
+    })
+
+    expect(row.message_id).toBe('msg-1')
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'chat', message_id: 'msg-1' }),
+    )
+  })
+
+  it('honours a caller-supplied imageId so the message can carry it beforehand', async () => {
+    const row = await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///photo.jpg',
+      width: 1600,
+      height: 900,
+      source: 'chat',
+      messageId: 'msg-1',
+      imageId: '22222222-2222-4222-8222-222222222222',
+    })
+
+    expect(row.id).toBe('22222222-2222-4222-8222-222222222222')
+  })
+
+  it('reuses caller-supplied variants instead of re-encoding', async () => {
+    const variants = {
+      master: { base64: 'MASTER', mimeType: 'image/webp' },
+      thumb: { base64: 'THUMB', mimeType: 'image/webp' },
+    }
+
+    await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///photo.jpg',
+      width: 1600,
+      height: 900,
+      source: 'chat',
+      messageId: 'msg-1',
+      variants,
+    })
+
+    expect(mockPrepareVariants).not.toHaveBeenCalled()
+  })
+})

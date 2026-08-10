@@ -22,7 +22,7 @@ import {
   type CharacterImageRow,
   type ImageSource,
 } from '~/database/characterImageDatabase'
-import { prepareImageVariants } from '~/services/imageVariants'
+import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
 import { deleteLocalImageBytes, writeLocalImageBytes } from '~/services/localImageStore'
 import { deleteStorageObject, uploadImageBytes } from '~/services/storageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
@@ -39,6 +39,23 @@ export interface SaveCharacterImageInput {
   width: number
   height: number
   source: ImageSource
+  /**
+   * The chat message this photo arrived on. Only meaningful for `source: 'chat'`.
+   * Not a foreign key in either database (see migration 24).
+   */
+  messageId?: string
+  /**
+   * Pre-minted row id. The chat path needs the id *before* the save so the
+   * message it writes can carry the render hint; everything else lets the
+   * service mint one. Must be a UUID — the sync callable validates it.
+   */
+  imageId?: string
+  /**
+   * Already-derived variants. The chat path encodes once to obtain the master
+   * base64 it sends to the model and hands the result here rather than paying
+   * for a second identical encode.
+   */
+  variants?: ImageVariants
 }
 
 /**
@@ -79,13 +96,15 @@ export async function saveCharacterImage(
     throw new Error(`Character not found: ${input.characterId}`)
   }
 
-  const variants = await prepareImageVariants({
-    uri: input.uri,
-    width: input.width,
-    height: input.height,
-  })
+  const variants =
+    input.variants ??
+    (await prepareImageVariants({
+      uri: input.uri,
+      width: input.width,
+      height: input.height,
+    }))
 
-  const imageId = generateSecureUuid()
+  const imageId = input.imageId ?? generateSecureUuid()
 
   const cloudId =
     character.save_to_cloud && character.cloud_id && UUID_REGEX.test(character.cloud_id)
@@ -139,7 +158,7 @@ export async function saveCharacterImage(
         sync_attempts: 0,
         created_at: Date.now(),
         deleted_at: null,
-        message_id: null,
+        message_id: input.messageId ?? null,
       })
       reserved = true
 
@@ -206,7 +225,7 @@ export async function saveCharacterImage(
       sync_attempts: 0,
       created_at: Date.now(),
       deleted_at: null,
-      message_id: null,
+      message_id: input.messageId ?? null,
     }
 
     // Commit point: the image is safely recorded once the row reaches a real
@@ -256,7 +275,13 @@ export async function saveCharacterImage(
   }
 
   try {
-    await setActiveImageId(input.characterId, imageId)
+    // A chat photo is a gallery row, not an avatar choice. Promoting it would
+    // silently change the character's face every time the user sends a picture;
+    // the user can still pick it later from the Avatar Picker, which is the
+    // whole reason it lands in the shared gallery.
+    if (input.source !== 'chat') {
+      await setActiveImageId(input.characterId, imageId)
+    }
     await enforceLocalCap(input.characterId)
   } catch (err) {
     // The row is already committed. Reporting a failure here would make callers
