@@ -8,6 +8,7 @@ import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-nativ
 import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
+import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -140,6 +141,14 @@ function ChatViewContent({
 
   const characterName = character.name || 'Character'
 
+  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
+  // tail fallback for devices whose one-shot migration has not run and for
+  // characters that predate `avatar_data` entirely — those legitimately have a
+  // working legacy URL and no gallery row. `CharacterAvatar` supplies the
+  // bundled default when both are null.
+  const resolvedAvatar = useResolvedImage(character.active_image_id, 'thumb')
+  const characterAvatar = resolvedAvatar ?? character.avatar ?? null
+
   React.useLayoutEffect(() => {
     const drawerNav = navigation.getParent?.()?.getParent?.()
     if (!drawerNav) return
@@ -154,7 +163,7 @@ function ChatViewContent({
               accessibilityLabel={`Edit ${characterName}`}
               accessibilityHint="Opens the character editor"
             >
-              <CharacterAvatar size={40} imageUrl={character.avatar} characterName={characterName} />
+              <CharacterAvatar size={40} imageUrl={characterAvatar} characterName={characterName} />
             </TouchableOpacity>
             <Text variant="titleMedium" numberOfLines={1}>
               {characterName}
@@ -176,7 +185,7 @@ function ChatViewContent({
       unsubscribeBlur?.()
       drawerNav?.setOptions({ headerTitle: 'Chat' })
     }
-  }, [character, characterName, handleEdit, navigation])
+  }, [character, characterAvatar, characterName, handleEdit, navigation])
 
   const handleSend = useCallback(
     async (newMessages: IMessage[] = []) => {
@@ -381,8 +390,6 @@ function ChatViewContent({
     },
     [],
   )
-
-  const characterAvatar = character.avatar || null
 
   return (
     <View style={styles.container}>
