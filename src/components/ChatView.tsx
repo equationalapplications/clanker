@@ -25,6 +25,8 @@ import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
+import ChatImageBubble from '~/components/ChatImageBubble'
+import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
 
 function getInitials(name?: string): string {
   return (
@@ -119,7 +121,7 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, escalationState, isGeneratingResponse, activeTool, streamingMessage } = useAIChat({
+  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -199,6 +201,17 @@ function ChatViewContent({
       }
     },
     [sendMessage, credits, creditsLoading],
+  )
+
+  const handleSendPhoto = useCallback(
+    async (photo: PendingChatPhoto, caption: string) => {
+      if (!creditsLoading && credits <= 0) {
+        router.push('/subscribe')
+        return
+      }
+      await sendPhoto(photo, caption)
+    },
+    [sendPhoto, credits, creditsLoading],
   )
 
   const renderBubble = useCallback(
@@ -329,9 +342,11 @@ function ChatViewContent({
         characterId={characterId}
         userId={currentUserId}
         onPhaseChange={setDocumentPhase}
+        canSendPhoto={canSendPhoto}
+        onSendPhoto={handleSendPhoto}
       />
     ),
-    [characterId, currentUserId],
+    [characterId, currentUserId, canSendPhoto, handleSendPhoto],
   )
 
   const renderCustomView = useCallback(
@@ -442,6 +457,7 @@ function ChatViewContent({
         user={chatUser}
         renderComposer={renderComposer}
         renderBubble={renderBubble}
+        renderMessageImage={(props) => <ChatImageBubble currentMessage={props.currentMessage} />}
         renderInputToolbar={renderInputToolbar}
         renderSend={renderSend}
         alwaysShowSend={isGeneratingResponse}
