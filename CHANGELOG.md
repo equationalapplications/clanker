@@ -1,3 +1,13 @@
+## [30.32.3](https://github.com/equationalapplications/clanker/compare/v30.32.2...v30.32.3) (2026-08-10)
+
+
+### Bug Fixes
+
+* **avatar:** fall through to the bundled default instead of initials ([696e699](https://github.com/equationalapplications/clanker/commit/696e699dc49378cf10e2ba2c7a6ca397e6b68157))
+* **avatar:** reload the character machine after changing the active image ([be47dc1](https://github.com/equationalapplications/clanker/commit/be47dc1c2e75fd89521b32bf190784996416ef7d))
+* **chat:** render avatars from active_image_id, not the legacy column ([c0b9788](https://github.com/equationalapplications/clanker/commit/c0b97880ccc1373664f40d65e77ca0b32d11591d))
+* **talk:** render avatars from active_image_id, not the legacy column ([b805b86](https://github.com/equationalapplications/clanker/commit/b805b8676dd6eb25291a41a55f02ff5aa85b66c2))
+
 ## [30.32.2](https://github.com/equationalapplications/clanker/compare/v30.32.1...v30.32.2) (2026-08-01)
 
 
