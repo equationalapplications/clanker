@@ -199,7 +199,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       return { usageSnapshot: null }
     },
-    [cloudAgentCharacterId, messages, character.id, userId, characterWiki, authService],
+    [cloudAgentCharacterId, messages, character, userId, characterWiki, authService],
   )
 
   // Mutation for sending message with AI response

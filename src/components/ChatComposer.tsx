@@ -71,10 +71,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [pendingImageAsset, setPendingImageAsset] = useState<
     { uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null
   >(null)
+  const [lastSeenPhotoError, setLastSeenPhotoError] = useState<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
-  const { prepareFromAsset, captureFromCamera, isPreparing, error: photoError, clearError } =
-    useChatPhotoUpload()
+  const { prepareFromAsset, captureFromCamera, isPreparing, error: photoError } = useChatPhotoUpload()
 
   const characterWiki = useCharacterWiki(characterId ?? '')
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
@@ -85,15 +85,19 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
-  useEffect(() => {
-    if (photoError) {
-      setToastMessage(photoError)
-      clearError()
-    }
-  }, [photoError, clearError])
-
   if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
     setInputHeight(MIN_INPUT_HEIGHT)
+  }
+
+  // Surface photo upload errors as a toast. Derived in render (not an effect)
+  // to satisfy react-hooks/set-state-in-effect — the hook re-uses the same
+  // error string for the next render after `setError(null)`, so tracking the
+  // last value we acted on is enough to fire the toast once per new error.
+  if (photoError !== lastSeenPhotoError) {
+    setLastSeenPhotoError(photoError)
+    if (photoError) {
+      setToastMessage(photoError)
+    }
   }
 
   const ingestDocument = useCallback(
