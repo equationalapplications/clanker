@@ -19,14 +19,13 @@ beforeEach(() => {
 it('builds a photo message from a picked asset without cropping it', async () => {
   const { result } = renderHook(() => useChatPhotoUpload())
 
-  let photo: Awaited<ReturnType<typeof result.current.prepareFromAsset>>
-  await act(async () => {
-    photo = await result.current.prepareFromAsset({
+  const photo = await act(async () =>
+    result.current.prepareFromAsset({
       uri: 'file:///landscape.jpg',
       width: 1600,
       height: 900,
-    })
-  })
+    }),
+  )
 
   expect(prepareImageVariants).toHaveBeenCalledWith({
     uri: 'file:///landscape.jpg',
