@@ -38,20 +38,35 @@ export class CharacterPromptBuilder {
     return lines.join('\n')
   }
 
+  /** What a photo turn with no caption reads as in the text-only transcript. */
+  static readonly PHOTO_TURN_PLACEHOLDER = '[sent a photo]'
+
   static buildContentHistory(
     messages: IMessage[],
     userId: string,
   ): { role: 'user' | 'model'; parts: { text: string }[] }[] {
     return [...messages]
-      .filter((msg) => msg.text.trim())
+      .map((msg) => ({
+        msg,
+        // A captionless photo is a real turn. Filtering it out would leave the
+        // model a transcript in which the user said nothing and the character
+        // then described something — incoherent. The bytes are deliberately not
+        // re-sent (see §8): the model can see that a photo was sent, not the photo.
+        text: msg.text.trim()
+          ? msg.text
+          : (msg as { imageId?: string }).imageId
+            ? CharacterPromptBuilder.PHOTO_TURN_PLACEHOLDER
+            : '',
+      }))
+      .filter((entry) => entry.text)
       .sort(
         (a, b) =>
-          new Date(a.createdAt as string | number | Date).getTime() -
-          new Date(b.createdAt as string | number | Date).getTime(),
+          new Date(a.msg.createdAt as string | number | Date).getTime() -
+          new Date(b.msg.createdAt as string | number | Date).getTime(),
       )
-      .map((msg) => ({
-        role: (msg.user._id === userId ? 'user' : 'model') as 'user' | 'model',
-        parts: [{ text: msg.text }],
+      .map((entry) => ({
+        role: (entry.msg.user._id === userId ? 'user' : 'model') as 'user' | 'model',
+        parts: [{ text: entry.text }],
       }))
   }
 }
