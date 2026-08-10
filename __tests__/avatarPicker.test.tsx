@@ -64,7 +64,8 @@ jest.mock('~/hooks/useAvatarUpload', () => ({
 jest.mock('~/hooks/useImageGeneration', () => ({
   useImageGeneration: () => ({ generateImage: mockGenerateImage, isGenerating: false, error: null, clearError: jest.fn() }),
 }))
-jest.mock('~/hooks/useMachines', () => ({ useCharacterMachine: () => ({ send: jest.fn() }) }))
+const mockSend = jest.fn()
+jest.mock('~/hooks/useMachines', () => ({ useCharacterMachine: () => ({ send: mockSend }) }))
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(() => ({ uid: 'user-1' })),
 }))
@@ -165,5 +166,32 @@ describe('AvatarPicker', () => {
     const tree = await renderPicker()
     const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
     expect(items[0].props.accessibilityLabel).not.toContain('not backed up')
+  })
+
+  // Talk and Chat read active_image_id off the character machine's cached
+  // array. Writing the pointer to SQLite without a LOAD leaves both screens
+  // showing the previous image until an unrelated reload happens to fire.
+  it('reloads the character machine after activating an image', async () => {
+    mockGetImages.mockResolvedValue(rows)
+    mockSetActive.mockResolvedValue(undefined)
+    const tree = await renderPicker()
+    const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
+
+    await act(async () => { await items[1].props.onPress() })
+
+    expect(mockSend).toHaveBeenCalledWith({ type: 'LOAD' })
+  })
+
+  it('reloads the character machine after deleting the active image', async () => {
+    mockGetImages.mockResolvedValue(rows)
+    mockDeleteImage.mockResolvedValue(undefined)
+    mockGetActive.mockResolvedValue({ id: 'img-1' })
+    const tree = await renderPicker({ activeImageId: 'img-2' })
+    const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
+
+    // rows[0] is img-2, the active one — deleting it repoints the character.
+    await act(async () => { await items[0].props.onLongPress() })
+
+    expect(mockSend).toHaveBeenCalledWith({ type: 'LOAD' })
   })
 })
