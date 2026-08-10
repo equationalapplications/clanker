@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useState } from 'react'
+import { Image } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
@@ -49,6 +50,33 @@ function newMessageId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 }
 
+/**
+ * Read the pixel dimensions of a URI when the caller can't supply them.
+ *
+ * `expo-image-picker` returns width/height on its assets, but `expo-document-picker`
+ * only does so when the source advertises them — many image MIME types come back
+ * as 0/0. Without dimensions, `prepareImageVariants` skips the resize stage and
+ * the master blows past `MAX_ATTACHMENT_BASE64_CHARS`. `Image.getSize` reads
+ * just the header; the underlying file is never decoded.
+ */
+function getDimensions(
+  uri: string,
+  hint: { width?: number; height?: number },
+): Promise<{ width: number; height: number }> {
+  const hintedWidth = hint.width ?? 0
+  const hintedHeight = hint.height ?? 0
+  if (hintedWidth > 0 && hintedHeight > 0) {
+    return Promise.resolve({ width: hintedWidth, height: hintedHeight })
+  }
+  return new Promise((resolve, reject) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      (err) => reject(err instanceof Error ? err : new Error(String(err))),
+    )
+  })
+}
+
 export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const [isPreparing, setIsPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,10 +87,17 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
     async (asset: { uri: string; width: number; height: number }): Promise<PendingChatPhoto> => {
       setIsPreparing(true)
       try {
+        let dimensions: { width: number; height: number }
+        try {
+          dimensions = await getDimensions(asset.uri, asset)
+        } catch {
+          throw new Error('Could not read that image. Try a different file.')
+        }
+
         const variants = await prepareImageVariants({
           uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
+          width: dimensions.width,
+          height: dimensions.height,
         })
 
         if (!isAttachmentMimeType(variants.master.mimeType)) {
@@ -78,8 +113,8 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
           imageId: generateSecureUuid(),
           messageId: newMessageId(),
           uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
+          width: dimensions.width,
+          height: dimensions.height,
           variants,
           attachment: { mimeType: variants.master.mimeType, data: variants.master.base64 },
         }

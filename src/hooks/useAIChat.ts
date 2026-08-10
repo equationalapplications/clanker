@@ -26,7 +26,6 @@ import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
 import { saveCharacterImage } from '~/services/characterImageService'
 import { findCharacterImageByMessageId } from '~/database/characterImageDatabase'
-import { getImageAttachment } from '~/services/imageModelBytes'
 
 interface UseAIChatProps {
   characterId: string
@@ -449,7 +448,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       setError(null)
       setIsSendingMessage(true)
       try {
-        const message: IMessage & { imageId: string } = {
+        const message: IMessage & { imageId: string; image: string } = {
           _id: photo.messageId,
           text: caption.trim(),
           createdAt: new Date(),
@@ -461,6 +460,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           // whose message synced first show a placeholder rather than a bare
           // text bubble that silently gains an image later.
           imageId: photo.imageId,
+          // gifted-chat's `Bubble` gates `renderMessageImage` on `image` being
+          // truthy; without this the photo never reaches the bubble at all.
+          // `ChatImageBubble` reads `imageId`, not `image`, so the value is a
+          // sentinel only and is never dereferenced as a URI.
+          image: photo.imageId,
         }
 
         // Bubble first, so it is visible while the model is thinking.
@@ -468,15 +472,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
         // A retried vision turn finds the row it already wrote. Writing a second
         // one would spend two of the 100 FIFO slots on one photo.
-        const existing = await findCharacterImageByMessageId(photo.messageId)
+        const existing = await findCharacterImageByMessageId(photo.messageId, character.id, userId)
         let attachment = photo.attachment
 
-        if (existing) {
-          // On a cold retry the in-memory base64 is gone (a cloud row's local
-          // bytes are deleted after upload), so re-obtain it through the resolver.
-          const reread = await getImageAttachment(existing.id)
-          if (reread) attachment = reread
-        } else {
+        if (!existing) {
           // Committed before the model call and kept regardless of the outcome:
           // a user who framed and sent a photo should not have to re-pick it
           // because the network dropped.
@@ -492,6 +491,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
             variants: photo.variants,
           })
         }
+        // Cold retry path: PendingChatPhoto is in-memory only, so a true cold
+        // retry needs the bytes re-obtained from the stored row. There is no
+        // retry queue yet, so this only fires if the caller already had an
+        // unresolved attachment (e.g. the resolver failed on first send) — in
+        // which case we surface the error rather than silently re-sending the
+        // stale bytes. When a retry queue lands, branch here on its presence.
 
         await runCloudAgentTurn(message, [attachment])
       } catch (err) {
@@ -514,14 +519,22 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     ],
   )
 
+  // Photo vision turns run through `sendPhoto` rather than the text mutation, so
+  // the text mutation's `isPending` does not reflect them. Without this OR,
+  // ChatView shows no spinner, leaves the Send button enabled, and never
+  // displays the "Thinking…" status while the agent is reasoning over the photo.
+  const isPhotoPending = isSendingMessage
+  const isGeneratingResponse = aiMessageMutation.isPending || isPhotoPending
+  const escalationState = isGeneratingResponse ? edgeAgent.escalationState : 'idle'
+
   return {
     messages,
     sendMessage,
     sendPhoto,
     canSendPhoto: canUseCloudAgent,
-    isGeneratingResponse: aiMessageMutation.isPending,
+    isGeneratingResponse,
     error,
-    escalationState: aiMessageMutation.isPending ? edgeAgent.escalationState : 'idle',
+    escalationState,
     activeTool,
     streamingMessage,
   }

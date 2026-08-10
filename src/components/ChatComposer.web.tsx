@@ -80,7 +80,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const [pendingImageAsset, setPendingImageAsset] = useState<
     { uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null
   >(null)
-  const [lastSeenPhotoError, setLastSeenPhotoError] = useState<string | null>(null)
+  const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
   const { prepareFromAsset, isPreparing, error: photoError } = useChatPhotoUpload()
@@ -94,20 +94,30 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
-  if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
-    setInputHeight(MIN_INPUT_HEIGHT)
-  }
+  // Collapse the composer height back to its idle size once the user empties
+  // the input. Done in an effect rather than the render body because the
+  // render-body form schedules a state update during render, which React's
+  // concurrent renderer does not support.
+  useEffect(() => {
+    if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: collapse height when text empties
+      setInputHeight(MIN_INPUT_HEIGHT)
+    }
+  }, [text, inputHeight])
 
-  // Surface photo upload errors as a toast. Derived in render (not an effect)
-  // to satisfy react-hooks/set-state-in-effect — the hook re-uses the same
-  // error string for the next render after `setError(null)`, so tracking the
-  // last value we acted on is enough to fire the toast once per new error.
-  if (photoError !== lastSeenPhotoError) {
-    setLastSeenPhotoError(photoError)
+  // Surface photo upload errors as a toast. The hook re-uses the same error
+  // string for the next render after `setError(null)`, so tracking the last
+  // value we acted on (via a ref, not state) is enough to fire the toast once
+  // per new error without re-triggering on a render that just re-read the same
+  // string.
+  useEffect(() => {
+    if (photoError === lastSeenPhotoErrorRef.current) return
+    lastSeenPhotoErrorRef.current = photoError
     if (photoError) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fire toast once per new photoError
       setToastMessage(photoError)
     }
-  }
+  }, [photoError])
 
   const ingestDocument = useCallback(
     async (asset: DocumentPicker.DocumentPickerAsset) => {
@@ -420,6 +430,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
                     height: picked.height,
                   })
                   onSendPhoto?.(photo, text ?? '')
+                  // See ChatComposer.tsx: clear the caption so it cannot be
+                  // re-sent as a text turn. `handleSend` ignores empties.
+                  onSend?.({ text: '' } as Partial<TMessage>, true)
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }

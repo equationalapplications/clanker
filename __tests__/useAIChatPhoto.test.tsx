@@ -7,7 +7,6 @@ import { renderHook, act } from '@testing-library/react-native'
 
 const mockSaveCharacterImage = jest.fn()
 const mockFindCharacterImageByMessageId = jest.fn()
-const mockGetImageAttachment = jest.fn()
 const mockPersistUserMessage = jest.fn().mockResolvedValue(undefined)
 const mockCallCloudAgent = jest.fn()
 const mockReportError = jest.fn()
@@ -132,7 +131,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
 }))
 
 jest.mock('~/services/imageModelBytes', () => ({
-  getImageAttachment: (...args: unknown[]) => mockGetImageAttachment(...args),
+  getImageAttachment: jest.fn(),
 }))
 
 jest.mock('~/auth/devSandboxFlag', () => ({
@@ -204,7 +203,6 @@ describe('useAIChat photo path', () => {
     mockCallCloudAgent.mockResolvedValue({ reply: 'I see a photo.', toolCalls: [] })
     mockListTasks.mockResolvedValue([])
     mockFindCharacterImageByMessageId.mockResolvedValue(null)
-    mockGetImageAttachment.mockResolvedValue(null)
     mockSaveCharacterImage.mockResolvedValue({
       id: PHOTO.imageId,
       character_id: 'char-1',
@@ -241,7 +239,15 @@ describe('useAIChat photo path', () => {
     expect(mockPersistUserMessage).toHaveBeenCalledWith(
       'char-1',
       'user-1',
-      expect.objectContaining({ _id: 'msg_1_abc', text: 'what is this?', imageId: PHOTO.imageId }),
+      expect.objectContaining({
+        _id: 'msg_1_abc',
+        text: 'what is this?',
+        imageId: PHOTO.imageId,
+        // gifted-chat's Bubble gates renderMessageImage on `image`; without
+        // this truthy value, ChatImageBubble never mounts and the photo never
+        // renders at runtime.
+        image: PHOTO.imageId,
+      }),
     )
     // The base64 must never reach message_data — it would double the row size and
     // put a second copy of the photo in the message store.
@@ -274,12 +280,16 @@ describe('useAIChat photo path', () => {
     expect(result.current.error).toBeTruthy()
   })
 
-  it('reuses the existing row on retry rather than consuming a second cap slot', async () => {
+  it('skips the saveCharacterImage write when an image row already exists for the message', async () => {
+    // A retry of a chat photo finds the row it already wrote on the first
+    // attempt. Writing it again would consume two of the 100 FIFO cap slots
+    // for one photo, so the resolver path is the only thing that runs.
     mockFindCharacterImageByMessageId.mockResolvedValue({
       id: PHOTO.imageId,
+      character_id: 'char-1',
+      user_id: 'user-1',
       mime_type: 'image/webp',
     })
-    mockGetImageAttachment.mockResolvedValue({ mimeType: 'image/webp', data: 'REREAD' })
     const { result } = renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
@@ -288,8 +298,24 @@ describe('useAIChat photo path', () => {
 
     expect(mockSaveCharacterImage).not.toHaveBeenCalled()
     expect(mockCallCloudAgent).toHaveBeenCalledWith(
-      expect.objectContaining({ attachments: [{ mimeType: 'image/webp', data: 'REREAD' }] }),
+      expect.objectContaining({ attachments: [PHOTO.attachment] }),
       expect.anything(),
+    )
+  })
+
+  it('scopes the message_id lookup to the same character and user', async () => {
+    // Defence-in-depth: a row with a colliding message_id from another
+    // character or user must not be reused as this turn's photo.
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, 'what is this?')
+    })
+
+    expect(mockFindCharacterImageByMessageId).toHaveBeenCalledWith(
+      PHOTO.messageId,
+      'char-1',
+      'user-1',
     )
   })
 

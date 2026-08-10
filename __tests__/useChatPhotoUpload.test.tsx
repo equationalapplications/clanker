@@ -1,10 +1,17 @@
 import { renderHook, act } from '@testing-library/react-native'
+import { Image } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useChatPhotoUpload } from '~/hooks/useChatPhotoUpload'
 import { prepareImageVariants } from '~/services/imageVariants'
 
 jest.mock('expo-image-picker')
 jest.mock('~/services/imageVariants')
+
+// Image.getSize pulls from a native module; stub it directly rather than
+// re-importing react-native (which forces TurboModuleRegistry to load the
+// whole RN runtime, including modules that aren't wired up in Jest).
+const mockGetSize = jest.fn()
+;(Image as unknown as { getSize: typeof mockGetSize }).getSize = mockGetSize
 
 const VARIANTS = {
   master: { base64: 'MASTER', mimeType: 'image/webp' as const },
@@ -81,4 +88,48 @@ it('returns null when the camera is cancelled', async () => {
 
   expect(photo).toBeNull()
   expect(result.current.error).toBeNull()
+})
+
+it('resolves dimensions via Image.getSize when the caller supplies 0/unknown', async () => {
+  // DocumentPicker can return assets with no dimensions; without resolving
+  // them, prepareImageVariants skips its resize stage and the master can blow
+  // past MAX_ATTACHMENT_BASE64_CHARS. Image.getSize reads just the header.
+  mockGetSize.mockImplementation(
+    (_uri: string, success: (w: number, h: number) => void) => success(2048, 1536),
+  )
+
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  const photo = await act(async () =>
+    result.current.prepareFromAsset({ uri: 'file:///no-dims.jpg', width: 0, height: 0 }),
+  )
+
+  expect(mockGetSize).toHaveBeenCalledWith(
+    'file:///no-dims.jpg',
+    expect.any(Function),
+    expect.any(Function),
+  )
+  expect(prepareImageVariants).toHaveBeenCalledWith({
+    uri: 'file:///no-dims.jpg',
+    width: 2048,
+    height: 1536,
+  })
+  expect(photo.width).toBe(2048)
+  expect(photo.height).toBe(1536)
+})
+
+it('surfaces an unreadable image as a clear error rather than silently using 0 dimensions', async () => {
+  mockGetSize.mockImplementation(
+    (_uri: string, _success: unknown, failure: (err: Error) => void) =>
+      failure(new Error('decode failed')),
+  )
+
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  await act(async () => {
+    await expect(
+      result.current.prepareFromAsset({ uri: 'file:///corrupt.jpg', width: 0, height: 0 }),
+    ).rejects.toThrow(/could not read/i)
+  })
+  expect(prepareImageVariants).not.toHaveBeenCalled()
 })

@@ -196,8 +196,11 @@ function ChatViewContent({
         return
       }
 
-      if (newMessages.length > 0) {
-        await sendMessage(newMessages[0])
+      // Photo sends reuse `onSend` with an empty message purely to trigger
+      // gifted-chat's input reset — that path must not produce a text bubble.
+      const first = newMessages[0]
+      if (newMessages.length > 0 && first && first.text.trim().length > 0) {
+        await sendMessage(first)
       }
     },
     [sendMessage, credits, creditsLoading],

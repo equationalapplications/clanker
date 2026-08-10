@@ -11,11 +11,21 @@
  *
  * Returns null on every failure. A vision retry that cannot find its bytes must
  * degrade to a plain text turn's error handling, not crash the send.
+ *
+ * The encoded length is re-checked against `MAX_ATTACHMENT_BASE64_CHARS` here
+ * even though the picker path enforces it at upload time: a row may have
+ * predated the cap, or a future cap change could leave legacy rows over the
+ * new bound. Failing fast at the resolver means the server never sees a doomed
+ * payload.
  */
 
 import { getCharacterImageById } from '~/database/characterImageDatabase'
 import { resolveImageUri } from '~/services/localImageStore'
-import { isAttachmentMimeType, type AttachmentMimeType } from '../../shared/cloudAgentAttachments'
+import {
+  isAttachmentMimeType,
+  MAX_ATTACHMENT_BASE64_CHARS,
+  type AttachmentMimeType,
+} from '../../shared/cloudAgentAttachments'
 
 export interface ImageAttachment {
   mimeType: AttachmentMimeType
@@ -58,6 +68,13 @@ export async function getImageAttachment(imageId: string): Promise<ImageAttachme
 
     const data = await base64FromUri(uri)
     if (!data) return null
+
+    // Same bound the picker enforces, applied here so a legacy/over-cap row
+    // returns null instead of producing a 400 mid-send. See module docstring.
+    if (data.length > MAX_ATTACHMENT_BASE64_CHARS) {
+      console.warn('Image exceeds attachment cap, refusing to retry:', imageId, data.length)
+      return null
+    }
 
     return { mimeType: row.mime_type, data }
   } catch (err) {
