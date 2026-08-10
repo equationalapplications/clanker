@@ -32,6 +32,7 @@ describe('CharacterAvatar bundled-default contract', () => {
     render(<CharacterAvatar imageUrl={null} characterName="Test" />)
     expect(capturedImageProps).toHaveLength(1)
     expect(capturedImageProps[0].source).toBe(DEFAULT_AVATAR)
+    expect(capturedImageProps[0].accessibilityLabel).toBe('Test avatar')
   })
 
   it('renders the bundled default when imageUrl is undefined', () => {
@@ -44,6 +45,7 @@ describe('CharacterAvatar bundled-default contract', () => {
     render(<CharacterAvatar imageUrl="https://example.com/test.png" characterName="Test" />)
     expect(capturedImageProps).toHaveLength(1)
     expect(capturedImageProps[0].source).toEqual({ uri: 'https://example.com/test.png' })
+    expect(capturedImageProps[0].accessibilityRole).toBe('image')
   })
 
   // Guards the deliberate removal of the initials branch in phase 1 §4.1.

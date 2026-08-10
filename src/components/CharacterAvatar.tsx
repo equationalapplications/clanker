@@ -75,7 +75,7 @@ export default function CharacterAvatar({
       resizeMode="cover"
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Character avatar"
+      accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
     />
   )
 }

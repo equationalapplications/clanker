@@ -77,7 +77,7 @@ describe('CharacterAvatar bundled-default contract', () => {
   })
 
   it('renders the bundled default when imageUrl is null', () => {
-    render(<CharacterAvatar characterName="Test" />)
+    render(<CharacterAvatar imageUrl={null} characterName="Test" />)
     expect(capturedImageProps).toHaveLength(1)
     expect(capturedImageProps[0].source).toBe(DEFAULT_AVATAR)
   })
@@ -98,7 +98,7 @@ describe('CharacterAvatar bundled-default contract', () => {
   // An avatar-less character with a name used to render initials above the
   // bundled default; the fallback chain must terminate at the bundled default.
   it('does not render initials when characterName is set but imageUrl is null', () => {
-    render(<CharacterAvatar characterName="Test" />)
+    render(<CharacterAvatar imageUrl={null} characterName="Test" />)
     expect(capturedImageProps).toHaveLength(1)
     expect(capturedTextProps).toHaveLength(0)
   })

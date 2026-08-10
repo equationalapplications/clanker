@@ -43,7 +43,7 @@ describe('CharacterAvatar accessibility', () => {
     const avatar = tree.root.findByType('AvatarImage')
     expect(avatar.props.source).toBe('DEFAULT_AVATAR_ASSET')
     expect(avatar.props.accessible).toBe(true)
-    expect(avatar.props.accessibilityLabel).toBe('Character avatar')
+    expect(avatar.props.accessibilityLabel).toBe('Frodo Baggins avatar')
   })
 
   it('bundled default fallback has accessible=true and "Character avatar" label', () => {
