@@ -294,6 +294,51 @@ describe('useAIChat photo path', () => {
     expect(mockSaveCharacterImage).toHaveBeenCalledTimes(1)
   })
 
+  it('drops a text send that starts while a photo send is still in flight', async () => {
+    // The mutex is shared across `sendMessage` and `sendPhoto` — a photo turn
+    // in flight must block a text turn from the same tick, not just another
+    // photo turn.
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    mockCallCloudAgent.mockImplementationOnce(async () => {
+      await result.current.sendMessage({
+        _id: 'msg_text',
+        text: 'hello',
+        createdAt: new Date(),
+        user: { _id: 'user-1' },
+      })
+      return { reply: 'I see a photo.', toolCalls: [] }
+    })
+
+    await act(async () => {
+      await result.current.sendPhoto(PHOTO, 'what is this?')
+    })
+
+    expect(mockCallCloudAgent).toHaveBeenCalledTimes(1)
+    expect(mockPersistUserMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a photo send that starts while a text send is still in flight', async () => {
+    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+
+    mockCallCloudAgent.mockImplementationOnce(async () => {
+      await result.current.sendPhoto(PHOTO, 'and this?')
+      return { reply: 'Hi!', toolCalls: [] }
+    })
+
+    await act(async () => {
+      await result.current.sendMessage({
+        _id: 'msg_text',
+        text: 'hello',
+        createdAt: new Date(),
+        user: { _id: 'user-1' },
+      })
+    })
+
+    expect(mockCallCloudAgent).toHaveBeenCalledTimes(1)
+    expect(mockSaveCharacterImage).not.toHaveBeenCalled()
+  })
+
   it('accepts a new photo once the previous send has settled', async () => {
     // The guard must release in `finally`, or one failed turn wedges the photo
     // path for the rest of the session.

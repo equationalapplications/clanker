@@ -55,11 +55,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const authService = useAuthMachine()
   const [error, setError] = useState<string | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
-  // Mutex for `sendPhoto`. Deliberately a ref and not `isSendingMessage`: two
-  // taps in the same tick both close over `isSendingMessage === false`, because
-  // React has neither flushed the state update nor re-rendered the composer
-  // with its disabled controls yet. See the guard in `sendPhoto`.
-  const sendPhotoInFlightRef = useRef(false)
+  // Mutex shared by `sendMessage` and `sendPhoto`. Deliberately a ref and not
+  // `isSendingMessage`: two taps in the same tick (text-vs-text, photo-vs-photo,
+  // or one of each) all close over `isSendingMessage === false`, because React
+  // has neither flushed the state update nor re-rendered the composer with its
+  // disabled controls yet. Without a single synchronous gate covering both
+  // paths, two concurrent turns would share `streamingMessage` and
+  // `activeTool`, and whichever settled first would clear `isSendingMessage` —
+  // marking the hook idle while the other was still streaming.
+  const turnInFlightRef = useRef(false)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [streamingMessage, setStreamingMessage] = useState<IMessage | null>(null)
   const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
@@ -453,7 +457,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   const sendMessage = useCallback(
     async (message: IMessage) => {
-      await aiMessageMutation.mutateAsync(message)
+      // Second line of defence behind the composer's disabled controls — see
+      // `turnInFlightRef` above.
+      if (turnInFlightRef.current) return
+      turnInFlightRef.current = true
+      try {
+        await aiMessageMutation.mutateAsync(message)
+      } finally {
+        turnInFlightRef.current = false
+      }
     },
     [aiMessageMutation],
   )
@@ -466,13 +478,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         return
       }
 
-      // Second line of defence behind the composer's disabled controls, which
-      // only take effect on the next render. Two concurrent turns would share
-      // `streamingMessage` and `activeTool`, and whichever settled first would
-      // clear `isSendingMessage` — marking the hook idle while the other was
-      // still streaming.
-      if (sendPhotoInFlightRef.current) return
-      sendPhotoInFlightRef.current = true
+      // Second line of defence behind the composer's disabled controls — see
+      // `turnInFlightRef` above.
+      if (turnInFlightRef.current) return
+      turnInFlightRef.current = true
 
       setError(null)
       setIsSendingMessage(true)
@@ -533,7 +542,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         reportError(err, `chat:${character.id}:sendPhoto`)
         setError(err instanceof Error ? err.message : 'Failed to send photo')
       } finally {
-        sendPhotoInFlightRef.current = false
+        turnInFlightRef.current = false
         setIsSendingMessage(false)
         setStreamingMessage(null)
         void queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })
