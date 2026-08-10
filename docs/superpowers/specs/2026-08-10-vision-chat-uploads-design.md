@@ -43,6 +43,7 @@ migration, and — later — the Vision upload path." This is that later.
 | Entry point | The existing `+` picker, branched on file type | Image types are already accepted there; adding a second icon splits one "attach something" affordance in two |
 | Camera | Included | `expo-image-picker` is already a dependency via `useAvatarUpload` |
 | Save on failure | Image is kept regardless of reply outcome | Phase 1 §11's governing rule, applied to user effort rather than credits |
+| Wire contract | Single definition in `shared/cloudAgentProtocol.ts` | The WS and HTTP handlers already duplicate their schemas; extending that duplication makes an intermittent, network-dependent bug possible. See §6.1 |
 
 ---
 
@@ -190,43 +191,82 @@ memory-ingestion body stays where it is.
 Steps 4 and 5 are independent: the image is committed whether or not step 5
 succeeds (§7).
 
-### 6.1 Both transports must carry the attachment
+### 6.1 One wire contract, two transports
 
 `callCloudAgent` tries WebSocket first and falls back to HTTP after a
 transport-level failure, with a 60-second cooldown
-(`cloudAgentService.ts:284-304`). The two are served by **separate handlers with
-separate Zod schemas that each build `newMessage` independently**:
+(`cloudAgentService.ts:284-304`). HTTP is a **permanent fallback for WS-hostile
+networks**, not scaffolding awaiting removal — all three WS endpoints
+(`/agent/stream`, `/agent/live`, `/agent/browser`) are live, and real users land
+on the HTTP path whenever a proxy or carrier blocks the upgrade.
+
+Today the two are served by separate handlers that **duplicate their request
+schema and their `newMessage` construction**:
 
 | Path | Schema | `newMessage` construction |
 |---|---|---|
-| HTTP | `cloud-agent/src/index.ts:211` | `:113` |
-| WS | `cloud-agent/src/handlers/wsAgentHandler.ts:30` | `:205` |
+| HTTP | `cloud-agent/src/index.ts:211` (with `contentSchema` at `:39-42`) | `:113` |
+| WS | `cloud-agent/src/handlers/wsAgentHandler.ts:30` (with `contentSchema` at `:23-27`) | `:205` |
 
-Adding the field to one and not the other produces a feature that works or
-silently drops the image **depending on network conditions at that moment** —
-close to the worst possible failure mode, because it is intermittent, invisible,
-and unreproducible on a healthy connection. Both are changed together, and §10
-tests both.
+`contentSchema` is already copy-pasted verbatim between the two, and the
+`agentRunSchema` fields differ only incidentally. Adding `attachments` to one and
+not the other would produce a feature that works or silently drops the image
+**depending on network conditions at that moment** — intermittent, invisible, and
+unreproducible on a healthy connection.
 
-`CloudAgentPayload` gains:
+**"Change both files" is rejected as the mitigation.** A convention that must be
+remembered on every future edit is the weakest available control, and this
+duplication has already survived long enough to be copied once. The contract is
+made structurally single instead.
 
-```ts
-attachments?: { mimeType: string; data: string }[]
-```
+**`shared/cloudAgentProtocol.ts`** becomes the one definition of the agent-run
+wire format: `contentSchema`, `agentRunSchema`, `attachmentSchema`, the
+`ATTACHMENT_MIME_TYPES` allowlist, and `MAX_ATTACHMENT_BASE64_CHARS`. Both
+handlers import it; neither declares a schema of its own. This is a proven path —
+`cloud-agent` already imports Zod schemas from `shared/`
+(`wsBrowserAgentHandler.ts:9`, `schedulerTriggerHandler.ts:8`) and its tsconfig
+carries `"rootDir": ".."` with `"include": ["src", "../shared"]`.
 
-Both schemas validate it identically: at most **one** attachment in Phase 2,
-`mimeType` restricted to `image/webp` and `image/jpeg` (the two types Phase 1
-§4's Storage rules admit — keeping the sets aligned means a photo the model
-accepts is always a photo the gallery can store), and `data` capped at
-**1,400,000 base64 characters** (≈1 MB decoded), which is generous against the
-~200 KB a 1024px WebP actually produces while leaving headroom under §6.3's 2 MB
-body limit for history. Both `newMessage` constructions become:
+**`cloud-agent/src/agentMessage.ts`** exports `buildNewMessage(message,
+attachments)`, called by both handlers, so the two transports cannot feed
+structurally different prompts to the model:
 
 ```ts
 { role: 'user', parts: [...attachments.map((a) => ({ inlineData: a })), { text: message }] }
 ```
 
 Attachments precede the text so the question reads as being *about* the image.
+
+`CloudAgentPayload` gains `attachments?: { mimeType: string; data: string }[]`.
+The schema admits at most **one** attachment in Phase 2, restricts `mimeType` to
+`image/webp` and `image/jpeg` (the two types Phase 1 §4's Storage rules admit —
+aligned sets mean a photo the model accepts is always a photo the gallery can
+store), and caps `data` at **1,400,000 base64 characters** (≈1 MB decoded):
+generous against the ~200 KB a 1024px WebP produces, with headroom under §6.3's
+2 MB body limit for history.
+
+#### Client-side reuse is a second, gated step
+
+Sharing the same module with the *client* would also give pre-flight validation
+before a wasted round-trip. That is desirable but **not proven in this repo**, and
+it is not on the critical path:
+
+- No `shared/` module is currently imported from both sides. The directory is
+  partitioned in practice — `dsl-*`, `constants`, and `hostPolicy` are
+  cloud-agent-only; `localCloudAgent` is app-only and is *explicitly excluded* by
+  `cloud-agent/tsconfig.json`.
+- `cloud-agent` is `moduleResolution: nodenext`, which **requires** a `.js`
+  specifier on relative imports. There are **zero** `.js`-suffixed relative
+  imports anywhere in `src/`, so Metro's handling of `'../../shared/x.js'` →
+  `shared/x.ts` is untested here.
+
+`shared/` *is* in Metro's `watchFolders` and the root tsconfig compiles it, so
+this will probably work. **Verify it with a throwaway import before relying on
+it.** If it resolves, the client imports `ATTACHMENT_MIME_TYPES` and
+`MAX_ATTACHMENT_BASE64_CHARS` directly. If it does not, the client keeps its own
+copy of those two constants and a test asserts equality against the shared
+module — the §9 pattern, applied one boundary further out. Either way the
+server-side contract is already single, which is where the correctness risk lives.
 
 ### 6.2 Captionless photos
 
@@ -238,6 +278,13 @@ The rule becomes: **text may be empty if and only if at least one attachment is
 present.** Empty text with no attachment stays rejected. This is a cross-field
 refinement, not a relaxation of the string rule — dropping `min(1)` outright
 would let a genuinely empty turn through and spend a credit on nothing.
+
+The refinement lives on `agentRunSchema` in `shared/cloudAgentProtocol.ts`
+(§6.1), so it is expressed once. A cross-field rule is exactly the kind that
+diverges when copied: the two halves look independently reasonable, and a
+handler that kept `min(1)` while gaining `attachments` rejects captionless
+photos on that transport alone — the intermittent failure §6.1 exists to make
+impossible.
 
 ### 6.3 Payload budget
 
@@ -335,14 +382,16 @@ is the deliberate boundary §11 lifts.
 Everything the cloud agent accepts is client-supplied and validated on both
 transports:
 
-- **`mimeType`** is restricted to `image/webp` and `image/jpeg`. This is not
-  only about what the model will accept: the same value is persisted on the
-  image row and echoed to every device, where it drives data-URI construction on
-  web. Phase 1 §13.3 already treats an unvalidated MIME type as a stored-XSS
-  primitive, and the same reasoning applies here.
-- **Attachment count** is capped at 1, and `data` length at 1,400,000 base64
-  characters (§6.1), so an oversized request fails Zod validation with a
-  readable error rather than arriving as a 413 the client cannot interpret.
+- **`mimeType`** is restricted to `image/webp` and `image/jpeg` via
+  `ATTACHMENT_MIME_TYPES`. This is not only about what the model will accept:
+  the same value is persisted on the image row and echoed to every device, where
+  it drives data-URI construction on web. Phase 1 §13.3 already treats an
+  unvalidated MIME type as a stored-XSS primitive, and the same reasoning applies
+  here.
+- **Attachment count** is capped at 1, and `data` length at
+  `MAX_ATTACHMENT_BASE64_CHARS` (1,400,000; §6.1), so an oversized request fails
+  Zod validation with a readable error rather than arriving as a 413 the client
+  cannot interpret.
 - **Base64 payloads are never logged**, including in error paths — a vision
   request body is user photo content.
 - Storage writes go through `saveCharacterImage` unchanged, so Phase 1's
@@ -350,6 +399,19 @@ transports:
   without modification. **No `storage.rules` change is needed or wanted** —
   Phase 1 §20.2 records that the rules file has no emulator coverage and should
   not be edited without cause.
+
+**The one boundary code cannot cross is `storage.rules`**, a Firebase rules file
+that cannot import TypeScript. Its content-type allowlist and the
+`ATTACHMENT_MIME_TYPES` constant must agree — a type the agent accepts but the
+rules reject produces a photo the model sees and the gallery then fails to store,
+which §7's "save regardless" promise would quietly break.
+
+Phase 1 set the pattern for exactly this: `__tests__/storageRules.test.ts` asserts
+`cors.json`'s origin against `SITE_BASE` so the two cannot drift. The same test
+file gains an assertion binding the rules file's content-type strings to
+`ATTACHMENT_MIME_TYPES`. Where a single source of truth is impossible, a test
+that fails on divergence is the next-best control — and unlike a comment saying
+"keep in sync", it runs.
 
 ---
 
@@ -359,9 +421,11 @@ transports:
 |---|---|
 | Variants | `source:'chat'` preserves aspect ratio; `source:'uploaded'` still squares; neither upscales below 1024 |
 | Picker branch | Image pick prompts send-vs-memory; `.txt`/`.pdf`/`.docx` pick does **not** prompt and still ingests; camera entry goes straight to chat; denied camera permission surfaces in the toast |
-| Transport parity | `inlineData` present in `newMessage.parts` on the **HTTP** path and on the **WS** path; a fixture asserted against both schemas |
-| Captionless | Empty text with an attachment is accepted on both paths; empty text with no attachment is still rejected on both |
-| Validation | `mimeType` outside the allowed pair rejected; two attachments rejected; oversized decoded payload rejected |
+| Transport parity | Both handlers import `agentRunSchema` from `shared/` and call `buildNewMessage` — asserted structurally (no locally-declared schema, no inline `parts` literal), not by duplicating payload cases per transport |
+| Wire contract | `buildNewMessage` puts `inlineData` parts before the text part; omits the text part rules per §6.2; one table-driven suite over `agentRunSchema` |
+| Captionless | Empty text with an attachment accepted; empty text with no attachment rejected — once, against the shared schema |
+| Validation | `mimeType` outside `ATTACHMENT_MIME_TYPES` rejected; two attachments rejected; `data` over `MAX_ATTACHMENT_BASE64_CHARS` rejected |
+| Cross-boundary | `storage.rules` content types match `ATTACHMENT_MIME_TYPES` (extends `__tests__/storageRules.test.ts`); if the client keeps its own constants (§6.1), they equal the shared module's |
 | Edge gating | A character without `canUseCloudAgent` disables the photo option; no silent text-only send |
 | Persistence | Image row committed when the reply throws; row carries `source:'chat'` and `message_id` |
 | Retry | Retry reuses the existing row rather than inserting a second; base64 re-obtained via the resolver after local bytes are gone |
@@ -413,8 +477,11 @@ ceiling deliberately.
 | Create | `functions/drizzle/0023_character_images_chat.sql` |
 | Modify | `functions/src/db/schema.ts` (`messageId` on `character_images`) |
 | Modify | `functions/src/characterFunctions.ts` (`messageId` accepted and echoed by `syncCharacterImages`) |
-| Modify | `cloud-agent/src/index.ts` (HTTP schema; `newMessage` parts) |
-| Modify | `cloud-agent/src/handlers/wsAgentHandler.ts` (WS schema; `newMessage` parts) |
+| Create | `shared/cloudAgentProtocol.ts` (`contentSchema`, `agentRunSchema`, `attachmentSchema`, `ATTACHMENT_MIME_TYPES`, `MAX_ATTACHMENT_BASE64_CHARS`) |
+| Create | `cloud-agent/src/agentMessage.ts` (`buildNewMessage`) |
+| Modify | `cloud-agent/src/index.ts` (**delete** local `contentSchema`/`agentRunSchema`; import shared; call `buildNewMessage`) |
+| Modify | `cloud-agent/src/handlers/wsAgentHandler.ts` (same deletions and imports) |
+| Modify | `__tests__/storageRules.test.ts` (bind rules content types to `ATTACHMENT_MIME_TYPES`) |
 
 ---
 
@@ -436,3 +503,18 @@ content in a second place with its own lifecycle. Not worth it at this frequency
 property and the query it removes from every page render. If a future feature
 ever needs to *change* which image a message shows, this decision has to be
 revisited rather than extended.
+
+**Client-side import of `shared/cloudAgentProtocol.ts` is unverified.** §6.1
+records the specifics: `cloud-agent` is `moduleResolution: nodenext` and needs
+`.js` specifiers, the app has never used one, and no `shared/` module is
+currently consumed from both sides. The server-side dedupe — where the
+correctness risk actually lives — does not depend on this. Resolve it with a
+throwaway import at the start of implementation rather than discovering it in a
+Metro bundling error halfway through; the fallback (client constants plus an
+equality test) is one small test, not a redesign.
+
+**Hoisting `agentRunSchema` touches the browser-bridge and voice paths'
+neighbour code.** The schemas being moved serve `/agent/stream` only, not
+`/agent/live` or `/agent/browser`, so the blast radius is limited — but
+`cloud-agent/src/index.ts` is a large file with several handlers, and the
+deletion should be verified as removing *only* the text-chat schemas.
