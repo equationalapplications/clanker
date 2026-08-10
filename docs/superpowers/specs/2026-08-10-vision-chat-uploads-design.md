@@ -1,7 +1,8 @@
 # Image Pipeline — Phase 2: Vision and Chat Uploads
 
 **Date:** 2026-08-10
-**Status:** Design
+**Status:** Implemented
+**Implementation date:** 2026-08-10
 **Depends on:** `2026-07-28-image-pipeline-refactor-design.md` (Phase 1, Implemented)
 **Scope:** The user sends a photo during chat and the character sees it on that
 turn. The photo joins the character's existing image gallery and can later be
