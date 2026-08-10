@@ -519,7 +519,13 @@ describe('deleteAllImagesForCharacter', () => {
 })
 
 describe('cloud routing', () => {
-  it('uploads and stores object paths for a synced cloud character', async () => {
+  it('uploads and stores object paths for a cloud character, leaving registration to the sweeper', async () => {
+    // `synced` means "the server knows about this row" — true only after
+    // `syncCharacterImagesFn` acknowledges the row on the next sweep. Until
+    // then the row stays `pending_upload` so the sweeper picks it up and
+    // registers it; marking it `synced` here would drop it out of every
+    // future sweep and leave other devices with no Postgres row to restore
+    // from, even though the Storage objects exist.
     mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: true, cloud_id: '12345678-1234-4123-8123-123456789abc' })
     const row = await saveCharacterImage({
       characterId: 'char_a', userId: 'user-1', uri: 'file://s.jpg',
@@ -535,7 +541,7 @@ describe('cloud routing', () => {
       storage_kind: 'cloud',
       master_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new.webp',
       thumb_ref: 'users/user-1/characters/12345678-1234-4123-8123-123456789abc/uuid-new_thumb.webp',
-      sync_state: 'synced',
+      sync_state: 'pending_upload',
     })
   })
 
@@ -571,7 +577,10 @@ describe('cloud routing', () => {
 
     // The reservation names the object paths before any byte is written, so a
     // process killed mid-upload still leaves something that can find them.
-    expect(order).toEqual(['insert:reserved', 'upload', 'upload', 'finalize:synced'])
+    // After both uploads land, the row is finalized as `pending_upload` — the
+    // sweeper will register it with the server on the next pass and only then
+    // promote it to `synced`.
+    expect(order).toEqual(['insert:reserved', 'upload', 'upload', 'finalize:pending_upload'])
   })
 
   it('names the real storage paths on the reservation row', async () => {
@@ -739,5 +748,37 @@ describe('chat photos', () => {
     })
 
     expect(mockPrepareVariants).not.toHaveBeenCalled()
+  })
+
+  it('leaves a cloud-backed chat photo in pending_upload so the sweeper registers it', async () => {
+    // A successful cloud upload puts bytes in Storage but Postgres has no row
+    // yet — `synced` means "the server knows about this row", which is only
+    // true after `syncCharacterImagesFn` acknowledges the row. Marking the row
+    // `synced` here would drop it out of every future sweep (the sweeper only
+    // queries `pending_*` states) and leave other devices unable to restore
+    // the chat bubble from the row.
+    mockGetCharacter.mockResolvedValue({
+      id: 'char-1',
+      save_to_cloud: true,
+      cloud_id: '12345678-1234-4123-8123-123456789abc',
+    })
+
+    const row = await saveCharacterImage({
+      characterId: 'char-1',
+      userId: 'user-1',
+      uri: 'file:///photo.jpg',
+      width: 1600,
+      height: 900,
+      source: 'chat',
+      messageId: 'msg-1',
+    })
+
+    expect(mockUploadImageBytes).toHaveBeenCalledTimes(2)
+    expect(row).toMatchObject({
+      storage_kind: 'cloud',
+      source: 'chat',
+      message_id: 'msg-1',
+      sync_state: 'pending_upload',
+    })
   })
 })

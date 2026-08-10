@@ -178,7 +178,15 @@ export async function saveCharacterImage(
         storageKind = 'cloud'
         masterRef = masterPath
         thumbRef = thumbPath
-        syncState = 'synced'
+        // Bytes are in Storage but Postgres has no row yet. `synced` only
+        // becomes true after `syncCharacterImagesFn` runs and the callable
+        // acknowledges the row — leaving this as `pending_upload` lets the
+        // sweeper register it on its next pass. Marking it `synced` here
+        // would drop it out of every future sweep (the sweeper only queries
+        // `pending_*` states), so a failed or never-attempted registration
+        // would leave other devices with reachable Storage objects and no
+        // Postgres row to point at them from.
+        syncState = 'pending_upload'
       } catch (err) {
         // Never lose an image the user spent credits on: fall back to a local copy
         // marked for the sweeper. The avatar still displays and the credits are not
