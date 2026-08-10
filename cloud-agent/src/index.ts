@@ -33,13 +33,11 @@ import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './h
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
+import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
+import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
+import { buildNewMessage } from './agentMessage.js'
 
 export { INSTANCE_ID } from './services/instanceId.js'
-
-const contentSchema = z.object({
-  role: z.enum(['user', 'model']),
-  parts: z.array(z.object({}).passthrough()).min(1),
-})
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +52,8 @@ export interface RunAgentParams {
   timezone: string
   embed: (text: string) => Promise<number[]>
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+  /** At most one in Phase 2; delivered as a leading inlineData part. */
+  attachments?: AgentAttachment[]
 }
 
 export interface AppOptions {
@@ -69,7 +69,7 @@ export interface AppOptions {
 // ── Real agent runner (production) ────────────────────────────────────────────
 
 export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService } = params
+  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService, attachments = [] } = params
   const bridge = admin.apps.length ? {
     firebaseUid,
     userId,
@@ -110,7 +110,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
   const events = runner.runAsync({
     userId,
     sessionId,
-    newMessage: { role: 'user', parts: [{ text: message }] },
+    newMessage: buildNewMessage(message, attachments),
   })
 
   return consumeAgentEvents(events, userId, creditService)
@@ -206,19 +206,18 @@ export function createApp(options: AppOptions) {
 
   app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
     try {
-      const parseResult = z
-        .object({
-          message: z.string().trim().min(1),
-          characterId: z.string().uuid(),
-          unsyncedHistory: z.array(z.unknown()).optional(),
-          history: z.array(contentSchema).optional(),
-        })
-        .safeParse(req.body)
+      const parseResult = agentRunSchema.safeParse(req.body)
       if (!parseResult.success) {
         res.status(400).json({ error: 'Invalid request body' })
         return
       }
-      const { message, characterId, unsyncedHistory = [], history: rawHistory = [] } = parseResult.data
+      const {
+        message,
+        characterId,
+        unsyncedHistory = [],
+        history: rawHistory = [],
+        attachments = [],
+      } = parseResult.data
       const history = rawHistory as Content[]
       const firebaseUid = req.uid!
       const timezone = typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
@@ -258,7 +257,7 @@ export function createApp(options: AppOptions) {
 
       // Credit spend happens per internal ADK loop iteration inside runAgentFn
       // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
-      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs })
+      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs, attachments })
 
       // GET BALANCE — graceful degrade if this fails
       let newBalance: number | null = null
