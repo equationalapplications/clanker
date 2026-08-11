@@ -142,6 +142,19 @@ function corsOrigins(): string | string[] | boolean {
   return filtered.length > 0 ? filtered : false
 }
 
+export function isAllowedWsOrigin(origin: string | undefined): boolean {
+  // Native clients and server-to-server callers send no Origin header. They are
+  // not browsers, so the same-origin model does not apply to them; they are
+  // gated by bearer-token auth inside the individual upgrade handlers.
+  if (!origin) return true
+
+  const allowed = corsOrigins()
+  if (allowed === false) return false
+  if (allowed === true) return true // unreachable today; guards future changes
+  const list = Array.isArray(allowed) ? allowed : [allowed]
+  return list.includes(origin)
+}
+
 export function createApp(options: AppOptions) {
   const { verifyToken, db, runAgentFn } = options
   const cs = options.creditService ?? createCreditService(options.db)
@@ -423,6 +436,11 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
   const desktopWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
+    if (!isAllowedWsOrigin(req.headers.origin)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
+      socket.destroy()
+      return
+    }
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
 
     if (pathname === '/agent/stream') {
