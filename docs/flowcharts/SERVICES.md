@@ -7,9 +7,9 @@ graph LR
   aiChatService --> devSandboxFlag
   aiChatService --> messageDatabase
   aiChatService --> characterDatabase
+  aiChatService --> CharacterPromptBuilder
   aiChatService --> summarizeTextService
   aiChatService --> messageService
-  aiChatService --> CharacterPromptBuilder
   aiChatService --> chatReplyService
   apiClient --> bootstrapSession
   characterImageService --> characterDatabase
