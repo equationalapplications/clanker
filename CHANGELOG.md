@@ -1,3 +1,16 @@
+## [30.33.1](https://github.com/equationalapplications/clanker/compare/v30.33.0...v30.33.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **chat:** add explicit iOS/Android camera permission string ([03144b3](https://github.com/equationalapplications/clanker/commit/03144b38412b8f74a0da6978d198d3300563afaa))
+* **chat:** forward collapse height to upstream so GiftedChat stays in sync ([06a150b](https://github.com/equationalapplications/clanker/commit/06a150b529e27484c724976b3d9c2c31390bf1fa)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
+* **chat:** stop empty composer from entering an infinite resize loop on web ([3f4dadb](https://github.com/equationalapplications/clanker/commit/3f4dadb4d1e9cea7e67186d674c88b286a6988a9)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
+* **database:** stop message_id index from breaking every returning web user ([aac9b8d](https://github.com/equationalapplications/clanker/commit/aac9b8d12e5d1fad961e77015086bd4af8edacfd))
+* **deps:** address Copilot review feedback on Expo/Node 24 PR ([c4b5af7](https://github.com/equationalapplications/clanker/commit/c4b5af7da1e4fa8d0f612ab0dcf3acf1d4f44b0f))
+* **deps:** align cloud-agent and functions to root core-llm-tools 4.17.3 ([0320b1c](https://github.com/equationalapplications/clanker/commit/0320b1c7b90f648d0206ca68bb1a5b44ebbd93ff))
+* **review:** address CodeRabbit review on PR [#596](https://github.com/equationalapplications/clanker/issues/596) ([b4ee7c7](https://github.com/equationalapplications/clanker/commit/b4ee7c7be4557751924381c06863bde2772a17fd))
+
 # [30.33.0](https://github.com/equationalapplications/clanker/compare/v30.32.3...v30.33.0) (2026-08-10)
 
 
