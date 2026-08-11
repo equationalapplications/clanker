@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text as RNText, StyleSheet } from 'react-native'
+import { View, Text as RNText, TouchableOpacity, StyleSheet } from 'react-native'
 import { ActivityIndicator, useTheme } from 'react-native-paper'
 
 interface SendButtonProps {
@@ -26,7 +26,7 @@ export function SendButton({ onPress, disabled, isGenerating }: SendButtonProps)
   }
 
   return (
-    <View
+    <TouchableOpacity
       style={[
         styles.pill,
         {
@@ -35,16 +35,17 @@ export function SendButton({ onPress, disabled, isGenerating }: SendButtonProps)
           opacity: disabled ? 0.5 : 1,
         },
       ]}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       accessible
       accessibilityRole="button"
       accessibilityLabel="Send message"
       accessibilityState={{ disabled }}
-      onTouchEnd={disabled ? undefined : onPress}
     >
       <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
         Send
       </RNText>
-    </View>
+    </TouchableOpacity>
   )
 }
 
