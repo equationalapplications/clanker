@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express'
-import type { Server } from 'http'
+import type { IncomingMessage, Server } from 'http'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
@@ -121,15 +121,19 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
 
 function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  // No env var → reflect the request Origin (allow all). Safe because auth uses
-  // Authorization header (not cookies), so credentials are not at risk.
-  if (!raw) return true
+  // No env var → deny all cross-origin browser access. The only clients today
+  // are the Expo mobile app and server-to-server callers, neither of which is
+  // subject to CORS; a browser-based client must opt in via an explicit allowlist.
+  if (!raw) return false
 
   const origins = raw
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((value) => {
+      if (value.toLowerCase().startsWith('chrome-extension://')) {
+        return value.replace(/\/$/, '')
+      }
       try {
         return new URL(value).origin
       } catch {
@@ -139,6 +143,41 @@ function corsOrigins(): string | string[] | boolean {
 
   const filtered = origins.filter((o) => o !== '*')
   return filtered.length > 0 ? filtered : false
+}
+
+/**
+ * Compute the server's own origin from the upgrade request.
+ *
+ * React Native 0.86.2's Android WebSocketModule synthesizes
+ * `Origin: https://<endpoint>` when the JS client does not supply one
+ * (see `node_modules/react-native/ReactAndroid/.../WebSocketModule.kt` —
+ * `getDefaultOrigin` maps `wss://` to `https://` and `ws://` to `http://`,
+ * emitting the host and the explicit port). Same-origin browsers send the
+ * same value. The Cloud Run and local-dev hosts therefore both round-trip
+ * through this helper, letting the native mobile app and `localhost:8081`
+ * dev connect without configuring `CORS_ORIGIN`.
+ */
+export function selfOrigin(req: IncomingMessage): string | null {
+  const host = req.headers.host
+  if (!host) return null
+  const scheme = (req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http'
+  return `${scheme}://${host}`
+}
+
+export function isAllowedWsOrigin(origin: string | undefined, self: string | null): boolean {
+  // Native clients and server-to-server callers send no Origin header. They are
+  // not browsers, so the same-origin model does not apply to them; they are
+  // gated by bearer-token auth inside the individual upgrade handlers.
+  if (!origin) return true
+
+  // See `selfOrigin` above — the request's own origin is always allowed.
+  if (self && origin === self) return true
+
+  const allowed = corsOrigins()
+  if (allowed === false) return false
+  if (allowed === true) return true // unreachable today; guards future changes
+  const list = Array.isArray(allowed) ? allowed : [allowed]
+  return list.includes(origin)
 }
 
 export function createApp(options: AppOptions) {
@@ -422,6 +461,10 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
   const desktopWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
+    if (!isAllowedWsOrigin(req.headers.origin, selfOrigin(req))) {
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
+      return
+    }
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
 
     if (pathname === '/agent/stream') {
