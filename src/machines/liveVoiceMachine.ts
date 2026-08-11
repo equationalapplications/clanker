@@ -18,7 +18,6 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
-import type { GroundedIMessage } from '~/services/aiChatService'
 import { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
 import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 
@@ -86,8 +85,8 @@ function attachGroundingToTranscript(
   transcript: Message[],
   characterId: string,
   grounding: GroundingMetadata,
-): GroundedIMessage[] {
-  const next = [...transcript] as GroundedIMessage[]
+): Message[] {
+  const next = [...transcript] as Message[]
   let lastModelIdx = -1
   for (let i = next.length - 1; i >= 0; i--) {
     if (next[i]!.user._id === characterId) {
@@ -643,13 +642,13 @@ export const liveVoiceMachine = createMachine(
             const msg = transcript[i]!
             const isAI = msg.user._id !== userId
             const createdAt = new Date(resolveCreatedAtMs({ createdAt: msg.createdAt }) + i)
-            const additionalData: Partial<GroundedIMessage> = {
+            const additionalData: Partial<Message> = {
               user: msg.user,
               createdAt,
             }
             try {
               if (isAI) {
-                const grounded = msg as GroundedIMessage
+                const grounded = msg as Message
                 if (grounded.groundingMetadata) {
                   additionalData.groundingMetadata = grounded.groundingMetadata
                 }

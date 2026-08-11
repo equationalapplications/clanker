@@ -6,7 +6,6 @@ import {
   Character,
   getRecentConversationHistory,
   triggerConversationSummary,
-  type GroundedIMessage,
 } from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -152,7 +151,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       )
 
       const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-      const aiMessageData: Partial<GroundedIMessage> = {
+      const aiMessageData: Partial<Message> = {
         user: {
           _id: character.id,
           name: character.name,

@@ -25,8 +25,6 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
   return new Blob([serialized]).size
 }
 
-export type GroundedIMessage = Message
-
 interface TrimResult {
   contents: { role: string; parts: { text?: string }[] }[];
   systemInstruction: string;
@@ -356,7 +354,7 @@ export const sendMessageWithAIResponse = async (
     })
 
     // 5. Save AI response to local database (mark as synced — cloud reply is immediately synced)
-    const aiMessageData: Partial<GroundedIMessage> = {
+    const aiMessageData: Partial<Message> = {
       user: {
         _id: character.id, // The character is responding
         name: character.name,
