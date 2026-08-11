@@ -10,40 +10,6 @@
 import React from 'react'
 import { create, act } from 'react-test-renderer'
 
-// ── Gifted-Chat ─────────────────────────────────────────────────────────────
-let capturedGiftedChatProps: any = null
-
-jest.mock('react-native-gifted-chat', () => {
-  const React = require('react')
-  return {
-    GiftedChat: (props: any) => {
-      capturedGiftedChatProps = props
-      // Slice 2 still relies on gifted-chat for the list, so we keep its
-      // component shell but actually invoke renderInputToolbar so ChatInputBar
-      // mounts and ChatComposer's mock can capture its props. renderBubble /
-      // renderCustomView / renderMessageImage / renderAvatar render into the
-      // tree as before; the Slice-3 rework tears this whole layer down.
-      const toolbar = props.renderInputToolbar ? props.renderInputToolbar({}) : null
-      const bubbles = (props.messages || []).map((m: any, i: number) => {
-        const bubble = props.renderBubble ? props.renderBubble({ currentMessage: m }) : null
-        const custom = props.renderCustomView ? props.renderCustomView({ currentMessage: m }) : null
-        return React.createElement(
-          React.Fragment,
-          { key: m._id || i },
-          bubble,
-          custom,
-        )
-      })
-      return React.createElement('View', { testID: 'gifted-chat' }, [toolbar, ...bubbles])
-    },
-    Bubble: () => null,
-    InputToolbar: () => null,
-    Send: () => null,
-    MessageText: () => null,
-    Composer: () => null,
-  }
-})
-
 // ── expo-router ──────────────────────────────────────────────────────────────
 jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({
@@ -84,12 +50,29 @@ jest.mock('react-native', () => {
   const View = (props: any) => React.createElement('View', props)
   const Text = (props: any) => React.createElement('Text', props)
   const TouchableOpacity = (props: any) => React.createElement('TouchableOpacity', props)
+  // FlatList is the list renderer our MessageList uses (Slice 3). Stub it so
+  // every data row mounts through `renderItem` immediately — same shape as
+  // gifted-chat's mock used to provide.
+  const FlatList = ({ data = [], renderItem, keyExtractor }: any) => {
+    return React.createElement(
+      'View',
+      { testID: 'flat-list' },
+      data.map((item: any, index: number) =>
+        React.createElement(
+          'View',
+          { key: keyExtractor ? keyExtractor(item) : index, testID: 'flat-list-item' },
+          renderItem ? renderItem({ item, index }) : null,
+        ),
+      ),
+    )
+  }
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
     Platform: { get OS() { return mockPlatformOS }, select: (spec: any) => spec[mockPlatformOS] || spec.default },
     View,
     Text,
     TouchableOpacity,
+    FlatList,
   }
 })
 
@@ -190,6 +173,20 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   useEntityStatus: () => mockWikiStatus,
 }))
 
+// ChatView uses `KeyboardAvoidingView` from `react-native-keyboard-controller`
+// (Slice 3). The native module backing it is not available under Jest, so we
+// stub the import here — same pattern as the `react-native` mock above.
+jest.mock('react-native-keyboard-controller', () => {
+  const ReactLib = require('react')
+  const View = (props: any) => ReactLib.createElement('View', props)
+  return {
+    KeyboardAvoidingView: View,
+    KeyboardProvider: ({ children }: any) => children ?? null,
+    useKeyboardHandler: () => ({}),
+    useKeyboardAnimation: () => ({}),
+  }
+})
+
 // ── SUT ───────────────────────────────────────────────────────────────────────
 import ChatView from '~/components/ChatView'
 import { ChatInputBar } from '~/components/ChatInputBar'
@@ -226,7 +223,6 @@ function withNoUser() {
 describe('ChatView accessibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    capturedGiftedChatProps = null
     capturedChatComposerProps = null
     capturedCharacterAvatarProps.length = 0
     mockWikiStatus = { ingesting: false, librarian: false, heal: false }
@@ -412,19 +408,33 @@ describe('ChatView accessibility', () => {
   })
 
   // ── avatar speaker identification ─────────────────────────────────────────
+  // After Slice 3, the avatar comes from MessageList → MessageRow → renderAvatar.
+  // Configure the AIChat mock with a message from the character (not the
+  // current user) so MessageList renders the bubble; the mocked CharacterAvatar
+  // pushes its props into capturedCharacterAvatarProps.
   it('renderAvatar: character avatar carries character name as accessibility label', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
-
-    act(() => { create(<ChatView characterId="char-1" />) })
-
-    expect(capturedGiftedChatProps).not.toBeNull()
-    // Simulate a message from the character (not the current user)
-    const avatarEl = capturedGiftedChatProps.renderAvatar({
-      currentMessage: { user: { _id: 'char-1' } },
+    mockUseAIChat.mockReturnValue({
+      messages: [
+        {
+          _id: 'm-char',
+          text: '',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          user: { _id: 'char-1', name: 'Nova' },
+        },
+      ],
+      sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
+      isGeneratingResponse: false,
+      escalationState: 'idle',
+      error: null,
+      activeTool: null,
+      streamingMessage: null,
     })
-    // Render the returned element so the mocked CharacterAvatar's default
-    // export runs and pushes props into capturedCharacterAvatarProps.
-    act(() => { create(avatarEl) })
+
+    capturedCharacterAvatarProps.length = 0
+    act(() => { create(<ChatView characterId="char-1" />) })
 
     expect(capturedCharacterAvatarProps).toHaveLength(1)
     expect(capturedCharacterAvatarProps[0].characterName).toBe('Nova')
@@ -433,19 +443,29 @@ describe('ChatView accessibility', () => {
 
   it('renderAvatar: user avatar carries the user display name as accessibility label', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
-
-    act(() => { create(<ChatView characterId="char-1" />) })
-
-    expect(capturedGiftedChatProps).not.toBeNull()
-    // Simulate a message from the current user
-    const avatarEl = capturedGiftedChatProps.renderAvatar({
-      currentMessage: { user: { _id: 'user-1' } },
+    mockUseAIChat.mockReturnValue({
+      messages: [
+        {
+          _id: 'm-user',
+          text: '',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          user: { _id: 'user-1', name: 'Test' },
+        },
+      ],
+      sendMessage: jest.fn(),
+      sendPhoto: jest.fn(),
+      canSendPhoto: false,
+      isGeneratingResponse: false,
+      escalationState: 'idle',
+      error: null,
+      activeTool: null,
+      streamingMessage: null,
     })
 
-    let avatarTree: any
-    act(() => { avatarTree = create(avatarEl) })
+    let tree: any
+    act(() => { tree = create(<ChatView characterId="char-1" />) })
 
-    const avatarText = avatarTree.root.find((n: any) => n.props.testID === 'avatar-text')
+    const avatarText = tree.root.find((n: any) => n.props.testID === 'avatar-text')
     expect(avatarText.props.accessibilityLabel).toContain('Test')
     expect(avatarText.props.accessibilityRole).toBe('image')
   })
@@ -495,8 +515,8 @@ describe('ChatView accessibility', () => {
     expect(typeof inputBar.props.onSubmit).toBe('function')
     expect(typeof inputBar.props.onSendPhoto).toBe('function')
     expect(typeof inputBar.props.onPhaseChange).toBe('function')
-    // The one-way height shim survives into Slice 3.
-    expect(typeof inputBar.props.onHeightChange).toBe('function')
+    // Slice 3: the onHeightChange shim is retired with GiftedChat.
+    expect(inputBar.props.onHeightChange).toBeUndefined()
   })
 
   it('shows tool activity in the status banner when activeTool is set', () => {

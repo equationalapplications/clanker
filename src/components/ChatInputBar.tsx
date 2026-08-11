@@ -13,8 +13,6 @@ interface ChatInputBarProps {
   onPhaseChange?: (phase: DocumentUploadPhase) => void
   canSendPhoto?: boolean
   isGenerating: boolean
-  /** Slice 2 shim — one-way only. Sunset in Slice 3. */
-  onHeightChange?: (height: number) => void
 }
 
 export function ChatInputBar({
@@ -25,7 +23,6 @@ export function ChatInputBar({
   onPhaseChange,
   canSendPhoto = true,
   isGenerating,
-  onHeightChange,
 }: ChatInputBarProps) {
   const { colors } = useTheme()
   const [text, setText] = useState('')
@@ -60,7 +57,6 @@ export function ChatInputBar({
           text={text}
           onChangeText={handleChangeText}
           onSubmit={handleSubmit}
-          onHeightChange={onHeightChange}
           characterId={characterId}
           userId={userId}
           onPhaseChange={onPhaseChange}

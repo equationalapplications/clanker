@@ -77,7 +77,6 @@ const baseProps = {
   characterId: 'c',
   userId: 'u',
   onSendPhoto: noop,
-  onHeightChange: noop,
 }
 
 describe('ChatComposer — composer height loop', () => {
@@ -135,12 +134,11 @@ describe('ChatComposer — composer height loop', () => {
     expect(input.props.style.height).toBe(MAX_INPUT_HEIGHT)
   })
 
-  it('forwards a MIN-height to onHeightChange when text empties after growth', () => {
-    const onHeightChange = jest.fn()
+  it('collapses to MIN when text empties after growth', () => {
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <ChatComposer {...baseProps} text="hello" onHeightChange={onHeightChange} />,
+        <ChatComposer {...baseProps} text="hello" />,
       )
     })
 
@@ -149,15 +147,12 @@ describe('ChatComposer — composer height loop', () => {
       tree.root.findByProps({ accessibilityLabel: 'Message input' }).props
         .onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 40 } } })
     })
-    onHeightChange.mockClear()
 
     act(() => {
       tree.update(
-        <ChatComposer {...baseProps} text="" onHeightChange={onHeightChange} />,
+        <ChatComposer {...baseProps} text="" />,
       )
     })
-
-    expect(onHeightChange).toHaveBeenCalledWith(MIN_INPUT_HEIGHT)
 
     const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
     expect(input.props.style.height).toBe(MIN_INPUT_HEIGHT)

@@ -1,11 +1,7 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react'
-import { BottomTabBarHeightContext } from 'expo-router/build/react-navigation/bottom-tabs/utils/BottomTabBarHeightContext'
+import React, { useCallback, useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
-import type { FlatListProps } from 'react-native'
-import { GiftedChat } from 'react-native-gifted-chat'
-import type { IMessage, User, InputToolbarProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -14,22 +10,19 @@ import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import {
-  MIN_INPUT_HEIGHT,
-  type DocumentUploadPhase,
-} from '~/components/ChatComposer'
+import type { DocumentUploadPhase } from '~/components/ChatComposer'
 import { ChatInputBar } from '~/components/ChatInputBar'
-import { MessageBubble } from '~/components/MessageBubble'
+import { MessageList } from '~/components/MessageList'
 import { GroundingHtml } from '~/components/GroundingHtml'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { Character as AIChatCharacter } from '~/services/aiChatService'
-import type { Message } from '~/types/chat'
+import type { Message, ChatUser } from '~/types/chat'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
-import ChatImageBubble from '~/components/ChatImageBubble'
 import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 
 function getInitials(name?: string): string {
   return (
@@ -73,10 +66,6 @@ function toolStatusAccessibilityLabel(toolName: string): string {
   }
 }
 
-/** Native WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
-const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> | undefined =
-  Platform.OS === 'web' ? undefined : { removeClippedSubviews: false }
-
 interface ChatViewProps {
   characterId: string
 }
@@ -111,10 +100,6 @@ function ChatViewContent({
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors } = useTheme()
-  // Screen sits inside the bottom tab navigator, which reserves this height below
-  // the content even when the keyboard covers it — feed it back to GiftedChat so
-  // the input toolbar tracks the keyboard instead of leaving a gap under it.
-  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0
 
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
@@ -127,7 +112,7 @@ function ChatViewContent({
 
   const displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages
 
-  const chatUser: User = {
+  const chatUser: ChatUser = {
     _id: currentUserId,
     name: userDisplayName || '',
     avatar: userPhotoUrl || undefined,
@@ -188,23 +173,24 @@ function ChatViewContent({
   }, [character, characterAvatar, characterName, handleEdit, navigation])
 
   const handleSend = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
         return
       }
 
-      // Slice 2 owns the outgoing-message constructor. Once GiftedChat's
-      // Composer is gone, `sendMessage` no longer receives a stamped message;
-      // the lib's onSend is now unreachable because the input toolbar is gone.
-      // Slice 3 keeps this exact body and just removes the `GiftedChat` wrapper.
+      // Slice 3 owns the outgoing-message constructor: GiftedChat used to stamp
+      // `_id`/`createdAt`/`user` before invoking `onSend`. With the lib gone,
+      // ChatInputBar hands us text only, so we mint `_id` here. The `_id`
+      // expression is the body of `messageIdGenerator` (now deleted) so the
+      // shape of persisted rows does not change.
       const outgoingMessage: Message = {
         _id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         text,
         createdAt: new Date(),
         user: chatUser,
       }
-      void sendMessage(outgoingMessage)
+      await sendMessage(outgoingMessage)
     },
     [sendMessage, credits, creditsLoading, chatUser],
   )
@@ -220,102 +206,53 @@ function ChatViewContent({
     [sendPhoto, credits, creditsLoading],
   )
 
-  const renderBubble = useCallback(
-    (props: { currentMessage?: Message }) => {
-      const current = props.currentMessage
-      if (!current) return null
-      const isOwn = current.user._id === currentUserId
+  const renderAvatar = useCallback(
+    (message: Message) => {
+      const isUser = message.user._id === currentUserId
+
+      if (isUser) {
+        const displayName = userDisplayName?.trim()
+        const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
+        const userAvatarUri = chatUser.avatar as string | undefined
+
+        if (userAvatarUri) {
+          return (
+            <Avatar.Image
+              accessible
+              accessibilityRole="image"
+              size={36}
+              source={{ uri: userAvatarUri }}
+              accessibilityLabel={accessibilityLabel}
+            />
+          )
+        }
+        return (
+          <Avatar.Text
+            accessible
+            accessibilityRole="image"
+            size={36}
+            label={getInitials(displayName)}
+            accessibilityLabel={accessibilityLabel}
+          />
+        )
+      }
+
       return (
-        <MessageBubble
-          message={current}
-          isOwn={isOwn}
+        <CharacterAvatar
+          size={36}
+          imageUrl={characterAvatar}
+          characterName={characterName}
         />
       )
     },
-    [currentUserId],
-  )
-
-  const renderInputToolbar = useCallback(
-    (props: InputToolbarProps<IMessage>) => (
-      <ChatInputBar
-        characterId={characterId}
-        userId={currentUserId}
-        onSubmit={handleSend}
-        onSendPhoto={handleSendPhoto}
-        onPhaseChange={setDocumentPhase}
-        // One-way shim: feed the lib's internal composerHeight so the list
-        // offset tracks the real input size. `props.onInputSizeChanged` is the
-        // only path that still reaches the lib's offset machinery in Slice 2
-        // (GiftedChat passes it at runtime even though `InputToolbarProps`
-        // does not declare it). Slice 3 deletes the shim and the
-        // `onHeightChange` prop entirely.
-        onHeightChange={(height) => (props as { onInputSizeChanged?: (size: { width: number; height: number }) => void }).onInputSizeChanged?.({ width: 0, height })}
-        canSendPhoto={canSendPhoto}
-        isGenerating={isGeneratingResponse}
-      />
-    ),
-    [characterId, currentUserId, handleSend, handleSendPhoto, canSendPhoto, isGeneratingResponse],
-  )
-
-  const renderCustomView = useCallback(
-    (props: { currentMessage?: Message }) => {
-      const metadata = props.currentMessage?.groundingMetadata
-      if (!metadata) {
-        return null
-      }
-
-      const chunks = metadata.groundingChunks ?? []
-      const renderedContent = metadata.searchEntryPoint?.renderedContent
-
-      if (chunks.length === 0 && !renderedContent) {
-        return null
-      }
-
-      return (
-        <View style={styles.groundingContainer}>
-          {chunks.length > 0 && (
-            <View
-              style={styles.citationRow}
-              accessibilityRole={Platform.OS === 'web' ? ('list' as any) : undefined}
-              accessibilityLabel="Search sources"
-            >
-              {chunks.map((chunk, index) => {
-                const uri = chunk.web?.uri
-                const title = chunk.web?.title ?? uri
-                if (!uri || !title || !isSafeHttpUrl(uri)) {
-                  return null
-                }
-                return (
-                  <TouchableOpacity
-                    key={`${uri}-${index}`}
-                    style={styles.citationChip}
-                    onPress={() => {
-                      void Linking.openURL(uri).catch((error) => {
-                        console.warn('Failed to open citation URL', error)
-                      })
-                    }}
-                    accessibilityRole="link"
-                    accessibilityLabel={title}
-                  >
-                    <RNText style={styles.citationChipText} numberOfLines={1}>
-                      {title}
-                    </RNText>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-          )}
-          {renderedContent && (
-            <GroundingHtml html={renderedContent} style={styles.searchSuggestions} />
-          )}
-        </View>
-      )
-    },
-    [],
+    [currentUserId, userDisplayName, chatUser.avatar, characterAvatar, characterName],
   )
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
         <View
           accessibilityLiveRegion="polite"
@@ -334,7 +271,7 @@ function ChatViewContent({
             <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
           )}
           {wikiStatus.ingesting && (
-            <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Ingesting document">� Ingesting document…</Text>
           )}
           {wikiStatus.librarian && (
             <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
@@ -373,61 +310,22 @@ function ChatViewContent({
         </View>
       )}
       <LowPowerBanner />
-      <GiftedChat
+      <MessageList
         messages={displayMessages}
-        user={chatUser}
-        renderBubble={renderBubble}
-        renderMessageImage={(props) => <ChatImageBubble currentMessage={props.currentMessage} />}
-        renderInputToolbar={renderInputToolbar}
-        renderCustomView={renderCustomView}
-        isCustomViewBottom
-        listViewProps={groundingListViewProps}
-        renderAvatarOnTop
-        messagesContainerStyle={styles.messagesContainer}
-        // GiftedChat translates content by (keyboardHeight - bottomOffset) where
-        // keyboardHeight is negative, so a NEGATIVE offset shifts the toolbar down
-        // by the tab bar height that already separates it from the screen bottom.
-        bottomOffset={-tabBarHeight}
-        renderAvatar={(props) => {
-          const isUser = props.currentMessage?.user._id === currentUserId
-
-          if (isUser) {
-            const displayName = userDisplayName?.trim()
-            const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
-            const userAvatarUri = chatUser.avatar as string | undefined
-
-            if (userAvatarUri) {
-              return (
-                <Avatar.Image
-                  accessible
-                  accessibilityRole="image"
-                  size={36}
-                  source={{ uri: userAvatarUri }}
-                  accessibilityLabel={accessibilityLabel}
-                />
-              )
-            }
-            return (
-              <Avatar.Text
-                accessible
-                accessibilityRole="image"
-                size={36}
-                label={getInitials(displayName)}
-                accessibilityLabel={accessibilityLabel}
-              />
-            )
-          }
-
-          return (
-            <CharacterAvatar
-              size={36}
-              imageUrl={characterAvatar}
-              characterName={characterName}
-            />
-          )
-        }}
+        currentUserId={currentUserId}
+        renderAvatar={renderAvatar}
+        contentContainerStyle={styles.messagesContainer}
       />
-    </View>
+      <ChatInputBar
+        characterId={characterId}
+        userId={currentUserId}
+        onSubmit={handleSend}
+        onSendPhoto={handleSendPhoto}
+        onPhaseChange={setDocumentPhase}
+        canSendPhoto={canSendPhoto}
+        isGenerating={isGeneratingResponse}
+      />
+    </KeyboardAvoidingView>
   )
 }
 

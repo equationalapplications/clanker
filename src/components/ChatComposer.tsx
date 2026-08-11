@@ -37,8 +37,6 @@ export interface ChatComposerProps {
   onChangeText: (text: string) => void
   onSubmit: () => void
   textInputProps?: Partial<React.ComponentProps<typeof TextInput>>
-  /** Slice 2 shim — one-way only. Sunset in Slice 3. */
-  onHeightChange?: (height: number) => void
   // Owning-component props
   characterId: string
   userId: string
@@ -58,7 +56,6 @@ export default function ChatComposer({
   onChangeText,
   onSubmit,
   textInputProps,
-  onHeightChange,
   characterId,
   userId,
   onPhaseChange,
@@ -93,9 +90,8 @@ export default function ChatComposer({
     if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional collapse
       setInputHeight(MIN_INPUT_HEIGHT)
-      onHeightChange?.(MIN_INPUT_HEIGHT)
     }
-  }, [text, inputHeight, onHeightChange])
+  }, [text, inputHeight])
 
   useEffect(() => {
     if (photoError === lastSeenPhotoErrorRef.current) return
@@ -344,7 +340,6 @@ export default function ChatComposer({
               )
               if (height !== inputHeight) {
                 setInputHeight(height)
-                onHeightChange?.(height)
               }
             }}
             onSubmitEditing={onSubmit}

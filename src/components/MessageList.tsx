@@ -25,7 +25,7 @@ export function MessageList({
     <FlatList
       inverted
       data={messages}
-      keyExtractor={(m) => m._id}
+      keyExtractor={(m) => String(m._id)}
       renderItem={({ item }) => (
         <MessageRow
           message={item}
@@ -33,7 +33,7 @@ export function MessageList({
           renderAvatar={renderAvatar}
         />
       )}
-      ListEmptyComponent={emptyComponent ?? null}
+      ListEmptyComponent={(emptyComponent ?? null) as React.ReactElement | null}
       contentContainerStyle={contentContainerStyle}
       removeClippedSubviews={groundingListViewProps?.removeClippedSubviews}
     />
