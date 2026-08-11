@@ -162,9 +162,6 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_character_images_sync
     ON character_images(sync_state)
     WHERE sync_state IN ('pending_upload', 'pending_delete');
-  CREATE INDEX IF NOT EXISTS idx_character_images_message
-    ON character_images(message_id)
-    WHERE message_id IS NOT NULL;
 
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (

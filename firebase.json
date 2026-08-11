@@ -43,6 +43,7 @@
     {
       "source": "functions",
       "codebase": "clanker",
+      "runtime": "nodejs24",
       "ignore": [
         "node_modules",
         ".git",

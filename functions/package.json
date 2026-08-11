@@ -18,12 +18,12 @@
     "deploy:migrations": "bash scripts/deploy-migrations.sh"
   },
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "main": "lib/index.js",
   "type": "module",
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^4.17.0",
+    "@equationalapplications/core-llm-tools": "4.17.3",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
     "@google/adk": "^1.1.0",
     "@google/genai": "^2.9.0",

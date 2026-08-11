@@ -30,6 +30,7 @@ export const MIGRATION_ORDER = [
   '0020_credit_power_scale.sql',
   '0021_fix_handle_new_user_trigger_power_scale.sql',
   '0022_character_images.sql',
+  '0023_character_images_chat.sql',
 ];
 
 /** Index of a migration in the canonical order, or -1 if untracked. */

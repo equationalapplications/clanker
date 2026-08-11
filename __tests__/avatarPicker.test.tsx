@@ -2,6 +2,17 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Alert } from 'react-native'
 
+// The first `create()` in this file pays a one-off cost: rendering AvatarPicker
+// lazily pulls in FlatList/VirtualizedList and the rest of the RN view tree.
+// Locally that's ~600ms for the first test vs ~115ms for each one after it; on a
+// contended CI runner the same cold render can overrun jest's 5s default and
+// blow up the *first* test. That failure then cascades — a test that times out
+// mid-`act()` leaves react-test-renderer's act state broken, so every later
+// `create()` hands back an already-unmounted renderer ("Can't access .root on
+// unmounted test renderer"). Give the suite headroom so the cold render can't
+// trip the ceiling; the happy path still finishes in ~2s.
+jest.setTimeout(30_000)
+
 // Auto-confirm the destructive delete flow: real Alert.alert invokes the
 // tapped button's onPress asynchronously, but tests drive onLongPress
 // directly and need a deterministic outcome.
@@ -92,7 +103,17 @@ async function renderPicker(props: Partial<React.ComponentProps<typeof AvatarPic
       />,
     )
   })
-  await act(async () => { await Promise.resolve() })
+  // Drive refresh's async chain (DB read → URI resolve → setItems) AND give
+  // FlatList's `_updateCellsToRender` setTimeout (50ms `updateCellsBatchingPeriod`
+  // default in @react-native/virtualized-lists) time to fire and commit. A
+  // single `await Promise.resolve()` raced FlatList's timer on shared CI, and
+  // `waitFor`'s setInterval-backed poll was too slow under load — the first
+  // test in this file intermittently burned the 5s jest timeout. Burning a
+  // real-time 100ms timer under `act` is deterministic: it's well above the
+  // batching period and well below the per-test timeout.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  })
   return tree
 }
 

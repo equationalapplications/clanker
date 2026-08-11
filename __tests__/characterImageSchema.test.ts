@@ -86,7 +86,17 @@ describe('migration 24 — chat photo linkage', () => {
 
   it('fresh installs get the column without running the migration', () => {
     expect(CREATE_TABLES).toContain('message_id')
-    expect(CREATE_TABLES).toContain('idx_character_images_message')
+  })
+
+  // idx_character_images_message must NOT live in CREATE_TABLES: that block
+  // runs unconditionally on every boot, before schema_version is checked, so
+  // an index on a migration-24 column would throw "no such column" on any
+  // pre-24 DB where character_images already exists without message_id
+  // (CREATE TABLE IF NOT EXISTS no-ops, but the index statement wouldn't).
+  // The index is created separately, after the column is guaranteed to exist
+  // on every path — see ensureCharacterImagesMessageIndex in database/index.ts.
+  it('does not create the message index in the unconditional bootstrap block', () => {
+    expect(CREATE_TABLES).not.toContain('idx_character_images_message')
   })
 
   // The bootstrap "fresh vs legacy DB" check in `applyInitializationPlan`
