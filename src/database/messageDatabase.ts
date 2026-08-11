@@ -43,7 +43,6 @@ function toGiftedChatMessage(
     character_id: msg.character_id,
     pending: msg.pending === 1,
     sent: msg.sent === 1,
-    received: !isUserMessage && msg.sent === 1,
   }
 }
 
