@@ -12,6 +12,8 @@ Two dependency problems have converged into one effort:
 1. **47 open Dependabot alerts** across root, `cloud-agent/`, and `functions/` — including `tar` at **critical** severity in both backends, and `@google/adk` as a **direct, high-severity** dependency in both.
 2. **~30 deferred major version bumps.** PR #596 (Expo SDK 57, Node 24, minor/patch updates, released in 30.33.1) deliberately deferred every major to keep that PR reviewable. That deferral has now accumulated.
 
+> **Breaking change reclassification (2026-08-11).** The Expo SDK 57 / Node 24 / minor-deps commit (`6cefac23`, PR #595) shipped as `chore(deps):` without a `BREAKING CHANGE:` footer, so semantic-release only bumped minor (to 30.33.1). The Expo SDK 56 → 57, React Native 0.85.3 → 0.86.2, and Node 22 → 24 runtime moves are breaking for mobile clients and backend runtimes and should have triggered a major version bump. A follow-up commit on PR #597 (`docs/security-and-dependency-specs`) carries a `BREAKING CHANGE:` footer reclassifying that work, so the next release surfaces the major bump that was missed in PR #596.
+
 These are treated as one effort because they are the same work: most alerts live in transitive dependencies whose only clean resolution is upgrading the top-level package that pulls them in.
 
 ### The single most important constraint
