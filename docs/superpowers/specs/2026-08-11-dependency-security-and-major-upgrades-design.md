@@ -72,7 +72,7 @@ The `@types/node` row is the sharpest: root types against Node 25, backends type
 
 ## Non-Goals
 
-- Migrating off `react-native-gifted-chat`. That has its own spec — see [2026-08-11 gifted-chat Migration](./2026-08-11-gifted-chat-fork-migration-design.md) — because it is API-surface work on the app's core screen, not a version bump.
+- Migrating off `react-native-gifted-chat`. That has its own spec — see [2026-08-11 gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) — because it is API-surface work on the app's core screen, not a version bump.
 - Resolving every alert to zero. Some transitive advisories have no non-downgrade fix; those are documented and accepted, not forced.
 - Moving backwards off Expo SDK 57 or Node 24. Both are the fixed baseline — see "Fixed platform baseline" above. This includes React Native, whose version is determined by the Expo SDK.
 - Addressing [issue #375](https://github.com/equationalapplications/clanker/issues/375) (librarian cost gating). Deferred; analysis recorded on the issue.
@@ -202,5 +202,5 @@ Phase 1 is the only one that can cause a production incident on merge; Phase 3 i
 ## Related
 
 - [2026-08-11 cloud-agent CORS Hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) — parallel security work, no shared files
-- [2026-08-11 gifted-chat Migration](./2026-08-11-gifted-chat-fork-migration-design.md) — follows Phase 3
+- [2026-08-11 gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) — follows Phase 3
 - [CONTRIBUTING.md](../../../CONTRIBUTING.md) — PRs target `staging`, which is later promoted to `main`
