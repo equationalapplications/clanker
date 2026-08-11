@@ -13,4 +13,5 @@ COPY --from=builder /app/cloud-agent/package*.json ./
 COPY --from=builder /app/cloud-agent/node_modules ./node_modules
 COPY --from=builder /app/cloud-agent/dist ./dist
 EXPOSE 8080
+USER node
 CMD ["npm", "start"]

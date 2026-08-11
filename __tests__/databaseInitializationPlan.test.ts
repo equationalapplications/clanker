@@ -42,7 +42,7 @@ describe('applyInitializationPlan against a real SQLite engine', () => {
 
     const executor = wrapExecutor(db)
 
-    await expect(applyInitializationPlan(executor)).resolves.not.toThrow()
+    await expect(applyInitializationPlan(executor)).resolves.toBeUndefined()
 
     const columns = db
       .prepare('PRAGMA table_info(character_images)')
@@ -61,7 +61,7 @@ describe('applyInitializationPlan against a real SQLite engine', () => {
     const db = new DatabaseSync(':memory:')
     const executor = wrapExecutor(db)
 
-    await expect(applyInitializationPlan(executor)).resolves.not.toThrow()
+    await expect(applyInitializationPlan(executor)).resolves.toBeUndefined()
 
     const indexes = db
       .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='character_images'")
