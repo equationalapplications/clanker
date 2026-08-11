@@ -36,7 +36,7 @@ The same reasoning applies to the WebSocket upgrade paths: safe today because of
 ### Why no existing client breaks
 
 - **The native app uses React Native WebSocketModule, which sends an `Origin` header.** RN 0.86.2's Android `WebSocketModule` calls `getDefaultOrigin(url)` to synthesize `Origin: https://<endpoint>` when the JS client invokes `new WebSocket(url)` without one (see `node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/websocket/WebSocketModule.kt:387-410`). The mobile app's two native call sites (`src/services/cloudAgentService.ts:166` and `src/machines/liveVoiceMachine.ts:570`) use exactly that form. The cloud-agent accepts the request's own origin on the upgrade handler unconditionally, so the synthesized origin — equal to the cloud-agent's own HTTPS origin — passes without any `CORS_ORIGIN` configuration. Same-origin browsers pass for the same reason.
-- **The mobile app ships without a public web build.** `app.config.ts:182-188` configures the web bundler/build for local development, but CI does not run a web build and no production deployment of the web client exists. The local-dev case is covered by the explicit allowlist below.
+- **The production web client must be allowlisted.** `app.config.ts:182-188` configures the web bundler/build, and that build **is** deployed to production: `firebase.json` defines hosting site `clanker-prod` serving `dist/`, reachable at `https://clanker-ai.com`. That page calls the cloud-agent at its Cloud Run origin (`shared/localCloudAgent.ts:39`), so every one of its requests is cross-origin and is denied unless `CORS_ORIGIN` lists it. `cloud-agent/scripts/deploy.sh` sets that list on every deploy. The local-dev case is covered by the explicit allowlist below.
 - **Local Expo web is explicitly allowlisted.** `docker-compose.local.yml:24` sets `CORS_ORIGIN=http://localhost:8081,http://localhost:8082`, so local web development remains supported.
 - **The MV3 Desktop Bridge is a browser client, but its production rollout is deferred.** Its service worker uses authenticated `fetch` and WebSocket calls from a `chrome-extension://<extension-id>` origin. The parser preserves that non-HTTP origin when it is explicitly configured, but production remains default-deny until the extension has a stable published ID and the corresponding `CORS_ORIGIN` value is deliberately configured.
 
@@ -207,16 +207,21 @@ Existing suite before this hardening work was 281 tests (280 pass, 1 skipped). W
 
 ## Rollout
 
-Low risk for currently released clients. Native app and server callers send no `Origin`; local Expo web already has an allowlist. The Desktop Bridge source targets the production cloud-agent, but its production rollout remains deferred until it has a stable published extension ID and that exact `chrome-extension://<id>` value is configured.
+Low risk for the native app and server-to-server callers: they send no `Origin`, or an `Origin` equal to the service's own. **Breaking for the production web client unless `CORS_ORIGIN` is configured** — see the incident note below. Local Expo web already has an allowlist. The Desktop Bridge source targets the production cloud-agent, but its production rollout remains deferred until it has a stable published extension ID and that exact `chrome-extension://<id>` value is configured.
 
 1. Merge to `staging` per [CONTRIBUTING.md](../../../CONTRIBUTING.md) — PRs target `staging`, which is later promoted to `main`.
-2. Deploy cloud-agent to staging. Verify `/health` returns 200 and the mobile app's chat, streaming, and live-voice paths all still connect.
-3. Promote to production.
-4. Confirm alert #26 auto-closes on the next CodeQL run against `main`.
+2. Deploy cloud-agent. There is no live staging environment, so this deploy lands in production; treat the verification below as gating rather than as a post-hoc check.
+3. Verify `/health` returns 200; the mobile app's chat, streaming, and live-voice paths still connect; **and** the web client at `https://clanker-ai.com` can run a chat turn and open a Talk session. The web paths are the ones this change can break.
+4. If the web paths fail, roll traffic back to the previous Cloud Run revision (`gcloud run services update-traffic`) rather than waiting on a fix-forward.
+5. Confirm alert #26 auto-closes on the next CodeQL run against `main`.
 
-**Rollback:** revert the commit. There is no data migration, no config change, and no coupling to the dependency work in the sibling spec.
+**Rollback:** shift Cloud Run traffic back to the previous revision, or revert the commit. There is no data migration and no coupling to the dependency work in the sibling spec. There *is* a config change — the `CORS_ORIGIN` env var — but it is additive and safe to leave set across a revert, since the pre-hardening `corsOrigins()` ignores the variable's absence rather than its presence.
 
-**Explicitly not required for this rollout:** no `CORS_ORIGIN` value needs to be set in Cloud Run for the current native app and server-to-server clients. The native app's synthesized origin matches the cloud-agent's own HTTP(S) origin and is accepted by the upgrade guard without configuration. Local Expo web development is covered by `docker-compose.local.yml:24`. Before the Desktop Bridge is published for production, set `CORS_ORIGIN` to the stable `chrome-extension://<id>` origin (alongside any other deliberately supported browser origins) and verify both the HTTP and WebSocket paths. Setting that value is a separate deployment decision and is intentionally deferred until the extension ID exists.
+**Required for this rollout:** `CORS_ORIGIN` **must** be set in Cloud Run to the production web-client origins. `cloud-agent/scripts/deploy.sh` now supplies them by default, so a deploy through that script is self-contained; a deploy by any other path must set the variable explicitly. The native app and server-to-server callers need no configuration — the native app's synthesized origin matches the cloud-agent's own HTTP(S) origin and is accepted by the upgrade guard. Local Expo web development is covered by `docker-compose.local.yml:24`. Before the Desktop Bridge is published for production, add the stable `chrome-extension://<id>` origin to the same list and verify both the HTTP and WebSocket paths; that addition remains deferred until the extension ID exists.
+
+### 2026-08-11 production incident
+
+The first production deploy of this change omitted `CORS_ORIGIN` because this document originally asserted no value was needed — an assertion that rested on the incorrect claim that no production web client existed. Result: `/agent/stream` and `/agent/live` returned 403 to the web app (surfacing as "WebSocket connection error" in Talk) and `/agent/run` responses carried no `Access-Control-Allow-Origin` (surfacing as a failure in Chat's web-search grounding). Traffic was rolled back to the previous Cloud Run revision. The native mobile app was never affected, exactly as this document predicted. The code was correct; the deployment configuration and this document's threat model were not.
 
 ## Open Questions
 
