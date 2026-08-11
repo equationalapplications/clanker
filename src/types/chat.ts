@@ -1,15 +1,16 @@
+import type { ReactNode } from 'react'
 import type { GroundingMetadata } from '@google/genai'
 
 export interface ChatUser {
-  _id: string
+  _id: string | number
   name?: string
-  avatar?: string
+  avatar?: string | number | ((props: unknown) => ReactNode)
 }
 
 export interface Message {
-  _id: string
+  _id: string | number
   text: string
-  createdAt: Date
+  createdAt: Date | number
   user: ChatUser
   // DB columns surfaced on the row
   pending?: boolean
