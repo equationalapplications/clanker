@@ -98,7 +98,7 @@ Applied at the top of the existing `server.on('upgrade')` handler, before any pa
 ```ts
 server.on('upgrade', (req, socket, head) => {
   if (!isAllowedWsOrigin(req.headers.origin)) {
-    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n')
+    socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
     socket.destroy()
     return
   }
@@ -106,6 +106,10 @@ server.on('upgrade', (req, socket, head) => {
   // ... existing dispatch unchanged
 })
 ```
+
+`Connection: close` is included because the socket is destroyed immediately after. It is not strictly required — the destroy ends the connection either way — but it states the intent explicitly for any proxy or intermediary sitting between the client and Cloud Run, rather than leaving them to infer it from a dropped socket.
+
+`isAllowedWsOrigin` must be **exported** from `index.ts`, and so must whatever function builds the HTTP server with its upgrade handler attached. The testing section below depends on both.
 
 **Resulting behavior matrix:**
 
@@ -127,18 +131,44 @@ It looks like a bypass — a hostile non-browser client can simply omit `Origin`
 
 All in `cloud-agent/src/index.test.ts`, which already has a CORS section.
 
-**Modified (1):** `'health endpoint reflects origin when CORS_ORIGIN is not set'` (line 149) currently asserts the permissive behavior. It inverts — rename to `'health endpoint blocks all origins when CORS_ORIGIN is not set'` and assert `res.headers['access-control-allow-origin']` is `undefined`. Note this test currently leaks state: its cleanup only restores `CORS_ORIGIN` when it was previously defined, missing the `delete` branch that the three tests above it have. Fix that while editing.
+### Framework constraint — read before writing any test
 
-**Unchanged (3):** the allowlisted-origin, preflight, and wildcard-rejection tests already cover the good paths and must keep passing untouched — they are the regression net proving the allowlist still works.
+**This suite is `node:test`, not Jest.** `cloud-agent/package.json` has **no Jest dependency**; its test script is:
 
-**New (4)**, covering the upgrade matrix. These need a real HTTP server rather than `supertest`, since `supertest` does not perform WebSocket upgrades; use `node:http` with the app bound to an ephemeral port and a raw `ws` client:
+```
+NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec "dist/**/*.test.js"
+```
+
+The existing file imports `test` from `node:test` and `assert` from `node:assert/strict`, and contains 44 `assert.*` calls and zero `expect(`. Any test written with `describe`/`beforeAll`/`afterAll`/`expect().toBe()`/`done`-callbacks will not run. `node:test` provides no `expect`, and its async model is promises rather than `done` callbacks. Note also that the package is `"type": "module"` and tests execute from compiled `dist/`, so imports carry `.js` extensions.
+
+### Modified (1)
+
+`'health endpoint reflects origin when CORS_ORIGIN is not set'` (line 149) asserts the permissive behavior and inverts. Rename to `'health endpoint blocks all origins when CORS_ORIGIN is not set'` and assert `res.headers['access-control-allow-origin']` is `undefined`.
+
+Its existing cleanup is correct and needs no change: the test deletes `CORS_ORIGIN` at the start, so when the original value was `undefined` the correct end state is "deleted", which is what the `if (orig !== undefined)` restore produces. The three tests above it need an explicit `delete` branch only because they *set* a value; this one does not.
+
+### Unchanged (3)
+
+The allowlisted-origin, preflight, and wildcard-rejection tests already cover the good paths and must keep passing untouched — they are the regression net proving the allowlist still works.
+
+### New (4) — the upgrade matrix
 
 1. Upgrade with no `Origin` header succeeds (native client path).
 2. Upgrade with an `Origin` and no `CORS_ORIGIN` is rejected with 403.
 3. Upgrade with an allowlisted `Origin` succeeds.
 4. Upgrade with a non-allowlisted `Origin` is rejected with 403.
 
-Existing suite is 281 tests (280 pass, 1 skipped) via `npm test` in `cloud-agent/`, which builds to `dist/` and runs `node --test`. Target after this change: 285.
+Two requirements govern how these are written:
+
+**Drive the real server, never a re-implementation.** `supertest` cannot perform WebSocket upgrades, so these need a real listener on an ephemeral port (`server.listen(0)`). Bind **the actual exported server factory from `index.ts`**, with its real `server.on('upgrade')` handler attached. Standing up a fresh `http.createServer()` in the test file and re-implementing the origin check inline would assert that a *copy* of the logic works while leaving the production handler completely unexercised — the tests would keep passing after a regression in the real code, which is worse than having no tests, because it reads as coverage.
+
+**Use a raw `http.request`, not a `ws` client.** These four assertions only distinguish 403 from a successful upgrade, so issue a plain `http.request` with `Upgrade: websocket` and `Connection: Upgrade` headers and assert on the status: listen for the `upgrade` event for success cases and the `response` event for the 403 cases. Driving them through a `ws` client instead means the client computes and validates `Sec-WebSocket-Accept`, which races the assertion and makes the happy-path tests flaky for reasons unrelated to what they test.
+
+Since `CORS_ORIGIN` is read per-upgrade by `isAllowedWsOrigin` (unlike the HTTP path, where `corsOrigins()` is evaluated once at `createApp` time), these tests may set and clear the env var around each request without rebuilding the server. Save and restore it per test in the style the existing CORS tests use.
+
+### Baselines
+
+Existing suite is 281 tests (280 pass, 1 skipped) via `npm test` in `cloud-agent/`. Target after this change: 285.
 
 ## Rollout
 
