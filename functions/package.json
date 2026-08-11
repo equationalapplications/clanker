@@ -18,7 +18,7 @@
     "deploy:migrations": "bash scripts/deploy-migrations.sh"
   },
   "engines": {
-    "node": "22"
+    "node": ">=22"
   },
   "main": "lib/index.js",
   "type": "module",

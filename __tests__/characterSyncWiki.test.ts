@@ -10,7 +10,7 @@ const mockGetOntologyManifest = jest.fn()
 const mockSetOntologyManifest = jest.fn()
 
 function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): OntologyBackfillResult {
-  return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, ...overrides }
+  return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, skipped: 0, ...overrides }
 }
 
 function makeMockWiki(overrides: Record<string, unknown> = {}) {
