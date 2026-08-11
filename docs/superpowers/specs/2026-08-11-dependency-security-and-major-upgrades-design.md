@@ -31,6 +31,20 @@ These are treated as one effort because they are the same work: most alerts live
 
 Running `npm audit fix --force` would revert the Expo 57 and Node 24 work that is already deployed and verified in production. **Every version in this effort is chosen by hand.** `npm audit` output is used only to enumerate which packages are affected, never to select a version.
 
+### Fixed platform baseline — Expo SDK 57 and Node 24
+
+**Expo SDK 57 and Node 24 are the platform baseline. Nothing in this effort moves backwards off either.**
+
+- **Expo SDK 57** is the current SDK. It is what the app targets, and it stays.
+- **Node 24** is the current Active LTS line (v24.19.0, "Krypton"). It is the deployed runtime everywhere: `node:24-slim` in the cloud-agent Dockerfile, `"runtime": "nodejs24"` in `firebase.json`.
+
+Concretely:
+
+- Any recommendation to move off Expo 57 or Node 24 — including every `npm audit` suggestion in the table above — is rejected outright.
+- **Every version chosen in this effort must be compatible with Expo 57 and Node 24**, and that compatibility is the deciding criterion when a package offers several viable majors. Prefer the newest release that supports this baseline over the newest release overall.
+- **`@types/node` tracks the runtime, not npm's `latest`.** `~24.x` in all three workspaces. `@types/node@26` must never be installed here — it types against a runtime that isn't deployed.
+- **Expo-family packages track SDK 57**, not their own newest majors — hence `expo-age-range` → `^57.x` in Phase 3.
+
 ### Drift discovered while scoping
 
 Reading the three `package.json` files surfaced inconsistencies not previously recorded. These are the reason Phase 0 exists:
@@ -58,8 +72,7 @@ The `@types/node` row is the sharpest: root types against Node 25, backends type
 
 - Migrating off `react-native-gifted-chat`. That has its own spec — see [2026-08-11 gifted-chat Migration](./2026-08-11-gifted-chat-fork-migration-design.md) — because it is API-surface work on the app's core screen, not a version bump.
 - Resolving every alert to zero. Some transitive advisories have no non-downgrade fix; those are documented and accepted, not forced.
-- Upgrading Expo or React Native. PR #596 put them on current majors already.
-- Changing the Node runtime. Node 24 is deployed and verified.
+- Moving backwards off Expo SDK 57 or Node 24. Both are the fixed baseline — see "Fixed platform baseline" above. This includes React Native, whose version is determined by the Expo SDK.
 - Addressing [issue #375](https://github.com/equationalapplications/clanker/issues/375) (librarian cost gating). Deferred; analysis recorded on the issue.
 
 ## Design

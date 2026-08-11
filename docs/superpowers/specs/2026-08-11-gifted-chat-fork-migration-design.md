@@ -52,6 +52,7 @@ So the risky work is confined to three components. The other 17 files are a mech
 - Redesigning the chat UI. This is a like-for-like migration; visual changes are a separate concern.
 - Changing the `IMessage` data shape, message persistence, or any wire format.
 - Migrating away from the fork's `IMessage` model to a bespoke one. Tempting during this work, and out of scope.
+- Changing Expo SDK 57 or React Native 0.86 to satisfy the fork's peer dependencies. The platform baseline is fixed; the dependency yields to it, not the reverse.
 
 ## Design
 
@@ -88,6 +89,7 @@ Update the runtime imports in `ChatView.tsx`, `ChatComposer.tsx`, and `ChatCompo
 - Do `Bubble`, `InputToolbar`, `Send`, `MessageText`, and `Composer` keep their prop contracts? `ChatView` supplies custom renderers for all of these.
 - Does `IMessage` retain its field shape? It is persisted via `messageDatabase.ts` — **a field-shape change becomes a data migration**, which would materially expand this spec.
 - Does the web `Composer` path still behave? There is a dedicated `ChatComposer.web.tsx` and a regression test (`chatComposerWebHeightLoop.test.tsx`) for a height-loop bug, implying past fragility here.
+- **Does the fork support React Native 0.86 under Expo SDK 57?** Expo 57 is the fixed baseline and does not move to accommodate a dependency — see the platform-baseline section of the [dependency spec](./2026-08-11-dependency-security-and-major-upgrades-design.md). If the fork requires an RN version Expo 57 does not provide, **this migration does not proceed**; staying on the deprecated package is preferable to breaking the platform baseline. Check its peer dependencies before any other step.
 
 If `IMessage` has changed shape, stop and re-scope. Persisted-data migration is not in this spec's budget.
 
