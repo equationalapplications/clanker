@@ -599,12 +599,30 @@ test('POST /agent/browser/scheduler-trigger returns 503 when SCHEDULER_SECRET no
 
 // ── WebSocket upgrade origin verification ────────────────────────────────────
 
-test('WS upgrade with no Origin header succeeds (native client path)', async () => {
+test('WS upgrade with no Origin header succeeds (server-to-server caller)', async () => {
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
   const srv = await startWsTestServer()
   try {
     const result = await attemptUpgrade(srv.port)
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test('WS upgrade with the cloud-agent\'s own origin succeeds (React Native client path)', async () => {
+  // React Native 0.86.2's Android WebSocketModule synthesizes
+  // `Origin: http(s)://<endpoint>` when the JS client does not supply one
+  // (see `node_modules/react-native/.../WebSocketModule.kt` `getDefaultOrigin`).
+  // The test server binds to 127.0.0.1; the synthesized origin must be
+  // accepted without any CORS_ORIGIN configuration.
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, `http://127.0.0.1:${srv.port}`)
     assert.deepEqual(result, { upgraded: true })
   } finally {
     await srv.close()

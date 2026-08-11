@@ -24,11 +24,15 @@ The dependency spec deliberately excludes it. Chat is the app's core surface, an
 
 ## Scope — smaller than it appears
 
-21 files import from `react-native-gifted-chat`, but the dependency is overwhelmingly type-only:
+21 files reference `react-native-gifted-chat`, but the dependency is overwhelmingly type-only:
 
-**Type-only imports (18 files)** — every one imports just `IMessage`:
+**Type-only imports (14 files)** — every one imports just `IMessage`:
 
-`src/database/messageDatabase.ts` · `src/utilities/postNewMessage.ts` · `src/machines/liveVoiceMachine.ts` · `src/hooks/useLiveVoiceChat.ts` · `src/hooks/useEdgeAgent.ts` · `src/hooks/useMessages.ts` · `src/hooks/useAIChat.ts` · `src/services/CharacterPromptBuilder.ts` · `src/services/messageService.ts` · `src/services/liveMemoryQuery.ts` · `src/services/aiChatService.ts` · `src/components/ChatImageBubble.tsx` · plus 6 test files (`__tests__/chatComposer.test.tsx`, `__tests__/chatComposerWebHeightLoop.test.tsx`, `__tests__/chatViewAccessibility.test.tsx`, `__tests__/chatViewAvatarSource.test.tsx`, `src/hooks/__tests__/useEdgeAgent.test.ts`, `src/services/__tests__/characterPromptBuilder.test.ts`; the four root `__tests__/` files reference the module name only inside `jest.mock(...)`)
+`src/database/messageDatabase.ts` · `src/utilities/postNewMessage.ts` · `src/machines/liveVoiceMachine.ts` · `src/hooks/useLiveVoiceChat.ts` · `src/hooks/useEdgeAgent.ts` · `src/hooks/useMessages.ts` · `src/hooks/useAIChat.ts` · `src/services/CharacterPromptBuilder.ts` · `src/services/messageService.ts` · `src/services/liveMemoryQuery.ts` · `src/services/aiChatService.ts` · `src/components/ChatImageBubble.tsx` · `src/hooks/__tests__/useEdgeAgent.test.ts` · `src/services/__tests__/characterPromptBuilder.test.ts`
+
+**Mock-only references (4 files)** — reference the module name only inside `jest.mock(...)`; no symbol is imported:
+
+`__tests__/chatComposer.test.tsx` · `__tests__/chatComposerWebHeightLoop.test.tsx` · `__tests__/chatViewAccessibility.test.tsx` · `__tests__/chatViewAvatarSource.test.tsx`
 
 **Runtime component imports (3 files)** — the actual migration surface:
 
@@ -121,7 +125,6 @@ Single PR to `staging` after Phase 3 of the dependency spec has reached producti
 
 1. **Is `IMessage` shape-compatible across the 2.x → fork 4.x boundary?** Unverified, and the single question that determines whether this spec is accurate. Resolve first, before any other step — a persisted-shape change re-scopes the entire effort into a data migration.
 2. **Does the fork still export a symbol named `GiftedChat`?** Affects `ChatView.tsx` only; mechanical either way.
-3. **Is web chat still a supported path?** If Expo web is purely a local dev convenience, `ChatComposer.web.tsx` may warrant deletion rather than migration. Decide before doing the work rather than migrating code that is not used.
 
 ## Related
 

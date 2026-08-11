@@ -168,7 +168,7 @@ Whatever alerts survive Phases 0–3 get pinned to safe versions via `overrides`
 Rules for this phase:
 
 1. **Re-enumerate first.** Phases 0–3 will have resolved a large share of these. Overriding a package that no longer needs it adds permanent maintenance cost for nothing.
-2. **Every override carries a comment** naming the alert it addresses and the condition under which it can be removed. Un-annotated overrides become permanent by default.
+2. **Every override carries an adjacent tracked-document rationale** naming the alert it addresses and the condition under which it can be removed. `package.json` is strict JSON and cannot carry comments, so the rationale lives in `docs/<workspace>/dependency-overrides.md` (or an equivalent tracked Markdown file colocated with the workspace) and the override's `package.json` entry carries a stable key that the document reads back. Un-annotated overrides become permanent by default.
 3. **An override is a last resort**, used when no non-downgrade upgrade path exists. It forces a version the parent package did not test against.
 4. **Root alerts are build-time.** The Expo/Metro/semantic-release alerts affect the build host, not the shipped app bundle. Weigh them accordingly against the risk of forcing a version Metro was not tested with.
 5. **Document accepted residue.** Any alert left open at the end needs a recorded reason. "Still open" without a reason is indistinguishable from "overlooked".

@@ -1,5 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express'
-import type { Server } from 'http'
+import type { IncomingMessage, Server } from 'http'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import admin from 'firebase-admin'
@@ -145,11 +145,33 @@ function corsOrigins(): string | string[] | boolean {
   return filtered.length > 0 ? filtered : false
 }
 
-export function isAllowedWsOrigin(origin: string | undefined): boolean {
+/**
+ * Compute the server's own origin from the upgrade request.
+ *
+ * React Native 0.86.2's Android WebSocketModule synthesizes
+ * `Origin: https://<endpoint>` when the JS client does not supply one
+ * (see `node_modules/react-native/ReactAndroid/.../WebSocketModule.kt` —
+ * `getDefaultOrigin` maps `wss://` to `https://` and `ws://` to `http://`,
+ * emitting the host and the explicit port). Same-origin browsers send the
+ * same value. The Cloud Run and local-dev hosts therefore both round-trip
+ * through this helper, letting the native mobile app and `localhost:8081`
+ * dev connect without configuring `CORS_ORIGIN`.
+ */
+export function selfOrigin(req: IncomingMessage): string | null {
+  const host = req.headers.host
+  if (!host) return null
+  const scheme = (req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http'
+  return `${scheme}://${host}`
+}
+
+export function isAllowedWsOrigin(origin: string | undefined, self: string | null): boolean {
   // Native clients and server-to-server callers send no Origin header. They are
   // not browsers, so the same-origin model does not apply to them; they are
   // gated by bearer-token auth inside the individual upgrade handlers.
   if (!origin) return true
+
+  // See `selfOrigin` above — the request's own origin is always allowed.
+  if (self && origin === self) return true
 
   const allowed = corsOrigins()
   if (allowed === false) return false
@@ -439,7 +461,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
   const desktopWss = new WebSocketServer({ noServer: true })
 
   server.on('upgrade', (req, socket, head) => {
-    if (!isAllowedWsOrigin(req.headers.origin)) {
+    if (!isAllowedWsOrigin(req.headers.origin, selfOrigin(req))) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       return
     }

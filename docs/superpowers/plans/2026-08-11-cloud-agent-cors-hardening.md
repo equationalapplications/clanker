@@ -244,19 +244,37 @@ async function attemptUpgrade(port: number, origin?: string): Promise<UpgradeRes
 
 `/agent/stream` is the path under test because it is the only one of the four that works with `admin.apps.length === 0` (the `/agent/browser` and `/agent/desktop` branches destroy the socket when the Firebase bridge is unavailable). The origin guard runs before path dispatch, so covering one path covers all four.
 
-- [ ] **Step 3: Write the five failing upgrade tests**
+- [ ] **Step 3: Write the six failing upgrade tests**
+
+The original five covered an absent `Origin`, a rejected `Origin`, an HTTPS allowlisted `Origin`, an explicitly configured `chrome-extension://`, and a non-allowlisted `Origin`. The sixth is the regression review comments keep demanding: React Native 0.86.2's Android `WebSocketModule` synthesizes `Origin: http(s)://<endpoint>` when the JS client invokes `new WebSocket(url)` without supplying one (see `node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/modules/websocket/WebSocketModule.kt:104-128`, `getDefaultOrigin` at lines 387-410). The mobile app's two native call sites (`src/services/cloudAgentService.ts:166` and `src/machines/liveVoiceMachine.ts:570`) use exactly that form, and the previous header-less test was *not* a model of the native client — it was a model of a server-to-server caller.
 
 Append to `cloud-agent/src/index.test.ts`:
 
 ```ts
 // ── WebSocket upgrade origin verification ────────────────────────────────────
 
-test('WS upgrade with no Origin header succeeds (native client path)', async () => {
+test('WS upgrade with no Origin header succeeds (server-to-server caller)', async () => {
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
   const srv = await startWsTestServer()
   try {
     const result = await attemptUpgrade(srv.port)
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test('WS upgrade with the cloud-agent\'s own origin succeeds (React Native client path)', async () => {
+  // RN 0.86.2 WebSocketModule synthesizes http(s)://<host> when the JS client
+  // does not provide one. The test server binds to 127.0.0.1; the synthesized
+  // origin must be accepted without any CORS_ORIGIN configuration.
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, `http://127.0.0.1:${srv.port}`)
     assert.deepEqual(result, { upgraded: true })
   } finally {
     await srv.close()
@@ -329,16 +347,29 @@ cd cloud-agent && npm test 2>&1 | grep -B 2 -A 12 'WS upgrade with'
 
 Expected: the two "succeeds" tests already pass (nothing rejects them yet), and both 403 tests FAIL with `upgraded: true` where `{ upgraded: false, statusCode: 403 }` was expected. That asymmetry is the point — it proves the guard is genuinely absent today.
 
-- [ ] **Step 5: Add `isAllowedWsOrigin`**
+- [ ] **Step 5: Add `selfOrigin` and `isAllowedWsOrigin`**
 
 In `cloud-agent/src/index.ts`, insert immediately after the closing brace of `corsOrigins()` (currently line 142, just before `export function createApp`):
 
 ```ts
-export function isAllowedWsOrigin(origin: string | undefined): boolean {
+export function selfOrigin(req: { headers: { host?: string }; socket: { encrypted?: boolean } }): string | null {
+  // RN 0.86.2's WebSocketModule synthesizes Origin: http(s)://<endpoint>; same-
+  // origin browsers send the same. This helper reconstructs that origin from
+  // the upgrade request so the guard can accept it without configuration.
+  const host = req.headers.host
+  if (!host) return null
+  const scheme = req.socket.encrypted ? 'https' : 'http'
+  return `${scheme}://${host}`
+}
+
+export function isAllowedWsOrigin(origin: string | undefined, self: string | null): boolean {
   // Native clients and server-to-server callers send no Origin header. They are
   // not browsers, so the same-origin model does not apply to them; they are
   // gated by bearer-token auth inside the individual upgrade handlers.
   if (!origin) return true
+
+  // See `selfOrigin` — the request's own origin is always allowed.
+  if (self && origin === self) return true
 
   const allowed = corsOrigins()
   if (allowed === false) return false
@@ -348,7 +379,7 @@ export function isAllowedWsOrigin(origin: string | undefined): boolean {
 }
 ```
 
-Sharing `corsOrigins()` is the whole design: HTTP and WebSocket policy cannot drift apart, and any future allowlist entry applies to both automatically. Do not duplicate the parsing.
+Sharing `corsOrigins()` is the whole design: HTTP and WebSocket policy cannot drift apart, and any future allowlist entry applies to both automatically. Do not duplicate the parsing. The `self` short-circuit is the separate escape hatch for native clients, who cannot forge a synthesized origin to a different host.
 
 - [ ] **Step 6: Guard the upgrade handler**
 
@@ -363,7 +394,7 @@ to:
 
 ```ts
   server.on('upgrade', (req, socket, head) => {
-    if (!isAllowedWsOrigin(req.headers.origin)) {
+    if (!isAllowedWsOrigin(req.headers.origin, selfOrigin(req))) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       return
     }
@@ -372,13 +403,13 @@ to:
 
 The guard sits above path dispatch so a rejected origin never reaches `handleUpgrade` and never allocates a socket. `socket.end()` flushes the buffered response bytes before closing the connection; `socket.write()` followed by `socket.destroy()` can race and abort the 403 before it leaves the host, so a client sees a generic connection reset instead of the intended status. `Content-Length: 0` and `Connection: close` state the intent to any proxy between the client and Cloud Run. Leave the rest of the dispatch chain unchanged.
 
-- [ ] **Step 7: Run the five tests to verify they pass**
+- [ ] **Step 7: Run the six tests to verify they pass**
 
 ```bash
 cd cloud-agent && npm test 2>&1 | grep -A 4 'WS upgrade with'
 ```
 
-Expected: all five report `ok`.
+Expected: all six report `ok`.
 
 - [ ] **Step 8: Run the full suite**
 
@@ -386,7 +417,7 @@ Expected: all five report `ok`.
 cd cloud-agent && npm test 2>&1 | tail -20
 ```
 
-Expected: `pass 286`, `fail 0`, `skipped 1` — 287 total, up 5 from the 281 baseline (the Chrome extension upgrade test is the fifth). Critically, the pre-existing WebSocket tests in `src/handlers/wsLiveAgentHandler.test.ts` and `src/integration.test.ts` must all still pass: they connect without an `Origin` header, which the `!origin → allow` rule permits. If any of them now fail, the guard is rejecting header-less upgrades and Step 5 was mis-transcribed.
+Expected: `pass 287`, `fail 0`, `skipped 1` — 288 total, up 6 from the 281 baseline (the React Native origin test is the sixth). Critically, the pre-existing WebSocket tests in `src/handlers/wsLiveAgentHandler.test.ts` and `src/integration.test.ts` must all still pass: they connect without an `Origin` header, which the `!origin → allow` rule permits. If any of them now fail, the guard is rejecting header-less upgrades and Step 5 was mis-transcribed.
 
 - [ ] **Step 9: Commit**
 
@@ -446,10 +477,13 @@ git commit -m "docs(specs): mark cloud-agent CORS hardening spec implemented"
 Per [CONTRIBUTING.md](../../../CONTRIBUTING.md), **the PR targets `staging`, not `main`.**
 
 1. Merge to `staging`; deploy cloud-agent to staging.
-2. Verify `/health` returns 200, and that the mobile app's chat, streaming, and live-voice paths all still connect.
-3. Promote to production.
+2. Verify `/health` returns 200. Then exercise both production mobile-app paths end-to-end on a real device (Android is the failure surface — RN 0.86.2's `WebSocketModule` synthesizes the origin, so the upgrade guard's `selfOrigin` short-circuit is the only thing standing between every live-voice and streaming call and a 403):
+   - Send a chat message and confirm the [`/agent/stream`](../blob/HEAD/src/services/cloudAgentService.ts) WebSocket upgrades without a 403.
+   - Start a live-voice session and confirm the [`/agent/live`](../blob/HEAD/src/machines/liveVoiceMachine.ts) WebSocket upgrades without a 403 and the session stays open.
+   - (Local Expo web continues to work because `docker-compose.local.yml:24` sets `CORS_ORIGIN=http://localhost:8081,http://localhost:8082`; verify the web chat path locally if changing the CORS parser in any future change.)
+3. Promote to production. Re-run the same mobile-app checks against the production cloud-agent URL.
 4. Confirm code scanning alert #26 auto-closes on the next CodeQL run against `main`.
 
-**Do not set `CORS_ORIGIN` in Cloud Run for staging or production.** Leaving it unset *is* the hardened configuration; setting it is the change that would need justification. `docker-compose.local.yml:24` already sets it for local Expo web and needs no change.
+**Do not set `CORS_ORIGIN` in Cloud Run for staging or production.** Leaving it unset *is* the hardened configuration; the mobile app's React Native client is accepted by the upgrade guard's `selfOrigin` short-circuit (its synthesized `Origin: https://<cloud-agent-host>` matches the request's own origin), and server-to-server callers are accepted by the `!origin → allow` rule. Setting `CORS_ORIGIN` is the change that would need justification unless a browser client is being added. `docker-compose.local.yml:24` already sets it for local Expo web and needs no change.
 
-**Rollback:** revert the two commits. No data migration, no config change, no coupling to the sibling dependency spec.
+**Rollback:** revert the commits. No data migration, no config change, no coupling to the sibling dependency spec.
