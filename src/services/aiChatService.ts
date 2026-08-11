@@ -11,7 +11,7 @@ import { buildSystemInstruction, buildContentHistory } from '~/services/Characte
 import { summarizeText } from '~/services/summarizeTextService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 import { onlineManager } from '@tanstack/react-query'
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -25,7 +25,7 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
   return new Blob([serialized]).size
 }
 
-export type GroundedIMessage = IMessage & { groundingMetadata?: GroundingMetadata }
+export type GroundedIMessage = Message & { groundingMetadata?: GroundingMetadata }
 
 interface TrimResult {
   contents: { role: string; parts: { text?: string }[] }[];
@@ -157,7 +157,7 @@ function buildReferenceId(value: unknown): string | undefined {
   return referenceId.length > 0 ? referenceId : undefined
 }
 
-export function getRecentConversationHistory(messages: IMessage[], limit: number): IMessage[] {
+export function getRecentConversationHistory(messages: Message[], limit: number): Message[] {
   if (limit <= 0 || messages.length === 0) {
     return []
   }
@@ -285,10 +285,10 @@ export async function triggerConversationSummary(character: Character, userId: s
  * Send a user message and generate an AI response
  */
 export const sendMessageWithAIResponse = async (
-  userMessage: IMessage,
+  userMessage: Message,
   character: Character,
   userId: string,
-  conversationHistory: IMessage[] = [],
+  conversationHistory: Message[] = [],
   options?: {
     memoryBlock?: string
     onWriteObservation?: (characterId: string, text: string) => void
@@ -367,7 +367,7 @@ export const sendMessageWithAIResponse = async (
       aiMessageData.groundingMetadata = aiResponse.groundingMetadata
     }
 
-    const savedAIMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, aiMessageData, Date.now())
+    const savedAMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, aiMessageData, Date.now())
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
@@ -376,7 +376,7 @@ export const sendMessageWithAIResponse = async (
       // reads that unanswered line from memory and responds to it instead of the actual
       // current prompt — causing every reply to lag one message behind.
       const recentMessages = getRecentConversationHistory(
-        [...priorHistory, userMessage, savedAIMessage],
+        [...priorHistory, userMessage, savedAMessage],
         20,
       )
       const chunk = recentMessages

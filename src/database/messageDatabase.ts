@@ -3,7 +3,7 @@
  * Local-first architecture with optional server sync via Firebase callables
  */
 
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { getDatabase } from './index'
 
 export interface LocalMessage {
@@ -13,7 +13,7 @@ export interface LocalMessage {
     recipient_user_id: string | null
     text: string
     created_at: number
-    message_data: string // JSON stringified IMessage data
+    message_data: string // JSON stringified Message data
     pending: number // 0 or 1 (SQLite boolean)
     sent: number // 0 or 1
     error: number // 0 or 1
@@ -22,12 +22,12 @@ export interface LocalMessage {
 }
 
 /**
- * Convert LocalMessage to IMessage format for GiftedChat
+ * Convert LocalMessage to Message format for GiftedChat
  */
 function toGiftedChatMessage(
   msg: LocalMessage,
   currentUserId: string,
-): IMessage & { character_id: string } {
+): Message & { character_id: string } {
   const isUserMessage = msg.sender_user_id === currentUserId
 
   return {
@@ -56,7 +56,7 @@ interface ExpectedMessageRow {
   syncedAt?: number | null
 }
 
-export function resolveCreatedAtMs(additionalData?: Partial<IMessage>): number {
+export function resolveCreatedAtMs(additionalData?: Partial<Message>): number {
   const value = additionalData?.createdAt
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.getTime()
@@ -76,7 +76,7 @@ async function resolveInsertConflict(
   id: string,
   userId: string,
   expected: ExpectedMessageRow,
-): Promise<IMessage & { character_id: string }> {
+): Promise<Message & { character_id: string }> {
   const existing = await db.getFirstAsync<LocalMessage>(
     'SELECT * FROM messages WHERE id = ?',
     [id],
@@ -124,7 +124,7 @@ export async function getMessages(
     userId: string,
     limit: number = 50,
     offset: number = 0,
-): Promise<IMessage[]> {
+): Promise<Message[]> {
     const db = await getDatabase()
 
     const messages = await db.getAllAsync<LocalMessage>(
@@ -142,7 +142,7 @@ export async function getMessages(
 /**
  * Get a single message by ID
  */
-export async function getMessage(messageId: string, userId: string): Promise<IMessage | null> {
+export async function getMessage(messageId: string, userId: string): Promise<Message | null> {
     const db = await getDatabase()
 
     const message = await db.getFirstAsync<LocalMessage>(
@@ -161,8 +161,8 @@ export async function sendMessage(
     userId: string,
     text: string,
     messageId?: string,
-    additionalData?: Partial<IMessage>,
-): Promise<IMessage> {
+    additionalData?: Partial<Message>,
+): Promise<Message> {
     const db = await getDatabase()
 
     const id = messageId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -212,9 +212,9 @@ export async function saveAIMessage(
     userId: string,
     text: string,
     messageId?: string,
-    additionalData?: Partial<IMessage>,
+    additionalData?: Partial<Message>,
     syncedAt?: number,
-): Promise<IMessage> {
+): Promise<Message> {
     const db = await getDatabase()
 
     const id = messageId || `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -339,7 +339,7 @@ export async function getMessageCount(characterId: string, userId: string): Prom
 export async function getLastMessage(
     characterId: string,
     userId: string,
-): Promise<IMessage | null> {
+): Promise<Message | null> {
     const db = await getDatabase()
 
     const message = await db.getFirstAsync<LocalMessage>(
@@ -361,7 +361,7 @@ export async function searchMessages(
     characterId: string,
     userId: string,
     searchText: string,
-): Promise<IMessage[]> {
+): Promise<Message[]> {
     const db = await getDatabase()
 
     const messages = await db.getAllAsync<LocalMessage>(
@@ -413,7 +413,7 @@ export async function batchInsertMessages(messages: LocalMessage[]): Promise<voi
  */
 export async function getMostRecentMessage(
     userId: string,
-): Promise<(IMessage & { character_id: string }) | null> {
+): Promise<(Message & { character_id: string }) | null> {
     const db = await getDatabase()
 
     const message = await db.getFirstAsync<LocalMessage>(
@@ -436,7 +436,7 @@ export async function getMessagesForContextSummary(
     characterId: string,
     userId: string,
     limit: number,
-): Promise<IMessage[]> {
+): Promise<Message[]> {
     const db = await getDatabase()
 
     const messages = await db.getAllAsync<LocalMessage>(

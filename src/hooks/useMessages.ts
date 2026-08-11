@@ -9,7 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { getMessages, sendMessage, deleteMessage, updateMessage, getMostRecentMessage } from '~/services/messageService'
@@ -61,7 +61,7 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
   const user = useSelector(authService, (state) => state.context.user)
 
   return useMutation({
-    mutationFn: (message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any }) =>
+    mutationFn: (message: Pick<Message, '_id' | 'text' | 'user'> & { [key: string]: any }) =>
       sendMessage(characterId, user?.uid || '', message),
 
     // Optimistic update: add message immediately to UI
@@ -70,12 +70,12 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
         queryKey: messageKeys.list(characterId, recipientUserId),
       })
 
-      const previousMessages = queryClient.getQueryData<IMessage[]>(
+      const previousMessages = queryClient.getQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
       )
 
       // Create optimistic message with pending status
-      const optimisticMessage: IMessage = {
+      const optimisticMessage: Message = {
         ...newMessage,
         _id: newMessage._id,
         text: newMessage.text,
@@ -85,7 +85,7 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       }
 
       // Add to cache (messages are in reverse chronological order)
-      queryClient.setQueryData<IMessage[]>(
+      queryClient.setQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
         (old) => [optimisticMessage, ...(old || [])],
       )
@@ -97,7 +97,7 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       console.log('✅ Message sent successfully:', variables._id)
 
       // Remove pending flag from the optimistic message
-      queryClient.setQueryData<IMessage[]>(
+      queryClient.setQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
         (old) => {
           if (!old) return old
@@ -119,7 +119,7 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       console.error('❌ Failed to send message:', error)
 
       // Mark message as failed instead of removing it
-      queryClient.setQueryData<IMessage[]>(
+      queryClient.setQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
         (old) => {
           if (!old) return old
@@ -151,12 +151,12 @@ export function useDeleteMessage(characterId: string, recipientUserId: string) {
         queryKey: messageKeys.list(characterId, recipientUserId),
       })
 
-      const previousMessages = queryClient.getQueryData<IMessage[]>(
+      const previousMessages = queryClient.getQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
       )
 
       // Optimistically remove the message
-      queryClient.setQueryData<IMessage[]>(
+      queryClient.setQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
         (old) => old?.filter((msg) => msg._id !== messageId) || [],
       )
@@ -203,12 +203,12 @@ export function useUpdateMessage(characterId: string, recipientUserId: string) {
         queryKey: messageKeys.list(characterId, recipientUserId),
       })
 
-      const previousMessages = queryClient.getQueryData<IMessage[]>(
+      const previousMessages = queryClient.getQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
       )
 
       // Optimistically update the message
-      queryClient.setQueryData<IMessage[]>(
+      queryClient.setQueryData<Message[]>(
         messageKeys.list(characterId, recipientUserId),
         (old) => {
           if (!old) return old
@@ -273,7 +273,7 @@ export function useChatMessages({
   id: string
   userId: string
   pauseRefetch?: boolean
-}): IMessage[] {
+}): Message[] {
   const { messages } = useMessages(id, userId, { pauseRefetch })
   return messages
 }

@@ -1,8 +1,8 @@
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { sendMessage } from '../services/messageService'
 
 interface PostNewMessageArgs {
-  message: IMessage
+  message: Message
   id: string // character ID
   userId: string // recipient user ID
 }
