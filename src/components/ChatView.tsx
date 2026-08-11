@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -13,9 +13,8 @@ import CharacterAvatar from '~/components/CharacterAvatar'
 import type { DocumentUploadPhase } from '~/components/ChatComposer'
 import { ChatInputBar } from '~/components/ChatInputBar'
 import { MessageList } from '~/components/MessageList'
-import { GroundingHtml } from '~/components/GroundingHtml'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
-import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
+import { useTabBarHeight } from '~/utils/useTabBarHeight'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Message, ChatUser } from '~/types/chat'
@@ -100,6 +99,12 @@ function ChatViewContent({
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors } = useTheme()
+  // The tab bar sits below ChatView on Android. The previous gifted-chat
+  // screen compensated with `bottomOffset={-tabBarHeight}`; the new
+  // KeyboardAvoidingView from react-native-keyboard-controller uses
+  // `keyboardVerticalOffset` for the same purpose. On iOS the system
+  // handles the keyboard inset, so we only apply the tab offset there.
+  const tabBarHeight = useTabBarHeight()
 
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
@@ -112,11 +117,17 @@ function ChatViewContent({
 
   const displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages
 
-  const chatUser: ChatUser = {
-    _id: currentUserId,
-    name: userDisplayName || '',
-    avatar: userPhotoUrl || undefined,
-  }
+  // Memoized from primitives: a fresh literal here would change the identity of
+  // `handleSend` every render, re-rendering ChatInputBar's send button on every
+  // keystroke (the composer's text state lives above it).
+  const chatUser: ChatUser = useMemo(
+    () => ({
+      _id: currentUserId,
+      name: userDisplayName || '',
+      avatar: userPhotoUrl || undefined,
+    }),
+    [currentUserId, userDisplayName, userPhotoUrl],
+  )
 
   const navigation = useNavigation()
 
@@ -199,9 +210,9 @@ function ChatViewContent({
     async (photo: PendingChatPhoto, caption: string) => {
       if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
-        return
+        return false
       }
-      await sendPhoto(photo, caption)
+      return await sendPhoto(photo, caption)
     },
     [sendPhoto, credits, creditsLoading],
   )
@@ -213,7 +224,7 @@ function ChatViewContent({
       if (isUser) {
         const displayName = userDisplayName?.trim()
         const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
-        const userAvatarUri = chatUser.avatar as string | undefined
+        const userAvatarUri = chatUser.avatar
 
         if (userAvatarUri) {
           return (
@@ -252,6 +263,7 @@ function ChatViewContent({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={tabBarHeight}
     >
       {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
         <View
@@ -271,7 +283,7 @@ function ChatViewContent({
             <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
           )}
           {wikiStatus.ingesting && (
-            <Text style={styles.statusText} accessibilityLabel="Ingesting document">� Ingesting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
           )}
           {wikiStatus.librarian && (
             <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
@@ -419,44 +431,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     fontSize: 12,
-  },
-  sendSpinnerContainer: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  groundingContainer: {
-    paddingHorizontal: 8,
-    paddingBottom: Platform.OS === 'web' ? 0 : 8,
-    gap: 6,
-    overflow: 'hidden',
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-  },
-  citationRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  citationChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    maxWidth: 220,
-  },
-  citationChipText: {
-    fontSize: 12,
-  },
-  searchSuggestions: {
-    backgroundColor: 'transparent',
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-    alignSelf: 'stretch',
   },
   headerTitle: {
     flexDirection: 'row',
