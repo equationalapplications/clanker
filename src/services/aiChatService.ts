@@ -25,7 +25,7 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
   return new Blob([serialized]).size
 }
 
-export type GroundedIMessage = Message & { groundingMetadata?: GroundingMetadata }
+export type GroundedIMessage = Message
 
 interface TrimResult {
   contents: { role: string; parts: { text?: string }[] }[];
