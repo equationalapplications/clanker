@@ -378,6 +378,19 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             text={text}
             composerHeight={inputHeight}
             onInputSizeChanged={(size) => {
+              // Ignore measurements while the input is empty. gifted-chat's Composer
+              // only re-fires this callback when the browser reports a *different*
+              // contentSize than last time — it has no debounce against feedback we
+              // cause ourselves. Setting composerHeight from a measurement, while the
+              // collapse-effect below forces it back to MIN_INPUT_HEIGHT on every
+              // change (because text is empty), makes each state update trigger the
+              // next contentSize re-measurement in the opposite direction — an
+              // infinite render loop (React error #185 / "Maximum update depth
+              // exceeded") on every empty-composer mount. The collapse effect is the
+              // sole authority for the idle height; this handler only grows the box
+              // once there's text to grow it for.
+              if (!text) return
+
               // react-native-web reports scrollHeight, which already includes
               // the input's own padding — only the outer margins are missing.
               const height = Math.max(
