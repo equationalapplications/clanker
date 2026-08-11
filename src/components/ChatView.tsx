@@ -4,20 +4,21 @@ import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
 import type { FlatListProps } from 'react-native'
-import { GiftedChat, InputToolbar, Send } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
+import { GiftedChat } from 'react-native-gifted-chat'
+import type { IMessage, User, InputToolbarProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { useAIChat } from '~/hooks/useAIChat'
-import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
+import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import ChatComposer, {
+import {
   MIN_INPUT_HEIGHT,
   type DocumentUploadPhase,
 } from '~/components/ChatComposer'
+import { ChatInputBar } from '~/components/ChatInputBar'
 import { MessageBubble } from '~/components/MessageBubble'
 import { GroundingHtml } from '~/components/GroundingHtml'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
@@ -109,7 +110,7 @@ function ChatViewContent({
   userPhotoUrl,
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
-  const { colors, roundness } = useTheme()
+  const { colors } = useTheme()
   // Screen sits inside the bottom tab navigator, which reserves this height below
   // the content even when the keyboard covers it — feed it back to GiftedChat so
   // the input toolbar tracks the keyboard instead of leaving a gap under it.
@@ -187,20 +188,25 @@ function ChatViewContent({
   }, [character, characterAvatar, characterName, handleEdit, navigation])
 
   const handleSend = useCallback(
-    async (newMessages: IMessage[] = []) => {
+    (text: string) => {
       if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
         return
       }
 
-      // Photo sends reuse `onSend` with an empty message purely to trigger
-      // gifted-chat's input reset — that path must not produce a text bubble.
-      const first = newMessages[0]
-      if (newMessages.length > 0 && first && first.text.trim().length > 0) {
-        await sendMessage(first)
+      // Slice 2 owns the outgoing-message constructor. Once GiftedChat's
+      // Composer is gone, `sendMessage` no longer receives a stamped message;
+      // the lib's onSend is now unreachable because the input toolbar is gone.
+      // Slice 3 keeps this exact body and just removes the `GiftedChat` wrapper.
+      const outgoingMessage: Message = {
+        _id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        text,
+        createdAt: new Date(),
+        user: chatUser,
       }
+      void sendMessage(outgoingMessage)
     },
-    [sendMessage, credits, creditsLoading],
+    [sendMessage, credits, creditsLoading, chatUser],
   )
 
   const handleSendPhoto = useCallback(
@@ -231,80 +237,24 @@ function ChatViewContent({
 
   const renderInputToolbar = useCallback(
     (props: InputToolbarProps<IMessage>) => (
-      <InputToolbar
-        {...props}
-        containerStyle={{
-          backgroundColor: colors.surface,
-          borderTopColor: colors.outlineVariant,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-        }}
-      />
-    ),
-    [colors],
-  )
-
-  const renderSend = useCallback(
-    (props: SendProps<IMessage>) => {
-      if (isGeneratingResponse) {
-        return (
-          <View
-            style={styles.sendSpinnerContainer}
-            accessible
-            accessibilityRole="progressbar"
-            accessibilityLabel="Generating response"
-            accessibilityState={{ busy: true }}
-          >
-            <ActivityIndicator size={20} />
-          </View>
-        )
-      }
-
-      return (
-        <Send
-          {...props}
-          containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
-          sendButtonProps={{
-            accessibilityLabel: 'Send message',
-            accessibilityRole: 'button',
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.primaryContainer,
-              borderRadius: roundness * 4,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
-              Send
-            </RNText>
-          </View>
-        </Send>
-      )
-    },
-    [colors, roundness, isGeneratingResponse],
-  )
-
-  const renderComposer = useCallback(
-    // GiftedChat currently passes full internal input toolbar props to renderComposer,
-    // including onSend from SendProps in addition to ComposerProps.
-    (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer
-        {...props}
+      <ChatInputBar
         characterId={characterId}
         userId={currentUserId}
-        onPhaseChange={setDocumentPhase}
-        canSendPhoto={canSendPhoto}
-        isSending={isGeneratingResponse}
+        onSubmit={handleSend}
         onSendPhoto={handleSendPhoto}
+        onPhaseChange={setDocumentPhase}
+        // One-way shim: feed the lib's internal composerHeight so the list
+        // offset tracks the real input size. `props.onInputSizeChanged` is the
+        // only path that still reaches the lib's offset machinery in Slice 2
+        // (GiftedChat passes it at runtime even though `InputToolbarProps`
+        // does not declare it). Slice 3 deletes the shim and the
+        // `onHeightChange` prop entirely.
+        onHeightChange={(height) => (props as { onInputSizeChanged?: (size: { width: number; height: number }) => void }).onInputSizeChanged?.({ width: 0, height })}
+        canSendPhoto={canSendPhoto}
+        isGenerating={isGeneratingResponse}
       />
     ),
-    [characterId, currentUserId, canSendPhoto, isGeneratingResponse, handleSendPhoto],
+    [characterId, currentUserId, handleSend, handleSendPhoto, canSendPhoto, isGeneratingResponse],
   )
 
   const renderCustomView = useCallback(
@@ -425,22 +375,15 @@ function ChatViewContent({
       <LowPowerBanner />
       <GiftedChat
         messages={displayMessages}
-        onSend={handleSend}
         user={chatUser}
-        renderComposer={renderComposer}
         renderBubble={renderBubble}
         renderMessageImage={(props) => <ChatImageBubble currentMessage={props.currentMessage} />}
         renderInputToolbar={renderInputToolbar}
-        renderSend={renderSend}
-        alwaysShowSend={isGeneratingResponse}
         renderCustomView={renderCustomView}
         isCustomViewBottom
-        messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`}
         listViewProps={groundingListViewProps}
         renderAvatarOnTop
         messagesContainerStyle={styles.messagesContainer}
-        minInputToolbarHeight={MIN_INPUT_HEIGHT + 16}
-        minComposerHeight={MIN_INPUT_HEIGHT}
         // GiftedChat translates content by (keyboardHeight - bottomOffset) where
         // keyboardHeight is negative, so a NEGATIVE offset shifts the toolbar down
         // by the tab bar height that already separates it from the screen bottom.
