@@ -1,6 +1,6 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import { logEvent } from '~/services/analyticsService'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import type { GroundingMetadata } from '@google/genai'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -83,7 +83,7 @@ async function importDumpWithBusyRetry(
 export type LiveVoiceSyncPhase = 'saving_observations' | 'syncing_cloud' | null
 
 function attachGroundingToTranscript(
-  transcript: IMessage[],
+  transcript: Message[],
   characterId: string,
   grounding: GroundingMetadata,
 ): GroundedIMessage[] {
@@ -111,7 +111,7 @@ export interface LiveVoiceMachineContext {
   characterId: string
   cloudCharacterId: string | null
   userId: string
-  transcript: IMessage[]
+  transcript: Message[]
   activeTool: string | null
   groundingMetadata: GroundingMetadata | null
   remainingCredits: number
@@ -636,7 +636,7 @@ export const liveVoiceMachine = createMachine(
         async ({
           input,
         }: {
-          input: { characterId: string; userId: string; transcript: IMessage[] }
+          input: { characterId: string; userId: string; transcript: Message[] }
         }) => {
           const { characterId, userId, transcript } = input
           for (let i = 0; i < transcript.length; i++) {

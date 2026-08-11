@@ -1,4 +1,4 @@
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { getCharacter } from '~/database/characterDatabase'
 import { getMessages } from '~/database/messageDatabase'
 import { getRecentConversationHistory } from '~/services/aiChatService'
@@ -18,7 +18,7 @@ export interface LiveChatHandoff {
  * Build a compact semantic anchor from recent user messages for wiki vector search.
  * Uses raw user text (no role labels) so embeddings match stored facts more closely.
  */
-export function buildMemoryQueryFromMessages(messages: IMessage[], userId: string): string {
+export function buildMemoryQueryFromMessages(messages: Message[], userId: string): string {
   const recent = getRecentConversationHistory(messages, LIVE_CHAT_HANDOFF_TURN_LIMIT * 2)
   const userTexts = recent
     .filter((msg) => msg.user._id === userId)
@@ -34,7 +34,7 @@ export function buildMemoryQueryFromMessages(messages: IMessage[], userId: strin
  * Uses the character name for assistant lines so the live agent stays in voice.
  */
 export function buildRecentChatContextFromMessages(
-  messages: IMessage[],
+  messages: Message[],
   userId: string,
   characterName = 'Assistant',
 ): string {
