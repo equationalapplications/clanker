@@ -10,6 +10,11 @@ import React from 'react'
 import { create, act } from 'react-test-renderer'
 
 // ── Gifted-Chat ─────────────────────────────────────────────────────────────
+// ChatView still imports `react-native-gifted-chat` until Task 3.6 replaces
+// it with MessageList + KeyboardAvoidingView. The real package fails to load
+// in Jest (`react-native-gifted-chat` transitively requires `@expo/react-
+// native-action-sheet` which needs a missing `bezier` export on our `react-
+// native` mock). Mocking it here keeps the test working until the lib is gone.
 let capturedGiftedChatProps: any = null
 
 jest.mock('react-native-gifted-chat', () => {
@@ -128,16 +133,26 @@ jest.mock('~/hooks/useMessages', () => ({
   useChatMessages: () => [],
 }))
 
-jest.mock('~/hooks/useAIChat', () => ({
-  useAIChat: () => ({
+import { useAIChat } from '~/hooks/useAIChat'
+
+const mockUseAIChat = useAIChat as jest.MockedFunction<typeof useAIChat>
+
+function mockDefaultAIChatMock() {
+  return {
     messages: [],
     sendMessage: jest.fn(),
+    sendPhoto: jest.fn(),
+    canSendPhoto: false,
     isGeneratingResponse: false,
     escalationState: 'idle',
     error: null,
     activeTool: null,
     streamingMessage: null,
-  }),
+  } as any
+}
+
+jest.mock('~/hooks/useAIChat', () => ({
+  useAIChat: jest.fn(() => mockDefaultAIChatMock()),
 }))
 
 jest.mock('~/hooks/usePowerBalance', () => ({
@@ -236,9 +251,9 @@ describe('ChatView avatar source', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedAvatarProps.length = 0
-    capturedGiftedChatProps = null
     capturedHeaderTitle = null
     mockResolved = null
+    mockUseAIChat.mockReturnValue(mockDefaultAIChatMock())
   })
 
   it('header prefers the resolved image over a stale legacy avatar URL', () => {
@@ -314,11 +329,11 @@ describe('ChatView avatar source', () => {
   // missing from the deps, which would freeze the bubble on the first resolve.
   it('bubble tracks a resolved image that arrives after first render', () => {
     mockResolved = null
-    const result = renderChat(baseCharacter({ active_image_id: 'img-1' }))
+    renderChat(baseCharacter({ active_image_id: 'img-1' }))
     expect(bubbleCharacterProps().imageUrl).toBeNull()
 
     mockResolved = 'file:///late-thumb.webp'
-    result.rerender()
+    renderChat(baseCharacter({ active_image_id: 'img-1' }))
     expect(bubbleCharacterProps().imageUrl).toBe('file:///late-thumb.webp')
   })
 
