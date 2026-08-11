@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
+import { waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native'
 
 // Auto-confirm the destructive delete flow: real Alert.alert invokes the
@@ -92,7 +93,17 @@ async function renderPicker(props: Partial<React.ComponentProps<typeof AvatarPic
       />,
     )
   })
-  await act(async () => { await Promise.resolve() })
+  // The component's on-open refresh is async (DB read → URI resolve → setItems)
+  // and FlatList's first layout passes through a setTimeout, so a single
+  // `await Promise.resolve()` is racy and the first test in this file was
+  // burning the 5s jest timeout on shared CI. waitFor polls until refresh
+  // has actually settled (either items rendered or the empty-state shown)
+  // before the caller asserts.
+  await waitFor(() => {
+    const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
+    const empty = tree.root.findAllByProps({ testID: 'avatar-picker-empty' }, { deep: false })
+    expect(items.length + empty.length).toBeGreaterThan(0)
+  })
   return tree
 }
 
