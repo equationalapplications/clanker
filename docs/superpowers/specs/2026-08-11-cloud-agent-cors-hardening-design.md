@@ -33,16 +33,17 @@ What it actually is:
 
 The same reasoning applies to the WebSocket upgrade paths: safe today because of bearer-token auth, fragile for the same reason.
 
-### Why no client breaks
+### Why no existing client breaks
 
-- **There is no web target.** No `web` platform in the app config and no web build in any CI workflow. The client is React Native on native platforms, which is not subject to CORS.
-- **The only browser origin is local dev.** `docker-compose.local.yml:24` already sets `CORS_ORIGIN=http://localhost:8081,http://localhost:8082` for local Expo web, and that path is unaffected.
-- **Native clients send no `Origin` header**, so the WebSocket rule below never rejects them.
+- **The native app has no web target.** No `web` platform appears in the app config and no web build runs in CI. React Native native clients are not subject to CORS and send no `Origin` header.
+- **Local Expo web is explicitly allowlisted.** `docker-compose.local.yml:24` sets `CORS_ORIGIN=http://localhost:8081,http://localhost:8082`, so local web development remains supported.
+- **The MV3 Desktop Bridge is a browser client, but its production rollout is deferred.** Its service worker uses authenticated `fetch` and WebSocket calls from a `chrome-extension://<extension-id>` origin. The parser preserves that non-HTTP origin when it is explicitly configured, but production remains default-deny until the extension has a stable published ID and the corresponding `CORS_ORIGIN` value is deliberately configured.
 
 ## Goals
 
 - `corsOrigins()` denies cross-origin browser access by default.
 - WebSocket upgrades enforce the same allowlist as HTTP, sharing one source of truth.
+- Explicitly configured `chrome-extension://` origins survive normalization and work over both HTTP and WebSocket.
 - No behavior change for native clients, server-to-server callers, or local Expo web dev.
 - Code scanning alert #26 resolved.
 
@@ -50,27 +51,40 @@ The same reasoning applies to the WebSocket upgrade paths: safe today because of
 
 - Changing the authentication model. Bearer tokens stay.
 - Enabling `credentials` on the CORS middleware.
-- Adding a production web client or any production `CORS_ORIGIN` value.
+- Adding a production web client.
+- Configuring the production Desktop Bridge origin before the extension has a stable published ID.
 - Rate limiting, payload limits, or any other hardening not in this class.
 
 ## Design
 
 ### 1. HTTP: default-deny
 
-One-line change in `corsOrigins()`:
+The default and parser change in `corsOrigins()` is intentionally small:
 
 ```ts
 function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  // No env var → deny all cross-origin browser access. The only clients today
-  // are the Expo mobile app and server-to-server callers, neither of which is
-  // subject to CORS; a browser-based client must opt in via an explicit allowlist.
+  // No env var → deny all cross-origin browser access. Browser clients must
+  // opt in through an explicit allowlist.
   if (!raw) return false
-  // ... existing allowlist parsing unchanged
+  // ... allowlist parsing below
 }
 ```
 
-Everything below the early return is already correct and stays as-is: comma splitting, trimming, URL normalization to `.origin`, the `'*'` filter, and the `false` fallback when the allowlist is empty after filtering.
+The existing comma splitting, trimming, `'*'` filter, and `false` fallback remain. HTTP(S) entries still normalize through `new URL(value).origin`. Explicit `chrome-extension://` entries bypass `.origin` and stay as trimmed literals (with one trailing slash removed), because Node represents their opaque URL origin as the string `"null"`, which could never match the browser's actual `Origin` header.
+
+```ts
+.map((value) => {
+  if (value.toLowerCase().startsWith('chrome-extension://')) {
+    return value.replace(/\/$/, '')
+  }
+  try {
+    return new URL(value).origin
+  } catch {
+    return value.replace(/\/$/, '')
+  }
+})
+```
 
 Note that `origin: false` omits the `Access-Control-Allow-Origin` header entirely. It does **not** cause the server to reject the request — a non-browser client (curl, native fetch, another service) is unaffected, because enforcement lives in the browser. This is the correct and intended semantic: we stop granting permission, we do not start blocking traffic.
 
@@ -79,7 +93,7 @@ Note that `origin: false` omits the `Access-Control-Allow-Origin` header entirel
 Add a helper beside `corsOrigins()`:
 
 ```ts
-function isAllowedWsOrigin(origin: string | undefined): boolean {
+export function isAllowedWsOrigin(origin: string | undefined): boolean {
   // Native clients and server-to-server callers send no Origin header. They are
   // not browsers, so the same-origin model does not apply to them; they are
   // gated by bearer-token auth inside the individual upgrade handlers.
@@ -98,8 +112,7 @@ Applied at the top of the existing `server.on('upgrade')` handler, before any pa
 ```ts
 server.on('upgrade', (req, socket, head) => {
   if (!isAllowedWsOrigin(req.headers.origin)) {
-    socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
-    socket.destroy()
+    socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
     return
   }
   const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
@@ -107,7 +120,7 @@ server.on('upgrade', (req, socket, head) => {
 })
 ```
 
-`Connection: close` is included because the socket is destroyed immediately after. It is not strictly required — the destroy ends the connection either way — but it states the intent explicitly for any proxy or intermediary sitting between the client and Cloud Run, rather than leaving them to infer it from a dropped socket.
+`socket.end(...)` flushes the complete 403 response and then closes the connection. `Connection: close` states the intent to proxies and `Content-Length: 0` makes the response framing explicit; a separate immediate `socket.destroy()` would risk aborting buffered response bytes before the client receives the status.
 
 `isAllowedWsOrigin` must be **exported** from `index.ts`, and so must whatever function builds the HTTP server with its upgrade handler attached. The testing section below depends on both.
 
@@ -118,6 +131,7 @@ server.on('upgrade', (req, socket, head) => {
 | absent | any | **allow** — native/server client |
 | present | unset | **reject 403** |
 | present, allowlisted | set | **allow** |
+| `chrome-extension://<id>` | explicitly allowlisted | **allow** — preserved as a literal origin |
 | present, not allowlisted | set | **reject 403** |
 | present | `*` only | **reject 403** — wildcard already filtered to `false` |
 
@@ -139,7 +153,7 @@ All in `cloud-agent/src/index.test.ts`, which already has a CORS section.
 NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec "dist/**/*.test.js"
 ```
 
-The existing file imports `test` from `node:test` and `assert` from `node:assert/strict`, and contains 44 `assert.*` calls and zero `expect(`. Any test written with `describe`/`beforeAll`/`afterAll`/`expect().toBe()`/`done`-callbacks will not run. `node:test` provides no `expect`, and its async model is promises rather than `done` callbacks. Note also that the package is `"type": "module"` and tests execute from compiled `dist/`, so imports carry `.js` extensions.
+The existing file imports `test` from `node:test` and `assert` from `node:assert/strict`, and uses strict `assert.*` calls with zero `expect(`. Any test written with `describe`/`beforeAll`/`afterAll`/`expect().toBe()`/`done`-callbacks will not run. `node:test` provides no `expect`, and its async model is promises rather than `done` callbacks. Note also that the package is `"type": "module"` and tests execute from compiled `dist/`, so imports carry `.js` extensions.
 
 ### Modified (1)
 
@@ -151,28 +165,33 @@ Its existing cleanup is correct and needs no change: the test deletes `CORS_ORIG
 
 The allowlisted-origin, preflight, and wildcard-rejection tests already cover the good paths and must keep passing untouched — they are the regression net proving the allowlist still works.
 
-### New (4) — the upgrade matrix
+### New HTTP normalization coverage (1)
+
+An explicitly configured `chrome-extension://abcdefghijklmnop` origin receives the matching `Access-Control-Allow-Origin` header. This exercises the real `cors` middleware and proves the parser did not collapse the configured value to `"null"`.
+
+### New WebSocket coverage (5) — the upgrade matrix
 
 1. Upgrade with no `Origin` header succeeds (native client path).
 2. Upgrade with an `Origin` and no `CORS_ORIGIN` is rejected with 403.
-3. Upgrade with an allowlisted `Origin` succeeds.
-4. Upgrade with a non-allowlisted `Origin` is rejected with 403.
+3. Upgrade with an allowlisted HTTP(S) `Origin` succeeds.
+4. Upgrade with an explicitly configured `chrome-extension://` origin succeeds.
+5. Upgrade with a non-allowlisted `Origin` is rejected with 403.
 
 Two requirements govern how these are written:
 
 **Drive the real server, never a re-implementation.** `supertest` cannot perform WebSocket upgrades, so these need a real listener on an ephemeral port (`server.listen(0)`). Bind **the actual exported server factory from `index.ts`**, with its real `server.on('upgrade')` handler attached. Standing up a fresh `http.createServer()` in the test file and re-implementing the origin check inline would assert that a *copy* of the logic works while leaving the production handler completely unexercised — the tests would keep passing after a regression in the real code, which is worse than having no tests, because it reads as coverage.
 
-**Use a raw `http.request`, not a `ws` client.** These four assertions only distinguish 403 from a successful upgrade, so issue a plain `http.request` with `Upgrade: websocket` and `Connection: Upgrade` headers and assert on the status: listen for the `upgrade` event for success cases and the `response` event for the 403 cases. Driving them through a `ws` client instead means the client computes and validates `Sec-WebSocket-Accept`, which races the assertion and makes the happy-path tests flaky for reasons unrelated to what they test.
+**Use a raw `http.request`, not a `ws` client.** These five assertions only distinguish 403 from a successful upgrade, so issue a plain `http.request` with `Upgrade: websocket` and `Connection: Upgrade` headers and assert on the status: listen for the `upgrade` event for success cases and the `response` event for the 403 cases. Driving them through a `ws` client instead means the client computes and validates `Sec-WebSocket-Accept`, which races the assertion and makes the happy-path tests flaky for reasons unrelated to what they test.
 
 Since `CORS_ORIGIN` is read per-upgrade by `isAllowedWsOrigin` (unlike the HTTP path, where `corsOrigins()` is evaluated once at `createApp` time), these tests may set and clear the env var around each request without rebuilding the server. Save and restore it per test in the style the existing CORS tests use.
 
 ### Baselines
 
-Existing suite is 281 tests (280 pass, 1 skipped) via `npm test` in `cloud-agent/`. Target after this change: 285.
+Existing suite before this hardening work was 281 tests (280 pass, 1 skipped). With the four original upgrade cases plus the HTTP and WebSocket Chrome-extension regressions, the target is 287 total (286 pass, 1 skipped).
 
 ## Rollout
 
-Low risk. No production client sends an `Origin` header to this service, so the observable production change is zero.
+Low risk for currently released clients. Native app and server callers send no `Origin`; local Expo web already has an allowlist. The Desktop Bridge source targets the production cloud-agent, but its production rollout remains deferred until it has a stable published extension ID and that exact `chrome-extension://<id>` value is configured.
 
 1. Merge to `staging` per [CONTRIBUTING.md](../../../CONTRIBUTING.md) — PRs target `staging`, which is later promoted to `main`.
 2. Deploy cloud-agent to staging. Verify `/health` returns 200 and the mobile app's chat, streaming, and live-voice paths all still connect.
@@ -181,7 +200,7 @@ Low risk. No production client sends an `Origin` header to this service, so the 
 
 **Rollback:** revert the commit. There is no data migration, no config change, and no coupling to the dependency work in the sibling spec.
 
-**Explicitly not required:** no `CORS_ORIGIN` value needs to be set in Cloud Run for staging or production. Leaving it unset *is* the hardened configuration. Setting it would be the change that needs justification.
+**Explicitly not required for this rollout:** no `CORS_ORIGIN` value needs to be set in Cloud Run for the current native app and server-to-server clients. Leaving it unset is the hardened configuration. Before the Desktop Bridge is published for production, set `CORS_ORIGIN` to the stable `chrome-extension://<id>` origin (alongside any other deliberately supported browser origins) and verify both the HTTP and WebSocket paths. Setting that value is a separate deployment decision and is intentionally deferred until the extension ID exists.
 
 ## Open Questions
 

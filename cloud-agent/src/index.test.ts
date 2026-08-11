@@ -180,6 +180,19 @@ test('health endpoint sends Access-Control-Allow-Origin header when CORS_ORIGIN 
   else delete process.env.CORS_ORIGIN
 })
 
+test('health endpoint allows an explicitly configured Chrome extension origin', async () => {
+  const orig = process.env.CORS_ORIGIN
+  const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+  process.env.CORS_ORIGIN = extensionOrigin
+  const db = makeMockDb()
+  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+  const res = await request(app).get('/health').set('Origin', extensionOrigin)
+  assert.equal(res.status, 200)
+  assert.equal(res.headers['access-control-allow-origin'], extensionOrigin)
+  if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  else delete process.env.CORS_ORIGIN
+})
+
 test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight when CORS_ORIGIN is set', async () => {
   const orig = process.env.CORS_ORIGIN
   process.env.CORS_ORIGIN = 'https://example.com'
@@ -612,6 +625,21 @@ test('WS upgrade with an allowlisted Origin succeeds', async () => {
   const srv = await startWsTestServer()
   try {
     const result = await attemptUpgrade(srv.port, 'https://example.com')
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
+})
+
+test('WS upgrade with an explicitly configured Chrome extension origin succeeds', async () => {
+  const orig = process.env.CORS_ORIGIN
+  const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+  process.env.CORS_ORIGIN = extensionOrigin
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, extensionOrigin)
     assert.deepEqual(result, { upgraded: true })
   } finally {
     await srv.close()

@@ -131,6 +131,9 @@ function corsOrigins(): string | string[] | boolean {
     .map((s) => s.trim())
     .filter(Boolean)
     .map((value) => {
+      if (value.toLowerCase().startsWith('chrome-extension://')) {
+        return value.replace(/\/$/, '')
+      }
       try {
         return new URL(value).origin
       } catch {
