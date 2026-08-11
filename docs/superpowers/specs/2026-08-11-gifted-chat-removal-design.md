@@ -1,9 +1,9 @@
 # react-native-gifted-chat Removal Design
 
 **Date:** 2026-08-11
-**Status:** Implemented 2026-08-11 — revised 2026-08-11 after a review pass against the code (see [Revision notes](#revision-notes))
+**Status:** Implemented 2026-08-11 — revised twice on 2026-08-11: once before implementation after a review pass against the code, once after implementation after a code review of the PR (see [Revision notes](#revision-notes))
 **Owner:** equationalapplications
-**Implementation:** [2026-08-11-gifted-chat-removal.md](../plans/2026-08-11-gifted-chat-removal.md) was executed on branch `docs/gifted-chat-removal-spec`. 26 commits, shipped as a single PR to `staging`. `react-native-gifted-chat` and its 8 transitive deps are removed from `package.json`; `npm ls react-native-gifted-chat` returns empty. 1401/1401 tests pass; typecheck is clean.
+**Implementation:** [2026-08-11-gifted-chat-removal.md](../plans/2026-08-11-gifted-chat-removal.md) was executed on branch `docs/gifted-chat-removal-spec`. 26 commits, shipped as a single PR to `staging`. `react-native-gifted-chat` and its 8 transitive deps are removed from `package.json`; `npm ls react-native-gifted-chat` returns empty. 1412/1412 tests pass (1401 at first green, plus 11 added by the post-implementation review); typecheck is clean.
 **Supersedes:** the fork-migration approach previously described in this document (see [Why not the fork](#why-not-the-fork))
 **Depends on:** [Dependency Security and Major Upgrades](./2026-08-11-dependency-security-and-major-upgrades-design.md) Phase 3
 
@@ -91,7 +91,7 @@ ChatScreen (KeyboardAvoidingView — react-native-keyboard-controller)
 
 `ChatView` composes concrete components. There is deliberately **no render-prop layer** — `renderBubble` / `renderSend` / `renderAvatar` / `renderComposer` exist today only because gifted-chat demanded them, and a render-prop framework with exactly one call site is pure overhead.
 
-**New:** `MessageList`, `MessageRow`, `MessageBubble`, `MessageText`, `GroundingFooter`, `ChatInputBar`, `SendButton`, `src/utils/linkifyUrls.ts`, `src/types/chat.ts`.
+**New:** `MessageList`, `MessageRow`, `MessageBubble`, `MessageText`, `GroundingFooter`, `ChatInputBar`, `SendButton`, `src/utils/linkifyUrls.ts`, `src/utils/useTabBarHeight.ts`, `src/types/chat.ts`.
 
 **Deleted:** `ChatComposer.web.tsx`, `react-native-gifted-chat` and its 8 transitive deps (`react-native-parsed-text`, `react-native-lightbox-v2`, `react-native-communications`, `react-native-iphone-x-helper`, `lodash.isequal`, `dayjs`, `@expo/react-native-action-sheet`, `@types/lodash.isequal`).
 
@@ -157,6 +157,8 @@ Themed via `useTheme()`: `colors.secondary`/`onSecondary` left, `colors.primary`
 
 Uses `linkifyUrls(text): Array<{ type: 'text' | 'url'; value: string }>`; renders one `<Text>` with nested `<Text onPress>` per URL. Preserves the web `wordBreak: 'break-word'; overflowWrap: 'anywhere'` fix. URL taps pass through the existing `isSafeHttpUrl` guard before `Linking.openURL` — the same guard the citation chips use. Email and phone matching are **not** carried over.
 
+`linkifyUrls` matches `https?://` then **trims trailing sentence punctuation back into the following text segment**: a run of `.,!?;:'"`, and `)`/`]` only when the URL did not open them (so `…/Mercury_(planet)` stays whole). Without this, `Check out https://example.com.` yields a URL with a trailing `.` that the OS rejects on tap — the single most common way a linkified URL appears in a sentence. The trimmed characters are not dropped; they render as text.
+
 **`GroundingFooter`** — citation chips + `GroundingHtml`, lifted verbatim from `ChatView.renderCustomView`.
 
 **`ChatComposer`** — unified, replaces both current variants:
@@ -181,7 +183,16 @@ Everything else in today's `ChatComposer` — document ingest, MIME resolution, 
 
 ### Keyboard
 
-`KeyboardAvoidingView` from `react-native-keyboard-controller` (already a direct dependency at 1.21.9) wraps list + input bar. This deletes `bottomOffset={-tabBarHeight}`, the `BottomTabBarHeightContext` import, and the negative-offset workaround at `ChatView.tsx:490-493`.
+`KeyboardAvoidingView` from `react-native-keyboard-controller` (already a direct dependency at 1.21.9) wraps list + input bar. This deletes `bottomOffset={-tabBarHeight}` and the negative-offset workaround at `ChatView.tsx:490-493`.
+
+⚠️ **`BottomTabBarHeightContext` is *not* deleted — an earlier draft of this section claimed it was.** `KeyboardAvoidingView` still needs the tab bar height, as `keyboardVerticalOffset` rather than a negative `bottomOffset`, because the tab bar sits below the chat screen on Android. The offset is still read from the same vendored react-navigation context.
+
+Reading it requires a deep import, and both obvious alternatives are unavailable — verified against expo-router 57.0.12:
+
+- **No public path exists.** Nothing bottom-tabs-related is exported from `expo-router`, `expo-router/react-navigation` (which re-exports only `native` + `elements`), `expo-router/tabs`, or `expo-router/ui`. The package ships **no `exports` field**, so deep paths resolve — but nothing pins them either.
+- **The bottom-tabs barrel is not a safe substitute for the leaf.** `expo-router/build/react-navigation/bottom-tabs` re-exports `TransitionPresets → TransitionSpecs`, which touches native Reanimated bindings at module load. Importing it fails outright under Jest (`TypeError: Cannot read properties of undefined (reading 'in')`) and pulls the whole tabs subsystem into the bundle.
+
+So the leaf import lives in exactly one place, `src/utils/useTabBarHeight.ts`, behind a `try`/`require` guard with a `createContext(undefined)` fallback. If a patch release moves the path, the offset degrades to 0 instead of crashing at module load, and there is a single file to repoint. `ChatView` calls `useTabBarHeight()` and knows nothing about expo-router internals.
 
 ### Who builds the outgoing message
 
@@ -286,6 +297,8 @@ Slices 0–2 leave `react-native-gifted-chat` installed, so each reverts as a si
 
 ## Revision notes
 
+### Pre-implementation review
+
 A review pass verified this document against the code. The file inventory, the six value imports, the no-semicolon warning, the `ChatView` line references, the `react-native-keyboard-controller` dependency, and the eight transitive deps (each confirmed gifted-chat-exclusive via `npm ls`) all held. Seven things did not, and are fixed above:
 
 1. **Slice 2 broke a file the plan assigned to Slice 3.** 8 of `chatViewAccessibility.test.tsx`'s 17 tests drive `renderSend` / `renderComposer` / `renderInputToolbar` / `alwaysShowSend` — exactly what Slice 2 deletes. Now scoped to Slice 2.
@@ -295,6 +308,15 @@ A review pass verified this document against the code. The file inventory, the s
 5. **The `image` sentinel is a second dying hack**, and it is written into `message_data`. Deleted in Slice 1.
 6. **Two test counts were wrong.** "28 assertions" matched neither the test count (27) nor the `expect` count (62); "44 of 49 with the mock-factory key updated" mis-stated the mechanism — the factory is deleted, since no inner `Composer` remains.
 7. **`ChatComposer.tsx:52`** cites a `node_modules/react-native-gifted-chat` path in a comment, outside the README/docs scope exemption.
+
+### Post-implementation review
+
+A code review of the finished PR raised four findings, all in Slice 3 territory. All four are fixed in the code; two of them changed what this document specifies, and are corrected above rather than left as PR-only history.
+
+1. **`linkifyUrls` swallowed trailing punctuation** — the spec described the matcher but never said where a URL *ends* in running prose, so the implementation ended it at the first whitespace and captured the sentence's full stop. The trimming rule is now part of the `MessageText` contract, with 11 tests.
+2. **The Keyboard section was wrong about `BottomTabBarHeightContext`.** It said the import was deleted; the height is still needed, so the import survived — and, undocumented, it survived as a deep path into `expo-router/build/.../utils/`. The section now records why no public path exists, why the barrel cannot be substituted, and the guarded single-site module the leaf import now lives in.
+3. **Dead imports in `ChatView`** — `RNText`, `Linking`, `GroundingHtml`, and `isSafeHttpUrl` outlived the move of citation rendering into `GroundingFooter`. `GroundingHtml` transitively pulls WebView, so this was also a bundle-size leak. No spec impact; the spec already assigned all four to `GroundingFooter`/`MessageText`.
+4. **`chatUser` was a bare object literal** in the component body, so it changed identity every render and defeated the `useCallback` on `handleSend` — which flows through to `SendButton` re-rendering on every keystroke, since `ChatInputBar` owns the text state. Now `useMemo`'d from `currentUserId`/`userDisplayName`/`userPhotoUrl`. No spec impact, but it is worth noting that "`ChatInputBar` **owns the `text` state**" is precisely what makes render identity in `ChatView` a performance question rather than a cosmetic one.
 
 ## Related
 
