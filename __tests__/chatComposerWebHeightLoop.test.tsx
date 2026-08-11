@@ -70,13 +70,14 @@ jest.mock('~/components/composer/IngestProgressBar', () => () => null)
 import ChatComposer, { MIN_INPUT_HEIGHT, MAX_INPUT_HEIGHT } from '~/components/ChatComposer'
 
 const noop = () => {}
+const asyncNoop = async () => true
 const baseProps = {
   text: '',
   onChangeText: noop,
   onSubmit: noop,
   characterId: 'c',
   userId: 'u',
-  onSendPhoto: noop,
+  onSendPhoto: asyncNoop,
 }
 
 describe('ChatComposer — composer height loop', () => {

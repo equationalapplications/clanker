@@ -36,7 +36,7 @@ interface UseAIChatReturn {
   messages: Message[]
   sendMessage: (message: Message) => Promise<void>
   /** Vision turn. Cloud-agent only — see `canSendPhoto`. */
-  sendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<void>
+  sendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<boolean>
   canSendPhoto: boolean
   isGeneratingResponse: boolean
   error: string | null
@@ -474,12 +474,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       if (!canUseCloudAgent || !cloudAgentCharacterId) {
         // Explicit refusal, never a quiet text-only fallback.
         setError('This character cannot see photos. Turn on cloud sync to send images.')
-        return
+        return false
       }
 
       // Second line of defence behind the composer's disabled controls — see
       // `turnInFlightRef` above.
-      if (turnInFlightRef.current) return
+      if (turnInFlightRef.current) return false
       turnInFlightRef.current = true
 
       setError(null)
@@ -532,9 +532,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         // `~/services/imageModelBytes` as the fallback resolver.
 
         await runCloudAgentTurn(message, [attachment])
+        return true
       } catch (err) {
         reportError(err, `chat:${character.id}:sendPhoto`)
         setError(err instanceof Error ? err.message : 'Failed to send photo')
+        return false
       } finally {
         turnInFlightRef.current = false
         setIsSendingMessage(false)

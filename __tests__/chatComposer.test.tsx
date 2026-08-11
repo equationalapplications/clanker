@@ -1688,7 +1688,7 @@ describe('ChatComposer', () => {
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const onSendPhoto = jest.fn()
+      const onSendPhoto = jest.fn().mockResolvedValue(true)
       const { getByLabelText, findByText, queryByText } = render(
         <ChatComposer
           text=""
@@ -1733,7 +1733,7 @@ describe('ChatComposer', () => {
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const onSendPhoto = jest.fn()
+      const onSendPhoto = jest.fn().mockResolvedValue(true)
       const { getByLabelText } = render(
         <ChatComposer
           text=""
@@ -1750,6 +1750,77 @@ describe('ChatComposer', () => {
 
       await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
       expect(convertDocumentText).not.toHaveBeenCalled()
+    })
+
+    it('keeps the typed caption when onSendPhoto rejects the photo turn', async () => {
+      // Pre-fix: onSendPhoto fired and then onChangeText('') wiped the input
+      // unconditionally. If the cloud turn failed (network, credits, etc.)
+      // the user lost their typed caption. The fix is to await onSendPhoto
+      // and only clear on success — a regression here would force the user
+      // to retype their caption after a transient failure.
+      mockCaptureFromCamera.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///snap.jpg',
+        width: 1200,
+        height: 900,
+        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn().mockResolvedValue(false)
+      const onChangeText = jest.fn()
+      const { getByLabelText } = render(
+        <ChatComposer
+          text="my caption"
+          onChangeText={onChangeText} onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      await act(async () => {
+        fireEvent.press(getByLabelText('Take a photo'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      expect(onChangeText).not.toHaveBeenCalled()
+    })
+
+    it('clears the typed caption when onSendPhoto accepts the photo turn', async () => {
+      mockCaptureFromCamera.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///snap.jpg',
+        width: 1200,
+        height: 900,
+        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn().mockResolvedValue(true)
+      const onChangeText = jest.fn()
+      const { getByLabelText } = render(
+        <ChatComposer
+          text="my caption"
+          onChangeText={onChangeText} onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      await act(async () => {
+        fireEvent.press(getByLabelText('Take a photo'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      await waitFor(() =>
+        expect(onChangeText).toHaveBeenCalledWith(''),
+      )
     })
   })
 })

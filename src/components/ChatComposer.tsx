@@ -261,7 +261,11 @@ export default function ChatComposer({
     if (!characterId || !userId) return
 
     const pickerResult = await DocumentPicker.getDocumentAsync({
-      copyToCacheDirectory: false,
+      // Copy into the app sandbox so expo-file-system can read the bytes
+      // unconditionally. Without the copy, iCloud Drive / external URIs
+      // fail at ExpoFile.text()/base64() because the path is outside the
+      // sandbox.
+      copyToCacheDirectory: true,
       type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
     })
     if (pickerResult.canceled || !pickerResult.assets?.[0]) return
@@ -303,16 +307,23 @@ export default function ChatComposer({
             <View style={styles.attachmentRow}>
               <IconButton icon="plus" size={20} onPress={handlePlusPress} style={styles.plusButton} accessibilityLabel="Attach a photo or document" accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory" />
               {canSendPhoto && !isWeb && (
+                // The camera capture path opens expo-image-picker's native
+                // camera intent, which web cannot host. Suppress the button
+                // on web — the picker IconButton above still offers "Send in
+                // chat" via gallery selection.
                 <IconButton
                   icon="camera"
                   size={20}
                   disabled={isSending}
                   onPress={async () => {
                     const photo = await captureFromCamera()
-                    if (photo) {
-                      onSendPhoto?.(photo, text)
-                      onChangeText('')
-                    }
+                    if (!photo) return
+                    // Only clear the typed caption when the photo turn
+                    // actually launched — if sendPhoto rejects (network,
+                    // credits, etc.) the user keeps their text and can
+                    // retry without retyping.
+                    const sent = await onSendPhoto?.(photo, text)
+                    if (sent) onChangeText('')
                   }}
                   style={styles.plusButton}
                   accessibilityLabel="Take a photo"
@@ -378,8 +389,11 @@ export default function ChatComposer({
                 if (!picked) return
                 try {
                   const photo = await prepareFromAsset({ uri: picked.uri, width: picked.width, height: picked.height })
-                  onSendPhoto?.(photo, text)
-                  onChangeText('')
+                  // Only clear the typed caption when the photo turn
+                  // actually launched — on rejection the user keeps the
+                  // text and can retry without retyping.
+                  const sent = await onSendPhoto?.(photo, text)
+                  if (sent) onChangeText('')
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }

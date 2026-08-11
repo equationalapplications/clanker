@@ -9,7 +9,7 @@ interface ChatInputBarProps {
   characterId: string
   userId: string
   onSubmit: (text: string) => void
-  onSendPhoto: (photo: PendingChatPhoto, caption: string) => void
+  onSendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<boolean>
   onPhaseChange?: (phase: DocumentUploadPhase) => void
   canSendPhoto?: boolean
   isGenerating: boolean
