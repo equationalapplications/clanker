@@ -1,7 +1,7 @@
 # cloud-agent Cross-Origin Hardening Design
 
 **Date:** 2026-08-11
-**Status:** Approved, not implemented
+**Status:** Implemented
 **Owner:** equationalapplications
 **Closes:** [Code scanning alert #26](https://github.com/equationalapplications/clanker/security/code-scanning/26) (`js/cors-permissive-configuration`, medium)
 
