@@ -43,7 +43,11 @@ export interface ChatComposerProps {
   onPhaseChange?: (phase: DocumentUploadPhase) => void
   canSendPhoto?: boolean
   isSending?: boolean
-  onSendPhoto?: (photo: PendingChatPhoto, caption: string) => void
+  // Returns true on success so the composer can clear the typed caption
+  // only when the photo turn actually launched. On failure the caption
+  // stays in the input — the chatError region surfaces the reason and the
+  // user can retry without retyping.
+  onSendPhoto?: (photo: PendingChatPhoto, caption: string) => Promise<boolean>
 }
 
 async function readAsBase64(uri: string): Promise<string> {
