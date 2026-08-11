@@ -18,25 +18,45 @@ const baseMessage: Message = {
 
 describe('MessageList streaming-key invariant', () => {
   it('preserves the message _id across streaming updates', () => {
-    const renderAvatar = () => null
-    const first = render(<MessageList messages={[baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />)
+    // A React-component avatar mock (not a render prop) makes remounts
+    // observable: if the keyed row were torn down and rebuilt on each
+    // streaming update, the avatar component would unmount and remount.
+    // useEffect with empty deps fires exactly once on mount and again on
+    // remount — but not on plain re-renders — so this distinguishes the
+    // two. Streaming should update the same row in place, so the effect
+    // fires only once across both renders.
+    let avatarMountCount = 0
+    const CountingAvatar: React.FC = () => {
+      React.useEffect(() => {
+        avatarMountCount += 1
+      }, [])
+      return null
+    }
+    const renderAvatar = (_message: Message) => <CountingAvatar />
+
+    const first = render(
+      <MessageList messages={[baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
+    expect(avatarMountCount).toBe(1)
+
     // Force a streaming update — same _id, new text
     const updated: Message = { ...baseMessage, text: 'hello world' }
     first.rerender(<MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />)
-    // The keyed row should not have remounted.
-    // Find the row by querying the live tree: the inner MessageText should
-    // show the new text.
+
+    expect(avatarMountCount).toBe(1)
     expect(first.getByText('hello world')).toBeTruthy()
   })
 
-  it('does not duplicate rows when the same _id is passed twice', () => {
+  it('renders one row per message when _ids are unique', () => {
+    // Two messages with distinct _ids must render two rows. A regression
+    // that drops keyExtractor or flattens the data would collapse them.
     const renderAvatar = () => null
-    const { queryAllByText } = render(
-      <MessageList messages={[baseMessage, baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />,
+    const a: Message = { ...baseMessage, _id: 'msg-a', text: 'message a' }
+    const b: Message = { ...baseMessage, _id: 'msg-b', text: 'message b' }
+    const { getByText } = render(
+      <MessageList messages={[a, b]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
-    // FlatList dedupes by key — the same _id twice collapses to one row.
-    // The bubble does not render the text (it's empty), so verify via the
-    // _id-keyed row count instead.
-    expect(queryAllByText('hello world')).toHaveLength(0)
+    expect(getByText('message a')).toBeTruthy()
+    expect(getByText('message b')).toBeTruthy()
   })
 })

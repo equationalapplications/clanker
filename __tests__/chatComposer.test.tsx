@@ -175,41 +175,73 @@ describe('ChatComposer', () => {
   })
 
   it('sends on web when Enter is pressed without Shift', () => {
+    // Force Platform.OS to 'web' so the onKeyPress handler the wrapper
+    // installs on web fires; the same code path is a no-op on native.
+    const Platform = require('react-native').Platform
+    const originalOs = Platform.OS
+    Object.defineProperty(Platform, 'OS', { value: 'web', configurable: true })
+
     const onSend = jest.fn()
-    const preventDefault = jest.fn()
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     act(() => {
-      tree = create(<ChatComposer text="  hello world  " onSubmit={onSend} />)
+      tree = create(
+        <ChatComposer
+          text="  hello world  "
+          onChangeText={jest.fn()}
+          onSubmit={onSend}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
 
+    // react-native-web ignores `submitBehavior`, so the wrapper installs an
+    // onKeyPress handler that fires `onSubmit` on Enter without Shift.
     act(() => {
-      composer.props.onSubmitEditing()
+      composer.props.onKeyPress({ nativeEvent: { key: 'Enter', shiftKey: false } })
     })
 
+    Object.defineProperty(Platform, 'OS', { value: originalOs, configurable: true })
     expect(onSend).toHaveBeenCalled()
   })
 
   it('keeps newline path on web when Shift+Enter is pressed', () => {
+    const Platform = require('react-native').Platform
+    const originalOs = Platform.OS
+    Object.defineProperty(Platform, 'OS', { value: 'web', configurable: true })
+
     const onSend = jest.fn()
-    const preventDefault = jest.fn()
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     act(() => {
-      tree = create(<ChatComposer text="hello world" onSubmit={onSend} />)
+      tree = create(
+        <ChatComposer
+          text="hello world"
+          onChangeText={jest.fn()}
+          onSubmit={onSend}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
 
-    // The unified composer delegates Enter/Shift+Enter discrimination to
-    // TextInput's built-in multiline semantics: `submitBehavior="submit"`
-    // means Enter fires onSubmitEditing and Shift+Enter inserts a newline.
-    // The wrapper has no key-filtering of its own, so verify the contract it
-    // exposes — multiline + submitBehavior="submit" + returnKeyType="send".
+    // Shift+Enter must NOT fire onSubmit — the wrapper's onKeyPress handler
+    // only submits on Enter without Shift.
+    act(() => {
+      composer.props.onKeyPress({ nativeEvent: { key: 'Enter', shiftKey: true } })
+    })
+    Object.defineProperty(Platform, 'OS', { value: originalOs, configurable: true })
+    expect(onSend).not.toHaveBeenCalled()
+
+    // Sanity-check the wrapper still exposes the multiline contract that
+    // the native TextInput relies on for Shift+Enter → newline.
     expect(composer.props.multiline).toBe(true)
     expect(composer.props.submitBehavior).toBe('submit')
     expect(composer.props.returnKeyType).toBe('send')
@@ -230,7 +262,15 @@ describe('ChatComposer', () => {
     let tree!: ReturnType<typeof create>
 
     act(() => {
-      tree = create(<ChatComposer text="   " onSubmit={onSubmit} />)
+      tree = create(
+        <ChatComposer
+          text="   "
+          onChangeText={jest.fn()}
+          onSubmit={onSubmit}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
@@ -248,7 +288,15 @@ describe('ChatComposer', () => {
         let tree!: ReturnType<typeof create>
 
         act(() => {
-            tree = create(<ChatComposer text="  hi native  " onSubmit={onSend} />)
+            tree = create(
+              <ChatComposer
+                text="  hi native  "
+                onChangeText={jest.fn()}
+                onSubmit={onSend}
+                characterId="char-1"
+                userId="user-1"
+              />,
+            )
         })
 
         const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
@@ -275,7 +323,15 @@ describe('ChatComposer', () => {
         let tree!: ReturnType<typeof create>
 
         act(() => {
-            tree = create(<ChatComposer text="   " onSubmit={onSubmit} />)
+            tree = create(
+              <ChatComposer
+                text="   "
+                onChangeText={jest.fn()}
+                onSubmit={onSubmit}
+                characterId="char-1"
+                userId="user-1"
+              />,
+            )
         })
 
         const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
@@ -293,7 +349,15 @@ describe('ChatComposer', () => {
     let tree!: ReturnType<typeof create>
 
     act(() => {
-      tree = create(<ChatComposer text="" onSubmit={jest.fn()} />)
+      tree = create(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
@@ -306,7 +370,15 @@ describe('ChatComposer', () => {
     let tree!: ReturnType<typeof create>
 
     act(() => {
-      tree = create(<ChatComposer text="" onSubmit={jest.fn()} />)
+      tree = create(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })

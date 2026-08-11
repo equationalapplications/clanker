@@ -29,6 +29,7 @@ export function MessageText({ text, color }: MessageTextProps) {
         return (
           <Text
             key={index}
+            accessibilityRole="link"
             style={{ textDecorationLine: 'underline' }}
             onPress={() => {
               void Linking.openURL(segment.value).catch((error) => {

@@ -7,7 +7,7 @@ interface MessageListProps {
   messages: Message[]
   currentUserId: string
   renderAvatar: (message: Message) => React.ReactNode
-  emptyComponent?: React.ReactNode
+  emptyComponent?: FlatListProps<Message>['ListEmptyComponent']
   contentContainerStyle?: FlatListProps<Message>['contentContainerStyle']
 }
 
@@ -33,7 +33,7 @@ export function MessageList({
           renderAvatar={renderAvatar}
         />
       )}
-      ListEmptyComponent={(emptyComponent ?? null) as React.ReactElement | null}
+      ListEmptyComponent={emptyComponent ?? null}
       contentContainerStyle={contentContainerStyle}
       removeClippedSubviews={groundingListViewProps?.removeClippedSubviews}
     />

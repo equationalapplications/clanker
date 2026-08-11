@@ -360,6 +360,21 @@ export default function ChatComposer({
             onSubmitEditing={onSubmit}
             returnKeyType="send"
             submitBehavior="submit"
+            // react-native-web 0.21.2 ignores `submitBehavior`, so plain
+            // Enter inserts a newline on web instead of firing
+            // `onSubmitEditing`. The native TextInput (Android 0.86.2)
+            // honours `submitBehavior="submit"` so this branch never fires
+            // there in practice; the platform check is defence-in-depth and
+            // also keeps the handler's intent obvious in the tree. Shift+Enter
+            // falls through and inserts a newline, matching the multiline
+            // TextInput contract.
+            onKeyPress={(event) => {
+              if (!isWeb) return
+              const { key, shiftKey } = event.nativeEvent as unknown as { key?: string; shiftKey?: boolean }
+              if (key === 'Enter' && !shiftKey) {
+                onSubmit()
+              }
+            }}
             accessibilityLabel="Message input"
             placeholder="Message"
             placeholderTextColor={colors.onSurfaceVariant}

@@ -7,6 +7,9 @@ import type { GroundingMetadata } from '@google/genai'
 // GroundingHtml wraps the snippet in a WebView (mocked to a View in jest.setup).
 // For this test we only need to assert the prop is forwarded, so replace it with
 // a plain Text rendering the snippet — same pattern as talkScreenGrounding.test.tsx.
+// `jest.mock` factories are hoisted to the top of the file by babel-jest, so they
+// may only reference hoisted variables (`require` is hoisted; ES imports are not).
+// This is the same pattern every other test mock in the repo uses.
 jest.mock('~/components/GroundingHtml', () => {
   const ReactLib = require('react')
   const { Text } = require('react-native')

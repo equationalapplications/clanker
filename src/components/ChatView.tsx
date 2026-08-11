@@ -103,7 +103,8 @@ function ChatViewContent({
   // screen compensated with `bottomOffset={-tabBarHeight}`; the new
   // KeyboardAvoidingView from react-native-keyboard-controller uses
   // `keyboardVerticalOffset` for the same purpose. On iOS the system
-  // handles the keyboard inset, so we only apply the tab offset there.
+  // handles the keyboard inset natively, so the tab offset only applies on
+  // Android.
   const tabBarHeight = useTabBarHeight()
 
   const wikiStatus = useEntityStatus(characterId)
@@ -263,7 +264,7 @@ function ChatViewContent({
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={tabBarHeight}
+      keyboardVerticalOffset={Platform.OS === 'android' ? tabBarHeight : 0}
     >
       {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
         <View

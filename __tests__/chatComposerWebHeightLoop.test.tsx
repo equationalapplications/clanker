@@ -98,6 +98,14 @@ describe('ChatComposer — composer height loop', () => {
     }).not.toThrow()
 
     const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    // The mount-time height is the idle size — but the test must also
+    // exercise the measurement path it claims to cover. Fire a measurement
+    // while text is empty and assert the height stays at MIN: a regression
+    // that fed the measurement back as the new height would push it above
+    // MIN and the assertion below would fail.
+    act(() => {
+      input.props.onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: 400 } } })
+    })
     expect(input.props.style.height).toBe(MIN_INPUT_HEIGHT)
   })
 
@@ -168,16 +176,23 @@ describe('ChatComposer — composer height loop', () => {
     // the only authority on the idle height — so the cycle has nowhere to
     // close. Verify the loop terminates: a fixed number of
     // onContentSizeChange calls produces a bounded render count.
+    //
+    // Counting renders of ChatComposer itself (not a wrapper) — ChatComposer
+    // updates its `inputHeight` state internally, which does not re-render
+    // any parent. React.Profiler counts every commit of its subtree, so its
+    // onRender fires once for the initial mount and once for each internal
+    // re-render.
     let renderCount = 0
-    const CountingComposer = (props: any) => {
+    const onProfileRender = () => {
       renderCount += 1
-      return <ChatComposer {...props} />
     }
 
     let tree!: ReturnType<typeof create>
     act(() => {
       tree = create(
-        <CountingComposer {...baseProps} text="hello" />,
+        <React.Profiler id="ChatComposer" onRender={onProfileRender}>
+          <ChatComposer {...baseProps} text="hello" />
+        </React.Profiler>,
       )
     })
 
@@ -191,7 +206,9 @@ describe('ChatComposer — composer height loop', () => {
     })
 
     // After the cycle, the height must be one of the clamped values,
-    // and the render count must be bounded (no infinite loop).
+    // and the render count must be bounded (no infinite loop). An infinite
+    // loop would blow past this bound immediately; a healthy cycle clamps
+    // to a handful of distinct heights so the render count is small.
     const finalHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.style.height
     expect(finalHeight).toBeGreaterThanOrEqual(MIN_INPUT_HEIGHT)
     expect(finalHeight).toBeLessThanOrEqual(MAX_INPUT_HEIGHT)
