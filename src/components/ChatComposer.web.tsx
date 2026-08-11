@@ -90,6 +90,11 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   >(null)
   const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
+  // Track the last size gifted-chat's Composer reported so the collapse
+  // pass below can synthesize one for the upstream callback. The measurement
+  // handler ignores empty-text sizes (loop guard) but the parent still
+  // needs to learn the height changed when the composer collapses.
+  const lastInputSizeRef = useRef<{ width: number; height: number } | null>(null)
 
   const { prepareFromAsset, isPreparing, error: photoError, clearError: clearPhotoError } = useChatPhotoUpload()
 
@@ -110,8 +115,18 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: collapse height when text empties
       setInputHeight(MIN_INPUT_HEIGHT)
+      // Replay a synthetic size to upstream so GiftedChat's internal
+      // composerHeight matches the prop we now render at. The measurement
+      // handler returns early while text is empty (otherwise the browser's
+      // own height-on-height feedback loops us into React error #185), but
+      // the collapse pass IS the authority on the idle height — forward it
+      // here and the message list offset stays in sync with the input.
+      const lastSize = lastInputSizeRef.current
+      if (lastSize) {
+        onInputSizeChanged?.({ ...lastSize, height: MIN_INPUT_HEIGHT })
+      }
     }
-  }, [text, inputHeight])
+  }, [text, inputHeight, onInputSizeChanged])
 
   // Surface photo upload errors as a toast. The hook holds the error as a plain
   // string, so a second identical failure — a camera permission denied twice —
@@ -378,6 +393,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
             text={text}
             composerHeight={inputHeight}
             onInputSizeChanged={(size) => {
+              // Record every measurement so the collapse-effect can replay one
+              // upstream if it fires after text empties.
+              lastInputSizeRef.current = size
               // Ignore measurements while the input is empty. gifted-chat's Composer
               // only re-fires this callback when the browser reports a *different*
               // contentSize than last time — it has no debounce against feedback we

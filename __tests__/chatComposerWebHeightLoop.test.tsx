@@ -139,4 +139,55 @@ describe('ChatComposer.web — composer height / onInputSizeChanged', () => {
     const composerAfter = tree!.root.findByProps({ __chatComposerMock: true })
     expect(composerAfter.props.composerHeight).toBeGreaterThan(MIN_INPUT_HEIGHT)
   })
+
+  // The empty-text loop guard returns early from the measurement handler, so
+  // the upstream onInputSizeChanged no longer fires for those measurements.
+  // That would leave GiftedChat's internal composerHeight state at its last
+  // text-grown value while we render at the collapsed MIN_INPUT_HEIGHT — a
+  // stale offset between the input and the message list. The collapse-effect
+  // is the authority on the idle height, so it must replay a synthetic size
+  // to keep upstream in sync.
+  it('forwards a MIN-height size to upstream onInputSizeChanged when text empties after growth', () => {
+    ;(globalThis as any).__composerMockAdversarial__ = false
+    const upstreamOnInputSizeChanged = jest.fn()
+    let tree: ReturnType<typeof create>
+    act(() => {
+      tree = create(
+        <ChatComposerWeb
+          text="hello"
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onInputSizeChanged={upstreamOnInputSizeChanged}
+        />,
+      )
+    })
+
+    // Grow first so the collapse pass has something to fold back down.
+    act(() => {
+      tree!.root
+        .findByProps({ __chatComposerMock: true })
+        .props.onInputSizeChanged({ width: 300, height: MIN_INPUT_HEIGHT + 40 })
+    })
+    upstreamOnInputSizeChanged.mockClear()
+
+    act(() => {
+      tree!.update(
+        <ChatComposerWeb
+          text=""
+          onSend={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onInputSizeChanged={upstreamOnInputSizeChanged}
+        />,
+      )
+    })
+
+    expect(upstreamOnInputSizeChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 300, height: MIN_INPUT_HEIGHT }),
+    )
+
+    const composerAfter = tree!.root.findByProps({ __chatComposerMock: true })
+    expect(composerAfter.props.composerHeight).toBe(MIN_INPUT_HEIGHT)
+  })
 })
