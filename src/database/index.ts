@@ -27,7 +27,7 @@ if (Platform.OS === 'web') {
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
 
-type DatabaseExecutor = Pick<
+export type DatabaseExecutor = Pick<
     SQLite.SQLiteDatabase,
     'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
 >
@@ -184,7 +184,23 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
     }
 }
 
-async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void> {
+// Split out of CREATE_TABLES: that block runs unconditionally on every boot,
+// before schema_version is even read, so an index on a column added by a
+// migration (message_id, migration 24) cannot live there — on an existing DB
+// still missing the column, CREATE TABLE IF NOT EXISTS no-ops but the index
+// statement would still fire and throw "no such column" before migration 24
+// ever gets a chance to add it. Safe to run here unconditionally because by
+// this point message_id exists on every path: CREATE_TABLES for a fresh
+// table, or migration 24 for an upgraded one.
+async function ensureCharacterImagesMessageIndex(executor: DatabaseExecutor): Promise<void> {
+    await executor.execAsync(
+        `CREATE INDEX IF NOT EXISTS idx_character_images_message
+    ON character_images(message_id)
+    WHERE message_id IS NOT NULL;`,
+    )
+}
+
+export async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void> {
     // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
     await executor.execAsync(CREATE_TABLES)
 
@@ -228,6 +244,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
                 'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
                 [SCHEMA_VERSION, Date.now()],
             )
+            await ensureCharacterImagesMessageIndex(executor)
             return
         }
 
@@ -273,6 +290,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
             inferredVersion = 7
         }
         await runMigrations(executor, inferredVersion)
+        await ensureCharacterImagesMessageIndex(executor)
         return
     }
 
@@ -280,6 +298,7 @@ async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void
         // Existing DB that needs upgrading
         await runMigrations(executor, result.version)
     }
+    await ensureCharacterImagesMessageIndex(executor)
 }
 
 /**
