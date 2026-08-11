@@ -88,6 +88,7 @@ load-bearing, and was demonstrably unreliable while it was (see the incident not
 | 20 | `0020_credit_power_scale.sql` | Inflate `credit_transactions`/`subscriptions` credit balances ×100 for Power unit rename |
 | 21 | `0021_fix_handle_new_user_trigger_power_scale.sql` | Fix `handle_new_user()` trigger still hardcoding 50 (missed by 0020, which only updated existing rows) — new signups now get 5,000 |
 | 22 | `0022_character_images.sql` | `character_images` table + `characters.active_image_id` for the image pipeline refactor (PR #580) |
+| 23 | `0023_character_images_chat.sql` | `character_images.message_id` for chat photo uploads (Phase 2 vision/chat-uploads) |
 
 `0014_pgvector_wiki_embeddings.sql` **is** applied to `clanker-prod` (a 2026-08-01 schema audit
 confirmed the `vector` extension, `llm_wiki_entries.embedding`, and the HNSW index
