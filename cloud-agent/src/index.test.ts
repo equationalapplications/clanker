@@ -146,14 +146,14 @@ test('health endpoint blocks all origins when CORS_ORIGIN is set to wildcard (wi
 
 // ── CORS default (no CORS_ORIGIN) ────────────────────────────────────────────
 
-test('health endpoint reflects origin when CORS_ORIGIN is not set', async () => {
+test('health endpoint blocks all origins when CORS_ORIGIN is not set', async () => {
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
   const db = makeMockDb()
   const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
   const res = await request(app).get('/health').set('Origin', 'https://example.com')
   assert.equal(res.status, 200)
-  assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
+  assert.equal(res.headers['access-control-allow-origin'], undefined)
   if (orig !== undefined) process.env.CORS_ORIGIN = orig
 })
 

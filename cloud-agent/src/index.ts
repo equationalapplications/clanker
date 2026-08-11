@@ -121,9 +121,10 @@ export async function runAgentReal(params: RunAgentParams): Promise<{ reply: str
 
 function corsOrigins(): string | string[] | boolean {
   const raw = process.env.CORS_ORIGIN
-  // No env var → reflect the request Origin (allow all). Safe because auth uses
-  // Authorization header (not cookies), so credentials are not at risk.
-  if (!raw) return true
+  // No env var → deny all cross-origin browser access. The only clients today
+  // are the Expo mobile app and server-to-server callers, neither of which is
+  // subject to CORS; a browser-based client must opt in via an explicit allowlist.
+  if (!raw) return false
 
   const origins = raw
     .split(',')
