@@ -224,6 +224,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission:
           'Allow Clanker to access your photo library to set a character avatar.',
+        cameraPermission:
+          'Allow Clanker to access your camera to take a photo to send in chat.',
       },
     ],
     [
