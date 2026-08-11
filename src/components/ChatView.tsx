@@ -3,9 +3,9 @@ import { BottomTabBarHeightContext } from 'expo-router/build/react-navigation/bo
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
-import type { FlatListProps, TextStyle } from 'react-native'
-import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
+import type { FlatListProps } from 'react-native'
+import { GiftedChat, InputToolbar, Send } from 'react-native-gifted-chat'
+import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -18,11 +18,13 @@ import ChatComposer, {
   MIN_INPUT_HEIGHT,
   type DocumentUploadPhase,
 } from '~/components/ChatComposer'
+import { MessageBubble } from '~/components/MessageBubble'
 import { GroundingHtml } from '~/components/GroundingHtml'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
 import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
-import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
+import type { Character as AIChatCharacter } from '~/services/aiChatService'
+import type { Message } from '~/types/chat'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
 import ChatImageBubble from '~/components/ChatImageBubble'
@@ -69,11 +71,6 @@ function toolStatusAccessibilityLabel(toolName: string): string {
       return `Using ${toolName.replace(/_/g, ' ')}`
   }
 }
-
-const webMessageTextWrapStyle = {
-  wordBreak: 'break-word',
-  overflowWrap: 'anywhere',
-} as TextStyle
 
 /** Native WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
 const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> | undefined =
@@ -218,61 +215,18 @@ function ChatViewContent({
   )
 
   const renderBubble = useCallback(
-    (props: any) => {
-      const hasGrounding = Boolean(
-        (props.currentMessage as GroundedIMessage | undefined)?.groundingMetadata,
-      )
-      const webBubbleConstraints =
-        Platform.OS === 'web'
-          ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
-          : {}
-
+    (props: { currentMessage?: Message }) => {
+      const current = props.currentMessage
+      if (!current) return null
+      const isOwn = current.user._id === currentUserId
       return (
-        <Bubble
-          {...props}
-          touchableProps={
-            Platform.OS === 'web' && hasGrounding ? { disabled: true } : undefined
-          }
-          wrapperStyle={{
-            left: {
-              backgroundColor: colors.secondary,
-              borderRadius: roundness,
-              ...webBubbleConstraints,
-            },
-            right: {
-              backgroundColor: colors.primary,
-              borderRadius: roundness,
-              ...webBubbleConstraints,
-            },
-          }}
-          textStyle={{
-            left: { color: colors.onSecondary },
-            right: { color: colors.onPrimary },
-          }}
-          renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
-            <View
-              style={{
-                paddingVertical: 10,
-                ...(Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {}),
-              }}
-            >
-              <MessageText
-                {...msgProps}
-                textStyle={
-                  Platform.OS === 'web'
-                    ? {
-                        left: [msgProps.textStyle?.left, webMessageTextWrapStyle],
-                        right: [msgProps.textStyle?.right, webMessageTextWrapStyle],
-                      }
-                    : msgProps.textStyle
-                }
-              />
-            </View>
-          )}
+        <MessageBubble
+          message={current}
+          isOwn={isOwn}
         />
       )
     },
-    [colors, roundness],
+    [currentUserId],
   )
 
   const renderInputToolbar = useCallback(
@@ -354,7 +308,7 @@ function ChatViewContent({
   )
 
   const renderCustomView = useCallback(
-    (props: { currentMessage?: GroundedIMessage }) => {
+    (props: { currentMessage?: Message }) => {
       const metadata = props.currentMessage?.groundingMetadata
       if (!metadata) {
         return null
