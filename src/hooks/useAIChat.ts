@@ -486,7 +486,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       setError(null)
       setIsSendingMessage(true)
       try {
-        const message: Message & { imageId: string; image: string } = {
+        const message: Message & { imageId: string } = {
           _id: photo.messageId,
           text: caption.trim(),
           createdAt: new Date(),
@@ -498,11 +498,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           // whose message synced first show a placeholder rather than a bare
           // text bubble that silently gains an image later.
           imageId: photo.imageId,
-          // gifted-chat's `Bubble` gates `renderMessageImage` on `image` being
-          // truthy; without this the photo never reaches the bubble at all.
-          // `ChatImageBubble` reads `imageId`, not `image`, so the value is a
-          // sentinel only and is never dereferenced as a URI.
-          image: photo.imageId,
         }
 
         // Bubble first, so it is visible while the model is thinking.
