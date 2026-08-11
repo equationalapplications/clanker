@@ -437,8 +437,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
 
   server.on('upgrade', (req, socket, head) => {
     if (!isAllowedWsOrigin(req.headers.origin)) {
-      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
-      socket.destroy()
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       return
     }
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname

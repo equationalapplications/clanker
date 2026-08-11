@@ -6,7 +6,7 @@
 
 **Architecture:** Two edits in one file. `corsOrigins()` in `cloud-agent/src/index.ts` flips its no-env-var default from `true` (reflect any Origin) to `false` (send no `Access-Control-Allow-Origin`). A new exported `isAllowedWsOrigin()` reuses `corsOrigins()` as the single source of truth and runs at the top of the existing `server.on('upgrade')` handler, rejecting disallowed browser origins with a raw `403` before any socket is allocated. Requests with no `Origin` header (every native and server-to-server client) are unaffected on both paths.
 
-**Tech Stack:** TypeScript (ESM, `"type": "module"`), Express 5 + `cors`, `ws`, `node:test` + `node:assert/strict`, `supertest` for HTTP and raw `node:http` for upgrade tests.
+**Tech Stack:** TypeScript (ESM, `"type": "module"`), Express 4 + `cors`, `ws`, `node:test` + `node:assert/strict`, `supertest` for HTTP and raw `node:http` for upgrade tests.
 
 **Spec:** [`docs/superpowers/specs/2026-08-11-cloud-agent-cors-hardening-design.md`](../specs/2026-08-11-cloud-agent-cors-hardening-design.md)
 
