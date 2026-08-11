@@ -149,7 +149,7 @@ All in `cloud-agent/src/index.test.ts`, which already has a CORS section.
 
 **This suite is `node:test`, not Jest.** `cloud-agent/package.json` has **no Jest dependency**; its test script is:
 
-```
+```bash
 NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec "dist/**/*.test.js"
 ```
 

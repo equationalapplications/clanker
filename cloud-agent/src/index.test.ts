@@ -184,13 +184,16 @@ test('health endpoint allows an explicitly configured Chrome extension origin', 
   const orig = process.env.CORS_ORIGIN
   const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
   process.env.CORS_ORIGIN = extensionOrigin
-  const db = makeMockDb()
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
-  const res = await request(app).get('/health').set('Origin', extensionOrigin)
-  assert.equal(res.status, 200)
-  assert.equal(res.headers['access-control-allow-origin'], extensionOrigin)
-  if (orig !== undefined) process.env.CORS_ORIGIN = orig
-  else delete process.env.CORS_ORIGIN
+  try {
+    const db = makeMockDb()
+    const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+    const res = await request(app).get('/health').set('Origin', extensionOrigin)
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['access-control-allow-origin'], extensionOrigin)
+  } finally {
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
 })
 
 test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight when CORS_ORIGIN is set', async () => {
@@ -225,12 +228,15 @@ test('health endpoint blocks all origins when CORS_ORIGIN is set to wildcard (wi
 test('health endpoint blocks all origins when CORS_ORIGIN is not set', async () => {
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
-  const db = makeMockDb()
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
-  const res = await request(app).get('/health').set('Origin', 'https://example.com')
-  assert.equal(res.status, 200)
-  assert.equal(res.headers['access-control-allow-origin'], undefined)
-  if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  try {
+    const db = makeMockDb()
+    const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+    const res = await request(app).get('/health').set('Origin', 'https://example.com')
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['access-control-allow-origin'], undefined)
+  } finally {
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
 })
 
 // ── Auth middleware ───────────────────────────────────────────────────────────

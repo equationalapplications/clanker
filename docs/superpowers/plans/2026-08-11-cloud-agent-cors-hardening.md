@@ -16,7 +16,7 @@
 
 **`cloud-agent` uses `node:test`, not Jest.** There is no Jest dependency in `cloud-agent/package.json`. The test script is:
 
-```
+```bash
 NODE_ENV=test npm run build && NODE_ENV=test node --test --test-reporter spec "dist/**/*.test.js"
 ```
 
@@ -35,7 +35,7 @@ Consequences you must respect:
   - Already exported and needing no change: `createApp`, `attachWebSocketRoutes`.
 - **Modify** `cloud-agent/src/index.test.ts`
   - Invert one existing CORS default test.
-  - Add two module-scope test helpers (`startWsTestServer`, `attemptUpgrade`) and four upgrade tests.
+  - Add two module-scope test helpers (`startWsTestServer`, `attemptUpgrade`) and five upgrade tests.
 
 No new files. No other package is touched.
 
@@ -152,7 +152,7 @@ git commit -m "fix(cloud-agent): default-deny CORS when CORS_ORIGIN is unset"
 Two constraints, both non-negotiable:
 
 1. **Bind the real exported server factory.** `supertest` cannot perform WebSocket upgrades, so these tests need a real listener on an ephemeral port. Use `createApp()` + `attachWebSocketRoutes()` from `./index.js`. Standing up a fresh `http.createServer()` and re-implementing the origin check inline would test a *copy* of the logic while leaving the production handler unexercised — such tests keep passing through a real regression, which is worse than no tests because it reads as coverage.
-2. **Use a raw `http.request`, not a `ws` client.** These four assertions only distinguish "403" from "upgraded". A `ws` client additionally computes and validates `Sec-WebSocket-Accept` and races the assertion, making the happy-path tests flaky for reasons unrelated to what they test.
+2. **Use a raw `http.request`, not a `ws` client.** These five assertions only distinguish "403" from "upgraded". A `ws` client additionally computes and validates `Sec-WebSocket-Accept` and races the assertion, making the happy-path tests flaky for reasons unrelated to what they test.
 
 - [ ] **Step 1: Add the `node:http` import and extend the dynamic import**
 
@@ -244,7 +244,7 @@ async function attemptUpgrade(port: number, origin?: string): Promise<UpgradeRes
 
 `/agent/stream` is the path under test because it is the only one of the four that works with `admin.apps.length === 0` (the `/agent/browser` and `/agent/desktop` branches destroy the socket when the Firebase bridge is unavailable). The origin guard runs before path dispatch, so covering one path covers all four.
 
-- [ ] **Step 3: Write the four failing upgrade tests**
+- [ ] **Step 3: Write the five failing upgrade tests**
 
 Append to `cloud-agent/src/index.test.ts`:
 
@@ -277,12 +277,27 @@ test('WS upgrade with an Origin is rejected with 403 when CORS_ORIGIN is not set
   }
 })
 
-test('WS upgrade with an allowlisted Origin succeeds', async () => {
+test('WS upgrade with an allowlisted HTTP(S) Origin succeeds', async () => {
   const orig = process.env.CORS_ORIGIN
   process.env.CORS_ORIGIN = 'https://example.com'
   const srv = await startWsTestServer()
   try {
     const result = await attemptUpgrade(srv.port, 'https://example.com')
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
+})
+
+test('WS upgrade with an explicitly configured Chrome extension Origin succeeds', async () => {
+  const orig = process.env.CORS_ORIGIN
+  const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+  process.env.CORS_ORIGIN = extensionOrigin
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, extensionOrigin)
     assert.deepEqual(result, { upgraded: true })
   } finally {
     await srv.close()
@@ -349,22 +364,21 @@ to:
 ```ts
   server.on('upgrade', (req, socket, head) => {
     if (!isAllowedWsOrigin(req.headers.origin)) {
-      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
-      socket.destroy()
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       return
     }
     const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
 ```
 
-The guard sits above path dispatch so a rejected origin never reaches `handleUpgrade` and never allocates a socket. `Connection: close` is not strictly required — the `destroy()` ends the connection regardless — but it states the intent to any proxy between the client and Cloud Run instead of leaving them to infer it from a dropped socket. Leave the rest of the dispatch chain unchanged.
+The guard sits above path dispatch so a rejected origin never reaches `handleUpgrade` and never allocates a socket. `socket.end()` flushes the buffered response bytes before closing the connection; `socket.write()` followed by `socket.destroy()` can race and abort the 403 before it leaves the host, so a client sees a generic connection reset instead of the intended status. `Content-Length: 0` and `Connection: close` state the intent to any proxy between the client and Cloud Run. Leave the rest of the dispatch chain unchanged.
 
-- [ ] **Step 7: Run the four tests to verify they pass**
+- [ ] **Step 7: Run the five tests to verify they pass**
 
 ```bash
 cd cloud-agent && npm test 2>&1 | grep -A 4 'WS upgrade with'
 ```
 
-Expected: all four report `ok`.
+Expected: all five report `ok`.
 
 - [ ] **Step 8: Run the full suite**
 
@@ -372,7 +386,7 @@ Expected: all four report `ok`.
 cd cloud-agent && npm test 2>&1 | tail -20
 ```
 
-Expected: `pass 284`, `fail 0`, `skipped 1` — 285 total, up 4 from the 281 baseline. Critically, the pre-existing WebSocket tests in `src/handlers/wsLiveAgentHandler.test.ts` and `src/integration.test.ts` must all still pass: they connect without an `Origin` header, which the `!origin → allow` rule permits. If any of them now fail, the guard is rejecting header-less upgrades and Step 5 was mis-transcribed.
+Expected: `pass 286`, `fail 0`, `skipped 1` — 287 total, up 5 from the 281 baseline (the Chrome extension upgrade test is the fifth). Critically, the pre-existing WebSocket tests in `src/handlers/wsLiveAgentHandler.test.ts` and `src/integration.test.ts` must all still pass: they connect without an `Origin` header, which the `!origin → allow` rule permits. If any of them now fail, the guard is rejecting header-less upgrades and Step 5 was mis-transcribed.
 
 - [ ] **Step 9: Commit**
 
