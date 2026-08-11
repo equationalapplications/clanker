@@ -1,8 +1,9 @@
 # react-native-gifted-chat Removal Design
 
 **Date:** 2026-08-11
-**Status:** Approved, not implemented — revised 2026-08-11 after a review pass against the code (see [Revision notes](#revision-notes))
+**Status:** Implemented 2026-08-11 — revised 2026-08-11 after a review pass against the code (see [Revision notes](#revision-notes))
 **Owner:** equationalapplications
+**Implementation:** [2026-08-11-gifted-chat-removal.md](../plans/2026-08-11-gifted-chat-removal.md) was executed on branch `docs/gifted-chat-removal-spec`. 26 commits, shipped as a single PR to `staging`. `react-native-gifted-chat` and its 8 transitive deps are removed from `package.json`; `npm ls react-native-gifted-chat` returns empty. 1401/1401 tests pass; typecheck is clean.
 **Supersedes:** the fork-migration approach previously described in this document (see [Why not the fork](#why-not-the-fork))
 **Depends on:** [Dependency Security and Major Upgrades](./2026-08-11-dependency-security-and-major-upgrades-design.md) Phase 3
 
