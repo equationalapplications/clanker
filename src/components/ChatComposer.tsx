@@ -428,6 +428,12 @@ export default function ChatComposer({
             placeholderTextColor={colors.onSurfaceVariant}
             multiline
             style={{
+              // The underlying <textarea> on react-native-web 0.21.2 falls
+              // back to `cols=20` (~150–200px) when the style omits an
+              // explicit width — even inside a `flex: 1` parent, because
+              // <textarea> is `display: inline-block` and shrinks to its
+              // intrinsic size in a flex row. Pin it to the wrapper.
+              width: '100%',
               height: inputHeight,
               backgroundColor: 'transparent',
               paddingHorizontal: 12,
