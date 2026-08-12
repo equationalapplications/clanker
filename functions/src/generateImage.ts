@@ -1,8 +1,8 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 import { GoogleGenAI } from '@google/genai'
+import { services } from './firebaseAdmin.js'
 import { userRepository } from './services/userRepository.js'
 import { subscriptionService } from './services/subscriptionService.js'
 import { creditService, type CreditSpendAllocation } from './services/creditService.js'
@@ -18,9 +18,8 @@ const THROTTLE_WINDOW_MS = 60_000
 const THROTTLE_MAX_REQUESTS = 5
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
-if (!admin.apps.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 interface GenerateImageData {
   prompt: string

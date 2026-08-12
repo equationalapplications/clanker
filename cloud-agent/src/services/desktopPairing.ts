@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import admin from 'firebase-admin'
+import { Timestamp } from '../firebaseAdmin.js'
 
 export interface PairingFirestore {
   doc(path: string): {
@@ -18,7 +18,7 @@ interface PairingQuery {
 }
 
 function now() {
-  return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown)
+  return Timestamp.now()
 }
 
 const pairingPath = (tokenHash: string) => `desktopPairings/${tokenHash}`

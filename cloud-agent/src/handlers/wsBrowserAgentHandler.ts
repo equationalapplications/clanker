@@ -1,6 +1,6 @@
 import type { WebSocket } from 'ws'
 import type { IncomingMessage } from 'http'
-import admin from 'firebase-admin'
+import { services } from '../firebaseAdmin.js'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
@@ -53,8 +53,7 @@ export function handleBrowserWsUpgrade(
   const verifyToken =
     options.verifyToken ??
     ((t: string) =>
-      admin
-        .auth()
+      services.auth
         .verifyIdToken(t)
         .then((d) => ({ uid: d.uid })))
   const resolveUserId = options.resolveUserId ?? (async (u: string) => u)

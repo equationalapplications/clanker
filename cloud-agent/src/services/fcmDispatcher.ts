@@ -1,4 +1,4 @@
-import admin from 'firebase-admin'
+import { services } from '../firebaseAdmin.js'
 
 export interface MessagingLike {
   send(message: { token: string; data: Record<string, string> }): Promise<string>
@@ -105,5 +105,5 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
 export type FcmDispatcher = ReturnType<typeof createFcmDispatcher>
 
 export function defaultFcmDispatcher(): FcmDispatcher {
-  return createFcmDispatcher(admin.messaging() as unknown as MessagingLike)
+  return createFcmDispatcher(services.messaging as unknown as MessagingLike)
 }

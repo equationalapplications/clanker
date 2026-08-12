@@ -1,4 +1,4 @@
-import admin from 'firebase-admin'
+import { services, Timestamp } from '../firebaseAdmin.js'
 import type {
   TaskIntent,
   TaskResult,
@@ -71,12 +71,10 @@ function toMillis(v: unknown): number {
 }
 
 function now() {
-  return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown)
+  return Timestamp.now()
 }
 function ttl() {
-  return admin.firestore?.Timestamp
-    ? admin.firestore.Timestamp.fromMillis(Date.now() + SESSION_TTL_MS)
-    : ((Date.now() + SESSION_TTL_MS) as unknown)
+  return Timestamp.fromMillis(Date.now() + SESSION_TTL_MS)
 }
 
 export function createFirestoreSession(db: FirestoreLike) {
@@ -165,9 +163,7 @@ export function createFirestoreSession(db: FirestoreLike) {
       tool: string,
       params: Record<string, unknown>,
     ): Promise<void> {
-      const expiresAt = admin.firestore?.Timestamp
-        ? admin.firestore.Timestamp.fromMillis(Date.now() + DESKTOP_TASK_TTL_MS)
-        : ((Date.now() + DESKTOP_TASK_TTL_MS) as unknown)
+      const expiresAt = Timestamp.fromMillis(Date.now() + DESKTOP_TASK_TTL_MS)
       await db.doc(desktopTaskPath(uid, taskId)).set({
         taskId,
         deviceId,
@@ -407,9 +403,7 @@ export function createFirestoreSession(db: FirestoreLike) {
     ): Promise<void> {
       const AUTH_TTL_MS = 5 * 60 * 1000
       const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
-      const expiresAt = admin.firestore?.Timestamp
-        ? admin.firestore.Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
-        : ((Date.now() + AUTH_TTL_MS) as unknown)
+      const expiresAt = Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
       const authDoc = {
         status: 'pending',
         actionSummary,
@@ -492,7 +486,7 @@ export function createFirestoreSession(db: FirestoreLike) {
 export type FirestoreSession = ReturnType<typeof createFirestoreSession>
 
 export function defaultFirestoreSession(): FirestoreSession {
-  const raw = admin.firestore()
+  const raw = services.firestore
   const db: FirestoreLike = {
     doc: (path) => {
       const ref = raw.doc(path)

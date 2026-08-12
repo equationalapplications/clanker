@@ -1,16 +1,14 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
 import type { DecodedIdToken } from 'firebase-admin/auth'
+import { services } from './firebaseAdmin.js'
 import { userRepository } from './services/userRepository.js'
 import { subscriptionService } from './services/subscriptionService.js'
 import { creditService } from './services/creditService.js'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps?.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && typeof error.message === 'string') {

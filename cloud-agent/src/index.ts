@@ -2,7 +2,8 @@ import express, { Request, Response, NextFunction } from 'express'
 import type { IncomingMessage, Server } from 'http'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
-import admin from 'firebase-admin'
+import { getApps, initializeApp } from 'firebase-admin/app'
+import { services } from './firebaseAdmin.js'
 import { eq, and } from 'drizzle-orm'
 import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -102,7 +103,7 @@ export async function runAgentReal(
     creditService,
     attachments = [],
   } = params
-  const bridge = admin.apps.length
+  const bridge = getApps().length
     ? {
         firebaseUid,
         userId,
@@ -112,7 +113,7 @@ export async function runAgentReal(
         instanceId: INSTANCE_ID,
       }
     : undefined
-  const vault = admin.apps.length
+  const vault = getApps().length
     ? createVaultToolDeps({
         firebaseUid,
         firestoreSession: defaultFirestoreSession(),
@@ -418,12 +419,12 @@ export function createApp(options: AppOptions) {
   )
 
   const usesDefaultDeviceUpsert = !options.upsertDevice
-  const browserBridgeAvailable = admin.apps.length > 0
+  const browserBridgeAvailable = getApps().length > 0
 
   const upsertDevice =
     options.upsertDevice ??
     (async (uid, body) => {
-      await upsertDeviceRecord(admin.firestore(), uid, body)
+      await upsertDeviceRecord(services.firestore, uid, body)
     })
 
   app.post(
@@ -473,7 +474,7 @@ export function createApp(options: AppOptions) {
       }
       try {
         const { pairingToken, deviceId } = await pairDesktopDevice(
-          admin.firestore() as unknown as PairingFirestore,
+          services.firestore as unknown as PairingFirestore,
           req.uid!,
           parsed.data.deviceName,
         )
@@ -501,7 +502,7 @@ export function createApp(options: AppOptions) {
       }
       try {
         await revokeDesktopDevice(
-          admin.firestore() as unknown as PairingFirestore,
+          services.firestore as unknown as PairingFirestore,
           req.uid!,
           parsed.data.deviceId,
         )
@@ -544,7 +545,7 @@ export function createApp(options: AppOptions) {
       }
       try {
         await handleApproveAction(
-          admin.firestore() as unknown as {
+          services.firestore as unknown as {
             doc(p: string): { update(d: Record<string, unknown>): Promise<void> }
           },
           req.uid!,
@@ -604,7 +605,7 @@ export function createApp(options: AppOptions) {
 
 export function attachWebSocketRoutes(server: Server, options: AppOptions): void {
   const { verifyToken, db, wsHandlerOptions, wsLiveHandlerOptions, creditService } = options
-  const browserBridgeAvailable = admin.apps.length > 0
+  const browserBridgeAvailable = getApps().length > 0
   // `/agent/stream` takes the same agentRun payload as `/agent/run`, so it gets
   // the same ceiling — `ws` would otherwise buffer and parse up to its 100 MiB
   // default before the schema ever runs. The live, browser and desktop sockets
@@ -655,13 +656,12 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           },
           getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
           getDeviceFcmToken: async (uid: string, deviceId: string) => {
-            const snap = await admin.firestore().doc(`users/${uid}/devices/${deviceId}`).get()
+            const snap = await services.firestore.doc(`users/${uid}/devices/${deviceId}`).get()
             if (!snap.exists) return null
             return (snap.data()?.fcmToken as string) ?? null
           },
           validateDevice: async (firebaseUid: string, deviceId: string) => {
-            const doc = await admin
-              .firestore()
+            const doc = await services.firestore
               .doc(`users/${firebaseUid}/devices/${deviceId}`)
               .get()
             const data = doc.data()
@@ -680,7 +680,7 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           firestoreSession: defaultFirestoreSession(),
           desktopBridge,
           resolvePairingToken: (raw: string) =>
-            resolvePairingToken(admin.firestore() as unknown as PairingFirestore, raw),
+            resolvePairingToken(services.firestore as unknown as PairingFirestore, raw),
           instanceId: INSTANCE_ID,
         })
       })
@@ -709,16 +709,15 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('------------------')
   }
 
-  if (!isMockAuth && !admin.apps.length) admin.initializeApp()
+  if (!isMockAuth && !getApps().length) initializeApp()
 
   const db = await getDb()
   const verifyToken = isMockAuth
     ? async (_token: string) => ({ uid: 'local_test_user_123' })
     : (token: string) =>
-        admin
-          .auth()
+        services.auth
           .verifyIdToken(token)
-          .then((d) => ({ uid: d.uid }))
+          .then((d: { uid: string }) => ({ uid: d.uid }))
   const appOptions = { verifyToken, db, runAgentFn: runAgentReal }
 
   const app = createApp(appOptions)

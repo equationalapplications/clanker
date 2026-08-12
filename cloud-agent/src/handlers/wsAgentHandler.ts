@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws'
 import type { IncomingMessage } from 'http'
-import admin from 'firebase-admin'
+import { services } from '../firebaseAdmin.js'
 import { eq, and } from 'drizzle-orm'
 import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
@@ -43,8 +43,7 @@ export async function handleWsUpgrade(
   const verifyToken =
     options.verifyToken ??
     ((token: string) =>
-      admin
-        .auth()
+      services.auth
         .verifyIdToken(token)
         .then((d) => ({ uid: d.uid })))
 

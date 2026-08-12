@@ -1,4 +1,5 @@
-import admin from 'firebase-admin'
+import { services, __setAuthForTest } from './firebaseAdmin.js'
+import type { Auth } from 'firebase-admin/auth'
 
 export type FetchCall = {
   url: string
@@ -14,43 +15,32 @@ export type FetchResponder = (
 ) => Promise<Response>
 
 /**
- * General-purpose helper for stubbing partial admin.auth() implementation.
- * Safely shadows and restores the admin.auth function for the test scope.
+ * General-purpose helper for stubbing partial services.auth implementation.
+ * Safely shadows and restores the cached services.auth instance for the test scope.
  */
 export async function withAdminAuthPartialStub<T>(
-  authPartial: Partial<ReturnType<typeof admin.auth>>,
+  authPartial: Partial<Auth>,
   run: () => Promise<T>,
 ): Promise<T> {
-  const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, 'auth')
-  const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, 'auth') : undefined
-
-  Object.defineProperty(admin, 'auth', {
-    value: (() => authPartial) as typeof admin.auth,
-    writable: true,
-    configurable: true,
-  })
+  const originalAuth = services.auth
+  __setAuthForTest(authPartial as Auth)
 
   try {
     return await run()
   } finally {
-    if (ownAuthDescriptor) {
-      Object.defineProperty(admin, 'auth', ownAuthDescriptor)
-    } else {
-      // Remove temporary shadow so prototype getter is used again.
-      delete (admin as Record<string, unknown>).auth
-    }
+    __setAuthForTest(originalAuth)
   }
 }
 
 /**
- * Convenience wrapper: stubs admin.auth() with just getUser.
+ * Convenience wrapper: stubs services.auth with just getUser.
  * Equivalent to withAdminAuthPartialStub({getUser}, run).
  */
 export async function withAdminAuthStub<T>(
   getUser: GetUserStub,
   run: () => Promise<T>,
 ): Promise<T> {
-  return withAdminAuthPartialStub({ getUser } as Partial<ReturnType<typeof admin.auth>>, run)
+  return withAdminAuthPartialStub({ getUser } as Partial<Auth>, run)
 }
 
 export async function withFetchStub<T>(

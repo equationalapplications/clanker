@@ -1,4 +1,4 @@
-import admin from 'firebase-admin'
+import { Timestamp, FieldValue } from '../firebaseAdmin.js'
 
 interface ApproveActionBody {
   sessionId: string
@@ -20,13 +20,13 @@ export async function handleApproveAction(
   if (body.approve) {
     await db.doc(authPath).update({
       status: 'approved',
-      approvedAt: admin.firestore?.Timestamp?.now?.() ?? new Date(),
+      approvedAt: Timestamp.now(),
       approvalToken: body.approvalToken,
     })
   } else {
     await db.doc(authPath).update({
       status: 'denied',
-      approvalToken: admin.firestore.FieldValue.delete(),
+      approvalToken: FieldValue.delete(),
     })
   }
 }
