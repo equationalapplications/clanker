@@ -1,6 +1,6 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
+import { services } from './firebaseAdmin.js'
 import Stripe from 'stripe'
 import { getStripePriceIds, getStripeCheckoutUrls } from './runtimeConfig.js'
 import { validateAndNormalizeStripeSecretKey } from './stripeConfig.js'
@@ -16,10 +16,8 @@ export function setPurchasePackageStripeLoggerForTests(next?: LoggerLike): void 
   activeLogger = next ?? defaultLogger
 }
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps?.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 function getStripeClient() {
   const secretKey = validateAndNormalizeStripeSecretKey(
@@ -158,7 +156,7 @@ const handler = async (
 
   const stripe = getStripeClient()
 
-  const firebaseUser = await admin.auth().getUser(request.auth.uid)
+  const firebaseUser = await services.auth.getUser(request.auth.uid)
   const email = firebaseUser.email
   if (!email) {
     throw new HttpsError('failed-precondition', 'Firebase user has no email address.')

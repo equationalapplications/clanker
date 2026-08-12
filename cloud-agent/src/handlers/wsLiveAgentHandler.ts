@@ -1,6 +1,7 @@
 import { WebSocket } from 'ws'
 import type { IncomingMessage } from 'http'
-import admin from 'firebase-admin'
+import { getApps } from 'firebase-admin/app'
+import { services } from '../firebaseAdmin.js'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { GoogleGenAI } from '@google/genai'
@@ -159,11 +160,7 @@ export async function handleLiveWsUpgrade(
   const cs = options.creditService ?? createCreditService(db)
   const verifyToken =
     options.verifyToken ??
-    ((token: string) =>
-      admin
-        .auth()
-        .verifyIdToken(token)
-        .then((d) => ({ uid: d.uid })))
+    ((token: string) => services.auth.verifyIdToken(token).then((d) => ({ uid: d.uid })))
   const liveConnect = options.liveConnect ?? defaultLiveConnect
   const billingIntervalMs = options.billingIntervalMs ?? 60_000
   const billingGraceMs = options.billingGraceMs
@@ -524,7 +521,7 @@ export async function handleLiveWsUpgrade(
 
       const bridgeBase =
         options.browserBridge ??
-        (admin.apps.length
+        (getApps().length
           ? {
               firebaseUid: uid,
               userId: userId!,

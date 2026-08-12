@@ -1,6 +1,5 @@
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 import { and, eq } from 'drizzle-orm'
 import type { Content, GroundingMetadata, Tool } from '@google/genai'
@@ -21,6 +20,7 @@ import { buildUsageSnapshotForUser } from './usageSnapshot.js'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { getDb } from './db/cloudSql.js'
 import { characters, messages } from './db/schema.js'
+import { services } from './firebaseAdmin.js'
 
 const DEFAULT_MODEL = 'gemini-3.5-flash'
 const DEFAULT_REGION = 'us-central1'
@@ -216,10 +216,8 @@ function buildSoftBreakResponse(): GenerateReplyResponse {
   }
 }
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 interface SyncMessage {
   id: string
@@ -623,7 +621,7 @@ const handler = async (
 
   let reply: string
   let spendAllocations: CreditSpendAllocation[] | null = null
-  let remainingCredits = 0
+  let remainingCredits: number
 
   try {
     const cost = computeReplyCost(tools)

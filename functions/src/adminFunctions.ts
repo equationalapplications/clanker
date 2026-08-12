@@ -1,6 +1,5 @@
 import { onCall, CallableRequest, HttpsError } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
 import { count, desc, eq, ilike, inArray, or } from 'drizzle-orm'
 import { requireAdmin } from './adminAuth.js'
 import { getDb } from './db/cloudSql.js'
@@ -8,6 +7,7 @@ import { users, subscriptions, characters, messages } from './db/schema.js'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { creditService } from './services/creditService.js'
 import { storageAdmin } from './services/storageAdmin.js'
+import { services } from './firebaseAdmin.js'
 
 type StorageAdminDeps = {
   storageAdmin: Pick<typeof storageAdmin, 'deletePrefix'>
@@ -17,9 +17,8 @@ type StorageAdminDeps = {
   deleteFirebaseAuthUser: typeof deleteFirebaseAuthUser
 }
 
-if (!admin.apps.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 const DEFAULT_RESET_CREDITS = 5000
 const MAX_SAFE_DB_CREDITS = 2_147_483_647
@@ -193,7 +192,7 @@ async function deleteFirebaseAuthUser(
   logContext: Record<string, unknown>,
 ): Promise<void> {
   try {
-    await admin.auth().deleteUser(firebaseUid)
+    await services.auth.deleteUser(firebaseUid)
   } catch (error) {
     const code =
       typeof error === 'object' && error && 'code' in error

@@ -1,8 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
 import { timingSafeEqual } from 'crypto'
 import type { Request, Response } from 'express'
+import { services } from './firebaseAdmin.js'
 import { userRepository } from './services/userRepository.js'
 import { subscriptionService } from './services/subscriptionService.js'
 import { creditService } from './services/creditService.js'
@@ -17,10 +17,8 @@ import {
   sendRefundEvent as sendGa4RefundEvent,
 } from './services/ga4MeasurementService.js'
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 // RevenueCat product identifier → DB tier mapping
 const REVENUECAT_PRODUCT_TO_TIER: Record<string, 'monthly_20' | 'monthly_50'> = {
@@ -118,7 +116,7 @@ const defaultDeps: RevenueCatDeps = {
   },
   async getOrCreateUserByFirebaseUid(firebaseUid: string) {
     try {
-      const firebaseUser = await admin.auth().getUser(firebaseUid)
+      const firebaseUser = await services.auth.getUser(firebaseUid)
       const email = firebaseUser.email
 
       if (!email) {

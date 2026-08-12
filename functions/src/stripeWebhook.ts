@@ -1,6 +1,6 @@
 import { onRequest } from 'firebase-functions/v2/https'
 import * as logger from 'firebase-functions/logger'
-import admin from 'firebase-admin'
+import { services } from './firebaseAdmin.js'
 import Stripe from 'stripe'
 import type { Request, Response } from 'express'
 import { getStripePriceIds } from './runtimeConfig.js'
@@ -21,10 +21,8 @@ import {
   sendRefundEvent as sendGa4RefundEvent,
 } from './services/ga4MeasurementService.js'
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp()
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 type UserLookup = {
   id: string
