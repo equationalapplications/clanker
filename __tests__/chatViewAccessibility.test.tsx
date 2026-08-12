@@ -154,14 +154,14 @@ jest.mock('~/components/CharacterAvatar', () => ({
 }))
 let capturedChatComposerProps: any = null
 // Keep in sync with ChatComposer.tsx's MIN_INPUT_HEIGHT/MAX_INPUT_HEIGHT formula
-// (LINE_HEIGHT 22 * 2.5/6 + COMPOSER_VERTICAL_PADDING 8 * 2 + COMPOSER_MARGIN_VERTICAL,
-// where COMPOSER_MARGIN_VERTICAL is Platform.select({ ios: 11, android: 3, default: 10 });
-// mockPlatformOS defaults to 'android' below, so margin = 3 here).
+// (LINE_HEIGHT 22 * 2.5/6 + COMPOSER_VERTICAL_PADDING 8 * 2, no extra margin
+// — the gifted-chat TextInput margin compensation was removed when the
+// composer stopped wrapping gift-chat's TextInput).
 jest.mock('~/components/ChatComposer', () => ({
   __esModule: true,
   COMPOSER_VERTICAL_PADDING: 8,
-  MIN_INPUT_HEIGHT: 74,
-  MAX_INPUT_HEIGHT: 151,
+  MIN_INPUT_HEIGHT: 71,
+  MAX_INPUT_HEIGHT: 148,
   default: (props: any) => {
     capturedChatComposerProps = props
     return null

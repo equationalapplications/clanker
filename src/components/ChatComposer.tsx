@@ -22,15 +22,13 @@ export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forge
 // same value now — the split parent file is gone.
 export const COMPOSER_VERTICAL_PADDING = 8
 const LINE_HEIGHT = 22
-const COMPOSER_MARGIN_VERTICAL = Platform.select({
-  ios: 6 + 5,
-  android: 0 + 3,
-  default: 6 + 4,
-})
-export const MIN_INPUT_HEIGHT =
-  LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
-export const MAX_INPUT_HEIGHT =
-  LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
+// No extra vertical margin is needed: the previous values (6+5 iOS, 0+3
+// Android, 6+4 default) compensated for `react-native-gifted-chat`'s
+// internal TextInput marginTop/marginBottom, which the new TextInput does
+// not have. Adding it here adds ~11px of empty space inside the composer
+// on iOS and mis-aligns it next to the Send button.
+export const MIN_INPUT_HEIGHT = LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2
+export const MAX_INPUT_HEIGHT = LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2
 
 export interface ChatComposerProps {
   text: string
@@ -351,7 +349,7 @@ export default function ChatComposer({
               const contentHeight = event.nativeEvent.contentSize.height
               const height = Math.max(
                 MIN_INPUT_HEIGHT,
-                Math.min(MAX_INPUT_HEIGHT, contentHeight + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL),
+                Math.min(MAX_INPUT_HEIGHT, contentHeight + COMPOSER_VERTICAL_PADDING * 2),
               )
               if (height !== inputHeight) {
                 setInputHeight(height)

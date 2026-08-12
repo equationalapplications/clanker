@@ -47,7 +47,8 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
 
 const styles = StyleSheet.create({
   bubble: {
+    // Horizontal padding only — the text wrapper adds the vertical inset, so
+    // doubling it here would shrink the visible bubble area by ~4px per row.
     paddingHorizontal: 12,
-    paddingVertical: 4,
   },
 })

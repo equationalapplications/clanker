@@ -174,8 +174,8 @@ jest.mock('~/components/CharacterAvatar', () => ({
 jest.mock('~/components/ChatComposer', () => ({
   __esModule: true,
   COMPOSER_VERTICAL_PADDING: 8,
-  MIN_INPUT_HEIGHT: 74,
-  MAX_INPUT_HEIGHT: 151,
+  MIN_INPUT_HEIGHT: 71,
+  MAX_INPUT_HEIGHT: 148,
   default: () => null,
 }))
 
