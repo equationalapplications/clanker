@@ -167,6 +167,70 @@ describe('ChatComposer — composer height loop', () => {
     expect(input.props.style.height).toBe(MIN_INPUT_HEIGHT)
   })
 
+  it('converges to MIN when the browser ResizeObserver reports the textarea\'s own scrollHeight (the web-platform loop)', () => {
+    // jest-expo defaults `Platform.OS` to `'ios'`. The web-platform split in
+    // the `onContentSizeChange` handler only fires when `isWeb` is true, so
+    // this test pins that path explicitly.
+    const Platform = require('react-native').Platform as { OS: string; setOS?: (os: string) => void }
+    const originalOS = Platform.OS
+    Platform.OS = 'web'
+    try {
+    // On react-native-web the multiline TextInput is a <textarea>. Its
+    // `scrollHeight` includes the textarea's own `paddingVertical`. Once we
+    // drive the textarea's `style.height` above the content's natural size,
+    // `scrollHeight` equals `style.height` exactly — the box reports
+    // itself. The old `onContentSizeChange` handler added
+    // `+ 2*COMPOSER_VERTICAL_PADDING` on top of that, so every setState
+    // produced a height strictly greater than the one we just set, and the
+    // collapse-on-empty effect kept re-asserting `MIN_INPUT_HEIGHT`. The
+    // two fought: 71 → 87 → 71 → 87 → … ResizeObserver fired on every
+    // render, React tripped the 50-update limit, error #185.
+    //
+    // Simulate the browser exactly: each `onContentSizeChange` reports the
+    // textarea's current `style.height` (which is what its `scrollHeight`
+    // would return). The composer must hold at `MIN_INPUT_HEIGHT` and stay
+    // there without driving a render loop.
+    let renderCount = 0
+    const onProfileRender = () => {
+      renderCount += 1
+    }
+
+    let tree!: ReturnType<typeof create>
+    act(() => {
+      tree = create(
+        <React.Profiler id="ChatComposer" onRender={onProfileRender}>
+          <ChatComposer {...baseProps} text="" />
+        </React.Profiler>,
+      )
+    })
+
+    const initialHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+      .props.style.height as number
+    expect(initialHeight).toBe(MIN_INPUT_HEIGHT)
+
+    // Browser ResizeObserver: every layout pass reports the current box
+    // height as `scrollHeight`. Walk the loop the production code triggered
+    // and assert it converges to MIN, with a bounded render count.
+    for (let i = 0; i < 12; i += 1) {
+      const currentHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+        .props.style.height as number
+      act(() => {
+        tree.root.findByProps({ accessibilityLabel: 'Message input' }).props
+          .onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: currentHeight } } })
+      })
+    }
+
+    const finalHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+      .props.style.height as number
+    expect(finalHeight).toBe(MIN_INPUT_HEIGHT)
+    // The old loop produced a render per onContentSizeChange. Healthy
+    // behavior is 0 extra renders — the handler's guard short-circuits.
+    expect(renderCount).toBeLessThan(5)
+    } finally {
+      Platform.OS = originalOS
+    }
+  })
+
   it('terminates under an adversarial onContentSizeChange cycle (no infinite re-render)', () => {
     // The pre-fix loop: TextInput re-measures its own height whenever the
     // CSS height changes; the wrapper would re-fire onContentSizeChange with

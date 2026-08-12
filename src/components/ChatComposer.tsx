@@ -347,9 +347,23 @@ export default function ChatComposer({
             onChangeText={onChangeText}
             onContentSizeChange={(event) => {
               const contentHeight = event.nativeEvent.contentSize.height
+              // react-native-web reports the multiline TextInput as a
+              // <textarea>, where `contentSize.height` is the textarea's
+              // own `scrollHeight` and already includes the textarea's
+              // `paddingVertical`. Adding `+ 2*COMPOSER_VERTICAL_PADDING`
+              // on web double-counts that padding, so every setState
+              // produced a height strictly greater than the one we just
+              // set; the collapse-on-empty effect then re-asserted
+              // `MIN_INPUT_HEIGHT`, and the two fought until React tripped
+              // the update-depth limit (error #185). Native TextInput
+              // (iOS/Android) reports the content-box height without its
+              // own padding, so the addition is correct there.
+              const paddedContentHeight = isWeb
+                ? contentHeight
+                : contentHeight + COMPOSER_VERTICAL_PADDING * 2
               const height = Math.max(
                 MIN_INPUT_HEIGHT,
-                Math.min(MAX_INPUT_HEIGHT, contentHeight + COMPOSER_VERTICAL_PADDING * 2),
+                Math.min(MAX_INPUT_HEIGHT, paddedContentHeight),
               )
               if (height !== inputHeight) {
                 setInputHeight(height)
