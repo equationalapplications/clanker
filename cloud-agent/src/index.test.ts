@@ -645,8 +645,9 @@ test('WS upgrade with the cloud-agent\'s own https origin succeeds behind a TLS-
   // clients get a 403 on every /agent/stream and /agent/live upgrade.
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
-  const srv = await startWsTestServer()
+  let srv: Awaited<ReturnType<typeof startWsTestServer>> | undefined
   try {
+    srv = await startWsTestServer()
     const result = await attemptUpgrade(
       srv.port,
       `https://127.0.0.1:${srv.port}`,
@@ -654,8 +655,12 @@ test('WS upgrade with the cloud-agent\'s own https origin succeeds behind a TLS-
     )
     assert.deepEqual(result, { upgraded: true })
   } finally {
-    await srv.close()
-    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    try {
+      if (srv) await srv.close()
+    } finally {
+      if (orig === undefined) delete process.env.CORS_ORIGIN
+      else process.env.CORS_ORIGIN = orig
+    }
   }
 })
 

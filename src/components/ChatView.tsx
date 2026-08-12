@@ -102,9 +102,11 @@ function ChatViewContent({
   // The tab bar sits below ChatView on Android. The previous gifted-chat
   // screen compensated with `bottomOffset={-tabBarHeight}`; the new
   // KeyboardAvoidingView from react-native-keyboard-controller uses
-  // `keyboardVerticalOffset` for the same purpose. On iOS the system
-  // handles the keyboard inset natively, so the tab offset only applies on
-  // Android.
+  // `keyboardVerticalOffset` for the same purpose. That offset is only honoured
+  // when `behavior` is a concrete supported value — with `undefined` the
+  // component emits an empty style and Android would ignore `tabBarHeight`
+  // entirely, leaving the composer behind the keyboard. iOS keeps `padding`;
+  // Android uses `translate-with-padding`.
   const tabBarHeight = useTabBarHeight()
 
   const wikiStatus = useEntityStatus(characterId)
@@ -263,7 +265,7 @@ function ChatViewContent({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
       keyboardVerticalOffset={Platform.OS === 'android' ? tabBarHeight : 0}
     >
       {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
