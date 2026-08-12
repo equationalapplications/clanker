@@ -115,11 +115,9 @@ describe('ChatComposer — composer height loop', () => {
     })
 
     act(() => {
-      tree.root
-        .findByProps({ accessibilityLabel: 'Message input' })
-        .props.onContentSizeChange({
-          nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 20 } },
-        })
+      tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+        nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 20 } },
+      })
     })
 
     const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
@@ -150,11 +148,9 @@ describe('ChatComposer — composer height loop', () => {
 
     // Grow first so the collapse pass has something to fold back down.
     act(() => {
-      tree.root
-        .findByProps({ accessibilityLabel: 'Message input' })
-        .props.onContentSizeChange({
-          nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 40 } },
-        })
+      tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+        nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 40 } },
+      })
     })
 
     act(() => {
@@ -216,11 +212,9 @@ describe('ChatComposer — composer height loop', () => {
         const currentHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props
           .style.height as number
         act(() => {
-          tree.root
-            .findByProps({ accessibilityLabel: 'Message input' })
-            .props.onContentSizeChange({
-              nativeEvent: { contentSize: { width: 300, height: currentHeight } },
-            })
+          tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+            nativeEvent: { contentSize: { width: 300, height: currentHeight } },
+          })
         })
       }
 
