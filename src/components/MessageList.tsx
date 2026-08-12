@@ -25,7 +25,7 @@ export function MessageList({
     <FlatList
       inverted
       data={messages}
-      keyExtractor={(m) => String(m._id)}
+      keyExtractor={(m) => m._id}
       renderItem={({ item }) => (
         <MessageRow
           message={item}
