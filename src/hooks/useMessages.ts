@@ -12,7 +12,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Message } from '~/types/chat'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
-import { getMessages, sendMessage, deleteMessage, updateMessage, getMostRecentMessage } from '~/services/messageService'
+import {
+  getMessages,
+  sendMessage,
+  deleteMessage,
+  updateMessage,
+  getMostRecentMessage,
+} from '~/services/messageService'
 
 /**
  * Query key factory for messages
@@ -85,10 +91,10 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       }
 
       // Add to cache (messages are in reverse chronological order)
-      queryClient.setQueryData<Message[]>(
-        messageKeys.list(characterId, recipientUserId),
-        (old) => [optimisticMessage, ...(old || [])],
-      )
+      queryClient.setQueryData<Message[]>(messageKeys.list(characterId, recipientUserId), (old) => [
+        optimisticMessage,
+        ...(old || []),
+      ])
 
       return { previousMessages, optimisticMessage }
     },
@@ -97,17 +103,12 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       console.log('✅ Message sent successfully:', variables._id)
 
       // Remove pending flag from the optimistic message
-      queryClient.setQueryData<Message[]>(
-        messageKeys.list(characterId, recipientUserId),
-        (old) => {
-          if (!old) return old
-          return old.map((msg) =>
-            msg._id === context?.optimisticMessage._id
-              ? { ...msg, pending: false, sent: true }
-              : msg,
-          )
-        },
-      )
+      queryClient.setQueryData<Message[]>(messageKeys.list(characterId, recipientUserId), (old) => {
+        if (!old) return old
+        return old.map((msg) =>
+          msg._id === context?.optimisticMessage._id ? { ...msg, pending: false, sent: true } : msg,
+        )
+      })
 
       // Refetch to get server timestamp and any AI responses
       queryClient.invalidateQueries({
@@ -119,17 +120,14 @@ export function useSendMessage(characterId: string, recipientUserId: string) {
       console.error('❌ Failed to send message:', error)
 
       // Mark message as failed instead of removing it
-      queryClient.setQueryData<Message[]>(
-        messageKeys.list(characterId, recipientUserId),
-        (old) => {
-          if (!old) return old
-          return old.map((msg) =>
-            msg._id === context?.optimisticMessage._id
-              ? { ...msg, pending: false, sent: false, error: true }
-              : msg,
-          )
-        },
-      )
+      queryClient.setQueryData<Message[]>(messageKeys.list(characterId, recipientUserId), (old) => {
+        if (!old) return old
+        return old.map((msg) =>
+          msg._id === context?.optimisticMessage._id
+            ? { ...msg, pending: false, sent: false, error: true }
+            : msg,
+        )
+      })
 
       // Could implement retry logic here
     },
@@ -208,15 +206,12 @@ export function useUpdateMessage(characterId: string, recipientUserId: string) {
       )
 
       // Optimistically update the message
-      queryClient.setQueryData<Message[]>(
-        messageKeys.list(characterId, recipientUserId),
-        (old) => {
-          if (!old) return old
-          return old.map((msg) =>
-            msg._id === messageId ? { ...msg, ...updates, edited: true } : msg,
-          )
-        },
-      )
+      queryClient.setQueryData<Message[]>(messageKeys.list(characterId, recipientUserId), (old) => {
+        if (!old) return old
+        return old.map((msg) =>
+          msg._id === messageId ? { ...msg, ...updates, edited: true } : msg,
+        )
+      })
 
       return { previousMessages, messageId }
     },

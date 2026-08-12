@@ -80,7 +80,12 @@ describe('dedupeEventsAgainstExisting', () => {
   it('skips the existing-events lookup entirely when the bundle has no events', async () => {
     const mockWiki = { exportDump: jest.fn() } as unknown as WikiMemory
 
-    const result = await dedupeEventsAgainstExisting(mockWiki, 'char_1', buildDump([]), new Set<string>())
+    const result = await dedupeEventsAgainstExisting(
+      mockWiki,
+      'char_1',
+      buildDump([]),
+      new Set<string>(),
+    )
 
     expect(mockWiki.exportDump).not.toHaveBeenCalled()
     expect(result.entities.char_1.events).toHaveLength(0)

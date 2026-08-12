@@ -4,7 +4,13 @@ import assert from 'node:assert/strict'
 import { DESTRUCTIVE_ACTION_PATTERN, classifyActionLabel, intentRequiresAuth } from './constants.js'
 
 test('pattern matches destructive verbs case-insensitively', () => {
-  for (const s of ['Submit Payment', 'DELETE account', 'pay now', 'Confirm order', 'Cancel subscription']) {
+  for (const s of [
+    'Submit Payment',
+    'DELETE account',
+    'pay now',
+    'Confirm order',
+    'Cancel subscription',
+  ]) {
     assert.equal(DESTRUCTIVE_ACTION_PATTERN.test(s), true, s)
   }
 })
@@ -22,21 +28,37 @@ test('classifyActionLabel returns requires_auth for destructive text', () => {
 })
 
 test('intentRequiresAuth checks actionSummary', () => {
-  assert.equal(intentRequiresAuth('Submit payment on checkout', { type: 'read_dom', selector: 'body' }), true)
+  assert.equal(
+    intentRequiresAuth('Submit payment on checkout', { type: 'read_dom', selector: 'body' }),
+    true,
+  )
   assert.equal(intentRequiresAuth('Read article', { type: 'read_dom', selector: 'body' }), false)
 })
 
 test('intentRequiresAuth checks step labels and selectors', () => {
   assert.equal(
-    intentRequiresAuth('Open page', { type: 'click', selector: '#buy', label: 'Submit order', tier: 'stateful' }),
+    intentRequiresAuth('Open page', {
+      type: 'click',
+      selector: '#buy',
+      label: 'Submit order',
+      tier: 'stateful',
+    }),
     true,
   )
   assert.equal(
-    intentRequiresAuth('Extract total', { type: 'extract', selector: '.checkout-submit', label: 'total' }),
+    intentRequiresAuth('Extract total', {
+      type: 'extract',
+      selector: '.checkout-submit',
+      label: 'total',
+    }),
     true,
   )
   assert.equal(
-    intentRequiresAuth('Extract total', { type: 'extract', selector: '.order-total', label: 'total' }),
+    intentRequiresAuth('Extract total', {
+      type: 'extract',
+      selector: '.order-total',
+      label: 'total',
+    }),
     false,
   )
 })

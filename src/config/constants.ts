@@ -34,9 +34,10 @@ export type PlanTier = (typeof PLAN_TIERS)[keyof typeof PLAN_TIERS]
 export const REVENUECAT_PRODUCTS = {
   // Android base plans use `subscription_id:base_plan_id` format (Play Billing v5).
   // iOS App Store does not have base plans — identifier is just the product ID.
-  MONTHLY_20: Platform.OS === 'android'
-    ? 'monthly_20_subscription:monthly-usd-20'
-    : 'monthly_20_subscription',
+  MONTHLY_20:
+    Platform.OS === 'android'
+      ? 'monthly_20_subscription:monthly-usd-20'
+      : 'monthly_20_subscription',
   // MONTHLY_50 intentionally disabled until product is fully configured in RevenueCat.
   // MONTHLY_50: 'monthly_50_subscription',
   CREDIT_PACK: Platform.OS === 'ios' ? 'credit_100' : 'credit_pack_100',

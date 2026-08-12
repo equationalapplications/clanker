@@ -112,7 +112,17 @@ function ChatViewContent({
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage, error: chatError } = useAIChat({
+  const {
+    messages,
+    sendMessage,
+    sendPhoto,
+    canSendPhoto,
+    escalationState,
+    isGeneratingResponse,
+    activeTool,
+    streamingMessage,
+    error: chatError,
+  } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -251,13 +261,7 @@ function ChatViewContent({
         )
       }
 
-      return (
-        <CharacterAvatar
-          size={36}
-          imageUrl={characterAvatar}
-          characterName={characterName}
-        />
-      )
+      return <CharacterAvatar size={36} imageUrl={characterAvatar} characterName={characterName} />
     },
     [currentUserId, userDisplayName, chatUser.avatar, characterAvatar, characterName],
   )
@@ -268,31 +272,49 @@ function ChatViewContent({
       behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
       keyboardVerticalOffset={Platform.OS === 'android' ? tabBarHeight : 0}
     >
-      {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
+      {(wikiStatus.ingesting ||
+        wikiStatus.librarian ||
+        isGeneratingResponse ||
+        documentPhase !== null ||
+        activeTool) && (
         <View
           accessibilityLiveRegion="polite"
           accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
         >
           {documentPhase === 'reading' && (
-            <Text style={styles.statusText} accessibilityLabel="Reading file">⏳ Reading file…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Reading file">
+              ⏳ Reading file…
+            </Text>
           )}
           {documentPhase === 'converting' && (
-            <Text style={styles.statusText} accessibilityLabel="Converting document">⏳ Converting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Converting document">
+              ⏳ Converting document…
+            </Text>
           )}
           {documentPhase === 'checking' && (
-            <Text style={styles.statusText} accessibilityLabel="Checking for changes">⏳ Checking for changes…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Checking for changes">
+              ⏳ Checking for changes…
+            </Text>
           )}
           {documentPhase === 'forgetting' && (
-            <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Removing previous version">
+              ⏳ Removing previous version…
+            </Text>
           )}
           {wikiStatus.ingesting && (
-            <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Ingesting document">
+              ⏳ Ingesting document…
+            </Text>
           )}
           {wikiStatus.librarian && (
-            <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Updating memory">
+              🧠 Updating memory…
+            </Text>
           )}
           {escalationState === 'escalating' && (
-            <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Thinking deeply">
+              🧠 Thinking deeply…
+            </Text>
           )}
           {activeTool && (
             <Text
@@ -306,8 +328,10 @@ function ChatViewContent({
             escalationState !== 'escalating' &&
             !activeTool &&
             !streamingMessage?.text && (
-            <Text style={styles.statusText} accessibilityLabel="Thinking">💭 Thinking…</Text>
-          )}
+              <Text style={styles.statusText} accessibilityLabel="Thinking">
+                💭 Thinking…
+              </Text>
+            )}
         </View>
       )}
       {chatError && (

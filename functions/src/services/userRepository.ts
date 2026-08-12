@@ -1,49 +1,49 @@
-import { eq } from 'drizzle-orm';
-import { getDb } from '../db/cloudSql.js';
-import { users } from '../db/schema.js';
+import { eq } from 'drizzle-orm'
+import { getDb } from '../db/cloudSql.js'
+import { users } from '../db/schema.js'
 
 export interface CreateUserParams {
-  firebaseUid: string;
-  email: string;
-  displayName?: string | null;
-  avatarUrl?: string | null;
+  firebaseUid: string
+  email: string
+  displayName?: string | null
+  avatarUrl?: string | null
 }
 
 interface UserRepositoryDeps {
-  getDb: typeof getDb;
+  getDb: typeof getDb
 }
 
 const defaultDeps: UserRepositoryDeps = {
   getDb,
-};
+}
 
 export const normalizeEmailOrNull = (email: string): string | null => {
-  const normalizedEmail = email.trim().toLowerCase();
-  return normalizedEmail || null;
-};
+  const normalizedEmail = email.trim().toLowerCase()
+  return normalizedEmail || null
+}
 
 export const normalizeRequiredEmail = (email: string): string => {
-  const normalizedEmail = normalizeEmailOrNull(email);
+  const normalizedEmail = normalizeEmailOrNull(email)
   if (!normalizedEmail) {
-    throw new Error('Email must not be empty.');
+    throw new Error('Email must not be empty.')
   }
 
-  return normalizedEmail;
-};
+  return normalizedEmail
+}
 
 export const userRepository = {
   async getOrCreateUserByFirebaseIdentity(
     params: CreateUserParams,
-    deps: UserRepositoryDeps = defaultDeps
+    deps: UserRepositoryDeps = defaultDeps,
   ) {
-    const normalizedEmail = normalizeRequiredEmail(params.email);
+    const normalizedEmail = normalizeRequiredEmail(params.email)
 
-    const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid, deps);
+    const existingByUid = await this.findUserByFirebaseUid(params.firebaseUid, deps)
     if (existingByUid) {
-      return existingByUid;
+      return existingByUid
     }
 
-    const db = await deps.getDb();
+    const db = await deps.getDb()
 
     const [inserted] = await db
       .insert(users)
@@ -54,63 +54,63 @@ export const userRepository = {
         avatarUrl: params.avatarUrl,
       })
       .onConflictDoNothing()
-      .returning();
+      .returning()
 
     if (inserted) {
-      return inserted;
+      return inserted
     }
 
-    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid, deps);
+    const existingUser = await this.findUserByFirebaseUid(params.firebaseUid, deps)
     if (existingUser) {
-      return existingUser;
+      return existingUser
     }
 
-    const existingByEmail = await this.findUserByEmail(normalizedEmail, deps);
+    const existingByEmail = await this.findUserByEmail(normalizedEmail, deps)
     if (existingByEmail) {
       if (existingByEmail.firebaseUid !== params.firebaseUid) {
-        throw new Error('Existing user email is linked to a different Firebase UID.');
+        throw new Error('Existing user email is linked to a different Firebase UID.')
       }
 
-      return existingByEmail;
+      return existingByEmail
     }
 
-    throw new Error('Failed to get or create user by Firebase identity.');
+    throw new Error('Failed to get or create user by Firebase identity.')
   },
 
   async findUserByEmail(email: string, deps: UserRepositoryDeps = defaultDeps) {
-    const normalizedEmail = normalizeEmailOrNull(email);
+    const normalizedEmail = normalizeEmailOrNull(email)
     if (!normalizedEmail) {
-      return null;
+      return null
     }
 
-    const db = await deps.getDb();
-    const result = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
-    return result[0] || null;
+    const db = await deps.getDb()
+    const result = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1)
+    return result[0] || null
   },
 
   async findUserByFirebaseUid(firebaseUid: string, deps: UserRepositoryDeps = defaultDeps) {
-    const db = await deps.getDb();
-    const result = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1);
-    return result[0] || null;
+    const db = await deps.getDb()
+    const result = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1)
+    return result[0] || null
   },
 
   async findUserById(userId: string, deps: UserRepositoryDeps = defaultDeps) {
-    const db = await deps.getDb();
-    const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-    return result[0] || null;
+    const db = await deps.getDb()
+    const result = await db.select().from(users).where(eq(users.id, userId)).limit(1)
+    return result[0] || null
   },
 
   async updateUser(
     userId: string,
     updates: Partial<typeof users.$inferInsert>,
-    deps: UserRepositoryDeps = defaultDeps
+    deps: UserRepositoryDeps = defaultDeps,
   ) {
-    const db = await deps.getDb();
+    const db = await deps.getDb()
     const [updated] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(users.id, userId))
-      .returning();
-    return updated ?? null;
+      .returning()
+    return updated ?? null
   },
-};
+}

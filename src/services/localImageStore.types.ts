@@ -13,10 +13,6 @@ export type ImageVariantName = 'master' | 'thumb'
 
 export interface LocalImageStore {
   resolveImageUri(row: CharacterImageRow, variant: ImageVariantName): Promise<string>
-  writeLocalImageBytes(
-    imageId: string,
-    base64: string,
-    variant: ImageVariantName,
-  ): Promise<string>
+  writeLocalImageBytes(imageId: string, base64: string, variant: ImageVariantName): Promise<string>
   deleteLocalImageBytes(ref: string): Promise<void>
 }

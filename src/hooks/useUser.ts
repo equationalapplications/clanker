@@ -9,11 +9,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { requestBootstrapRefresh } from '~/hooks/useBootstrapRefresh'
-import {
-  upsertUserProfile,
-  UserProfile,
-  UserProfileUpdate,
-} from '~/services/userService'
+import { upsertUserProfile, UserProfile, UserProfileUpdate } from '~/services/userService'
 
 /**
  * Query key factory for user data
@@ -35,9 +31,7 @@ export function useUserProfile() {
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping')
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
   const error = useSelector(authService, (state) => state.context.error)
 
@@ -78,9 +72,7 @@ export function useUserPublicData() {
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping')
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
   const error = useSelector(authService, (state) => state.context.error)
 
@@ -118,9 +110,7 @@ export function useUserPrivateData() {
     subscription: state.context.subscription,
     error: state.context.error,
     isLoading:
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   }))
 
   const userPrivate = user

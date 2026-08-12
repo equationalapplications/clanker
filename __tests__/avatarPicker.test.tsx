@@ -70,10 +70,20 @@ jest.mock('~/services/localImageStore', () => ({
   resolveImageUri: jest.fn(async (row: any) => `resolved:${row.id}`),
 }))
 jest.mock('~/hooks/useAvatarUpload', () => ({
-  useAvatarUpload: () => ({ uploadAvatar: mockUploadAvatar, isUploading: false, error: null, clearError: jest.fn() }),
+  useAvatarUpload: () => ({
+    uploadAvatar: mockUploadAvatar,
+    isUploading: false,
+    error: null,
+    clearError: jest.fn(),
+  }),
 }))
 jest.mock('~/hooks/useImageGeneration', () => ({
-  useImageGeneration: () => ({ generateImage: mockGenerateImage, isGenerating: false, error: null, clearError: jest.fn() }),
+  useImageGeneration: () => ({
+    generateImage: mockGenerateImage,
+    isGenerating: false,
+    error: null,
+    clearError: jest.fn(),
+  }),
 }))
 const mockSend = jest.fn()
 jest.mock('~/hooks/useMachines', () => ({ useCharacterMachine: () => ({ send: mockSend }) }))
@@ -84,8 +94,26 @@ jest.mock('~/config/firebaseConfig', () => ({
 import { AvatarPicker } from '~/components/AvatarPicker'
 
 const rows = [
-  { id: 'img-2', character_id: 'char_a', storage_kind: 'inline', master_ref: 'M2', thumb_ref: 'T2', mime_type: 'image/webp', created_at: 2, deleted_at: null },
-  { id: 'img-1', character_id: 'char_a', storage_kind: 'inline', master_ref: 'M1', thumb_ref: 'T1', mime_type: 'image/webp', created_at: 1, deleted_at: null },
+  {
+    id: 'img-2',
+    character_id: 'char_a',
+    storage_kind: 'inline',
+    master_ref: 'M2',
+    thumb_ref: 'T2',
+    mime_type: 'image/webp',
+    created_at: 2,
+    deleted_at: null,
+  },
+  {
+    id: 'img-1',
+    character_id: 'char_a',
+    storage_kind: 'inline',
+    master_ref: 'M1',
+    thumb_ref: 'T1',
+    mime_type: 'image/webp',
+    created_at: 1,
+    deleted_at: null,
+  },
 ]
 
 async function renderPicker(props: Partial<React.ComponentProps<typeof AvatarPicker>> = {}) {
@@ -137,7 +165,9 @@ describe('AvatarPicker', () => {
     const onActiveImageChange = jest.fn()
     const tree = await renderPicker({ onActiveImageChange })
     const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
-    await act(async () => { await items[1].props.onPress() })
+    await act(async () => {
+      await items[1].props.onPress()
+    })
     expect(mockSetActive).toHaveBeenCalledWith('char_a', 'img-1')
     expect(onActiveImageChange).toHaveBeenCalledWith('img-1')
   })
@@ -146,7 +176,9 @@ describe('AvatarPicker', () => {
     const tree = await renderPicker()
     const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
     mockGetImages.mockResolvedValue([rows[0]])
-    await act(async () => { await items[1].props.onLongPress() })
+    await act(async () => {
+      await items[1].props.onLongPress()
+    })
     expect(mockDeleteImage).toHaveBeenCalledWith('img-1', expect.anything())
     expect(mockGetImages).toHaveBeenCalledTimes(2)
   })
@@ -160,14 +192,18 @@ describe('AvatarPicker', () => {
   it('generates from the header using the supplied prompt', async () => {
     const tree = await renderPicker()
     const button = tree.root.findByProps({ testID: 'avatar-picker-generate' })
-    await act(async () => { await button.props.onPress() })
+    await act(async () => {
+      await button.props.onPress()
+    })
     expect(mockGenerateImage).toHaveBeenCalledWith('a knight')
   })
 
   it('uploads from the header', async () => {
     const tree = await renderPicker()
     const button = tree.root.findByProps({ testID: 'avatar-picker-upload' })
-    await act(async () => { await button.props.onPress() })
+    await act(async () => {
+      await button.props.onPress()
+    })
     expect(mockUploadAvatar).toHaveBeenCalled()
   })
 
@@ -198,7 +234,9 @@ describe('AvatarPicker', () => {
     const tree = await renderPicker()
     const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
 
-    await act(async () => { await items[1].props.onPress() })
+    await act(async () => {
+      await items[1].props.onPress()
+    })
 
     expect(mockSend).toHaveBeenCalledWith({ type: 'LOAD' })
   })
@@ -211,7 +249,9 @@ describe('AvatarPicker', () => {
     const items = tree.root.findAllByProps({ testID: 'avatar-picker-item' }, { deep: false })
 
     // rows[0] is img-2, the active one — deleting it repoints the character.
-    await act(async () => { await items[0].props.onLongPress() })
+    await act(async () => {
+      await items[0].props.onLongPress()
+    })
 
     expect(mockSend).toHaveBeenCalledWith({ type: 'LOAD' })
   })

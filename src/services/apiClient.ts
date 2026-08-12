@@ -30,7 +30,9 @@ export interface WikiSyncOntology {
 // reached only via wiki.getOntologyManifest/setOntologyManifest) — extend the wire
 // type locally rather than widening the package's strict MemoryDump type.
 export type WikiSyncBundle = MemoryDump['entities'][string] & { ontology?: WikiSyncOntology }
-export type WikiSyncDump = Omit<MemoryDump, 'entities'> & { entities: Record<string, WikiSyncBundle> }
+export type WikiSyncDump = Omit<MemoryDump, 'entities'> & {
+  entities: Record<string, WikiSyncBundle>
+}
 
 export interface WikiSyncRequest {
   dump: WikiSyncDump
@@ -204,9 +206,7 @@ export interface WikiLlmResponse {
 
 // Keep in sync with GenerateEmbeddingTaskType in functions/src/generateEmbedding.ts
 export type GenerateEmbeddingTaskType =
-  | 'RETRIEVAL_DOCUMENT'
-  | 'RETRIEVAL_QUERY'
-  | 'SEMANTIC_SIMILARITY'
+  'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' | 'SEMANTIC_SIMILARITY'
 
 export interface GenerateEmbeddingRequest {
   text: string
@@ -217,9 +217,7 @@ export interface GenerateEmbeddingResponse {
   embedding: number[]
 }
 
-export const wikiLlm = withAppCheck(
-  wikiLlmCallable as Callable<WikiLlmRequest, WikiLlmResponse>,
-)
+export const wikiLlm = withAppCheck(wikiLlmCallable as Callable<WikiLlmRequest, WikiLlmResponse>)
 
 export const wikiSync = withAppCheck(
   wikiSyncCallable as Callable<WikiSyncRequest, WikiSyncResponse>,

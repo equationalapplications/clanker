@@ -34,7 +34,7 @@ export const GEMINI_LIVE_VOICES = [
   'Zephyr',
   'Zubenelgenubi',
 ] as const
-export type GeminiLiveVoice = typeof GEMINI_LIVE_VOICES[number]
+export type GeminiLiveVoice = (typeof GEMINI_LIVE_VOICES)[number]
 
 export const GEMINI_LIVE_VOICE_STYLES: Record<GeminiLiveVoice, string> = {
   Achernar: 'Soft',

@@ -41,8 +41,7 @@ const isAppCheckAlreadyInitializedError = (error: unknown) => {
   return code.includes('already-initialized')
 }
 
-const isDevBuild =
-  typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
+const isDevBuild = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production'
 
 const enableLocalWebAppCheckDebugToken = () => {
   if (typeof window === 'undefined' || !isDevBuild) {
@@ -98,11 +97,12 @@ const auth = getAuth(firebaseApp)
 // Mock user for local development sandbox
 let mockUser: User | null = null
 
-const getMockUser = (): User => ({
-  uid: 'local_test_user_123',
-  email: 'dev@localhost.com',
-  getIdToken: async () => 'mock_token_123',
-} as unknown as User)
+const getMockUser = (): User =>
+  ({
+    uid: 'local_test_user_123',
+    email: 'dev@localhost.com',
+    getIdToken: async () => 'mock_token_123',
+  }) as unknown as User
 
 const getCurrentUser = () => {
   if (isDevBuild && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {

@@ -18,7 +18,11 @@ jest.mock('react-native', () => {
     StyleSheet: { create: (s: any) => s, flatten: (s: any) => s },
     View: ({ children, style }: any) => React.createElement('View', { style }, children),
     Pressable: ({ children, onPress, accessibilityRole, accessibilityLabel, style }: any) =>
-      React.createElement('Pressable', { onPress, accessibilityRole, accessibilityLabel, style }, children),
+      React.createElement(
+        'Pressable',
+        { onPress, accessibilityRole, accessibilityLabel, style },
+        children,
+      ),
     Linking: { openURL: jest.fn().mockResolvedValue(undefined) },
     Platform: { OS: 'ios' },
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
@@ -38,10 +42,14 @@ import LandingFooter from '~/components/LandingPage/LandingFooter'
 describe('LandingFooter accessibility', () => {
   it('external Equational Applications link has accessibilityLabel mentioning destination', () => {
     let tree: any
-    act(() => { tree = create(<LandingFooter />) })
+    act(() => {
+      tree = create(<LandingFooter />)
+    })
 
     const pressables = tree.root.findAllByType('Pressable')
-    const externalLink = pressables.find((p: any) => p.props.accessibilityRole === 'link' && p.props.accessibilityLabel)
+    const externalLink = pressables.find(
+      (p: any) => p.props.accessibilityRole === 'link' && p.props.accessibilityLabel,
+    )
     expect(externalLink).toBeDefined()
     expect(externalLink!.props.accessibilityLabel).toContain('Equational Applications')
     expect(externalLink!.props.accessibilityLabel).toContain('opens external website')

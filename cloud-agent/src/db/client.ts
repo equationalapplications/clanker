@@ -41,7 +41,9 @@ function registerShutdownHandlers(): void {
   if (shutdownHandlersRegistered) return
   shutdownHandlersRegistered = true
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    process.once(signal, () => { void closeCloudSql() })
+    process.once(signal, () => {
+      void closeCloudSql()
+    })
   }
 }
 
@@ -49,7 +51,7 @@ async function createDb(): Promise<DrizzleClient> {
   if (isTestEnv) {
     throw new Error(
       'Direct database access not allowed in test environment. ' +
-      'Tests must inject a mock DrizzleClient.'
+        'Tests must inject a mock DrizzleClient.',
     )
   }
 
@@ -102,10 +104,18 @@ export async function closeCloudSql(): Promise<void> {
   closePromise = (async () => {
     const errors: unknown[] = []
     if (pool) {
-      try { await pool.end() } catch (e) { errors.push(e) }
+      try {
+        await pool.end()
+      } catch (e) {
+        errors.push(e)
+      }
     }
     if (connector) {
-      try { connector.close() } catch (e) { errors.push(e) }
+      try {
+        connector.close()
+      } catch (e) {
+        errors.push(e)
+      }
     }
     pool = null
     connector = null

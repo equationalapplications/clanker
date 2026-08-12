@@ -14,7 +14,12 @@ jest.mock('react-native', () => {
     ScrollView: ({ children, ...props }: any) => React.createElement('ScrollView', props, children),
     StyleSheet: { create: (s: any) => s },
     Share: { share: jest.fn() },
-    Platform: { get OS() { return mockPlatformOS }, select: (opts: any) => opts[mockPlatformOS] ?? opts.default },
+    Platform: {
+      get OS() {
+        return mockPlatformOS
+      },
+      select: (opts: any) => opts[mockPlatformOS] ?? opts.default,
+    },
   }
 })
 
@@ -57,8 +62,7 @@ jest.mock('react-native-paper', () => {
       ({ visible, children, anchor }: any) =>
         React.createElement('Menu', { visible }, anchor, visible ? children : null),
       {
-        Item: ({ title, onPress }: any) =>
-          React.createElement('MenuItem', { onPress }, title),
+        Item: ({ title, onPress }: any) => React.createElement('MenuItem', { onPress }, title),
       },
     ),
     useTheme: () => ({ colors: { surface: '#fff' } }),
@@ -175,7 +179,10 @@ const mockCharacterWikiSync = jest.fn(async (...args: unknown[]) => {
     await mockWikiSync(...args)
     return { success: true, message: 'Memory synced to cloud.' }
   } catch {
-    return { success: false, message: 'Failed to sync memory. Check your connection and try again.' }
+    return {
+      success: false,
+      message: 'Failed to sync memory. Check your connection and try again.',
+    }
   }
 })
 
@@ -265,12 +272,23 @@ beforeEach(() => {
     error: null,
     lastResult: null,
   })
-  mockWikiSync.mockResolvedValue({ data: { remoteDump: { generatedAt: Date.now(), entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } } } } })
+  mockWikiSync.mockResolvedValue({
+    data: {
+      remoteDump: {
+        generatedAt: Date.now(),
+        entities: { 'cloud-id-1': { facts: [], tasks: [], events: [] } },
+      },
+    },
+  })
   mockUseWiki.mockReturnValue(mockWikiInstance)
   mockWikiInstance.importDump.mockResolvedValue(undefined)
   mockWikiInstance.getEntitySummary.mockResolvedValue(null)
   mockUseSelector.mockReset()
-  mockUseUpdateCharacter.mockReturnValue({ update: mockUpdate, isPending: false, error: null } as any)
+  mockUseUpdateCharacter.mockReturnValue({
+    update: mockUpdate,
+    isPending: false,
+    error: null,
+  } as any)
   setupSelectors()
 })
 
@@ -376,7 +394,11 @@ describe('EditCharacterScreen - confirm dialog', () => {
 
 describe('EditCharacterScreen - non-owner read-only', () => {
   it('disables Save Changes button for non-owner', () => {
-    const character = makeCharacter({ owner_user_id: 'other-user', save_to_cloud: false, cloud_id: null })
+    const character = makeCharacter({
+      owner_user_id: 'other-user',
+      save_to_cloud: false,
+      cloud_id: null,
+    })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
     setupSelectors({ uid: 'user-1' }) // current user is user-1, owner is other-user
 
@@ -391,7 +413,11 @@ describe('EditCharacterScreen - non-owner read-only', () => {
   })
 
   it('disables all TextInputs for non-owner', () => {
-    const character = makeCharacter({ owner_user_id: 'other-user', save_to_cloud: false, cloud_id: null })
+    const character = makeCharacter({
+      owner_user_id: 'other-user',
+      save_to_cloud: false,
+      cloud_id: null,
+    })
     mockUseCharacter.mockReturnValue({ character, isLoading: false } as any)
     setupSelectors({ uid: 'user-1' })
 
@@ -419,8 +445,8 @@ describe('EditCharacterScreen - voice selector', () => {
     })
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
-    const voiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Umbriel',
+    const voiceButton = buttons.find(
+      (b) => typeof b.props.children === 'string' && b.props.children === 'Umbriel',
     )
     expect(voiceButton).toBeDefined()
   })
@@ -449,8 +475,8 @@ describe('EditCharacterScreen - voice selector', () => {
     })
 
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
-    const defaultVoiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Aoede',
+    const defaultVoiceButton = buttons.find(
+      (b) => typeof b.props.children === 'string' && b.props.children === 'Aoede',
     )
     expect(defaultVoiceButton).toBeDefined()
   })
@@ -466,8 +492,8 @@ describe('EditCharacterScreen - voice selector', () => {
 
     // Open the menu
     const buttons = tree.root.findAll((node) => String(node.type) === 'Button')
-    const voiceButton = buttons.find((b) =>
-      typeof b.props.children === 'string' && b.props.children === 'Umbriel',
+    const voiceButton = buttons.find(
+      (b) => typeof b.props.children === 'string' && b.props.children === 'Umbriel',
     )
     act(() => {
       voiceButton!.props.onPress()
@@ -475,8 +501,8 @@ describe('EditCharacterScreen - voice selector', () => {
 
     // Press the Kore menu item
     const menuItems = tree.root.findAll((node) => String(node.type) === 'MenuItem')
-    const koreItem = menuItems.find((item) =>
-      typeof item.props.children === 'string' && item.props.children.includes('Kore'),
+    const koreItem = menuItems.find(
+      (item) => typeof item.props.children === 'string' && item.props.children.includes('Kore'),
     )
     act(() => {
       koreItem!.props.onPress()
@@ -490,10 +516,7 @@ describe('EditCharacterScreen - voice selector', () => {
       saveButton!.props.onPress()
     })
 
-    expect(mockUpdate).toHaveBeenCalledWith(
-      'char-1',
-      expect.objectContaining({ voice: 'Kore' }),
-    )
+    expect(mockUpdate).toHaveBeenCalledWith('char-1', expect.objectContaining({ voice: 'Kore' }))
   })
 })
 

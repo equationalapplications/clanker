@@ -203,11 +203,15 @@ import ChatView from '~/components/ChatView'
 function renderChat(character: Record<string, unknown>) {
   mockUseCharacter.mockReturnValue({ data: character, isLoading: false })
   let tree: any
-  act(() => { tree = create(<ChatView characterId="char-1" />) })
+  act(() => {
+    tree = create(<ChatView characterId="char-1" />)
+  })
   return {
     tree,
     rerender() {
-      act(() => { tree.update(<ChatView characterId="char-1" />) })
+      act(() => {
+        tree.update(<ChatView characterId="char-1" />)
+      })
     },
   }
 }
@@ -215,7 +219,9 @@ function renderChat(character: Record<string, unknown>) {
 /** Render the headerTitle element captured from drawerNav.setOptions. */
 function renderHeader() {
   expect(capturedHeaderTitle).toBeTruthy()
-  act(() => { create(capturedHeaderTitle!()) })
+  act(() => {
+    create(capturedHeaderTitle!())
+  })
 }
 
 function baseCharacter(overrides: Record<string, unknown>) {
@@ -254,7 +260,9 @@ function renderChatWithMessage(userId: string, characterOverrides: Record<string
   mockUseAIChat.mockReturnValue(aiMock)
   mockUseCharacter.mockReturnValue({ data: baseCharacter(characterOverrides), isLoading: false })
   let tree: any
-  act(() => { tree = create(<ChatView characterId="char-1" />) })
+  act(() => {
+    tree = create(<ChatView characterId="char-1" />)
+  })
   return tree
 }
 
@@ -310,13 +318,18 @@ describe('ChatView avatar source', () => {
   it('message bubbles prefer the resolved image over a stale legacy avatar URL', () => {
     mockResolved = 'file:///new.webp'
 
-    expect(bubbleCharacterProps({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }).imageUrl).toBe('file:///new.webp')
+    expect(
+      bubbleCharacterProps({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' })
+        .imageUrl,
+    ).toBe('file:///new.webp')
   })
 
   it('message bubbles fall back to the legacy avatar URL', () => {
     mockResolved = null
 
-    expect(bubbleCharacterProps({ avatar: 'https://old.example/legacy.png' }).imageUrl).toBe('https://old.example/legacy.png')
+    expect(bubbleCharacterProps({ avatar: 'https://old.example/legacy.png' }).imageUrl).toBe(
+      'https://old.example/legacy.png',
+    )
   })
 
   // The phase 2 change itself: an avatar-less character renders the bundled
@@ -336,7 +349,7 @@ describe('ChatView avatar source', () => {
   it('user bubble shows initials when user has no avatar', () => {
     mockResolved = null
     renderChat(baseCharacter({}))
-    expect(bubbleUserLabel()).toBe('T')  // 'Test' → 'T'
+    expect(bubbleUserLabel()).toBe('T') // 'Test' → 'T'
   })
 
   // NOT a mirror of the header's dep-array bug — renderAvatar is an inline

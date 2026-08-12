@@ -19,12 +19,16 @@ Users have rich, graph-connected memory stored locally in Clanker (facts, tasks,
 **This is the most important section of the spec.** An earlier draft designed a from-scratch OKF serializer using `@equationalapplications/core-okf`'s low-level primitives (`buildConceptDocument`, `serializeFrontmatter`, `buildLogMd`, `buildRootIndexMd`) directly. Inspection of the already-installed `node_modules/@equationalapplications/core-llm-wiki` package (a transitive part of `expo-llm-wiki`, already a dependency) showed that adapter **already exists and is re-exported**:
 
 ```typescript
-import { formatOkfBundle, parseOkfBundle, type MemoryDump } from '@equationalapplications/expo-llm-wiki'
+import {
+  formatOkfBundle,
+  parseOkfBundle,
+  type MemoryDump,
+} from '@equationalapplications/expo-llm-wiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 
 const wiki = useWiki()
-const dump: MemoryDump = await wiki.exportDump([characterId])   // -> { generatedAt, entities: { [characterId]: MemoryBundle } }
-const { files } = formatOkfBundle(dump)                          // -> OkfFile[] = { path, content }[]
+const dump: MemoryDump = await wiki.exportDump([characterId]) // -> { generatedAt, entities: { [characterId]: MemoryBundle } }
+const { files } = formatOkfBundle(dump) // -> OkfFile[] = { path, content }[]
 ```
 
 `formatOkfBundle` already handles: frontmatter serialization, concept-document assembly, per-entity fact/task directories, and the event log — using `core-okf` primitives internally. **We do not need a direct dependency on `core-okf`, and we do not hand-roll frontmatter or concept-document assembly.** Our job shrinks to: fetch dump → format → **augment with edge links (gap, see below)** → zip → platform-save.
@@ -48,7 +52,7 @@ For a single-character export (`exportDump([characterId])`), `dump.entities` has
 
 `MemoryBundle.edges` (`WikiEdge[]`, populated by `exportDump`/`getFullBundle` from the edges table added for "OKF graph import") is **not read by `formatOkfBundle` at all** — verified by reading the function body. Concept-document bodies are written verbatim from `fact.body` (facts) or as an empty string (tasks — `taskFrontmatter` supplies frontmatter only, no body); no `## Related` section is appended from `bundle.edges` anywhere in the adapter.
 
-This matters: edges are a real, already-shipped part of the Cloud Ontology & Graph Traversal work (Phase 1). Exporting a flat list of disconnected text files — dropping every explicit graph relationship — would gut the "graph-aware" value of this feature and lose data on any future round-trip (export → external tool → re-import). `parseOkfBundle`, on the *import* side, does reconstruct edges, but only by scanning concept-document bodies for markdown links via `extractMarkdownLinks`. So: for edges to survive a round trip, **we inject them into the body ourselves before zipping**, in a shape `extractMarkdownLinks`/`parseOkfBundle` can already read back.
+This matters: edges are a real, already-shipped part of the Cloud Ontology & Graph Traversal work (Phase 1). Exporting a flat list of disconnected text files — dropping every explicit graph relationship — would gut the "graph-aware" value of this feature and lose data on any future round-trip (export → external tool → re-import). `parseOkfBundle`, on the _import_ side, does reconstruct edges, but only by scanning concept-document bodies for markdown links via `extractMarkdownLinks`. So: for edges to survive a round trip, **we inject them into the body ourselves before zipping**, in a shape `extractMarkdownLinks`/`parseOkfBundle` can already read back.
 
 **Decision: keep edges in V1.** Add a thin post-processing pass after `formatOkfBundle`, before zipping. This is a small, targeted addition on top of the existing adapter, not a reimplementation of it, and it's what makes this an actual knowledge-graph export rather than a flat file dump.
 
@@ -88,7 +92,7 @@ This matters: edges are a real, already-shipped part of the Cloud Ontology & Gra
 
 Edges live per-entity: `dump.entities[characterId]?.edges ?? []` (an array of `WikiEdge = { id, entity_id, source_id, target_id, edge_type, created_at }`). `dump` itself has no top-level `edges` field — only `dump.entities[id].edges`.
 
-`formatOkfBundle`'s internal sanitization (`sanitizeConceptId`) means a file's path segment is *not guaranteed* to equal the original fact/task `id` verbatim. But `factFrontmatter`/`taskFrontmatter` both write `id: f.id` (the raw, unsanitized id) into the YAML frontmatter of every concept file. So instead of trying to reverse-engineer the sanitized filename, extract the real id from each file's own frontmatter:
+`formatOkfBundle`'s internal sanitization (`sanitizeConceptId`) means a file's path segment is _not guaranteed_ to equal the original fact/task `id` verbatim. But `factFrontmatter`/`taskFrontmatter` both write `id: f.id` (the raw, unsanitized id) into the YAML frontmatter of every concept file. So instead of trying to reverse-engineer the sanitized filename, extract the real id from each file's own frontmatter:
 
 1. After calling `formatOkfBundle(dump)`, do one pass over `files` where `isConceptFile` (i.e. not `index.md`, not `log.md`): parse the `id:` line out of the frontmatter block (a plain regex against the `---\n...\n---` header is sufficient — ids are plain alphanumeric/underscore tokens, no YAML escaping needed) and build two maps: `idToPath: Map<id, path>` and `pathToId: Map<path, id>`
 2. For each concept file, look up its own id via `pathToId`, then find edges where `edge.source_id === thatId`
@@ -98,7 +102,6 @@ Edges live per-entity: `dump.entities[characterId]?.edges ?? []` (an array of `W
    - Cross-type (fact ↔ task) → `../facts/{targetFilename}` or `../tasks/{targetFilename}`
 5. Append to `file.content`:
    ```markdown
-
    ## Related
 
    - [edge_type](./target_id.md)
@@ -119,9 +122,9 @@ No direct `core-okf` dependency required for this step — it's string building 
 
 #### Fetch via `exportDump`, Not the Retrieval-Path `getMemoryBundle`
 
-**Why:** `getMemoryBundle` (used by `useMemoryBundle`, the existing chat-context hook) is a *retrieval* path — it may score, rank, or truncate results for prompt-context purposes. `exportDump`/`getFullBundle({ includeBlobs: true })` is the *completeness* path used by cloud-sync (`wikiMachine.ts`, `liveVoiceMachine.ts`) and is the correct source for "export everything this character knows."
+**Why:** `getMemoryBundle` (used by `useMemoryBundle`, the existing chat-context hook) is a _retrieval_ path — it may score, rank, or truncate results for prompt-context purposes. `exportDump`/`getFullBundle({ includeBlobs: true })` is the _completeness_ path used by cloud-sync (`wikiMachine.ts`, `liveVoiceMachine.ts`) and is the correct source for "export everything this character knows."
 
-**Note:** `react-llm-wiki` (re-exported transitively through `expo-llm-wiki`) already ships a `useWikiExport()` hook wrapping `wiki.exportDump` with its own `isPending`/`error`/`lastResult` state (verified: `declare function useWikiExport(): { execute, lastResult, isPending, error }` in `react-llm-wiki/dist/index.d.ts`). `useExportCharacterOKF` calls `useWiki().exportDump` directly rather than composing `useWikiExport`, since this hook's own `isExporting`/`error`/`lastResult` need to reflect the *entire* pipeline (format + augment + zip + save), not just the dump-fetch step — reusing `useWikiExport`'s state would only cover the first of four stages and still require separate state for the rest. Not adopted in V1; worth reconsidering only if `useWikiExport` grows pipeline-stage awareness.
+**Note:** `react-llm-wiki` (re-exported transitively through `expo-llm-wiki`) already ships a `useWikiExport()` hook wrapping `wiki.exportDump` with its own `isPending`/`error`/`lastResult` state (verified: `declare function useWikiExport(): { execute, lastResult, isPending, error }` in `react-llm-wiki/dist/index.d.ts`). `useExportCharacterOKF` calls `useWiki().exportDump` directly rather than composing `useWikiExport`, since this hook's own `isExporting`/`error`/`lastResult` need to reflect the _entire_ pipeline (format + augment + zip + save), not just the dump-fetch step — reusing `useWikiExport`'s state would only cover the first of four stages and still require separate state for the rest. Not adopted in V1; worth reconsidering only if `useWikiExport` grows pipeline-stage awareness.
 
 #### Platform-Aware Save
 
@@ -157,9 +160,9 @@ Example fact file (`entities/{id}/facts/fact_abc123.md`), after augmentation:
 ```markdown
 ---
 type: fact
-title: "Prefers coffee over tea"
-tags: ["preferences", "beverages"]
-timestamp: "2026-07-03T14:30:00.000Z"
+title: 'Prefers coffee over tea'
+tags: ['preferences', 'beverages']
+timestamp: '2026-07-03T14:30:00.000Z'
 id: fact_abc123
 entity_id: char_42
 confidence: certain
@@ -180,6 +183,7 @@ User mentioned they prefer coffee over tea, especially in the mornings.
 (Frontmatter fields above reflect the real shape emitted by `factFrontmatter()` in `core-llm-wiki` — not a redesigned schema. The `## Related` section is ours.)
 
 **README.md** (static, written by our code, not by `formatOkfBundle`):
+
 - What OKF is
 - How to inspect the bundle locally (unzip, open in any markdown viewer, e.g. Obsidian)
 - How to re-import into Clanker in the future (references `parseOkfBundle`, notes it's not yet wired to a UI)
@@ -194,6 +198,7 @@ Add button in settings near privacy/data management section:
 **"Export Memory as OKF"**
 
 States:
+
 - **Enabled:** default
 - **Loading:** spinner modal ("Generating bundle...") while `isExporting`
 - **Success:** toast + platform save flow completes. Hook must expose a success signal distinct from "no error" (e.g. a `lastResult`/`didExport` flag bumped on each successful run) — `error === null` is also true before the first export ever runs, so it can't drive a success toast on its own.
@@ -220,7 +225,9 @@ export function useExportCharacterOKF(characterId: string, characterName: string
     try {
       const dump = await wiki.exportDump([characterId])
       const entity = dump.entities[characterId]
-      const isEmpty = !entity || (entity.facts.length === 0 && entity.tasks.length === 0 && entity.events.length === 0)
+      const isEmpty =
+        !entity ||
+        (entity.facts.length === 0 && entity.tasks.length === 0 && entity.events.length === 0)
       const { files } = formatOkfBundle(dump)
       const edges = entity?.edges ?? []
       const augmented = augmentWithEdgeLinks(files, edges)
@@ -305,17 +312,20 @@ New entry in the `FEATURES` array (existing pattern — see `learnMoreHref` on t
 ### 2. New standalone static page — `public/memory-export-with-okf/index.html`
 
 Clanker has two kinds of public pages:
+
 - **Auto-generated** (`/privacy`, `/terms`) — built from `src/config/*Config.ts` by `scripts/generate-static-pages.js`, gitignored output
 - **Hand-authored** (`/welcome`, `/real-time-voice`) — static HTML committed directly to `public/{route}/index.html`
 
 This is the second kind. Route: **`/memory-export-with-okf`**. Content:
+
 - What OKF is (plain-language, links to the open spec)
 - How to trigger export (Character Settings → "Export Memory as OKF")
 - What's in the `.zip` (facts/tasks/log/README, `entities/{id}/...` layout)
 - What to do with it: open in Obsidian or any markdown viewer, back it up, use with future OKF-compatible tools
-- Notes ontology/graph-taxonomy rules aren't included yet (matches V1 scope — edges *are* included, ontology manifest is not)
+- Notes ontology/graph-taxonomy rules aren't included yet (matches V1 scope — edges _are_ included, ontology manifest is not)
 
 Wiring required:
+
 - Add `{ loc: '/memory-export-with-okf', priority: '0.6' }` to the `pages` array in `scripts/generate-static-pages.js` (~line 311) so it's included in the generated `sitemap.xml`
 - Add a nav link alongside the existing `/welcome`/`/real-time-voice` footer links (~line 210-212 in the same script)
 
@@ -332,6 +342,7 @@ A: Yes — open Character Settings and tap "Export Memory as OKF" to download
    including its facts, tasks, and how they connect. See our data export
    guide for details on what's included and how to use it.
 ```
+
 "data export guide" opens `https://equationalapplications.com/memory-export-with-okf` via `Linking.openURL`.
 
 ### 4. Privacy policy — `src/config/privacyConfig.ts`
@@ -373,5 +384,5 @@ Bump `PRIVACY.version` (1.5 → 1.6) and `lastUpdated`. This alone regenerates `
 - Cloud Ontology & Graph Traversal Design Spec (2026-06-23) — introduced `WikiEdge`, `llmWikiOntology`
 - LLM Wiki Memory Spec (2026-04-24) — original facts/tasks/events schema
 - `src/machines/wikiMachine.ts:432`, `src/machines/liveVoiceMachine.ts:493` — existing `exportDump` call sites (cloud-sync path, not user-facing export)
-- `src/hooks/useMemoryBundle.ts` — retrieval-path hook, explicitly *not* used for export (see Key Design Decisions)
+- `src/hooks/useMemoryBundle.ts` — retrieval-path hook, explicitly _not_ used for export (see Key Design Decisions)
 - `src/components/LandingPage/FeaturesSection.tsx`, `app/support.tsx`, `src/config/privacyConfig.ts`, `scripts/generate-static-pages.js`, `public/real-time-voice/index.html` — public-docs touchpoints (verified 2026-07-03)

@@ -6,6 +6,7 @@
 **Scope:** Finalize edge capabilities (Task Management), implement JIT Escalation Sync, build the Firebase ingestion bridge, and establish the LLM evaluation pipeline. Depends on Phase 3 (`write_observation` edge tool).
 
 **Related Docs:**
+
 - Phase 1: [Edge Agent Chat Architecture](2026-05-28-edge-agent-chat-architecture.md)
 - Phase 2: [Manifest Override + Local `search_memory`](2026-05-28-manifest-override-memory-search-design.md)
 - Phase 3: [Edge Memory Writing — `write_observation`](2026-06-01-edge-write-observation.md)
@@ -24,6 +25,7 @@ The edge agent can now read and write local wiki memory (Phases 2–3). Three ga
 3. **No prompt correctness guarantee.** `CharacterPromptBuilder` has no assertion covering the "do not break the fourth wall" directive. A refactor could silently remove it.
 
 Additionally, two previously designed components now need wiring:
+
 - JIT Escalation Sync: unsynced offline messages must be batched into the Firebase payload on escalation.
 - Firebase Ingestion Bridge: the cloud function must bulk-insert that unsynced history into Cloud SQL before generating a reply.
 
@@ -36,10 +38,12 @@ Additionally, two previously designed components now need wiring:
 ### 2.1 Evaluation & Testing Pipeline (dual-layer)
 
 **Deterministic prompt tests** (`src/services/__tests__/characterPromptBuilder.test.ts`):
+
 - Assert `buildSystemInstruction` includes the character's traits, personality, and the "Never reveal you are an AI" fourth-wall directive.
 - Assert `buildContentHistory` correctly maps `IMessage[]` into `{ role, parts }[]` format.
 
 **LLM-in-the-loop evals** (`src/services/__tests__/edgeAgentEvals.int.test.ts`):
+
 - Initialize a real `@google/genai` client using `process.env.GOOGLE_GENAI_API_KEY`.
 - Use `gemini-2.5-flash` (no temperature config — matches production `useEdgeAgent.ts` which omits `generationConfig` due to the installed SDK version) and production edge tool manifests.
 - **Test A:** Asking about a past fact yields a `search_memory` tool call.
@@ -60,27 +64,32 @@ On escalation, all chat messages and observations where `synced_at IS NULL` must
 Empower the edge agent to manage tasks offline, matching the capability already proven in the ADK Sandbox.
 
 **Manifests (`clankerManifests.ts`):**
+
 - Export `clankerCreateTaskSchema` (required: `title: string`).
 - Export `clankerListTasksSchema` (no required params).
 - Update `clankerEscalationSchema` description to explicitly forbid delegating task creation/listing to the cloud.
 
 **Database (`src/database/schema.ts` + `src/database/taskDatabase.ts`):**
+
 - Migration v19: `CREATE TABLE IF NOT EXISTS tasks (id, character_id, title, status, created_at)` with index on `character_id`.
 - Add tasks table to `CREATE_TABLES` (fresh installs).
 - `createTask(characterId, title)` → inserts row, returns generated id.
 - `listTasks(characterId)` → returns rows ordered by `created_at DESC`.
 
 **Executors (`edgeToolExecutors.ts`):**
+
 - `create_task`: validate title, call `createTask`, return success/failure string.
 - `list_tasks`: call `listTasks`, return JSON array or "No tasks found."
 - Both added to the `createEdgeToolExecutors` factory alongside the memory tools.
 
 **Injection (`useEdgeAgent.ts`):**
+
 - Push `clankerCreateTaskSchema` and `clankerListTasksSchema` into `functionDeclarations` unconditionally (tasks are available offline regardless of `wiki` or `isCloudSynced`).
 
 ### 2.4 Firebase Ingestion Bridge
 
 Before passing `contents` to the LLM, `functions/src/generateReply.ts` must:
+
 1. Extract `unsyncedHistory` from the request payload.
 2. Verify the `characterId` belongs to the authenticated user.
 3. Bulk `INSERT ... ON CONFLICT DO NOTHING` into the Cloud SQL `messages` table.

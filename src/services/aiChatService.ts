@@ -26,8 +26,8 @@ function estimatePayloadSize(contents: unknown[], systemInstruction: string): nu
 }
 
 interface TrimResult {
-  contents: { role: string; parts: { text?: string }[] }[];
-  systemInstruction: string;
+  contents: { role: string; parts: { text?: string }[] }[]
+  systemInstruction: string
 }
 
 function trimToBudget(
@@ -161,10 +161,7 @@ export function getRecentConversationHistory(messages: Message[], limit: number)
   }
 
   return [...messages]
-    .sort(
-      (left, right) =>
-        new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
-    )
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
     .slice(-limit)
 }
 
@@ -198,7 +195,10 @@ Recent messages (higher priority):
 ${recentSection}`
 }
 
-export async function triggerConversationSummary(character: Character, userId: string): Promise<void> {
+export async function triggerConversationSummary(
+  character: Character,
+  userId: string,
+): Promise<void> {
   if (isDevSandboxEnabled()) {
     return
   }
@@ -341,7 +341,10 @@ export const sendMessageWithAIResponse = async (
     ]
 
     // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
-    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(
+      contents,
+      systemInstruction,
+    )
 
     const aiResponse = await generateChatReply({
       contents: trimmedContents,
@@ -365,7 +368,14 @@ export const sendMessageWithAIResponse = async (
       aiMessageData.groundingMetadata = aiResponse.groundingMetadata
     }
 
-    const savedAMessage = await saveAIMessage(character.id, userId, aiResponse.reply, aiResponseId, aiMessageData, Date.now())
+    const savedAMessage = await saveAIMessage(
+      character.id,
+      userId,
+      aiResponse.reply,
+      aiResponseId,
+      aiMessageData,
+      Date.now(),
+    )
 
     void triggerConversationSummary(character, userId)
     if (options?.onWriteObservation) {
@@ -411,19 +421,13 @@ export const sendMessageWithAIResponse = async (
         ? "I'm having trouble responding right now. Please try again."
         : "I couldn't respond because you appear to be offline. Please try again when you're back online."
 
-      await saveAIMessage(
-        character.id,
-        userId,
-        fallbackText,
-        errorId,
-        {
-          user: {
-            _id: character.id,
-            name: character.name,
-            avatar: character.appearance || undefined,
-          },
+      await saveAIMessage(character.id, userId, fallbackText, errorId, {
+        user: {
+          _id: character.id,
+          name: character.name,
+          avatar: character.appearance || undefined,
         },
-      )
+      })
       return { usageSnapshot: null, cloudSyncSucceeded: false }
     } catch (fallbackError) {
       console.error('Error sending fallback message:', fallbackError)
@@ -440,19 +444,21 @@ export const sendCharacterIntroduction = async (
   userId: string,
 ): Promise<void> => {
   try {
-    const introTask = 'Generate a friendly, warm introduction message that introduces yourself, shows your personality, and invites the user to start a conversation. Keep it brief and welcoming (1-2 sentences).'
+    const introTask =
+      'Generate a friendly, warm introduction message that introduces yourself, shows your personality, and invites the user to start a conversation. Keep it brief and welcoming (1-2 sentences).'
 
     const systemInstruction = buildSystemInstruction({
       character,
       userId,
     })
 
-    const contents = [
-      { role: 'user' as const, parts: [{ text: introTask }] },
-    ]
+    const contents = [{ role: 'user' as const, parts: [{ text: introTask }] }]
 
     // Trim contents and systemInstruction to fit within the 12 KB payload budget before sending
-    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(contents, systemInstruction)
+    const { contents: trimmedContents, systemInstruction: trimmedSystemInstruction } = trimToBudget(
+      contents,
+      systemInstruction,
+    )
 
     const introResult = await generateChatReply({
       contents: trimmedContents,

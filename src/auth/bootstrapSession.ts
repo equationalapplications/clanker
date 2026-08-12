@@ -135,7 +135,7 @@ async function buildMockBootstrap(): Promise<BootstrapSessionResult> {
 export async function bootstrapSession(): Promise<BootstrapSessionResult> {
   const currentUser = getCurrentUser()
   const currentUserId = currentUser?.uid ?? null
-  const cacheKey = isDevSandboxEnabled() ? DEV_CLOUD_CHARACTER_ID : currentUserId ?? 'anonymous'
+  const cacheKey = isDevSandboxEnabled() ? DEV_CLOUD_CHARACTER_ID : (currentUserId ?? 'anonymous')
 
   if (bootstrapSessionPromises.has(cacheKey)) {
     return bootstrapSessionPromises.get(cacheKey) as Promise<BootstrapSessionResult>
@@ -153,7 +153,9 @@ export async function bootstrapSession(): Promise<BootstrapSessionResult> {
     let lastError: unknown
     for (let attempt = 0; attempt <= BOOTSTRAP_MAX_RETRIES; attempt++) {
       if (attempt > 0) {
-        await new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS * attempt))
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS * attempt),
+        )
       }
 
       try {

@@ -58,10 +58,7 @@ describe('formatGroundingShadowHtml', () => {
 describe('mountGroundingShadowContent', () => {
   it('attaches sanitized html and host layout styles to a shadow root', () => {
     const host = document.createElement('div')
-    mountGroundingShadowContent(
-      host,
-      '<style>.widget{}</style><div class="widget">Hi</div>',
-    )
+    mountGroundingShadowContent(host, '<style>.widget{}</style><div class="widget">Hi</div>')
 
     expect(host.shadowRoot).not.toBeNull()
     expect(host.shadowRoot?.innerHTML).toContain('class="widget"')
@@ -93,7 +90,7 @@ describe('measureShadowLayout', () => {
       Object.defineProperty(widget, 'scrollWidth', { configurable: true, value: 320 })
       Object.defineProperty(widget, 'offsetWidth', { configurable: true, value: 320 })
       widget.getBoundingClientRect = () =>
-        ({ width: 320, height: 40, right: 320, left: 0, top: 0, bottom: 40 } as DOMRect)
+        ({ width: 320, height: 40, right: 320, left: 0, top: 0, bottom: 40 }) as DOMRect
     }
     Object.defineProperty(host, 'scrollWidth', { configurable: true, value: 320 })
     Object.defineProperty(host, 'offsetWidth', { configurable: true, value: 320 })

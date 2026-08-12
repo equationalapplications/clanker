@@ -16,7 +16,11 @@ import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
 import type { CreditService } from './services/creditService.js'
-import { assertAgentTurnCredits, AgentInsufficientCreditsError, consumeAgentEvents } from './services/agentEventLoop.js'
+import {
+  assertAgentTurnCredits,
+  AgentInsufficientCreditsError,
+  consumeAgentEvents,
+} from './services/agentEventLoop.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
 import { handleBrowserWsUpgrade } from './handlers/wsBrowserAgentHandler.js'
@@ -24,12 +28,20 @@ import { handleDesktopWsUpgrade } from './handlers/wsDesktopAgentHandler.js'
 import { defaultFirestoreSession } from './services/firestoreSession.js'
 import { defaultFcmDispatcher } from './services/fcmDispatcher.js'
 import { desktopBridge } from './services/desktopBridge.js'
-import { pairDesktopDevice, revokeDesktopDevice, resolvePairingToken, type PairingFirestore } from './services/desktopPairing.js'
+import {
+  pairDesktopDevice,
+  revokeDesktopDevice,
+  resolvePairingToken,
+  type PairingFirestore,
+} from './services/desktopPairing.js'
 import { createVaultToolDeps } from './tools/vaultTools.js'
 import { upsertDeviceRecord } from './services/deviceUpsert.js'
 import { getExpoPushToken } from './handlers/expoPushToken.js'
 import { handleApproveAction } from './handlers/approveAction.js'
-import { createSchedulerTriggerHandler, createRequireSchedulerSecret } from './handlers/schedulerTriggerHandler.js'
+import {
+  createSchedulerTriggerHandler,
+  createRequireSchedulerSecret,
+} from './handlers/schedulerTriggerHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
@@ -60,31 +72,63 @@ export interface RunAgentParams {
 export interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
-  runAgentFn: (params: RunAgentParams) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
+  runAgentFn: (
+    params: RunAgentParams,
+  ) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
   wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
-  upsertDevice?: (uid: string, body: { fcmToken: string; deviceId: string; deviceName: string; isPaused?: boolean }) => Promise<void>
+  upsertDevice?: (
+    uid: string,
+    body: { fcmToken: string; deviceId: string; deviceName: string; isPaused?: boolean },
+  ) => Promise<void>
 }
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
-export async function runAgentReal(params: RunAgentParams): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
-  const { db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed, creditService, attachments = [] } = params
-  const bridge = admin.apps.length ? {
-    firebaseUid,
+export async function runAgentReal(
+  params: RunAgentParams,
+): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
+  const {
+    db,
     userId,
-    firestoreSession: defaultFirestoreSession(),
-    fcmDispatcher: defaultFcmDispatcher(),
-    creditService: createCreditService(db),
-    instanceId: INSTANCE_ID,
-  } : undefined
-  const vault = admin.apps.length ? createVaultToolDeps({
     firebaseUid,
-    firestoreSession: defaultFirestoreSession(),
-    desktopBridge,
-  }) : undefined
-  const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embed, bridge, vault)
+    characterId,
+    systemInstruction,
+    message,
+    history,
+    timezone,
+    embed,
+    creditService,
+    attachments = [],
+  } = params
+  const bridge = admin.apps.length
+    ? {
+        firebaseUid,
+        userId,
+        firestoreSession: defaultFirestoreSession(),
+        fcmDispatcher: defaultFcmDispatcher(),
+        creditService: createCreditService(db),
+        instanceId: INSTANCE_ID,
+      }
+    : undefined
+  const vault = admin.apps.length
+    ? createVaultToolDeps({
+        firebaseUid,
+        firestoreSession: defaultFirestoreSession(),
+        desktopBridge,
+      })
+    : undefined
+  const agent = buildAgent(
+    db,
+    userId,
+    characterId,
+    systemInstruction,
+    timezone,
+    embed,
+    bridge,
+    vault,
+  )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
 
@@ -218,7 +262,10 @@ export function createApp(options: AppOptions) {
     const token = authHeader.toLowerCase().startsWith('bearer ')
       ? authHeader.slice(7).trim() || undefined
       : undefined
-    if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
+    if (!token) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
     try {
       const decoded = await verifyToken(token)
       req.uid = decoded.uid
@@ -256,204 +303,301 @@ export function createApp(options: AppOptions) {
     handler: rateLimitHandler,
   })
 
-  app.post('/agent/run', agentRunLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    try {
-      const parseResult = agentRunSchema.safeParse(req.body)
-      if (!parseResult.success) {
-        res.status(400).json({ error: 'Invalid request body' })
-        return
-      }
-      const {
-        message,
-        characterId,
-        unsyncedHistory = [],
-        history: rawHistory = [],
-        attachments = [],
-      } = parseResult.data
-      const history = rawHistory as Content[]
-      const firebaseUid = req.uid!
-      const timezone = typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
-
-      // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
-      const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-      if (!dbUser) { res.status(401).json({ error: 'Unauthorized' }); return }
-      const userId = dbUser.id
-
-      // Verify character exists and belongs to this user before any writes
-      const [character] = await db.select().from(characters).where(
-        and(eq(characters.id, characterId), eq(characters.userId, userId))
-      )
-      if (!character) { res.status(404).json({ error: 'Character not found' }); return }
-
-      if (unsyncedHistory.length > 0) {
-        try {
-          await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory, embedText)
-        } catch (err) {
-          // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
-          console.error('bulkInsertUnsynced failed:', err)
-        }
-      }
-
+  app.post(
+    '/agent/run',
+    agentRunLimiter,
+    requireAuth,
+    async (req: Request & { uid?: string }, res: Response): Promise<void> => {
       try {
-        await assertAgentTurnCredits(userId, cs)
-      } catch (creditErr) {
-        if (creditErr instanceof AgentInsufficientCreditsError) {
-          res.status(402).json({ error: 'Insufficient credits' })
+        const parseResult = agentRunSchema.safeParse(req.body)
+        if (!parseResult.success) {
+          res.status(400).json({ error: 'Invalid request body' })
           return
         }
-        throw creditErr
+        const {
+          message,
+          characterId,
+          unsyncedHistory = [],
+          history: rawHistory = [],
+          attachments = [],
+        } = parseResult.data
+        const history = rawHistory as Content[]
+        const firebaseUid = req.uid!
+        const timezone =
+          typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
+
+        // Map Firebase UID → DB user UUID (users.id is UUID; firebase_uid is the token uid)
+        const [dbUser] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.firebaseUid, firebaseUid))
+        if (!dbUser) {
+          res.status(401).json({ error: 'Unauthorized' })
+          return
+        }
+        const userId = dbUser.id
+
+        // Verify character exists and belongs to this user before any writes
+        const [character] = await db
+          .select()
+          .from(characters)
+          .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+        if (!character) {
+          res.status(404).json({ error: 'Character not found' })
+          return
+        }
+
+        if (unsyncedHistory.length > 0) {
+          try {
+            await bulkInsertUnsynced(db, userId, characterId, unsyncedHistory, embedText)
+          } catch (err) {
+            // Swallow sync errors so the agent can still respond (matches Firebase generateReply behavior)
+            console.error('bulkInsertUnsynced failed:', err)
+          }
+        }
+
+        try {
+          await assertAgentTurnCredits(userId, cs)
+        } catch (creditErr) {
+          if (creditErr instanceof AgentInsufficientCreditsError) {
+            res.status(402).json({ error: 'Insufficient credits' })
+            return
+          }
+          throw creditErr
+        }
+
+        const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
+        const systemInstruction = assembleSystemInstruction(character, wikiContext)
+
+        // Credit spend happens per internal ADK loop iteration inside runAgentFn
+        // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
+        const result = await runAgentFn({
+          db,
+          userId,
+          firebaseUid,
+          characterId,
+          systemInstruction,
+          message,
+          history,
+          timezone,
+          embed: embedText,
+          creditService: cs,
+          attachments,
+        })
+
+        // GET BALANCE — graceful degrade if this fails
+        let newBalance: number | null = null
+        try {
+          newBalance = await cs.getBalance(userId)
+        } catch (balErr) {
+          console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
+        }
+
+        // RESPOND
+        res.json({
+          reply: result.reply,
+          toolCalls: result.toolCalls,
+          usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
+          groundingMetadata: result.groundingMetadata,
+        })
+      } catch (err) {
+        console.error('agent/run error:', err)
+        const isProd = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production'
+        if (isProd) {
+          res.status(500).json({ error: 'Internal server error' })
+          return
+        }
+        const mapped = mapAgentExecutionError(err)
+        res.status(500).json({
+          error: err instanceof Error ? err.message : 'Internal server error',
+          code: mapped.code,
+          message: mapped.message,
+        })
       }
-
-      const wikiContext = await queryWikiContext(db, message, userId, characterId, embedText)
-      const systemInstruction = assembleSystemInstruction(character, wikiContext)
-
-      // Credit spend happens per internal ADK loop iteration inside runAgentFn
-      // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
-      const result = await runAgentFn({ db, userId, firebaseUid, characterId, systemInstruction, message, history, timezone, embed: embedText, creditService: cs, attachments })
-
-      // GET BALANCE — graceful degrade if this fails
-      let newBalance: number | null = null
-      try {
-        newBalance = await cs.getBalance(userId)
-      } catch (balErr) {
-        console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
-      }
-
-      // RESPOND
-      res.json({
-        reply: result.reply,
-        toolCalls: result.toolCalls,
-        usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
-        groundingMetadata: result.groundingMetadata,
-      })
-    } catch (err) {
-      console.error('agent/run error:', err)
-      const isProd = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production'
-      if (isProd) {
-        res.status(500).json({ error: 'Internal server error' })
-        return
-      }
-      const mapped = mapAgentExecutionError(err)
-      res.status(500).json({
-        error: err instanceof Error ? err.message : 'Internal server error',
-        code: mapped.code,
-        message: mapped.message,
-      })
-    }
-  })
+    },
+  )
 
   const usesDefaultDeviceUpsert = !options.upsertDevice
   const browserBridgeAvailable = admin.apps.length > 0
 
-  const upsertDevice = options.upsertDevice ?? (async (uid, body) => {
-    await upsertDeviceRecord(admin.firestore(), uid, body)
-  })
+  const upsertDevice =
+    options.upsertDevice ??
+    (async (uid, body) => {
+      await upsertDeviceRecord(admin.firestore(), uid, body)
+    })
 
-  app.post('/agent/browser/register-device', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    if (usesDefaultDeviceUpsert && !browserBridgeAvailable) {
-      res.status(503).json({ error: 'Browser bridge unavailable' })
-      return
-    }
-    const parsed = z.object({
-      fcmToken: z.string().min(1),
-      deviceId: z.string().min(1),
-      deviceName: z.string().min(1),
-      isPaused: z.boolean().optional(),
-    }).safeParse(req.body)
-    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
-    try {
-      await upsertDevice(req.uid!, parsed.data)
-      res.json({ ok: true })
-    } catch (err) {
-      console.error('register-device error:', err)
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  })
+  app.post(
+    '/agent/browser/register-device',
+    authRouteLimiter,
+    requireAuth,
+    async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+      if (usesDefaultDeviceUpsert && !browserBridgeAvailable) {
+        res.status(503).json({ error: 'Browser bridge unavailable' })
+        return
+      }
+      const parsed = z
+        .object({
+          fcmToken: z.string().min(1),
+          deviceId: z.string().min(1),
+          deviceName: z.string().min(1),
+          isPaused: z.boolean().optional(),
+        })
+        .safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
+      }
+      try {
+        await upsertDevice(req.uid!, parsed.data)
+        res.json({ ok: true })
+      } catch (err) {
+        console.error('register-device error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+      }
+    },
+  )
 
-  app.post('/agent/desktop/pair', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Desktop bridge unavailable' }); return }
-    const parsed = z.object({ deviceName: z.string().trim().min(1).max(100) }).safeParse(req.body)
-    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
-    try {
-      const { pairingToken, deviceId } = await pairDesktopDevice(
-        admin.firestore() as unknown as PairingFirestore, req.uid!, parsed.data.deviceName,
-      )
-      res.json({ pairingToken, deviceId })
-    } catch (err) {
-      console.error('desktop pair error:', err)
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  })
+  app.post(
+    '/agent/desktop/pair',
+    authRouteLimiter,
+    requireAuth,
+    async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+      if (!browserBridgeAvailable) {
+        res.status(503).json({ error: 'Desktop bridge unavailable' })
+        return
+      }
+      const parsed = z.object({ deviceName: z.string().trim().min(1).max(100) }).safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
+      }
+      try {
+        const { pairingToken, deviceId } = await pairDesktopDevice(
+          admin.firestore() as unknown as PairingFirestore,
+          req.uid!,
+          parsed.data.deviceName,
+        )
+        res.json({ pairingToken, deviceId })
+      } catch (err) {
+        console.error('desktop pair error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+      }
+    },
+  )
 
-  app.post('/agent/desktop/revoke', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Desktop bridge unavailable' }); return }
-    const parsed = z.object({ deviceId: z.string().uuid() }).safeParse(req.body)
-    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
-    try {
-      await revokeDesktopDevice(admin.firestore() as unknown as PairingFirestore, req.uid!, parsed.data.deviceId)
-      res.json({ ok: true })
-    } catch (err) {
-      console.error('desktop revoke error:', err)
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  })
+  app.post(
+    '/agent/desktop/revoke',
+    authRouteLimiter,
+    requireAuth,
+    async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+      if (!browserBridgeAvailable) {
+        res.status(503).json({ error: 'Desktop bridge unavailable' })
+        return
+      }
+      const parsed = z.object({ deviceId: z.string().uuid() }).safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
+      }
+      try {
+        await revokeDesktopDevice(
+          admin.firestore() as unknown as PairingFirestore,
+          req.uid!,
+          parsed.data.deviceId,
+        )
+        res.json({ ok: true })
+      } catch (err) {
+        console.error('desktop revoke error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+      }
+    },
+  )
 
-  app.post('/agent/browser/approve-action', authRouteLimiter, requireAuth, async (req: Request & { uid?: string }, res: Response): Promise<void> => {
-    if (!browserBridgeAvailable) { res.status(503).json({ error: 'Browser bridge unavailable' }); return }
-    const parsed = z.object({
-      sessionId: z.string().uuid(),
-      taskId: z.string().min(1),
-      approve: z.boolean(),
-    }).safeParse(req.body)
-    if (!parsed.success) { res.status(400).json({ error: 'Invalid request body' }); return }
+  app.post(
+    '/agent/browser/approve-action',
+    authRouteLimiter,
+    requireAuth,
+    async (req: Request & { uid?: string }, res: Response): Promise<void> => {
+      if (!browserBridgeAvailable) {
+        res.status(503).json({ error: 'Browser bridge unavailable' })
+        return
+      }
+      const parsed = z
+        .object({
+          sessionId: z.string().uuid(),
+          taskId: z.string().min(1),
+          approve: z.boolean(),
+        })
+        .safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid request body' })
+        return
+      }
 
-    const authHeader = req.headers.authorization ?? ''
-    const rawToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : ''
-    if (!rawToken) { res.status(401).json({ error: 'Unauthorized' }); return }
-    try {
-      await handleApproveAction(
-        admin.firestore() as unknown as { doc(p: string): { update(d: Record<string, unknown>): Promise<void> } },
-        req.uid!,
-        { ...parsed.data, approvalToken: rawToken },
-      )
-      res.json({ ok: true })
-    } catch (err) {
-      console.error('approve-action error:', err)
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  })
+      const authHeader = req.headers.authorization ?? ''
+      const rawToken = authHeader.toLowerCase().startsWith('bearer ')
+        ? authHeader.slice(7).trim()
+        : ''
+      if (!rawToken) {
+        res.status(401).json({ error: 'Unauthorized' })
+        return
+      }
+      try {
+        await handleApproveAction(
+          admin.firestore() as unknown as {
+            doc(p: string): { update(d: Record<string, unknown>): Promise<void> }
+          },
+          req.uid!,
+          { ...parsed.data, approvalToken: rawToken },
+        )
+        res.json({ ok: true })
+      } catch (err) {
+        console.error('approve-action error:', err)
+        res.status(500).json({ error: 'Internal server error' })
+      }
+    },
+  )
 
   let schedulerHandler: ReturnType<typeof createSchedulerTriggerHandler> | undefined
 
-  app.post('/agent/browser/scheduler-trigger', schedulerTriggerLimiter, (req: Request, res: Response, next: NextFunction): void => {
-    const secret = process.env.SCHEDULER_SECRET
-    if (!secret) {
-      res.status(503).json({ error: 'Scheduler trigger not configured' })
-      return
-    }
-    createRequireSchedulerSecret(secret)(req, res, next)
-  }, (req: Request, res: Response, next: NextFunction): void => {
-    if (!browserBridgeAvailable) {
-      res.status(503).json({ error: 'Browser bridge unavailable' })
-      return
-    }
-    next()
-  }, (req: Request, res: Response): void => {
-    if (!schedulerHandler) {
-      schedulerHandler = createSchedulerTriggerHandler(
-        defaultFirestoreSession(),
-        defaultFcmDispatcher(),
-        (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
-        cs,
-        async (firebaseUid: string) => {
-          const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
-          return u?.id ?? null
-        },
-        { schedulerTimeoutMs: 90_000 },
-      )
-    }
-    void schedulerHandler(req, res)
-  })
+  app.post(
+    '/agent/browser/scheduler-trigger',
+    schedulerTriggerLimiter,
+    (req: Request, res: Response, next: NextFunction): void => {
+      const secret = process.env.SCHEDULER_SECRET
+      if (!secret) {
+        res.status(503).json({ error: 'Scheduler trigger not configured' })
+        return
+      }
+      createRequireSchedulerSecret(secret)(req, res, next)
+    },
+    (req: Request, res: Response, next: NextFunction): void => {
+      if (!browserBridgeAvailable) {
+        res.status(503).json({ error: 'Browser bridge unavailable' })
+        return
+      }
+      next()
+    },
+    (req: Request, res: Response): void => {
+      if (!schedulerHandler) {
+        schedulerHandler = createSchedulerTriggerHandler(
+          defaultFirestoreSession(),
+          defaultFcmDispatcher(),
+          (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
+          cs,
+          async (firebaseUid: string) => {
+            const [u] = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.firebaseUid, firebaseUid))
+            return u?.id ?? null
+          },
+          { schedulerTimeoutMs: 90_000 },
+        )
+      }
+      void schedulerHandler(req, res)
+    },
+  )
 
   return app
 }
@@ -485,7 +629,12 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
       })
     } else if (pathname === '/agent/live') {
       liveWss.handleUpgrade(req, socket, head, (ws) => {
-        void handleLiveWsUpgrade(ws, req, { db, verifyToken, creditService, ...wsLiveHandlerOptions })
+        void handleLiveWsUpgrade(ws, req, {
+          db,
+          verifyToken,
+          creditService,
+          ...wsLiveHandlerOptions,
+        })
       })
     } else if (pathname === '/agent/browser') {
       if (!browserBridgeAvailable) {
@@ -498,7 +647,10 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
           fcmDispatcher: defaultFcmDispatcher(),
           verifyToken,
           resolveUserId: async (firebaseUid: string) => {
-            const [u] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, firebaseUid))
+            const [u] = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.firebaseUid, firebaseUid))
             return u ? firebaseUid : null
           },
           getExpoPushToken: (firebaseUid: string) => getExpoPushToken(db, firebaseUid),
@@ -508,7 +660,10 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
             return (snap.data()?.fcmToken as string) ?? null
           },
           validateDevice: async (firebaseUid: string, deviceId: string) => {
-            const doc = await admin.firestore().doc(`users/${firebaseUid}/devices/${deviceId}`).get()
+            const doc = await admin
+              .firestore()
+              .doc(`users/${firebaseUid}/devices/${deviceId}`)
+              .get()
             const data = doc.data()
             return doc.exists && data?.active === true && data?.isPaused !== true
           },
@@ -538,15 +693,20 @@ export function attachWebSocketRoutes(server: Server, options: AppOptions): void
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
-  const isMockAuth = process.env.MOCK_FIREBASE_AUTH === 'true' && process.env.NODE_ENV !== 'production' && !process.env.K_SERVICE
-  
+  const isMockAuth =
+    process.env.MOCK_FIREBASE_AUTH === 'true' &&
+    process.env.NODE_ENV !== 'production' &&
+    !process.env.K_SERVICE
+
   if (isMockAuth) {
-    console.log('--- Auth Debug ---');
-    console.log(`MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`);
-    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`K_SERVICE: ${process.env.K_SERVICE}`);
-    console.log(`isMockAuth evaluated to: ${isMockAuth}`);
-    console.log('------------------');
+    console.log('--- Auth Debug ---')
+    console.log(
+      `MOCK_FIREBASE_AUTH: ${process.env.MOCK_FIREBASE_AUTH} (type: ${typeof process.env.MOCK_FIREBASE_AUTH})`,
+    )
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`)
+    console.log(`K_SERVICE: ${process.env.K_SERVICE}`)
+    console.log(`isMockAuth evaluated to: ${isMockAuth}`)
+    console.log('------------------')
   }
 
   if (!isMockAuth && !admin.apps.length) admin.initializeApp()
@@ -554,7 +714,11 @@ if (process.env.NODE_ENV !== 'test') {
   const db = await getDb()
   const verifyToken = isMockAuth
     ? async (_token: string) => ({ uid: 'local_test_user_123' })
-    : (token: string) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid }))
+    : (token: string) =>
+        admin
+          .auth()
+          .verifyIdToken(token)
+          .then((d) => ({ uid: d.uid }))
   const appOptions = { verifyToken, db, runAgentFn: runAgentReal }
 
   const app = createApp(appOptions)

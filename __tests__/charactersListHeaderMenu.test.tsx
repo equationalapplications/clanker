@@ -16,7 +16,7 @@ jest.mock('react-native', () => {
           ? data.map((item: any, i: number) =>
               React.createElement('Row', { key: i }, renderItem({ item })),
             )
-          : ListEmptyComponent ?? null,
+          : (ListEmptyComponent ?? null),
       ),
   }
 })
@@ -117,9 +117,7 @@ function findByType(root: El, type: string): El[] {
 }
 
 function kebab(root: El): El {
-  return findByType(root, 'IconButton').find(
-    (n) => n.props.accessibilityLabel === 'More actions',
-  )!
+  return findByType(root, 'IconButton').find((n) => n.props.accessibilityLabel === 'More actions')!
 }
 
 function menuItems(root: El): El[] {

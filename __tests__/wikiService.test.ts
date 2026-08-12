@@ -316,9 +316,10 @@ describe('wikiService', () => {
   it('starts wiki embedding migration in the background without blocking init', async () => {
     let resolveExec!: () => void
     const dbExecAsync = jest.fn().mockImplementation(
-      () => new Promise<void>((resolve) => {
-        resolveExec = resolve
-      }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveExec = resolve
+        }),
     )
     const runReembed = jest.fn().mockResolvedValue({ embedded: 0, skipped: 0, failed: 0 })
     mockCreateWiki.mockReturnValueOnce({

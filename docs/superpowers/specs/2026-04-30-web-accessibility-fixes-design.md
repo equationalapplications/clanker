@@ -45,34 +45,35 @@ No new modules. Each fix is a localized prop addition. The conventions below are
 
 ### Commit 1 — Critical (Phase 1)
 
-| # | File | Change |
-|---|------|--------|
-| 1 | `src/components/Logo.tsx` | Add `accessibilityLabel="Clanker logo"` and `accessibilityRole="image"` to `<Image>`. |
-| 2 | `src/components/LandingPage/HeroSection.tsx` | Add `accessibilityLabel="Clanker application logo"` and `accessibilityRole="image"` to the hero `<Image>`. |
-| 3 | `src/components/CreditCounterIcon.tsx` | Add `accessibilityRole="button"`, dynamic `accessibilityLabel` (`"Premium subscriber, unlimited credits"` vs `"{N} credits remaining"`), `accessibilityHint="Opens subscription management"` to the `Pressable`. Mark crown/infinity emoji as decorative (`importantForAccessibility="no-hide-descendants"`/`aria-hidden`). |
+| #   | File                                         | Change                                                                                                                                                                                                                                                                                                                      |
+| --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `src/components/Logo.tsx`                    | Add `accessibilityLabel="Clanker logo"` and `accessibilityRole="image"` to `<Image>`.                                                                                                                                                                                                                                       |
+| 2   | `src/components/LandingPage/HeroSection.tsx` | Add `accessibilityLabel="Clanker application logo"` and `accessibilityRole="image"` to the hero `<Image>`.                                                                                                                                                                                                                  |
+| 3   | `src/components/CreditCounterIcon.tsx`       | Add `accessibilityRole="button"`, dynamic `accessibilityLabel` (`"Premium subscriber, unlimited credits"` vs `"{N} credits remaining"`), `accessibilityHint="Opens subscription management"` to the `Pressable`. Mark crown/infinity emoji as decorative (`importantForAccessibility="no-hide-descendants"`/`aria-hidden`). |
 
 Also in this commit:
+
 - Create `docs/ACCESSIBILITY.md` and link to it from `README.md`.
 
 ### Commit 2 — Important (Phase 2)
 
-| # | File | Change |
-|---|------|--------|
-| 4 | `src/components/CharacterCard.tsx` | Edit button: add `accessibilityRole="button"`, `accessibilityLabel={\`Edit ${name}\`}`, `accessibilityHint="Opens character editor"`. |
-| 5 | `src/components/CharacterCard.tsx` | Outer card `TouchableOpacity`: add `accessibilityRole="button"`, `accessibilityLabel={\`${name}, ${appearance ?? 'No description'}\`}`, `accessibilityHint="Opens chat with this character"`. **Do not** add `accessible` — that would collapse the element tree and prevent the nested edit button from being reachable by screen readers. |
-| 6 | `src/components/CharacterAvatar.tsx` | All three avatar variants (`Avatar.Image`, `Avatar.Text`, `Avatar.Icon`): add `accessible` and `accessibilityLabel={\`${characterName} avatar\`}` (fallback `"Character avatar"` when name missing). |
-| 7 | `src/components/LandingPage/FeaturesSection.tsx` | Feature icons: add `accessible`, `accessibilityRole="image"`, `accessibilityLabel={feat.title}`. |
-| 8 | `src/components/admin/UserActionPanel.tsx` | Renewal date `TextInput`: add `accessibilityHint="Enter date in UTC ISO 8601 format (e.g., 2026-12-31T23:59:59Z). Leave blank to keep the current renewal date."` |
+| #   | File                                             | Change                                                                                                                                                                                                                                                                                                                                      |
+| --- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4   | `src/components/CharacterCard.tsx`               | Edit button: add `accessibilityRole="button"`, `accessibilityLabel={\`Edit ${name}\`}`, `accessibilityHint="Opens character editor"`.                                                                                                                                                                                                       |
+| 5   | `src/components/CharacterCard.tsx`               | Outer card `TouchableOpacity`: add `accessibilityRole="button"`, `accessibilityLabel={\`${name}, ${appearance ?? 'No description'}\`}`, `accessibilityHint="Opens chat with this character"`. **Do not** add `accessible` — that would collapse the element tree and prevent the nested edit button from being reachable by screen readers. |
+| 6   | `src/components/CharacterAvatar.tsx`             | All three avatar variants (`Avatar.Image`, `Avatar.Text`, `Avatar.Icon`): add `accessible` and `accessibilityLabel={\`${characterName} avatar\`}`(fallback`"Character avatar"` when name missing).                                                                                                                                          |
+| 7   | `src/components/LandingPage/FeaturesSection.tsx` | Feature icons: add `accessible`, `accessibilityRole="image"`, `accessibilityLabel={feat.title}`.                                                                                                                                                                                                                                            |
+| 8   | `src/components/admin/UserActionPanel.tsx`       | Renewal date `TextInput`: add `accessibilityHint="Enter date in UTC ISO 8601 format (e.g., 2026-12-31T23:59:59Z). Leave blank to keep the current renewal date."`                                                                                                                                                                           |
 
 ### Commit 3 — Nice-to-Have (Phase 3)
 
-| # | File | Change |
-|---|------|--------|
-| 9 | `app/(drawer)/(tabs)/_layout.tsx` | For each `Tabs.Screen`, add `tabBarAccessibilityLabel` derived from the tab title. |
-| 10 | `app/(drawer)/(tabs)/talk/index.tsx` | Wrap voice status text in a `<View accessibilityRole="status" accessibilityLiveRegion="polite">` so state changes (Ready/Listening/Processing) announce to screen readers. |
-| 11 | `src/components/ConfirmationModal.tsx` and `src/components/admin/ConfirmationModal.tsx` | Verify Paper `Dialog` props for accessibility; add explicit `accessibilityLabel` to dialog title where missing; document any gaps. No focus-trapping JS — rely on Paper. |
-| 12 | `src/components/LandingPage/LandingFooter.tsx` | External link: enhance `accessibilityLabel` to include destination and `"opens external website"`. |
-| 13 | Landing root component | Add a web-only "Skip to main content" link as the first focusable element, anchored to the main content `nativeID="main-content"`. Hidden offscreen until focused. Web-only via `Platform.OS === 'web'`. |
+| #   | File                                                                                    | Change                                                                                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9   | `app/(drawer)/(tabs)/_layout.tsx`                                                       | For each `Tabs.Screen`, add `tabBarAccessibilityLabel` derived from the tab title.                                                                                                                       |
+| 10  | `app/(drawer)/(tabs)/talk/index.tsx`                                                    | Wrap voice status text in a `<View accessibilityRole="status" accessibilityLiveRegion="polite">` so state changes (Ready/Listening/Processing) announce to screen readers.                               |
+| 11  | `src/components/ConfirmationModal.tsx` and `src/components/admin/ConfirmationModal.tsx` | Verify Paper `Dialog` props for accessibility; add explicit `accessibilityLabel` to dialog title where missing; document any gaps. No focus-trapping JS — rely on Paper.                                 |
+| 12  | `src/components/LandingPage/LandingFooter.tsx`                                          | External link: enhance `accessibilityLabel` to include destination and `"opens external website"`.                                                                                                       |
+| 13  | Landing root component                                                                  | Add a web-only "Skip to main content" link as the first focusable element, anchored to the main content `nativeID="main-content"`. Hidden offscreen until focused. Web-only via `Platform.OS === 'web'`. |
 
 ## Testing & Verification
 
@@ -80,19 +81,19 @@ Also in this commit:
 
 Pattern: render component, query by `accessibilityLabel`/`accessibilityRole`, assert prop values.
 
-| Test file | Asserts |
-|-----------|---------|
-| `__tests__/logo.test.tsx` (new) | Logo image has `accessibilityLabel="Clanker logo"` and `accessibilityRole="image"`. |
-| `__tests__/heroSectionAccessibility.test.tsx` (new) | Hero image has accessibility label and role. |
+| Test file                                                  | Asserts                                                                                                                                                         |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__tests__/logo.test.tsx` (new)                            | Logo image has `accessibilityLabel="Clanker logo"` and `accessibilityRole="image"`.                                                                             |
+| `__tests__/heroSectionAccessibility.test.tsx` (new)        | Hero image has accessibility label and role.                                                                                                                    |
 | `__tests__/creditCounterIconPlanLoading.test.tsx` (extend) | Subscriber announces `"Premium subscriber, unlimited credits"`; non-subscriber announces `"{N} credits remaining"`; pressable has `accessibilityRole="button"`. |
-| `__tests__/characterCardAccessibility.test.tsx` (new) | Card has button role + label including character name; edit button has its own label/hint. |
-| `__tests__/characterAvatarAccessibility.test.tsx` (new) | Each variant has accessibility label including character name; fallback when name missing. |
-| `__tests__/featuresSectionAccessibility.test.tsx` (new) | Each feature icon has `accessibilityRole="image"` + label matching feature title. |
-| `__tests__/userActionPanelAccessibility.test.tsx` (new) | Renewal date input has `accessibilityHint` containing the format example. |
-| `__tests__/tabsLayoutAccessibility.test.tsx` (new) | Each tab screen passes a `tabBarAccessibilityLabel`. |
-| `__tests__/talkScreenStatusLiveRegion.test.tsx` (new) | Voice-status container has `accessibilityLiveRegion="polite"`. |
-| `__tests__/landingFooterAccessibility.test.tsx` (new) | External link label includes `"opens external website"`. |
-| `__tests__/skipToMainContent.test.tsx` (new) | Web-only: skip link rendered as first focusable element on landing page when `Platform.OS === 'web'`. |
+| `__tests__/characterCardAccessibility.test.tsx` (new)      | Card has button role + label including character name; edit button has its own label/hint.                                                                      |
+| `__tests__/characterAvatarAccessibility.test.tsx` (new)    | Each variant has accessibility label including character name; fallback when name missing.                                                                      |
+| `__tests__/featuresSectionAccessibility.test.tsx` (new)    | Each feature icon has `accessibilityRole="image"` + label matching feature title.                                                                               |
+| `__tests__/userActionPanelAccessibility.test.tsx` (new)    | Renewal date input has `accessibilityHint` containing the format example.                                                                                       |
+| `__tests__/tabsLayoutAccessibility.test.tsx` (new)         | Each tab screen passes a `tabBarAccessibilityLabel`.                                                                                                            |
+| `__tests__/talkScreenStatusLiveRegion.test.tsx` (new)      | Voice-status container has `accessibilityLiveRegion="polite"`.                                                                                                  |
+| `__tests__/landingFooterAccessibility.test.tsx` (new)      | External link label includes `"opens external website"`.                                                                                                        |
+| `__tests__/skipToMainContent.test.tsx` (new)               | Web-only: skip link rendered as first focusable element on landing page when `Platform.OS === 'web'`.                                                           |
 
 ConfirmationModal coverage: rely on existing tests; the change is verification + minor prop addition.
 

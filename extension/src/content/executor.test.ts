@@ -8,13 +8,25 @@ function ctx(html: string) {
   let scrolled = 0
   return {
     doc: dom.window.document,
-    win: { scrollBy: (_x: number, y: number) => { scrolled += y }, location: { href: dom.window.location.href }, get scrolled() { return scrolled } },
+    win: {
+      scrollBy: (_x: number, y: number) => {
+        scrolled += y
+      },
+      location: { href: dom.window.location.href },
+      get scrolled() {
+        return scrolled
+      },
+    },
   }
 }
 
 test('extract action returns data record', async () => {
   const c = ctx('<span class="p">$9</span>')
-  const r = await runAction({ type: 'extract', selector: '.p', label: 'price' }, c.doc, c.win as never)
+  const r = await runAction(
+    { type: 'extract', selector: '.p', label: 'price' },
+    c.doc,
+    c.win as never,
+  )
   assert.deepEqual((r as ActionOutcome).data, { price: '$9' })
 })
 
@@ -32,7 +44,10 @@ test('scroll down moves the viewport', async () => {
 
 function dom(html: string) {
   const d = new JSDOM(html, { url: 'https://test.com' })
-  return { doc: d.window.document, win: { scrollBy: () => {}, location: { href: 'https://test.com' } } }
+  return {
+    doc: d.window.document,
+    win: { scrollBy: () => {}, location: { href: 'https://test.com' } },
+  }
 }
 
 test('fill_field sets input value and fires input + change events', async () => {
@@ -44,7 +59,9 @@ test('fill_field sets input value and fires input + change events', async () => 
 
   const result = await runAction(
     { type: 'fill_field', selector: '#username', value: 'hello', tier: 'stateful' },
-    doc, win, { skipLayerTwo: true },
+    doc,
+    win,
+    { skipLayerTwo: true },
   )
 
   assert.ok(!('awaitingAuth' in result))
@@ -56,22 +73,22 @@ test('fill_field sets input value and fires input + change events', async () => 
 test('click executes click on element', async () => {
   const { doc, win } = dom('<button id="btn">Go</button>')
   let clicked = false
-  doc.querySelector('#btn')!.addEventListener('click', () => { clicked = true })
+  doc.querySelector('#btn')!.addEventListener('click', () => {
+    clicked = true
+  })
 
-  await runAction(
-    { type: 'click', selector: '#btn', tier: 'stateful' },
-    doc, win, { skipLayerTwo: true },
-  )
+  await runAction({ type: 'click', selector: '#btn', tier: 'stateful' }, doc, win, {
+    skipLayerTwo: true,
+  })
 
   assert.ok(clicked)
 })
 
 test('click returns awaitingAuth when classifier flags requires_auth (skipLayerTwo: false)', async () => {
   const { doc, win } = dom('<button id="pay">Submit Payment</button>')
-  const result = await runAction(
-    { type: 'click', selector: '#pay', tier: 'stateful' },
-    doc, win, { skipLayerTwo: false },
-  )
+  const result = await runAction({ type: 'click', selector: '#pay', tier: 'stateful' }, doc, win, {
+    skipLayerTwo: false,
+  })
   assert.ok('awaitingAuth' in result)
 })
 
@@ -79,7 +96,9 @@ test('fill_field on form submit input returns awaitingAuth', async () => {
   const { doc, win } = dom('<form><input id="s" type="submit" value="Pay Now" /></form>')
   const result = await runAction(
     { type: 'fill_field', selector: '#s', value: 'x', tier: 'stateful' },
-    doc, win, { skipLayerTwo: false },
+    doc,
+    win,
+    { skipLayerTwo: false },
   )
   assert.ok('awaitingAuth' in result)
 })
@@ -87,7 +106,13 @@ test('fill_field on form submit input returns awaitingAuth', async () => {
 test('fill_field throws SELECTOR_NOT_FOUND when element missing', async () => {
   const { doc, win } = dom('<div></div>')
   await assert.rejects(
-    () => runAction({ type: 'fill_field', selector: '#missing', value: 'x', tier: 'stateful' }, doc, win, {}),
+    () =>
+      runAction(
+        { type: 'fill_field', selector: '#missing', value: 'x', tier: 'stateful' },
+        doc,
+        win,
+        {},
+      ),
     /SELECTOR_NOT_FOUND/,
   )
 })
@@ -95,7 +120,13 @@ test('fill_field throws SELECTOR_NOT_FOUND when element missing', async () => {
 test('fill_field throws SELECTOR_NOT_FOUND when element is not a form control', async () => {
   const { doc, win } = dom('<div id="notinput">text</div>')
   await assert.rejects(
-    () => runAction({ type: 'fill_field', selector: '#notinput', value: 'x', tier: 'stateful' }, doc, win, {}),
+    () =>
+      runAction(
+        { type: 'fill_field', selector: '#notinput', value: 'x', tier: 'stateful' },
+        doc,
+        win,
+        {},
+      ),
     /SELECTOR_NOT_FOUND/,
   )
 })

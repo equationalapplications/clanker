@@ -1,126 +1,126 @@
-import {onCall, CallableRequest, HttpsError} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import admin from "firebase-admin";
-import {count, desc, eq, ilike, inArray, or} from "drizzle-orm";
-import {requireAdmin} from "./adminAuth.js";
-import {getDb} from "./db/cloudSql.js";
-import {users, subscriptions, characters, messages} from "./db/schema.js";
-import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
-import {creditService} from "./services/creditService.js";
-import {storageAdmin} from "./services/storageAdmin.js";
+import { onCall, CallableRequest, HttpsError } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import admin from 'firebase-admin'
+import { count, desc, eq, ilike, inArray, or } from 'drizzle-orm'
+import { requireAdmin } from './adminAuth.js'
+import { getDb } from './db/cloudSql.js'
+import { users, subscriptions, characters, messages } from './db/schema.js'
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import { creditService } from './services/creditService.js'
+import { storageAdmin } from './services/storageAdmin.js'
 
 type StorageAdminDeps = {
-  storageAdmin: Pick<typeof storageAdmin, "deletePrefix">;
-  getUserById: typeof getUserById;
-  getDb: typeof getDb;
-  creditService: Pick<typeof creditService, "setCredits">;
-  deleteFirebaseAuthUser: typeof deleteFirebaseAuthUser;
-};
-
-if (!admin.apps.length) {
-  admin.initializeApp();
+  storageAdmin: Pick<typeof storageAdmin, 'deletePrefix'>
+  getUserById: typeof getUserById
+  getDb: typeof getDb
+  creditService: Pick<typeof creditService, 'setCredits'>
+  deleteFirebaseAuthUser: typeof deleteFirebaseAuthUser
 }
 
-const DEFAULT_RESET_CREDITS = 5000;
-const MAX_SAFE_DB_CREDITS = 2_147_483_647;
-const ALLOWED_PLAN_TIERS = new Set(["free", "monthly_20", "monthly_50", "payg"]);
-const ALLOWED_PLAN_STATUS = new Set(["active", "cancelled", "expired"]);
+if (!admin.apps.length) {
+  admin.initializeApp()
+}
+
+const DEFAULT_RESET_CREDITS = 5000
+const MAX_SAFE_DB_CREDITS = 2_147_483_647
+const ALLOWED_PLAN_TIERS = new Set(['free', 'monthly_20', 'monthly_50', 'payg'])
+const ALLOWED_PLAN_STATUS = new Set(['active', 'cancelled', 'expired'])
 
 interface AdminListUsersData {
-  page?: number;
-  pageSize?: number;
-  search?: string;
-  planTier?: string;
-  planStatus?: string;
+  page?: number
+  pageSize?: number
+  search?: string
+  planTier?: string
+  planStatus?: string
 }
 
 interface AdminMutationData {
-  userId: string;
-  reason?: string;
-  requestId: string;
+  userId: string
+  reason?: string
+  requestId: string
 }
 
 interface SetCreditsData extends AdminMutationData {
-  credits: number;
+  credits: number
 }
 
 interface SetSubscriptionData extends AdminMutationData {
-  planTier: string;
-  planStatus: string;
-  renewalDate?: string | null;
+  planTier: string
+  planStatus: string
+  renewalDate?: string | null
 }
 
 function assertRequestId(requestId: unknown): string {
-  if (typeof requestId !== "string" || requestId.trim().length < 8) {
+  if (typeof requestId !== 'string' || requestId.trim().length < 8) {
     throw new HttpsError(
-      "invalid-argument",
-      "requestId must be a non-empty string with at least 8 characters."
-    );
+      'invalid-argument',
+      'requestId must be a non-empty string with at least 8 characters.',
+    )
   }
-  return requestId.trim();
+  return requestId.trim()
 }
 
 function assertUserId(userId: unknown): string {
-  if (typeof userId !== "string" || userId.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "userId is required.");
+  if (typeof userId !== 'string' || userId.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'userId is required.')
   }
-  return userId.trim();
+  return userId.trim()
 }
 
 function assertReason(reason: unknown): string {
-  if (typeof reason !== "string" || reason.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "reason must be a non-empty string.");
+  if (typeof reason !== 'string' || reason.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'reason must be a non-empty string.')
   }
-  return reason.trim();
+  return reason.trim()
 }
 
 function parseRenewalDate(value: unknown): Date | null {
   if (value == null) {
-    return null;
+    return null
   }
 
-  if (typeof value !== "string") {
-    throw new HttpsError("invalid-argument", "renewalDate must be a string or null.");
+  if (typeof value !== 'string') {
+    throw new HttpsError('invalid-argument', 'renewalDate must be a string or null.')
   }
 
-  const trimmed = value.trim();
+  const trimmed = value.trim()
   if (trimmed.length === 0) {
-    return null;
+    return null
   }
 
-  const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+  const isoUtcPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/
   if (!isoUtcPattern.test(trimmed)) {
-    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+    throw new HttpsError('invalid-argument', 'renewalDate must be a valid ISO date/time string.')
   }
 
-  const parsedDate = new Date(trimmed);
+  const parsedDate = new Date(trimmed)
   if (Number.isNaN(parsedDate.getTime())) {
-    throw new HttpsError("invalid-argument", "renewalDate must be a valid ISO date/time string.");
+    throw new HttpsError('invalid-argument', 'renewalDate must be a valid ISO date/time string.')
   }
 
-  return parsedDate;
+  return parsedDate
 }
 
-function normalizePlanTier(value: unknown): "free" | "monthly_20" | "monthly_50" | "payg" {
-  if (typeof value === "string" && ALLOWED_PLAN_TIERS.has(value)) {
-    return value as "free" | "monthly_20" | "monthly_50" | "payg";
+function normalizePlanTier(value: unknown): 'free' | 'monthly_20' | 'monthly_50' | 'payg' {
+  if (typeof value === 'string' && ALLOWED_PLAN_TIERS.has(value)) {
+    return value as 'free' | 'monthly_20' | 'monthly_50' | 'payg'
   }
-  return "free";
+  return 'free'
 }
 
-function normalizePlanStatus(value: unknown): "active" | "cancelled" | "expired" {
-  if (typeof value === "string" && ALLOWED_PLAN_STATUS.has(value)) {
-    return value as "active" | "cancelled" | "expired";
+function normalizePlanStatus(value: unknown): 'active' | 'cancelled' | 'expired' {
+  if (typeof value === 'string' && ALLOWED_PLAN_STATUS.has(value)) {
+    return value as 'active' | 'cancelled' | 'expired'
   }
-  return "active";
+  return 'active'
 }
 
 function normalizeCurrentCredits(value: unknown): number {
-  const parsed = Number(value);
+  const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed < 0) {
-    return 0;
+    return 0
   }
-  return Math.floor(parsed);
+  return Math.floor(parsed)
 }
 
 function auditLog(
@@ -129,9 +129,9 @@ function auditLog(
   targetUserId: string,
   action: string,
   requestId: string,
-  payloadSummary: Record<string, unknown>
+  payloadSummary: Record<string, unknown>,
 ): void {
-  logger.info("admin_audit_event", {
+  logger.info('admin_audit_event', {
     actorUid,
     actorEmail,
     targetUserId,
@@ -139,47 +139,43 @@ function auditLog(
     requestId,
     payloadSummary,
     timestamp: new Date().toISOString(),
-  });
+  })
 }
 
 async function getUserById(userId: string) {
-  const db = await getDb();
-  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-  return result[0] ?? null;
+  const db = await getDb()
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1)
+  return result[0] ?? null
 }
 
 async function getUserByFirebaseUid(firebaseUid: string) {
-  const db = await getDb();
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.firebaseUid, firebaseUid))
-    .limit(1);
-  return result[0] ?? null;
+  const db = await getDb()
+  const result = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid)).limit(1)
+  return result[0] ?? null
 }
 
 async function getSubscription(userId: string) {
-  const db = await getDb();
+  const db = await getDb()
   const result = await db
     .select()
     .from(subscriptions)
     .where(eq(subscriptions.userId, userId))
-    .limit(1);
-  return result[0] ?? null;
+    .limit(1)
+  return result[0] ?? null
 }
 
 async function upsertSubscription(
   userId: string,
   patch: Partial<typeof subscriptions.$inferInsert>,
-  dbGetter: typeof getDb = getDb
+  dbGetter: typeof getDb = getDb,
 ): Promise<void> {
-  const db = await dbGetter();
+  const db = await dbGetter()
   await db
     .insert(subscriptions)
     .values({
       userId,
-      planTier: "free",
-      planStatus: "active",
+      planTier: 'free',
+      planStatus: 'active',
       currentCredits: 0,
       ...patch,
     })
@@ -189,75 +185,78 @@ async function upsertSubscription(
         ...patch,
         updatedAt: new Date(),
       },
-    });
+    })
 }
 
-async function deleteFirebaseAuthUser(firebaseUid: string, logContext: Record<string, unknown>): Promise<void> {
+async function deleteFirebaseAuthUser(
+  firebaseUid: string,
+  logContext: Record<string, unknown>,
+): Promise<void> {
   try {
-    await admin.auth().deleteUser(firebaseUid);
+    await admin.auth().deleteUser(firebaseUid)
   } catch (error) {
     const code =
-      typeof error === "object" && error && "code" in error
-        ? String((error as {code?: unknown}).code)
-        : "";
-    if (code === "auth/user-not-found") {
-      logger.info("Firebase auth user already deleted", {firebaseUid, ...logContext});
-      return;
+      typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : ''
+    if (code === 'auth/user-not-found') {
+      logger.info('Firebase auth user already deleted', { firebaseUid, ...logContext })
+      return
     }
 
-    logger.error("Failed to delete Firebase auth user", {
+    logger.error('Failed to delete Firebase auth user', {
       firebaseUid,
       ...logContext,
       error,
-    });
-    throw new HttpsError("internal", "Failed to delete Firebase auth user.");
+    })
+    throw new HttpsError('internal', 'Failed to delete Firebase auth user.')
   }
 }
 
 const adminListUsersHandler = async (request: CallableRequest) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as AdminListUsersData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as AdminListUsersData
 
-  const rawPage = data.page;
-  if (rawPage !== undefined && (typeof rawPage !== "number" || !Number.isFinite(rawPage))) {
-    throw new HttpsError("invalid-argument", "page must be a finite number when provided");
+  const rawPage = data.page
+  if (rawPage !== undefined && (typeof rawPage !== 'number' || !Number.isFinite(rawPage))) {
+    throw new HttpsError('invalid-argument', 'page must be a finite number when provided')
   }
 
-  const rawPageSize = data.pageSize;
+  const rawPageSize = data.pageSize
   if (
     rawPageSize !== undefined &&
-    (typeof rawPageSize !== "number" || !Number.isFinite(rawPageSize))
+    (typeof rawPageSize !== 'number' || !Number.isFinite(rawPageSize))
   ) {
-    throw new HttpsError("invalid-argument", "pageSize must be a finite number when provided");
+    throw new HttpsError('invalid-argument', 'pageSize must be a finite number when provided')
   }
 
-  const page = rawPage === undefined ? 1 : Math.max(1, Math.floor(rawPage));
-  const pageSize = rawPageSize === undefined
-    ? 25
-    : Math.min(100, Math.max(1, Math.floor(rawPageSize)));
-  const search = typeof data.search === "string" ? data.search.trim() : "";
+  const page = rawPage === undefined ? 1 : Math.max(1, Math.floor(rawPage))
+  const pageSize =
+    rawPageSize === undefined ? 25 : Math.min(100, Math.max(1, Math.floor(rawPageSize)))
+  const search = typeof data.search === 'string' ? data.search.trim() : ''
 
   const rawPlanTierFilter =
-    typeof data.planTier === "string" ? data.planTier.trim().toLowerCase() : undefined;
+    typeof data.planTier === 'string' ? data.planTier.trim().toLowerCase() : undefined
   const planTierFilter =
-    rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ? rawPlanTierFilter : undefined;
+    rawPlanTierFilter && ALLOWED_PLAN_TIERS.has(rawPlanTierFilter) ? rawPlanTierFilter : undefined
 
   const rawPlanStatusFilter =
-    typeof data.planStatus === "string" ? data.planStatus.trim().toLowerCase() : undefined;
+    typeof data.planStatus === 'string' ? data.planStatus.trim().toLowerCase() : undefined
   const planStatusFilter =
-    rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter) ?
-      rawPlanStatusFilter :
-      undefined;
+    rawPlanStatusFilter && ALLOWED_PLAN_STATUS.has(rawPlanStatusFilter)
+      ? rawPlanStatusFilter
+      : undefined
 
-  const db = await getDb();
+  const db = await getDb()
 
-  const searchClause = search.length > 0 ?
-    or(
-      ilike(users.email, `%${search}%`),
-      ilike(users.displayName, `%${search}%`),
-      ilike(users.firebaseUid, `%${search}%`)
-    ) :
-    undefined;
+  const searchClause =
+    search.length > 0
+      ? or(
+          ilike(users.email, `%${search}%`),
+          ilike(users.displayName, `%${search}%`),
+          ilike(users.firebaseUid, `%${search}%`),
+        )
+      : undefined
 
   const userRows = await db
     .select()
@@ -265,30 +264,23 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     .where(searchClause)
     .orderBy(desc(users.createdAt))
     .limit(pageSize)
-    .offset((page - 1) * pageSize);
+    .offset((page - 1) * pageSize)
 
-  const totalResult = await db
-    .select({value: count()})
-    .from(users)
-    .where(searchClause);
-  const totalCount = Number(totalResult[0]?.value ?? 0);
+  const totalResult = await db.select({ value: count() }).from(users).where(searchClause)
+  const totalCount = Number(totalResult[0]?.value ?? 0)
 
-  const userIds = userRows.map((row) => row.id);
-  const subscriptionRows = userIds.length > 0 ?
-    await db
-      .select()
-      .from(subscriptions)
-      .where(inArray(subscriptions.userId, userIds)) :
-    [];
+  const userIds = userRows.map((row) => row.id)
+  const subscriptionRows =
+    userIds.length > 0
+      ? await db.select().from(subscriptions).where(inArray(subscriptions.userId, userIds))
+      : []
 
-  const subscriptionsByUserId = new Map(
-    subscriptionRows.map((row) => [row.userId, row])
-  );
+  const subscriptionsByUserId = new Map(subscriptionRows.map((row) => [row.userId, row]))
 
   const hydratedUsers = userRows.map((row) => {
-    const subscription = subscriptionsByUserId.get(row.id);
-    const planTier = normalizePlanTier(subscription?.planTier);
-    const planStatus = normalizePlanStatus(subscription?.planStatus);
+    const subscription = subscriptionsByUserId.get(row.id)
+    const planTier = normalizePlanTier(subscription?.planTier)
+    const planStatus = normalizePlanStatus(subscription?.planStatus)
 
     return {
       userId: row.id,
@@ -299,22 +291,22 @@ const adminListUsersHandler = async (request: CallableRequest) => {
       currentCredits: normalizeCurrentCredits(subscription?.currentCredits),
       termsAcceptedAt: subscription?.termsAcceptedAt?.toISOString?.() ?? null,
       termsVersion: subscription?.termsVersion ?? null,
-    };
-  });
+    }
+  })
 
   const filtered = hydratedUsers.filter((row) => {
     if (planTierFilter && row.planTier !== planTierFilter) {
-      return false;
+      return false
     }
 
     if (planStatusFilter && row.planStatus !== planStatusFilter) {
-      return false;
+      return false
     }
 
-    return true;
-  });
+    return true
+  })
 
-  logger.info("admin_list_users", {
+  logger.info('admin_list_users', {
     actorUid: adminContext.actorUid,
     actorEmail: adminContext.actorEmail,
     page,
@@ -322,7 +314,7 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     search,
     resultCount: filtered.length,
     totalCount,
-  });
+  })
 
   return {
     success: true,
@@ -331,133 +323,123 @@ const adminListUsersHandler = async (request: CallableRequest) => {
     pageSize,
     totalCount,
     hasMore: page * pageSize < totalCount,
-  };
-};
+  }
+}
 
 const adminSetUserCreditsHandler = async (request: CallableRequest) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as SetCreditsData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as SetCreditsData
 
-  const userId = assertUserId(data.userId);
-  const reason = assertReason(data.reason);
-  const requestId = assertRequestId(data.requestId);
+  const userId = assertUserId(data.userId)
+  const reason = assertReason(data.reason)
+  const requestId = assertRequestId(data.requestId)
 
   if (!Number.isFinite(data.credits) || data.credits < 0) {
-    throw new HttpsError("invalid-argument", "credits must be a number >= 0.");
+    throw new HttpsError('invalid-argument', 'credits must be a number >= 0.')
   }
 
   if (data.credits > MAX_SAFE_DB_CREDITS) {
-    throw new HttpsError(
-      "invalid-argument",
-      `credits must be <= ${MAX_SAFE_DB_CREDITS}.`
-    );
+    throw new HttpsError('invalid-argument', `credits must be <= ${MAX_SAFE_DB_CREDITS}.`)
   }
 
-  const user = await getUserById(userId);
+  const user = await getUserById(userId)
   if (!user) {
-    throw new HttpsError("not-found", "User not found.");
+    throw new HttpsError('not-found', 'User not found.')
   }
 
-  const credits = Math.floor(data.credits);
+  const credits = Math.floor(data.credits)
 
   // Replace any active credits with a fresh non-expiring admin-set balance.
-  await creditService.setCredits(userId, credits, 'admin_set', requestId);
+  await creditService.setCredits(userId, credits, 'admin_set', requestId)
 
-  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "set_credits", requestId, {
+  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, 'set_credits', requestId, {
     credits,
     reason,
-  });
+  })
 
   return {
     success: true,
-    action: "adminSetUserCredits",
+    action: 'adminSetUserCredits',
     targetUserId: userId,
     requestId,
-    applied: {currentCredits: credits},
-  };
-};
+    applied: { currentCredits: credits },
+  }
+}
 
 const adminSetUserSubscriptionHandler = async (request: CallableRequest) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as SetSubscriptionData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as SetSubscriptionData
 
-  const userId = assertUserId(data.userId);
-  const reason = assertReason(data.reason);
-  const requestId = assertRequestId(data.requestId);
-  const planTier = typeof data.planTier === "string" ? data.planTier : "";
-  const planStatus = typeof data.planStatus === "string" ? data.planStatus : "";
+  const userId = assertUserId(data.userId)
+  const reason = assertReason(data.reason)
+  const requestId = assertRequestId(data.requestId)
+  const planTier = typeof data.planTier === 'string' ? data.planTier : ''
+  const planStatus = typeof data.planStatus === 'string' ? data.planStatus : ''
 
   if (!ALLOWED_PLAN_TIERS.has(planTier)) {
-    throw new HttpsError("invalid-argument", "Invalid plan tier.");
+    throw new HttpsError('invalid-argument', 'Invalid plan tier.')
   }
 
   if (!ALLOWED_PLAN_STATUS.has(planStatus)) {
-    throw new HttpsError("invalid-argument", "Invalid plan status.");
+    throw new HttpsError('invalid-argument', 'Invalid plan status.')
   }
 
-  const hasRenewalDate = Object.prototype.hasOwnProperty.call(data, "renewalDate");
-  const renewalDate = hasRenewalDate ? parseRenewalDate(data.renewalDate) : undefined;
+  const hasRenewalDate = Object.prototype.hasOwnProperty.call(data, 'renewalDate')
+  const renewalDate = hasRenewalDate ? parseRenewalDate(data.renewalDate) : undefined
 
-  const user = await getUserById(userId);
+  const user = await getUserById(userId)
   if (!user) {
-    throw new HttpsError("not-found", "User not found.");
+    throw new HttpsError('not-found', 'User not found.')
   }
 
   const patch: Partial<typeof subscriptions.$inferInsert> = {
     planTier: normalizePlanTier(planTier),
     planStatus: normalizePlanStatus(planStatus),
-  };
+  }
 
   const applied: Record<string, unknown> = {
     planTier,
     planStatus,
-  };
-
-  if (hasRenewalDate) {
-    patch.billingCycleEnd = renewalDate;
-    applied.renewalDate = renewalDate ? renewalDate.toISOString() : null;
   }
 
-  await upsertSubscription(userId, patch);
+  if (hasRenewalDate) {
+    patch.billingCycleEnd = renewalDate
+    applied.renewalDate = renewalDate ? renewalDate.toISOString() : null
+  }
 
-  auditLog(
-    adminContext.actorUid,
-    adminContext.actorEmail,
-    userId,
-    "set_subscription",
-    requestId,
-    {
-      ...applied,
-      reason,
-    }
-  );
+  await upsertSubscription(userId, patch)
+
+  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, 'set_subscription', requestId, {
+    ...applied,
+    reason,
+  })
 
   return {
     success: true,
-    action: "adminSetUserSubscription",
+    action: 'adminSetUserSubscription',
     targetUserId: userId,
     requestId,
     applied,
-  };
-};
+  }
+}
 
 const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as AdminMutationData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as AdminMutationData
 
-  const userId = assertUserId(data.userId);
-  const reason = assertReason(data.reason);
-  const requestId = assertRequestId(data.requestId);
+  const userId = assertUserId(data.userId)
+  const reason = assertReason(data.reason)
+  const requestId = assertRequestId(data.requestId)
 
-  const existingSubscription = await getSubscription(userId);
+  const existingSubscription = await getSubscription(userId)
   if (!existingSubscription) {
     throw new HttpsError(
-      "failed-precondition",
-      "Cannot clear terms acceptance because no subscription exists for this user."
-    );
+      'failed-precondition',
+      'Cannot clear terms acceptance because no subscription exists for this user.',
+    )
   }
 
-  const db = await getDb();
+  const db = await getDb()
   await db
     .update(subscriptions)
     .set({
@@ -465,106 +447,118 @@ const adminClearTermsAcceptanceHandler = async (request: CallableRequest) => {
       termsVersion: null,
       updatedAt: new Date(),
     })
-    .where(eq(subscriptions.userId, userId));
+    .where(eq(subscriptions.userId, userId))
 
   auditLog(
     adminContext.actorUid,
     adminContext.actorEmail,
     userId,
-    "clear_terms_acceptance",
+    'clear_terms_acceptance',
     requestId,
-    {reason}
-  );
+    { reason },
+  )
 
   return {
     success: true,
-    action: "adminClearTermsAcceptance",
+    action: 'adminClearTermsAcceptance',
     targetUserId: userId,
     requestId,
-    applied: {termsAcceptedAt: null, termsVersion: null},
-  };
-};
+    applied: { termsAcceptedAt: null, termsVersion: null },
+  }
+}
 
 const adminResetUserStateHandler = async (
   request: CallableRequest,
-  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+  deps: StorageAdminDeps = {
+    storageAdmin,
+    getUserById,
+    getDb,
+    creditService,
+    deleteFirebaseAuthUser,
+  },
 ) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as AdminMutationData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as AdminMutationData
 
-  const userId = assertUserId(data.userId);
-  const reason = assertReason(data.reason);
-  const requestId = assertRequestId(data.requestId);
+  const userId = assertUserId(data.userId)
+  const reason = assertReason(data.reason)
+  const requestId = assertRequestId(data.requestId)
 
-  const user = await deps.getUserById(userId);
+  const user = await deps.getUserById(userId)
   if (!user) {
-    throw new HttpsError("not-found", "User not found.");
+    throw new HttpsError('not-found', 'User not found.')
   }
 
-  const db = await deps.getDb();
+  const db = await deps.getDb()
 
-  await db
-    .delete(messages)
-    .where(eq(messages.senderUserId, userId));
+  await db.delete(messages).where(eq(messages.senderUserId, userId))
 
-  await db
-    .delete(characters)
-    .where(eq(characters.userId, userId));
+  await db.delete(characters).where(eq(characters.userId, userId))
 
   // Storage last, deliberately: it's the one irreversible step here. Running
   // it first and then having a DB delete throw would leave Postgres rows
   // pointing at objects that no longer exist with nothing left to clean them
   // up; running it last means a failure here just leaves orphaned bytes,
   // which are safe to reap on a retry of this same reset.
-  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`)
 
-  await upsertSubscription(userId, {
-    planTier: "free",
-    planStatus: "active",
-    billingCycleEnd: null,
-    termsAcceptedAt: null,
-    termsVersion: null,
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
-  }, deps.getDb);
+  await upsertSubscription(
+    userId,
+    {
+      planTier: 'free',
+      planStatus: 'active',
+      billingCycleEnd: null,
+      termsAcceptedAt: null,
+      termsVersion: null,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    },
+    deps.getDb,
+  )
 
   // Reset the credit ledger so the user reliably has DEFAULT_RESET_CREDITS.
-  await deps.creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId);
+  await deps.creditService.setCredits(userId, DEFAULT_RESET_CREDITS, 'admin_reset', requestId)
 
-  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "reset_user_state", requestId, {
+  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, 'reset_user_state', requestId, {
     reason,
     resetCredits: DEFAULT_RESET_CREDITS,
-  });
+  })
 
   return {
     success: true,
-    action: "adminResetUserState",
+    action: 'adminResetUserState',
     targetUserId: userId,
     requestId,
     applied: {
-      planTier: "free",
-      planStatus: "active",
+      planTier: 'free',
+      planStatus: 'active',
       currentCredits: DEFAULT_RESET_CREDITS,
       termsAcceptedAt: null,
       termsVersion: null,
     },
-  };
-};
+  }
+}
 
 const adminDeleteUserHandler = async (
   request: CallableRequest,
-  deps: StorageAdminDeps = {storageAdmin, getUserById, getDb, creditService, deleteFirebaseAuthUser}
+  deps: StorageAdminDeps = {
+    storageAdmin,
+    getUserById,
+    getDb,
+    creditService,
+    deleteFirebaseAuthUser,
+  },
 ) => {
-  const adminContext = requireAdmin(request);
-  const data = (request.data ?? {}) as AdminMutationData;
+  const adminContext = requireAdmin(request)
+  const data = (request.data ?? {}) as AdminMutationData
 
-  const userId = assertUserId(data.userId);
-  const reason = assertReason(data.reason);
-  const requestId = assertRequestId(data.requestId);
+  const userId = assertUserId(data.userId)
+  const reason = assertReason(data.reason)
+  const requestId = assertRequestId(data.requestId)
 
-  const user = await deps.getUserById(userId);
+  const user = await deps.getUserById(userId)
   if (!user) {
-    throw new HttpsError("not-found", "User not found.");
+    throw new HttpsError('not-found', 'User not found.')
   }
 
   // Storage first, not last: unlike adminResetUserState, this handler deletes
@@ -573,60 +567,56 @@ const adminDeleteUserHandler = async (
   // and deleteFirebaseAuthUser (see its user-not-found handling above) are
   // both idempotent, so re-running the whole handler after a partial failure
   // is always safe as long as the Postgres user row survives until last.
-  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`);
+  await deps.storageAdmin.deletePrefix(`users/${user.firebaseUid}/`)
 
-  await deps.deleteFirebaseAuthUser(user.firebaseUid, {userId});
+  await deps.deleteFirebaseAuthUser(user.firebaseUid, { userId })
 
-  const db = await deps.getDb();
-  await db
-    .delete(users)
-    .where(eq(users.id, userId));
+  const db = await deps.getDb()
+  await db.delete(users).where(eq(users.id, userId))
 
-  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, "delete_user", requestId, {
+  auditLog(adminContext.actorUid, adminContext.actorEmail, userId, 'delete_user', requestId, {
     reason,
     firebaseUid: user.firebaseUid,
-  });
+  })
 
   return {
     success: true,
-    action: "adminDeleteUser",
+    action: 'adminDeleteUser',
     targetUserId: userId,
     requestId,
-    applied: {deleted: true},
-  };
-};
+    applied: { deleted: true },
+  }
+}
 
 const deleteMyAccountHandler = async (request: CallableRequest) => {
-  const auth = request.auth;
+  const auth = request.auth
   if (!auth?.uid) {
-    throw new HttpsError("unauthenticated", "Authentication required.");
+    throw new HttpsError('unauthenticated', 'Authentication required.')
   }
 
-  const firebaseUid = auth.uid;
+  const firebaseUid = auth.uid
 
-  const user = await getUserByFirebaseUid(firebaseUid);
+  const user = await getUserByFirebaseUid(firebaseUid)
   if (user) {
-    const db = await getDb();
-    await db
-      .delete(users)
-      .where(eq(users.id, user.id));
+    const db = await getDb()
+    await db.delete(users).where(eq(users.id, user.id))
   }
 
-  await deleteFirebaseAuthUser(firebaseUid, {userId: user?.id ?? null});
+  await deleteFirebaseAuthUser(firebaseUid, { userId: user?.id ?? null })
 
-  logger.info("self_service_delete_account", {
+  logger.info('self_service_delete_account', {
     firebaseUid,
     userId: user?.id ?? null,
     deleted: true,
     timestamp: new Date().toISOString(),
-  });
+  })
 
   return {
     success: true,
     deleted: true,
     userId: user?.id ?? null,
-  };
-};
+  }
+}
 
 export {
   adminListUsersHandler,
@@ -636,37 +626,39 @@ export {
   adminResetUserStateHandler,
   adminDeleteUserHandler,
   deleteMyAccountHandler,
-};
+}
 
 const sharedCallableOptions = {
-  region: "us-central1" as const,
+  region: 'us-central1' as const,
   enforceAppCheck: true,
-  invoker: "public" as const,
+  invoker: 'public' as const,
   secrets: [...CLOUD_SQL_SECRETS],
-};
+}
 
-export const adminListUsers = onCall(sharedCallableOptions, (request) => adminListUsersHandler(request));
+export const adminListUsers = onCall(sharedCallableOptions, (request) =>
+  adminListUsersHandler(request),
+)
 
 export const adminSetUserCredits = onCall(sharedCallableOptions, (request) =>
-  adminSetUserCreditsHandler(request)
-);
+  adminSetUserCreditsHandler(request),
+)
 
 export const adminSetUserSubscription = onCall(sharedCallableOptions, (request) =>
-  adminSetUserSubscriptionHandler(request)
-);
+  adminSetUserSubscriptionHandler(request),
+)
 
 export const adminClearTermsAcceptance = onCall(sharedCallableOptions, (request) =>
-  adminClearTermsAcceptanceHandler(request)
-);
+  adminClearTermsAcceptanceHandler(request),
+)
 
 export const adminResetUserState = onCall(sharedCallableOptions, (request) =>
-  adminResetUserStateHandler(request)
-);
+  adminResetUserStateHandler(request),
+)
 
 export const adminDeleteUser = onCall(sharedCallableOptions, (request) =>
-  adminDeleteUserHandler(request)
-);
+  adminDeleteUserHandler(request),
+)
 
 export const deleteMyAccount = onCall(sharedCallableOptions, (request) =>
-  deleteMyAccountHandler(request)
-);
+  deleteMyAccountHandler(request),
+)

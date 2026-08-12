@@ -1,1 +1,1 @@
-export const DEFAULT_VOICE = 'Aoede';
+export const DEFAULT_VOICE = 'Aoede'

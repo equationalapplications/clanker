@@ -9,10 +9,7 @@ type BaseWiki = ReturnType<typeof createWiki>
 
 // Extended Wiki type with future methods (for forward compatibility)
 export type Wiki = BaseWiki & {
-  subscribeEntityStatus: (
-    entityId: string,
-    callback: (status: EntityStatus) => void,
-  ) => () => void
+  subscribeEntityStatus: (entityId: string, callback: (status: EntityStatus) => void) => () => void
 }
 
 export const TABLE_PREFIX = 'llm_wiki_'
@@ -112,14 +109,9 @@ const WIKI_EMBEDDING_MIGRATION_KEY = 'wiki_embedding_tasktype_migration_v1'
 const WIKI_EMBEDDING_MIGRATION_FAILED_KEY = 'wiki_embedding_tasktype_migration_v1_failed'
 const WIKI_EMBEDDING_MIGRATION_BACKOFF_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-async function ensureWikiEmbeddingMigration(
-  db: SQLiteDatabase,
-  wiki: Wiki,
-): Promise<void> {
-  const dbExecAsync =
-    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
-  const dbRunAsync =
-    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
+async function ensureWikiEmbeddingMigration(db: SQLiteDatabase, wiki: Wiki): Promise<void> {
+  const dbExecAsync = typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync = typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
 
   if (!dbExecAsync || !dbRunAsync) {
     return
@@ -142,12 +134,22 @@ async function ensureWikiEmbeddingMigration(
     [WIKI_EMBEDDING_MIGRATION_FAILED_KEY],
   )
   const lastFailedAt = Number(failedAttempt?.value)
-  if (!Number.isNaN(lastFailedAt) && Date.now() - lastFailedAt < WIKI_EMBEDDING_MIGRATION_BACKOFF_MS) {
+  if (
+    !Number.isNaN(lastFailedAt) &&
+    Date.now() - lastFailedAt < WIKI_EMBEDDING_MIGRATION_BACKOFF_MS
+  ) {
     console.warn('[Wiki] Skipping embedding migration retry after recent failed attempt.')
     return
   }
 
-  const runReembed = (wiki as { runReembed?: (entityId?: string, opts?: { force?: boolean; skipExisting?: boolean }) => Promise<{ embedded: number; skipped: number; failed: number }> }).runReembed
+  const runReembed = (
+    wiki as {
+      runReembed?: (
+        entityId?: string,
+        opts?: { force?: boolean; skipExisting?: boolean },
+      ) => Promise<{ embedded: number; skipped: number; failed: number }>
+    }
+  ).runReembed
   if (typeof runReembed !== 'function') {
     return
   }
@@ -159,35 +161,33 @@ async function ensureWikiEmbeddingMigration(
     migrationResult = await runReembed.call(wiki, undefined, { force: true })
   } catch (error) {
     console.warn('[Wiki] Embedding migration failed to start:', error)
-    await dbRunAsync(
-      `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
-      [WIKI_EMBEDDING_MIGRATION_FAILED_KEY, String(Date.now())],
-    )
+    await dbRunAsync(`INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`, [
+      WIKI_EMBEDDING_MIGRATION_FAILED_KEY,
+      String(Date.now()),
+    ])
     return
   }
 
   if (migrationResult?.failed > 0) {
     console.warn('[Wiki] Embedding migration completed with failures:', migrationResult)
-    await dbRunAsync(
-      `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
-      [WIKI_EMBEDDING_MIGRATION_FAILED_KEY, String(Date.now())],
-    )
+    await dbRunAsync(`INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`, [
+      WIKI_EMBEDDING_MIGRATION_FAILED_KEY,
+      String(Date.now()),
+    ])
     return
   }
 
   clearWikiNoResultCache()
 
-  await dbRunAsync(
-    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
-    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
-  )
+  await dbRunAsync(`INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`, [
+    WIKI_EMBEDDING_MIGRATION_KEY,
+    '1',
+  ])
 }
 
 async function markWikiEmbeddingMigrationComplete(db: SQLiteDatabase): Promise<void> {
-  const dbExecAsync =
-    typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
-  const dbRunAsync =
-    typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
+  const dbExecAsync = typeof db.execAsync === 'function' ? db.execAsync.bind(db) : undefined
+  const dbRunAsync = typeof db.runAsync === 'function' ? db.runAsync.bind(db) : undefined
 
   if (!dbExecAsync || !dbRunAsync) {
     return
@@ -196,10 +196,10 @@ async function markWikiEmbeddingMigrationComplete(db: SQLiteDatabase): Promise<v
   await dbExecAsync(
     `CREATE TABLE IF NOT EXISTS ${WIKI_METADATA_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
   )
-  await dbRunAsync(
-    `INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`,
-    [WIKI_EMBEDDING_MIGRATION_KEY, '1'],
-  )
+  await dbRunAsync(`INSERT OR REPLACE INTO ${WIKI_METADATA_TABLE} (key, value) VALUES (?, ?)`, [
+    WIKI_EMBEDDING_MIGRATION_KEY,
+    '1',
+  ])
 }
 
 export function getSourceTypeEnumMigrationSql(): string[] {

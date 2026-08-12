@@ -95,9 +95,7 @@ describe('prepareImageVariants', () => {
     await expect(
       prepareImageVariants({ uri: 'file://source.jpg', width: 800, height: 800 }),
     ).rejects.toThrow('read failed')
-    expect(deleted).toEqual(
-      expect.arrayContaining(['file://master.webp', 'file://thumb.webp']),
-    )
+    expect(deleted).toEqual(expect.arrayContaining(['file://master.webp', 'file://thumb.webp']))
   })
 
   describe('aspect ratio', () => {

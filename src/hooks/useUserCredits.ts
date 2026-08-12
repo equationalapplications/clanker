@@ -9,9 +9,7 @@ export const useUserCredits = () => {
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
   const error = useSelector(authService, (state) => state.context.error)
   const credits = useAuthCredits()

@@ -14,9 +14,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const { colors, roundness } = useTheme()
   const webConstraints =
-    Platform.OS === 'web'
-      ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
-      : {}
+    Platform.OS === 'web' ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const) : {}
 
   const bubbleStyle = [
     styles.bubble,

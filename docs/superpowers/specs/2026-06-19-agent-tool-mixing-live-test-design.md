@@ -56,7 +56,10 @@ const mockEmbed = async (_text: string): Promise<number[]> => [0.1, 0.2]
 
 test(
   'runAgentReal: mixes GOOGLE_SEARCH and a custom FunctionTool in one live turn',
-  { skip: !process.env.RUN_LIVE_TESTS && 'set RUN_LIVE_TESTS=1 to run against live Vertex AI', timeout: 30_000 },
+  {
+    skip: !process.env.RUN_LIVE_TESTS && 'set RUN_LIVE_TESTS=1 to run against live Vertex AI',
+    timeout: 30_000,
+  },
   async () => {
     const { reply, toolCalls } = await runAgentReal({
       db: mockDb,

@@ -37,12 +37,12 @@ documentation row. No change to the live-voice billing backend or the `≥ 2` co
 
 ## Product Decisions (locked in)
 
-| # | Topic | Decision |
-|---|---|---|
-| 1 | Reconcile trigger | Dispatch on **every** live `remainingCredits` change (not just teardown) so the badge ticks down live. |
-| 2 | In-call indicator | **Persistent** credit count while a call is live/connecting, emphasized under a low threshold. |
-| 3 | Low-credit threshold | `≤ 5` credits → emphasized (warn) styling. ≈ 5 min runway at 1 credit / 60s. |
-| 4 | Dead voice path | **Full-chain delete** — `sendVoiceMessage`, client `generateVoiceReply`, `generateVoiceReplyFn` config exports, the Firebase `generateVoiceReply` onCall, and all their tests. |
+| #   | Topic                | Decision                                                                                                                                                                       |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Reconcile trigger    | Dispatch on **every** live `remainingCredits` change (not just teardown) so the badge ticks down live.                                                                         |
+| 2   | In-call indicator    | **Persistent** credit count while a call is live/connecting, emphasized under a low threshold.                                                                                 |
+| 3   | Low-credit threshold | `≤ 5` credits → emphasized (warn) styling. ≈ 5 min runway at 1 credit / 60s.                                                                                                   |
+| 4   | Dead voice path      | **Full-chain delete** — `sendVoiceMessage`, client `generateVoiceReply`, `generateVoiceReplyFn` config exports, the Firebase `generateVoiceReply` onCall, and all their tests. |
 
 ---
 
@@ -96,9 +96,9 @@ client-time approach.
 
 ### Files
 
-| File | Change |
-|---|---|
-| `src/machines/authMachine.ts` | Add `'liveVoice'` to `USAGE_SNAPSHOT_RECEIVED.source` union |
+| File                            | Change                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/machines/authMachine.ts`   | Add `'liveVoice'` to `USAGE_SNAPSHOT_RECEIVED.source` union                              |
 | `src/hooks/useLiveVoiceChat.ts` | Add reconcile `useEffect` on `state.context.remainingCredits` with change-only ref guard |
 
 ---
@@ -111,7 +111,7 @@ renders it. Add a persistent count shown while the call is live or connecting.
 - Destructure `remainingCredits` from `useLiveVoiceChat` (currently omitted at
   `talk/index.tsx:85-97`).
 - Render a small text element (e.g. near the status text / `statusWrap`) while `isLive ||
-  isConnecting`, hidden otherwise.
+isConnecting`, hidden otherwise.
 - Apply emphasized (warn-color) style when `remainingCredits <= LOW_CREDIT_THRESHOLD` (`5`).
 - Define `LOW_CREDIT_THRESHOLD = 5` as a module constant alongside the existing UI constants.
 - Label as credits (matches the header badge), not minutes — avoids a per-minute framing assumption.
@@ -121,8 +121,8 @@ justified by prominence on the Talk screen and the proactive low-balance emphasi
 
 ### Files
 
-| File | Change |
-|---|---|
+| File                                 | Change                                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `app/(drawer)/(tabs)/talk/index.tsx` | Destructure `remainingCredits`; render persistent count while live/connecting; `LOW_CREDIT_THRESHOLD` + warn style |
 
 ---
@@ -139,17 +139,17 @@ Precedent: PR #506 Task 2 removed the dead `spendCredits` onCall the same way.
 
 ### Deletions (verify zero non-test references before removing each symbol)
 
-| Action | Path |
-|---|---|
-| Delete | `src/services/voiceChatService.ts` (`sendVoiceMessage` + usageSnapshot block) |
-| Delete | `src/services/voiceReplyService.ts` (client `generateVoiceReply`) |
-| Delete | `__tests__/voiceChatService.test.ts` |
-| Delete | `__tests__/voiceReplyService.test.ts` |
-| Delete | `__tests__/firebaseConfigWebVoiceCallable.test.ts` |
-| Delete | `functions/src/generateVoiceReply.ts` (onCall + handler) |
-| Delete | `functions/src/generateVoiceReply.test.ts` |
-| Modify | `functions/src/index.ts` — remove `generateVoiceReply` export |
-| Modify | `src/config/firebaseConfig.ts` — remove `generateVoiceReplyFn` const + export |
+| Action | Path                                                                              |
+| ------ | --------------------------------------------------------------------------------- |
+| Delete | `src/services/voiceChatService.ts` (`sendVoiceMessage` + usageSnapshot block)     |
+| Delete | `src/services/voiceReplyService.ts` (client `generateVoiceReply`)                 |
+| Delete | `__tests__/voiceChatService.test.ts`                                              |
+| Delete | `__tests__/voiceReplyService.test.ts`                                             |
+| Delete | `__tests__/firebaseConfigWebVoiceCallable.test.ts`                                |
+| Delete | `functions/src/generateVoiceReply.ts` (onCall + handler)                          |
+| Delete | `functions/src/generateVoiceReply.test.ts`                                        |
+| Modify | `functions/src/index.ts` — remove `generateVoiceReply` export                     |
+| Modify | `src/config/firebaseConfig.ts` — remove `generateVoiceReplyFn` const + export     |
 | Modify | `src/config/firebaseConfig.web.ts` — remove `generateVoiceReplyFn` const + export |
 
 ### Deployment note
@@ -168,20 +168,20 @@ connect-gate note (line 35) are independent of the one-shot path and stay unchan
 
 ## Testing
 
-| Area | Test |
-|---|---|
-| Reconcile (§1) | `useLiveVoiceChat` test: a live `remainingCredits` change dispatches `USAGE_SNAPSHOT_RECEIVED` to `authService` with `source: 'liveVoice'`, matching credits, and an ISO `verifiedAt`. |
-| Reconcile — no seed | Initial mount (seed value) does **not** dispatch; only socket-driven changes do. |
-| Reconcile — exhaustion | Exhaustion tick (`remainingCredits: 0`) dispatches `0` before teardown. |
-| Gate | authMachine already covers `applyUsageSnapshotIfNewer`; add a monotonic-decrement case if not present. |
-| Indicator (§2) | Talk UI: count renders while live/connecting, hidden when idle, emphasized when `≤ 5`. |
-| Deletion (§3) | Grep proves zero non-test references to each deleted symbol; Functions + root suites green after removal. |
+| Area                   | Test                                                                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reconcile (§1)         | `useLiveVoiceChat` test: a live `remainingCredits` change dispatches `USAGE_SNAPSHOT_RECEIVED` to `authService` with `source: 'liveVoice'`, matching credits, and an ISO `verifiedAt`. |
+| Reconcile — no seed    | Initial mount (seed value) does **not** dispatch; only socket-driven changes do.                                                                                                       |
+| Reconcile — exhaustion | Exhaustion tick (`remainingCredits: 0`) dispatches `0` before teardown.                                                                                                                |
+| Gate                   | authMachine already covers `applyUsageSnapshotIfNewer`; add a monotonic-decrement case if not present.                                                                                 |
+| Indicator (§2)         | Talk UI: count renders while live/connecting, hidden when idle, emphasized when `≤ 5`.                                                                                                 |
+| Deletion (§3)          | Grep proves zero non-test references to each deleted symbol; Functions + root suites green after removal.                                                                              |
 
 ### Verification commands
 
-| Suite | Command | Expected |
-|---|---|---|
-| Root | `npm run typecheck && npm run lint && npm test` | pass |
+| Suite     | Command                                                         | Expected                                                      |
+| --------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| Root      | `npm run typecheck && npm run lint && npm test`                 | pass                                                          |
 | Functions | `cd functions && npm run typecheck && npm run lint && npm test` | pass (fewer tests after `generateVoiceReply.test.ts` removal) |
 
 **Regression checks:**

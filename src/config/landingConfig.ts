@@ -7,7 +7,7 @@ export { SITE_BASE }
 export const SITE_META = {
   title: 'Clanker AI — Personal AI Assistant with Real-Time Voice & OKF Memory',
   description:
-    "Clanker AI is a personal AI assistant with a personality you design and a memory that never forgets — real-time voice calls, document understanding, live web search, and OKF memory you own and export.",
+    'Clanker AI is a personal AI assistant with a personality you design and a memory that never forgets — real-time voice calls, document understanding, live web search, and OKF memory you own and export.',
   keywords:
     'personal AI assistant, Clanker AI, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, AI characters, export AI character, AI companion, voice assistant',
   canonicalPath: '/welcome',

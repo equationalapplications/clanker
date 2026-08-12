@@ -9,7 +9,7 @@ interface GenerateChatReplyInput {
   systemInstruction?: string
   referenceId?: string
   unsyncedHistory?: SyncMessage[]
-  characterId?: string  // forwarded to Firebase for bulk insert
+  characterId?: string // forwarded to Firebase for bulk insert
   tools?: { name: string; description: string; parameters: object }[]
 }
 
@@ -119,9 +119,10 @@ export async function generateChatReply({
   const result = await generateReplyFn(payload)
 
   const data = result.data as GenerateReplyCallableResponse
-  const functionCalls = Array.isArray(data?.functionCalls) && data.functionCalls.length > 0
-    ? data.functionCalls
-    : undefined
+  const functionCalls =
+    Array.isArray(data?.functionCalls) && data.functionCalls.length > 0
+      ? data.functionCalls
+      : undefined
 
   if (!functionCalls && (!data?.reply || typeof data.reply !== 'string')) {
     throw new Error('Invalid generateReply response payload')
@@ -141,7 +142,9 @@ export async function generateChatReply({
         : null,
     planTier: typeof data.planTier === 'string' ? data.planTier : null,
     planStatus:
-      data.planStatus === 'active' || data.planStatus === 'cancelled' || data.planStatus === 'expired'
+      data.planStatus === 'active' ||
+      data.planStatus === 'cancelled' ||
+      data.planStatus === 'expired'
         ? data.planStatus
         : null,
     verifiedAt,

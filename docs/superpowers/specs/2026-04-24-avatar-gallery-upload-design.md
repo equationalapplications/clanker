@@ -11,6 +11,7 @@ converted to WebP (same format as AI-generated avatars) and stored in SQLite
 ## Architecture
 
 New hook `useAvatarUpload` mirrors the shape of `useImageGeneration`. It:
+
 1. Launches `expo-image-picker` library picker (no camera).
 2. Validates the selected image is at least 200×200 px.
 3. Converts result to WebP via `expo-image-manipulator`, resizing down to a
@@ -40,13 +41,13 @@ Both are Expo SDK packages (no bare native module installs needed beyond
 
 ## File Map
 
-| Action | Path |
-|--------|------|
-| **Create** | `src/hooks/useAvatarUpload.ts` |
-| **Create** | `__tests__/useAvatarUpload.test.ts` |
-| **Modify** | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` |
+| Action     | Path                                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------- |
+| **Create** | `src/hooks/useAvatarUpload.ts`                                                                            |
+| **Create** | `__tests__/useAvatarUpload.test.ts`                                                                       |
+| **Modify** | `app/(drawer)/(tabs)/characters/[id]/edit.tsx`                                                            |
 | **Modify** | `app.config.ts` — add `NSPhotoLibraryUsageDescription` to `ios.infoPlist`, add `expo-image-picker` plugin |
-| **Modify** | `package.json` / `package-lock.json` — via `npx expo install` |
+| **Modify** | `package.json` / `package-lock.json` — via `npx expo install`                                             |
 
 ---
 
@@ -121,7 +122,14 @@ export function useAvatarUpload({
       // Resize down if larger than 1024 px on either axis; otherwise no resize
       const actions =
         width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION
-          ? [{ resize: width >= height ? { width: MAX_IMAGE_DIMENSION } : { height: MAX_IMAGE_DIMENSION } }]
+          ? [
+              {
+                resize:
+                  width >= height
+                    ? { width: MAX_IMAGE_DIMENSION }
+                    : { height: MAX_IMAGE_DIMENSION },
+              },
+            ]
           : []
 
       const manipulated = await manipulateAsync(sourceUri, actions, {
@@ -244,6 +252,7 @@ plugins: [
 ## Tests (`__tests__/useAvatarUpload.test.ts`)
 
 Mock targets:
+
 - `expo-image-picker` → `launchImageLibraryAsync`
 - `expo-image-manipulator` → `manipulateAsync`
 - `expo-file-system` → `File` (mock `base64()` and `delete()` instance methods)
@@ -252,16 +261,16 @@ Mock targets:
 
 Test cases:
 
-| # | Scenario | Expected |
-|---|----------|----------|
-| 1 | User cancels picker | `uploadAvatar` returns `null`, `saveCharacterImageLocally` not called, no error set |
-| 2 | Happy path (image within limits) | `manipulateAsync` called with no resize actions + `SaveFormat.WEBP`, `File.base64()` called, `saveCharacterImageLocally` called with base64 + `'image/webp'`, `characterService.send({ type: 'LOAD' })` called, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
-| 3 | Happy path (image > 1024 px wide) | `manipulateAsync` called with `[{ resize: { width: 1024 } }]` resize action |
-| 4 | Image too small (< 200×200) | `error` set to `'Image too small. Minimum size is 200×200 pixels.'`, returns `null` |
-| 5 | `manipulateAsync` throws | `error` set to message, `saveCharacterImageLocally` not called, returns `null` |
-| 6 | `saveCharacterImageLocally` throws | `error` set to message, returns `null` |
-| 7 | `launchImageLibraryAsync` throws with "permission" in message | `error` set to `'Photo library access denied'`, returns `null` |
-| 8 | `isUploading` is true during async operation, false after | verify state transitions |
+| #   | Scenario                                                      | Expected                                                                                                                                                                                                                                                                                    |
+| --- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | User cancels picker                                           | `uploadAvatar` returns `null`, `saveCharacterImageLocally` not called, no error set                                                                                                                                                                                                         |
+| 2   | Happy path (image within limits)                              | `manipulateAsync` called with no resize actions + `SaveFormat.WEBP`, `File.base64()` called, `saveCharacterImageLocally` called with base64 + `'image/webp'`, `characterService.send({ type: 'LOAD' })` called, returned dataUri passed to `onImageUploaded`, `isUploading` resets to false |
+| 3   | Happy path (image > 1024 px wide)                             | `manipulateAsync` called with `[{ resize: { width: 1024 } }]` resize action                                                                                                                                                                                                                 |
+| 4   | Image too small (< 200×200)                                   | `error` set to `'Image too small. Minimum size is 200×200 pixels.'`, returns `null`                                                                                                                                                                                                         |
+| 5   | `manipulateAsync` throws                                      | `error` set to message, `saveCharacterImageLocally` not called, returns `null`                                                                                                                                                                                                              |
+| 6   | `saveCharacterImageLocally` throws                            | `error` set to message, returns `null`                                                                                                                                                                                                                                                      |
+| 7   | `launchImageLibraryAsync` throws with "permission" in message | `error` set to `'Photo library access denied'`, returns `null`                                                                                                                                                                                                                              |
+| 8   | `isUploading` is true during async operation, false after     | verify state transitions                                                                                                                                                                                                                                                                    |
 
 ---
 

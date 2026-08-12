@@ -55,9 +55,7 @@ describe('ensureDevSandboxCharacter', () => {
       save_to_cloud: true,
     })
 
-    await expect(ensureDevSandboxCharacter(DEV_FIREBASE_UID)).resolves.toBe(
-      DEV_CLOUD_CHARACTER_ID,
-    )
+    await expect(ensureDevSandboxCharacter(DEV_FIREBASE_UID)).resolves.toBe(DEV_CLOUD_CHARACTER_ID)
 
     expect(runAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO characters'),
@@ -77,9 +75,7 @@ describe('ensureDevSandboxCharacter', () => {
 
     mockGetDatabase.mockResolvedValue({ getFirstAsync, runAsync })
 
-    await expect(ensureDevSandboxCharacter(DEV_FIREBASE_UID)).resolves.toBe(
-      DEV_CLOUD_CHARACTER_ID,
-    )
+    await expect(ensureDevSandboxCharacter(DEV_FIREBASE_UID)).resolves.toBe(DEV_CLOUD_CHARACTER_ID)
 
     expect(runAsync).toHaveBeenCalledWith(
       expect.stringContaining('SET save_to_cloud = 1'),

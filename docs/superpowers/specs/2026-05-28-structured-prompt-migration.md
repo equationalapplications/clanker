@@ -31,16 +31,16 @@ Update `GenerateReplyInput` to support new structured fields while keeping the l
 
 ```typescript
 export interface GenerateReplyInput {
-  characterId: string;
+  characterId: string
   // Legacy payload (Triggers Soft Break)
-  prompt?: string;
+  prompt?: string
 
   // New Structured Payload
-  contents?: any[]; // Array of structured Content objects
-  systemInstruction?: string; // The character's persona and rules
+  contents?: any[] // Array of structured Content objects
+  systemInstruction?: string // The character's persona and rules
 
   // Existing Phase 1 Payload
-  unsyncedHistory?: SyncMessage[];
+  unsyncedHistory?: SyncMessage[]
 }
 ```
 
@@ -50,19 +50,22 @@ At the top of the callable handler, before any Vertex AI generation, implement t
 
 ```typescript
 export const generateReply = onCall(async (request) => {
-  const data = request.data as GenerateReplyInput;
+  const data = request.data as GenerateReplyInput
 
   // 1. The Soft Break Trap
   if (data.prompt && !data.contents) {
     return {
-      text: "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
+      text: '🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.',
       messageId: `system-update-${Date.now()}`,
-    };
+    }
   }
 
   // 2. Enforce New Contract
   if (!data.contents || !data.systemInstruction) {
-    throw new HttpsError('invalid-argument', 'Structured contents and systemInstruction are required.');
+    throw new HttpsError(
+      'invalid-argument',
+      'Structured contents and systemInstruction are required.',
+    )
   }
 
   // ... existing auth, billing, and unsyncedHistory insert logic ...
@@ -72,10 +75,10 @@ export const generateReply = onCall(async (request) => {
     contents: data.contents,
     systemInstruction: data.systemInstruction,
     // ... existing generation config ...
-  });
+  })
 
   // ... return response ...
-});
+})
 ```
 
 ---
@@ -87,16 +90,16 @@ export const generateReply = onCall(async (request) => {
 Add a dedicated transformer for converting local character data and SQLite messages into Google GenAI types.
 
 ```typescript
-import { Character } from '~/types';
-import { LocalMessage } from '~/database/messageDatabase';
+import { Character } from '~/types'
+import { LocalMessage } from '~/database/messageDatabase'
 
 export class CharacterPromptBuilder {
   /**
    * Compiles the character's personality, traits, and strict directives into a single System Instruction string.
    */
   static buildSystemInstruction(character: Character): string {
-    const personality = character.context || character.appearance || 'You are a helpful AI.';
-    const traits = character.emotions ? `Traits: ${character.emotions.join(', ')}` : '';
+    const personality = character.context || character.appearance || 'You are a helpful AI.'
+    const traits = character.emotions ? `Traits: ${character.emotions.join(', ')}` : ''
 
     return [
       `You are ${character.name}.`,
@@ -105,7 +108,7 @@ export class CharacterPromptBuilder {
       `CORE DIRECTIVE: Stay strictly in character. Do not break the fourth wall.`,
     ]
       .filter(Boolean)
-      .join('\n\n');
+      .join('\n\n')
   }
 
   /**
@@ -115,7 +118,7 @@ export class CharacterPromptBuilder {
     return messages.map((msg) => ({
       role: msg.sender_user_id === userId ? 'user' : 'model',
       parts: [{ text: msg.text }],
-    }));
+    }))
   }
 }
 ```
@@ -127,32 +130,29 @@ Locate where `generateChatReply` is invoked in `src/hooks/useAIChat.ts` or `src/
 Before:
 
 ```typescript
-const prompt = buildChatPrompt(character, messages, userText);
+const prompt = buildChatPrompt(character, messages, userText)
 const reply = await generateChatReply({
   characterId: character.id,
   prompt,
   unsyncedHistory,
-});
+})
 ```
 
 After:
 
 ```typescript
-import { CharacterPromptBuilder } from '~/services/CharacterPromptBuilder';
+import { CharacterPromptBuilder } from '~/services/CharacterPromptBuilder'
 
-const systemInstruction = CharacterPromptBuilder.buildSystemInstruction(character);
-const historyContents = CharacterPromptBuilder.buildContentHistory(priorMessages, userId);
-const contents = [
-  ...historyContents,
-  { role: 'user', parts: [{ text: userText }] },
-];
+const systemInstruction = CharacterPromptBuilder.buildSystemInstruction(character)
+const historyContents = CharacterPromptBuilder.buildContentHistory(priorMessages, userId)
+const contents = [...historyContents, { role: 'user', parts: [{ text: userText }] }]
 
 const reply = await generateChatReply({
   characterId: character.id,
   systemInstruction,
   contents,
   unsyncedHistory,
-});
+})
 ```
 
 ### 4.3 Delete Legacy Code

@@ -1,5 +1,8 @@
 // shared/agent-tools-spec.ts
-import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalapplications/core-llm-tools'
+import {
+  getCurrentTimeManifest,
+  escalateToCloudManifest,
+} from '@equationalapplications/core-llm-tools'
 
 export type ToolTier = 'both' | 'cloud-only' | 'edge-only'
 
@@ -27,12 +30,14 @@ export const agentToolSpec: ToolManifest[] = [
   {
     ...(getCurrentTimeManifest.schema as any),
     tier: 'both',
-    description: 'CRITICAL: ALWAYS call this tool if the user asks for the current time, date, day of week, or uses relative temporal words (today, tomorrow). Do not guess.',
+    description:
+      'CRITICAL: ALWAYS call this tool if the user asks for the current time, date, day of week, or uses relative temporal words (today, tomorrow). Do not guess.',
   },
   {
     name: 'wiki_read',
     tier: 'both',
-    description: "Search the user's long-term memory using semantic search. ALWAYS use if the user asks to recall something previously discussed.",
+    description:
+      "Search the user's long-term memory using semantic search. ALWAYS use if the user asks to recall something previously discussed.",
     parameters: {
       type: 'object',
       properties: { query: { type: 'string', description: 'Topic or keywords to search for.' } },
@@ -42,7 +47,8 @@ export const agentToolSpec: ToolManifest[] = [
   {
     name: 'wiki_write',
     tier: 'both',
-    description: 'Record a new observation about the user into long-term memory. Call when the user shares a personal detail, preference, or fact.',
+    description:
+      'Record a new observation about the user into long-term memory. Call when the user shares a personal detail, preference, or fact.',
     parameters: {
       type: 'object',
       properties: { summary: { type: 'string', description: 'Observation to record.' } },
@@ -52,7 +58,8 @@ export const agentToolSpec: ToolManifest[] = [
   {
     name: 'create_task',
     tier: 'both',
-    description: 'Create a new task or to-do item for the user. Do NOT use for reminders or scheduling.',
+    description:
+      'Create a new task or to-do item for the user. Do NOT use for reminders or scheduling.',
     parameters: {
       type: 'object',
       properties: { title: { type: 'string', description: 'Task description.' } },
@@ -111,20 +118,39 @@ export const agentToolSpec: ToolManifest[] = [
   {
     name: 'wiki_get_ontology',
     tier: 'edge-only',
-    description: "Retrieve the current ontology manifest (allowed node types and edge types) for the user's memory. Use this to understand the structure of the knowledge graph before traversing it.",
+    description:
+      "Retrieve the current ontology manifest (allowed node types and edge types) for the user's memory. Use this to understand the structure of the knowledge graph before traversing it.",
     parameters: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'wiki_traverse_graph',
     tier: 'edge-only',
-    description: 'Traverse the knowledge graph starting from a specific fact ID to discover connected concepts and relationships. Returns a formatted neighborhood subgraph.',
+    description:
+      'Traverse the knowledge graph starting from a specific fact ID to discover connected concepts and relationships. Returns a formatted neighborhood subgraph.',
     parameters: {
       type: 'object',
       properties: {
-        sourceId: { type: 'string', description: 'The exact ID of the starting fact node (obtained from a previous wiki_read call).' },
-        maxDepth: { type: 'integer', minimum: 1, maximum: 3, description: 'How many relationship hops to traverse. Maximum allowed is 3.' },
-        direction: { type: 'string', enum: ['inbound', 'outbound', 'both'], description: "Direction of relationships to follow. Default 'both'." },
-        edgeTypes: { type: 'array', items: { type: 'string' }, description: 'Optional filter. If provided, traversal only follows these edge types.' },
+        sourceId: {
+          type: 'string',
+          description:
+            'The exact ID of the starting fact node (obtained from a previous wiki_read call).',
+        },
+        maxDepth: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 3,
+          description: 'How many relationship hops to traverse. Maximum allowed is 3.',
+        },
+        direction: {
+          type: 'string',
+          enum: ['inbound', 'outbound', 'both'],
+          description: "Direction of relationships to follow. Default 'both'.",
+        },
+        edgeTypes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional filter. If provided, traversal only follows these edge types.',
+        },
       },
       required: ['sourceId'],
     },
@@ -145,20 +171,21 @@ export const agentToolSpec: ToolManifest[] = [
   {
     ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',
-    description: 'Escalate complex workflows, writing tasks, or timed task creation (reminders/scheduling) to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
+    description:
+      'Escalate complex workflows, writing tasks, or timed task creation (reminders/scheduling) to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
   },
 ]
 
 export function getSchemasForEdge(hasWiki: boolean, isCloudSynced: boolean) {
   return agentToolSpec
-    .filter(t => t.tier === 'both' || t.tier === 'edge-only')
-    .filter(t => hasWiki || !['wiki_read', 'wiki_write'].includes(t.name))
-    .filter(t => isCloudSynced || t.name !== 'escalate_to_cloud_agent')
+    .filter((t) => t.tier === 'both' || t.tier === 'edge-only')
+    .filter((t) => hasWiki || !['wiki_read', 'wiki_write'].includes(t.name))
+    .filter((t) => isCloudSynced || t.name !== 'escalate_to_cloud_agent')
     .map(({ name, description, parameters }) => ({ name, description, parameters }))
 }
 
 export function getSchemasForCloud() {
   return agentToolSpec
-    .filter(t => t.tier === 'both' || t.tier === 'cloud-only')
+    .filter((t) => t.tier === 'both' || t.tier === 'cloud-only')
     .map(({ name, description, parameters }) => ({ name, description, parameters }))
 }

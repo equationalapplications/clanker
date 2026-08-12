@@ -21,10 +21,14 @@ jest.mock('~/database/characterDatabase', () => ({
 }))
 const mockDeleteLocalImageBytes = jest.fn()
 jest.mock('~/services/localImageStore', () => ({
-  resolveImageUri: jest.fn(), deleteLocalImageBytes: (...a: unknown[]) => mockDeleteLocalImageBytes(...a), writeLocalImageBytes: jest.fn(),
+  resolveImageUri: jest.fn(),
+  deleteLocalImageBytes: (...a: unknown[]) => mockDeleteLocalImageBytes(...a),
+  writeLocalImageBytes: jest.fn(),
 }))
 jest.mock('~/services/storageService', () => ({
-  uploadImageBytes: jest.fn(), deleteStorageObject: jest.fn(), downloadImageBase64: jest.fn(),
+  uploadImageBytes: jest.fn(),
+  deleteStorageObject: jest.fn(),
+  downloadImageBase64: jest.fn(),
 }))
 jest.mock('~/services/apiClient', () => ({ syncCharacterImagesFn: jest.fn() }))
 jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
@@ -73,51 +77,76 @@ beforeEach(() => {
 describe('reconcileCharacterImages', () => {
   it('inserts cloud rows the device does not have, mapped to the local character id', async () => {
     await reconcileCharacterImages('char_local', 'user-1', [snapshot()], null)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      id: IMG_A,
-      character_id: 'char_local',
-      user_id: 'user-1',
-      storage_kind: 'cloud',
-      master_ref: 'users/u/characters/cloud-c1/a.webp',
-      thumb_ref: 'users/u/characters/cloud-c1/a_thumb.webp',
-      sync_state: 'synced',
-      deleted_at: null,
-    }))
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: IMG_A,
+        character_id: 'char_local',
+        user_id: 'user-1',
+        storage_kind: 'cloud',
+        master_ref: 'users/u/characters/cloud-c1/a.webp',
+        thumb_ref: 'users/u/characters/cloud-c1/a_thumb.webp',
+        sync_state: 'synced',
+        deleted_at: null,
+      }),
+    )
   })
 
   it('does not re-insert a row it already has', async () => {
-    mockGetAllImagesForCharacter.mockResolvedValue([{ id: IMG_A, storage_kind: 'cloud', sync_state: 'synced' }])
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      { id: IMG_A, storage_kind: 'cloud', sync_state: 'synced' },
+    ])
     await reconcileCharacterImages('char_local', 'user-1', [snapshot()], null)
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
   it('hard-deletes a local row whose cloud counterpart carries deleted_at', async () => {
-    mockGetAllImagesForCharacter.mockResolvedValue([{ id: IMG_A, storage_kind: 'cloud', sync_state: 'synced' }])
-    await reconcileCharacterImages('char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], null)
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      { id: IMG_A, storage_kind: 'cloud', sync_state: 'synced' },
+    ])
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })],
+      null,
+    )
     expect(mockHardDelete).toHaveBeenCalledWith(IMG_A)
   })
 
   it('cleans up on-device bytes when a failed file-backed row is tombstoned', async () => {
-    mockGetAllImagesForCharacter.mockResolvedValue([{
-      id: IMG_A,
-      storage_kind: 'file',
-      sync_state: 'failed',
-      master_ref: 'file:///a.webp',
-      thumb_ref: 'file:///a_thumb.webp',
-    }])
-    await reconcileCharacterImages('char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], null)
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      {
+        id: IMG_A,
+        storage_kind: 'file',
+        sync_state: 'failed',
+        master_ref: 'file:///a.webp',
+        thumb_ref: 'file:///a_thumb.webp',
+      },
+    ])
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })],
+      null,
+    )
     expect(mockDeleteLocalImageBytes).toHaveBeenCalledWith('file:///a.webp')
     expect(mockDeleteLocalImageBytes).toHaveBeenCalledWith('file:///a_thumb.webp')
     expect(mockHardDelete).toHaveBeenCalledWith(IMG_A)
   })
 
   it('never inserts a tombstone as a live row', async () => {
-    await reconcileCharacterImages('char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], null)
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })],
+      null,
+    )
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
   it('leaves a local row absent from the response completely alone', async () => {
-    mockGetAllImagesForCharacter.mockResolvedValue([{ id: IMG_B, storage_kind: 'cloud', sync_state: 'synced' }])
+    mockGetAllImagesForCharacter.mockResolvedValue([
+      { id: IMG_B, storage_kind: 'cloud', sync_state: 'synced' },
+    ])
     await reconcileCharacterImages('char_local', 'user-1', [snapshot()], null)
     expect(mockHardDelete).not.toHaveBeenCalled()
   })
@@ -136,23 +165,31 @@ describe('reconcileCharacterImages', () => {
   })
 
   it('restores a chat row with its message linkage so the bubble can be rebuilt', async () => {
-    await reconcileCharacterImages('char_local', 'user-1', [
-      snapshot({ source: 'chat', messageId: 'msg-1' }),
-    ], null)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      source: 'chat',
-      message_id: 'msg-1',
-    }))
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ source: 'chat', messageId: 'msg-1' })],
+      null,
+    )
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'chat',
+        message_id: 'msg-1',
+      }),
+    )
   })
 
   it('ignores an active id pointing at a tombstone', async () => {
     await reconcileCharacterImages(
-      'char_local', 'user-1', [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })], IMG_A,
+      'char_local',
+      'user-1',
+      [snapshot({ deletedAt: '2026-07-02T00:00:00.000Z' })],
+      IMG_A,
     )
     expect(mockSetActive).not.toHaveBeenCalled()
   })
 
-  it('merges a later snapshot\'s message linkage into an existing row that arrived without it', async () => {
+  it("merges a later snapshot's message linkage into an existing row that arrived without it", async () => {
     // The image and the message ride independent sync flows (§4.2). A row may
     // be restored from the cloud before the snapshot that carries the
     // `messageId` it was sent on. The next snapshot must promote the row
@@ -169,9 +206,12 @@ describe('reconcileCharacterImages', () => {
         message_id: null,
       },
     ])
-    await reconcileCharacterImages('char_local', 'user-1', [
-      snapshot({ source: 'chat', messageId: 'msg-late' }),
-    ], null)
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ source: 'chat', messageId: 'msg-late' })],
+      null,
+    )
     expect(mockInsert).not.toHaveBeenCalled()
     expect(mockHardDelete).not.toHaveBeenCalled()
     expect(mockUpdateImageLinkage).toHaveBeenCalledWith(IMG_A, {
@@ -193,9 +233,12 @@ describe('reconcileCharacterImages', () => {
         message_id: 'msg-original',
       },
     ])
-    await reconcileCharacterImages('char_local', 'user-1', [
-      snapshot({ source: 'generated', messageId: null }),
-    ], null)
+    await reconcileCharacterImages(
+      'char_local',
+      'user-1',
+      [snapshot({ source: 'generated', messageId: null })],
+      null,
+    )
     expect(mockUpdateImageLinkage).not.toHaveBeenCalled()
   })
 })

@@ -16,11 +16,7 @@
     "site": "clanker-prod",
     "public": "dist",
     "cleanUrls": true,
-    "ignore": [
-      "firebase.json",
-      "**/.git/**",
-      "**/.DS_Store"
-    ],
+    "ignore": ["firebase.json", "**/.git/**", "**/.DS_Store"],
     "headers": [
       {
         "source": "**",
@@ -44,12 +40,7 @@
       "source": "functions",
       "codebase": "clanker",
       "runtime": "nodejs24",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "*.local"
-      ],
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "*.local"],
       "predeploy": [
         "cd \"$RESOURCE_DIR\" && npx eslint .",
         "cd \"$RESOURCE_DIR\" && rm -rf lib && npx tsc"

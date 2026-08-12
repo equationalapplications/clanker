@@ -41,7 +41,9 @@ describe('MessageList streaming-key invariant', () => {
 
     // Force a streaming update — same _id, new text
     const updated: Message = { ...baseMessage, text: 'hello world' }
-    first.rerender(<MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />)
+    first.rerender(
+      <MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
 
     expect(avatarMountCount).toBe(1)
     expect(first.getByText('hello world')).toBeTruthy()

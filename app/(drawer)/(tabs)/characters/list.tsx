@@ -1,5 +1,15 @@
 import { View, StyleSheet, FlatList } from 'react-native'
-import { Text, Button, ActivityIndicator, Snackbar, IconButton, Portal, Modal, Menu, useTheme } from 'react-native-paper'
+import {
+  Text,
+  Button,
+  ActivityIndicator,
+  Snackbar,
+  IconButton,
+  Portal,
+  Modal,
+  Menu,
+  useTheme,
+} from 'react-native-paper'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useSelector } from '@xstate/react'
@@ -160,7 +170,8 @@ export default function CharactersListScreen() {
 
     if (cloudSyncError && cloudSyncError !== cloudSyncErrorAtRequestRef.current) {
       setToastState({
-        message: cloudSyncError instanceof Error ? cloudSyncError.message : 'Failed to sync characters.',
+        message:
+          cloudSyncError instanceof Error ? cloudSyncError.message : 'Failed to sync characters.',
         requiresSubscription: false,
       })
     }
@@ -174,7 +185,8 @@ export default function CharactersListScreen() {
     if (importError && importError !== importErrorShownRef.current) {
       setToastState({
         message:
-          (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
+          (importError as Error & { displayMessage?: string }).displayMessage ??
+          importError.message,
         requiresSubscription: false,
       })
       importErrorShownRef.current = importError
@@ -220,11 +232,7 @@ export default function CharactersListScreen() {
               />
             }
           >
-            <Menu.Item
-              leadingIcon="cloud-sync"
-              onPress={handleMenuCloudSync}
-              title="Cloud Sync"
-            />
+            <Menu.Item leadingIcon="cloud-sync" onPress={handleMenuCloudSync} title="Cloud Sync" />
             <Menu.Item
               leadingIcon="file-import-outline"
               onPress={handleMenuImport}

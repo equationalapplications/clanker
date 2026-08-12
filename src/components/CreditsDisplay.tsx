@@ -24,7 +24,9 @@ export default function CreditsDisplay({
   const refreshBootstrap = useBootstrapRefresh()
   const subscription = useAuthSubscription()
   const { colors } = useTheme()
-  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(null)
+  const [isPurchasing, setIsPurchasing] = React.useState<'subscribe' | 'payg' | 'restore' | null>(
+    null,
+  )
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const webPurchaseStartRef = React.useRef<'subscribe' | 'payg' | null>(null)
   const isWeb = Platform.OS === 'web'
@@ -38,14 +40,15 @@ export default function CreditsDisplay({
     }
     return 'Purchase failed. Please try again.'
   }
-  const isLocalWebPurchaseLocked = isWeb && (isPurchasing === 'subscribe' || isPurchasing === 'payg')
+  const isLocalWebPurchaseLocked =
+    isWeb && (isPurchasing === 'subscribe' || isPurchasing === 'payg')
   const isSubscribeLocked = isWeb
-    ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isSubscribeLocked)
+    ? isLocalWebPurchaseLocked || !!webCheckoutLocks?.isSubscribeLocked
     : isPurchasing !== null
   const isPaygLocked = isWeb
-    ? (isLocalWebPurchaseLocked || !!webCheckoutLocks?.isPaygLocked)
+    ? isLocalWebPurchaseLocked || !!webCheckoutLocks?.isPaygLocked
     : isPurchasing !== null
-  const snackbarMessage = isWeb ? errorMessage : errorMessage ?? expiredMessage
+  const snackbarMessage = isWeb ? errorMessage : (errorMessage ?? expiredMessage)
 
   const handleDismissSnackbar = () => {
     setErrorMessage(null)
@@ -129,7 +132,7 @@ export default function CreditsDisplay({
       setErrorMessage(
         subscription?.subscriptionProvider === 'revenuecat'
           ? 'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
-          : 'You already have an active subscription on the web. Manage it at your account billing page.'
+          : 'You already have an active subscription on the web. Manage it at your account billing page.',
       )
       resetPurchaseState()
       return
@@ -179,7 +182,10 @@ export default function CreditsDisplay({
             </Text>
             <Text variant="bodyMedium">Power Available</Text>
             {credits?.nextExpiryDate && totalPower > 0 && (
-              <Text variant="bodySmall" style={[styles.expiryText, { color: colors.onSurfaceVariant }]}>
+              <Text
+                variant="bodySmall"
+                style={[styles.expiryText, { color: colors.onSurfaceVariant }]}
+              >
                 Power expires {new Date(credits.nextExpiryDate).toLocaleDateString()}
               </Text>
             )}
@@ -216,7 +222,10 @@ export default function CreditsDisplay({
           >
             Sync Subscription & Power
           </Button>
-          <Text variant="bodySmall" style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}>
+          <Text
+            variant="bodySmall"
+            style={[styles.syncHelperText, { color: colors.onSurfaceVariant }]}
+          >
             Use this if your subscription or Power aren&apos;t showing correctly.
           </Text>
         </Card.Content>

@@ -37,14 +37,14 @@ useEdgeAgent (client orchestration loop, max 5 iterations)
 
 **Key files:**
 
-| Layer | File |
-|---|---|
-| Hook (loop) | `src/hooks/useEdgeAgent.ts` |
-| Chat integration | `src/hooks/useAIChat.ts` |
-| Proxy client | `src/services/chatReplyService.ts` |
-| Tool executors | `src/services/edgeToolExecutors.ts` |
-| Tool schemas | `shared/agent-tools-spec.ts` (`getSchemasForEdge`) |
-| Backend proxy | `functions/src/generateReply.ts` |
+| Layer            | File                                               |
+| ---------------- | -------------------------------------------------- |
+| Hook (loop)      | `src/hooks/useEdgeAgent.ts`                        |
+| Chat integration | `src/hooks/useAIChat.ts`                           |
+| Proxy client     | `src/services/chatReplyService.ts`                 |
+| Tool executors   | `src/services/edgeToolExecutors.ts`                |
+| Tool schemas     | `shared/agent-tools-spec.ts` (`getSchemasForEdge`) |
+| Backend proxy    | `functions/src/generateReply.ts`                   |
 
 ---
 

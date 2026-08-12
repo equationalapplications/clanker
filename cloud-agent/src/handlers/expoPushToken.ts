@@ -7,7 +7,8 @@ export async function getExpoPushToken(
   db: NodePgDatabase<typeof schema>,
   firebaseUid: string,
 ): Promise<string | null> {
-  const rows = await db.select({ expoPushToken: users.expoPushToken })
+  const rows = await db
+    .select({ expoPushToken: users.expoPushToken })
     .from(users)
     .where(eq(users.firebaseUid, firebaseUid))
     .limit(1)

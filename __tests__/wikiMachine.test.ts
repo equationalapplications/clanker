@@ -15,7 +15,9 @@ const makeWikiMock = (overrides: Partial<Record<string, unknown>> = {}) => ({
   exportDump: jest.fn().mockResolvedValue({ generatedAt: 0, entities: {} }),
   importDump: jest.fn().mockResolvedValue(undefined),
   runPrune: jest.fn().mockResolvedValue(undefined),
-  getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'emergent', node_types: [], edge_types: [] }),
+  getOntologyManifest: jest
+    .fn()
+    .mockResolvedValue({ mode: 'emergent', node_types: [], edge_types: [] }),
   setOntologyManifest: jest.fn().mockResolvedValue(undefined),
   subscribeEntityStatus: jest.fn().mockImplementation((_id: string, cb: (s: unknown) => void) => {
     cb({ ingesting: false, librarian: false, heal: false })
@@ -42,7 +44,7 @@ describe('wikiMachine', () => {
     actors.forEach((actor) => actor.stop())
     actors.length = 0
   })
-  
+
   const spawnAndTrack = (wiki: unknown, inputOverrides: Record<string, unknown> = {}) => {
     const actor = spawn(wiki, inputOverrides)
     actors.push(actor)
@@ -171,16 +173,16 @@ describe('wikiMachine', () => {
       wiki.write.mockResolvedValueOnce(undefined)
       const actor = spawnAndTrack(wiki)
       actor.send({ type: 'WRITE', summary: 'x' })
-      
+
       // Wait for first attempt to fail and enter busyRetry
       await waitFor(actor, (state) => state.matches('busyRetry'), WAIT_OPTS)
-      
+
       // Advance timers past the 1000ms delay
       jest.advanceTimersByTime(1000)
-      
+
       // Wait for retry to complete
       await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
-      
+
       // Should have been called twice: once failed with busy, once succeeded
       expect(wiki.write).toHaveBeenCalledTimes(2)
       expect(actor.getSnapshot().context.lastError).toBeNull()
@@ -229,10 +231,7 @@ describe('wikiMachine', () => {
       subscribeEntityStatus: undefined,
     })
     spawnAndTrack(wiki)
-    expect(reportError).toHaveBeenCalledWith(
-      expect.any(Error),
-      'wiki:char1:statusSubscription',
-    )
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char1:statusSubscription')
   })
 
   test('subscribeEntityStatus non-function at runtime calls reportError', () => {
@@ -240,10 +239,7 @@ describe('wikiMachine', () => {
       subscribeEntityStatus: 'not-a-function' as unknown,
     })
     spawnAndTrack(wiki)
-    expect(reportError).toHaveBeenCalledWith(
-      expect.any(Error),
-      'wiki:char1:statusSubscription',
-    )
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char1:statusSubscription')
   })
 
   test('READ stores result in context.lastReadResult', async () => {
@@ -275,10 +271,15 @@ describe('wikiMachine', () => {
     const wiki = makeWikiMock({
       getOntologyManifest: jest.fn(() => {
         order.push('getOntologyManifest')
-        return new Promise((res) => { resolveManifest = res })
+        return new Promise((res) => {
+          resolveManifest = res
+        })
       }),
       setOntologyManifest: jest.fn().mockResolvedValue(undefined),
-      exportDump: jest.fn(() => { order.push('exportDump'); return Promise.resolve({ generatedAt: 0, entities: {} }) }),
+      exportDump: jest.fn(() => {
+        order.push('exportDump')
+        return Promise.resolve({ generatedAt: 0, entities: {} })
+      }),
     })
     const actor = spawnAndTrack(wiki)
     // Machine starts in bootstrapping and is awaiting getOntologyManifest.
@@ -291,13 +292,17 @@ describe('wikiMachine', () => {
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
     expect(order).toEqual(['getOntologyManifest', 'exportDump'])
     expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
-      'char1', { node_types: [], edge_types: [] }, { mode: 'emergent' },
+      'char1',
+      { node_types: [], edge_types: [] },
+      { mode: 'emergent' },
     )
   })
 
   test('bootstrap: existing non-off manifest is left untouched', async () => {
     const wiki = makeWikiMock({
-      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'strict', node_types: [], edge_types: [] }),
+      getOntologyManifest: jest
+        .fn()
+        .mockResolvedValue({ mode: 'strict', node_types: [], edge_types: [] }),
       setOntologyManifest: jest.fn().mockResolvedValue(undefined),
     })
     const actor = spawnAndTrack(wiki)
@@ -307,13 +312,17 @@ describe('wikiMachine', () => {
 
   test("bootstrap: mode 'off' manifest is reset to empty emergent (carried-over behavior)", async () => {
     const wiki = makeWikiMock({
-      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'off', node_types: [{ name: 'x' }], edge_types: [] }),
+      getOntologyManifest: jest
+        .fn()
+        .mockResolvedValue({ mode: 'off', node_types: [{ name: 'x' }], edge_types: [] }),
       setOntologyManifest: jest.fn().mockResolvedValue(undefined),
     })
     const actor = spawnAndTrack(wiki)
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
     expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
-      'char1', { node_types: [], edge_types: [] }, { mode: 'emergent' },
+      'char1',
+      { node_types: [], edge_types: [] },
+      { mode: 'emergent' },
     )
   })
 
@@ -327,7 +336,8 @@ describe('wikiMachine', () => {
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
     expect(wiki.read).toHaveBeenCalledWith('char1', 'hello')
     expect(jest.mocked(reportError)).toHaveBeenCalledWith(
-      expect.any(Error), 'wiki:char1:ontology:bootstrap',
+      expect.any(Error),
+      'wiki:char1:ontology:bootstrap',
     )
   })
 })

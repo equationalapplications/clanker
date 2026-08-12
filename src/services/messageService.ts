@@ -10,10 +10,7 @@ import { logEvent } from '~/services/analyticsService'
 /**
  * Get messages for a specific character conversation
  */
-export const getMessages = async (
-  characterId: string,
-  userId: string,
-): Promise<Message[]> => {
+export const getMessages = async (characterId: string, userId: string): Promise<Message[]> => {
   try {
     return await messageDB.getMessages(characterId, userId)
   } catch (error) {

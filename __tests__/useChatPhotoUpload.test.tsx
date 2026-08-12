@@ -94,8 +94,8 @@ it('resolves dimensions via Image.getSize when the caller supplies 0/unknown', a
   // DocumentPicker can return assets with no dimensions; without resolving
   // them, prepareImageVariants skips its resize stage and the master can blow
   // past MAX_ATTACHMENT_BASE64_CHARS. Image.getSize reads just the header.
-  mockGetSize.mockImplementation(
-    (_uri: string, success: (w: number, h: number) => void) => success(2048, 1536),
+  mockGetSize.mockImplementation((_uri: string, success: (w: number, h: number) => void) =>
+    success(2048, 1536),
   )
 
   const { result } = renderHook(() => useChatPhotoUpload())
@@ -119,9 +119,8 @@ it('resolves dimensions via Image.getSize when the caller supplies 0/unknown', a
 })
 
 it('surfaces an unreadable image as a clear error rather than silently using 0 dimensions', async () => {
-  mockGetSize.mockImplementation(
-    (_uri: string, _success: unknown, failure: (err: Error) => void) =>
-      failure(new Error('decode failed')),
+  mockGetSize.mockImplementation((_uri: string, _success: unknown, failure: (err: Error) => void) =>
+    failure(new Error('decode failed')),
   )
 
   const { result } = renderHook(() => useChatPhotoUpload())

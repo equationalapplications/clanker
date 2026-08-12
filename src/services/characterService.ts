@@ -126,7 +126,10 @@ export const getCharacterCount = async (userId: string): Promise<number> => {
 /**
  * Search characters by name
  */
-export const searchCharacters = async (userId: string, searchText: string): Promise<Character[]> => {
+export const searchCharacters = async (
+  userId: string,
+  searchText: string,
+): Promise<Character[]> => {
   try {
     return await characterDB.searchCharacters(userId, searchText)
   } catch (error) {

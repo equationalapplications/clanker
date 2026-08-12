@@ -24,7 +24,7 @@ function signedInAuthState(userId = 'db-user-1', subscription = {}) {
       subscription: {
         termsVersion: null,
         termsAcceptedAt: null,
-        ...subscription
+        ...subscription,
       },
     },
   }
@@ -40,9 +40,12 @@ describe('termsMachine', () => {
   it('goes to accepted when current terms are already accepted', async () => {
     const actor = createActor(termsMachine)
     actor.start()
-    actor.send({ 
-      type: 'AUTH_STATE_CHANGED', 
-      authState: signedInAuthState('u1', { termsVersion: TERMS.version, termsAcceptedAt: '2026-01-01T00:00:00.000Z' }) 
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: TERMS.version,
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
@@ -54,9 +57,12 @@ describe('termsMachine', () => {
   it('goes to acceptanceRequired with isUpdate=true when terms version is stale', async () => {
     const actor = createActor(termsMachine)
     actor.start()
-    actor.send({ 
-      type: 'AUTH_STATE_CHANGED', 
-      authState: signedInAuthState('u1', { termsVersion: '0.0.1', termsAcceptedAt: '2026-01-01T00:00:00.000Z' }) 
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '0.0.1',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
@@ -67,9 +73,9 @@ describe('termsMachine', () => {
   it('goes to acceptanceRequired with isUpdate=false when terms were never accepted', async () => {
     const actor = createActor(termsMachine)
     actor.start()
-    actor.send({ 
-      type: 'AUTH_STATE_CHANGED', 
-      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }) 
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
@@ -80,9 +86,9 @@ describe('termsMachine', () => {
   it('accepts terms successfully from acceptanceRequired', async () => {
     const actor = createActor(termsMachine)
     actor.start()
-    actor.send({ 
-      type: 'AUTH_STATE_CHANGED', 
-      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }) 
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
@@ -99,7 +105,7 @@ describe('termsMachine', () => {
     actor.start()
     actor.send({
       type: 'AUTH_STATE_CHANGED',
-      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null })
+      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
@@ -115,9 +121,9 @@ describe('termsMachine', () => {
 
     const actor = createActor(termsMachine)
     actor.start()
-    actor.send({ 
-      type: 'AUTH_STATE_CHANGED', 
-      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }) 
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', { termsVersion: null, termsAcceptedAt: null }),
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)

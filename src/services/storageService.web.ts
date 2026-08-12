@@ -5,13 +5,7 @@
  * and no file staging is involved.
  */
 
-import {
-  deleteObject,
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytes,
-} from 'firebase/storage'
+import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage'
 import { firebaseApp } from '~/config/firebaseConfig.web'
 
 const downloadUrlCache = new Map<string, string>()

@@ -6,10 +6,15 @@ import { llmWikiOntology } from '../db/schema.js'
 import { traverseGraphCte } from './graph.js'
 import type { DrizzleClient } from '../db/client.js'
 
-export function wikiGetOntologyManifestTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function wikiGetOntologyManifestTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'wiki_get_ontology_manifest',
-    description: "Retrieve the current ontology manifest (allowed node types and edge types) for the user's memory. Use this to understand the structure of the knowledge graph and what relationships exist before traversing it.",
+    description:
+      "Retrieve the current ontology manifest (allowed node types and edge types) for the user's memory. Use this to understand the structure of the knowledge graph and what relationships exist before traversing it.",
     parameters: z.object({}),
     execute: async (): Promise<string> => {
       try {
@@ -28,21 +33,62 @@ export function wikiGetOntologyManifestTool(db: DrizzleClient, userId: string, c
   })
 }
 
-export function wikiTraverseGraphTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function wikiTraverseGraphTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'wiki_traverse_graph',
-    description: 'Traverse the knowledge graph starting from a specific fact ID to discover connected concepts and relationships. Returns a formatted neighborhood subgraph.',
+    description:
+      'Traverse the knowledge graph starting from a specific fact ID to discover connected concepts and relationships. Returns a formatted neighborhood subgraph.',
     parameters: z.object({
-      sourceId: z.string().describe('The exact ID of the starting fact node (obtained from a previous wiki_read call).'),
-      maxDepth: z.number().int().min(1).max(3).optional().describe('How many relationship hops to traverse. Maximum allowed is 3. Default 1.'),
-      direction: z.enum(['inbound', 'outbound', 'both']).optional().describe("The direction of relationships to follow. Default 'both'."),
-      edgeTypes: z.array(z.string()).optional().describe('Optional filter. If provided, traversal only follows these edge types (e.g. ["reports_to", "depends_on"]).'),
-      maxTraversalNodes: z.number().int().min(1).max(200).optional().describe('Maximum number of nodes to return, including the anchor. Default 20.'),
-      minTraversalConfidence: z.enum(['certain', 'inferred', 'tentative']).optional().describe('Minimum confidence tier required for discovered nodes. Does not gate the anchor. Default tentative.'),
+      sourceId: z
+        .string()
+        .describe(
+          'The exact ID of the starting fact node (obtained from a previous wiki_read call).',
+        ),
+      maxDepth: z
+        .number()
+        .int()
+        .min(1)
+        .max(3)
+        .optional()
+        .describe('How many relationship hops to traverse. Maximum allowed is 3. Default 1.'),
+      direction: z
+        .enum(['inbound', 'outbound', 'both'])
+        .optional()
+        .describe("The direction of relationships to follow. Default 'both'."),
+      edgeTypes: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Optional filter. If provided, traversal only follows these edge types (e.g. ["reports_to", "depends_on"]).',
+        ),
+      maxTraversalNodes: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .optional()
+        .describe('Maximum number of nodes to return, including the anchor. Default 20.'),
+      minTraversalConfidence: z
+        .enum(['certain', 'inferred', 'tentative'])
+        .optional()
+        .describe(
+          'Minimum confidence tier required for discovered nodes. Does not gate the anchor. Default tentative.',
+        ),
     }),
     execute: async (args: unknown): Promise<string> => {
       try {
-        const { sourceId, maxDepth, direction, edgeTypes, maxTraversalNodes, minTraversalConfidence } = args as {
+        const {
+          sourceId,
+          maxDepth,
+          direction,
+          edgeTypes,
+          maxTraversalNodes,
+          minTraversalConfidence,
+        } = args as {
           sourceId: string
           maxDepth?: number
           direction?: 'inbound' | 'outbound' | 'both'

@@ -13,7 +13,11 @@ import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { formatContext, WikiBusyError, useWiki } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
-import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
+import {
+  saveAIMessage,
+  getUnsyncedMessages,
+  markMessagesAsSynced,
+} from '~/database/messageDatabase'
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 import { toSyncMessage } from '~/services/syncMessage'
@@ -74,8 +78,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const raw = character.save_to_cloud
   const isCloudSynced = !!(raw ?? 0)
   const devSandbox = isDevSandboxEnabled()
-  const cloudAgentCharacterId =
-    character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
+  const cloudAgentCharacterId = character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
   const canUseCloudAgent =
     !!process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim() &&
     !!cloudAgentCharacterId &&
@@ -99,9 +102,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     async (message: Message, attachments?: CloudAgentAttachment[]) => {
       const cloudCharacterId = cloudAgentCharacterId as string
 
-      const priorHistory = messages.filter(
-        (msg) => String(msg._id) !== String(message._id),
-      )
+      const priorHistory = messages.filter((msg) => String(msg._id) !== String(message._id))
       const recentHistory = getRecentConversationHistory(priorHistory, 20)
       const history = buildContentHistory(recentHistory, userId)
 
@@ -184,18 +185,20 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       const recentHistoryContent = buildContentHistory(recentMessages, userId)
       const chunk = recentHistoryContent
         .map((entry) =>
-          entry.role === 'user' ? `User: ${entry.parts.map((p) => p.text).join('')}` : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+          entry.role === 'user'
+            ? `User: ${entry.parts.map((p) => p.text).join('')}`
+            : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
         )
         .join('\n')
 
       try {
-        void Promise.resolve(
-          characterWiki.write(chunk || message.text),
-        ).catch((obsErr: unknown) => {
-          if (!(obsErr instanceof WikiBusyError)) {
-            reportError(obsErr, `wiki:${character.id}:write:observation`)
-          }
-        })
+        void Promise.resolve(characterWiki.write(chunk || message.text)).catch(
+          (obsErr: unknown) => {
+            if (!(obsErr instanceof WikiBusyError)) {
+              reportError(obsErr, `wiki:${character.id}:write:observation`)
+            }
+          },
+        )
       } catch (obsErr) {
         if (!(obsErr instanceof WikiBusyError)) {
           reportError(obsErr, `wiki:${character.id}:write:observation`)
@@ -235,7 +238,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       let memoryBlock: string | undefined
       try {
         const bundle = await characterWiki.read(message.text)
-        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+        if (bundle)
+          memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (err) {
         if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
@@ -247,8 +251,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Try edge agent first
-      const { escalated, text: edgeText, usageSnapshot: edgeUsageSnapshot } =
-        await edgeAgent.sendMessage(message.text, memoryBlock)
+      const {
+        escalated,
+        text: edgeText,
+        usageSnapshot: edgeUsageSnapshot,
+      } = await edgeAgent.sendMessage(message.text, memoryBlock)
 
       if (!escalated && edgeText !== undefined) {
         // Edge resolved — save AI reply locally (user message already persisted above).
@@ -265,9 +272,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
         // Filter out the current user message — the optimistic update may have injected
         // it into messages before mutationFn executes, which would duplicate it in history.
-        const priorHistory = messages.filter(
-          (msg) => String(msg._id) !== String(message._id),
-        )
+        const priorHistory = messages.filter((msg) => String(msg._id) !== String(message._id))
         const recentMessages = getRecentConversationHistory(
           [...priorHistory, message, savedAMessage],
           20,
@@ -284,13 +289,13 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           .join('\n')
 
         try {
-          void Promise.resolve(
-            onWriteObservation(character.id, chunk || message.text),
-          ).catch((observationError: unknown) => {
-            if (!(observationError instanceof WikiBusyError)) {
-              reportError(observationError, `wiki:${character.id}:write:observation`)
-            }
-          })
+          void Promise.resolve(onWriteObservation(character.id, chunk || message.text)).catch(
+            (observationError: unknown) => {
+              if (!(observationError instanceof WikiBusyError)) {
+                reportError(observationError, `wiki:${character.id}:write:observation`)
+              }
+            },
+          )
         } catch (observationError) {
           if (!(observationError instanceof WikiBusyError)) {
             reportError(observationError, `wiki:${character.id}:write:observation`)
@@ -443,10 +448,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       // Refetch from SQLite on transient failures — the user message was already persisted
       // at the start of mutationFn, so rolling back the optimistic cache would hide it.
-      if (
-        firebaseCode !== 'functions/failed-precondition' &&
-        !isInsufficientCredits
-      ) {
+      if (firebaseCode !== 'functions/failed-precondition' && !isInsufficientCredits) {
         queryClient.invalidateQueries({
           queryKey: messageKeys.list(characterId, userId),
         })

@@ -11,6 +11,8 @@ test('documentSearchTool: name is document_search', () => {
 
 test('documentSearchTool: returns stub message', async () => {
   const tool = documentSearchTool({} as DrizzleClient, 'u', 'c')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ query: 'test' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    query: 'test',
+  })
   assert.ok(typeof result === 'string')
 })

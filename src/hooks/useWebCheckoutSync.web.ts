@@ -52,9 +52,7 @@ function deriveLocks(attempts: CheckoutStoreMap): WebCheckoutLocks {
   }
 }
 
-export function useWebCheckoutSync(
-  options: UseWebCheckoutSyncOptions = {},
-): WebCheckoutSyncResult {
+export function useWebCheckoutSync(options: UseWebCheckoutSyncOptions = {}): WebCheckoutSyncResult {
   const { onCheckoutSucceeded } = options
   const onCheckoutSucceededRef = useRef(onCheckoutSucceeded)
   const channelRef = useRef<ReturnType<typeof createCheckoutChannel> | null>(null)

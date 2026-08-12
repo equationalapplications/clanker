@@ -26,7 +26,7 @@ jest.mock('@react-native-firebase/crashlytics', () => {
     default: jest.fn(() => mockCrashlyticsInstance),
     getCrashlytics,
     setCrashlyticsCollectionEnabled: jest.fn((instance, enabled) =>
-      instance.setCrashlyticsCollectionEnabled(enabled)
+      instance.setCrashlyticsCollectionEnabled(enabled),
     ),
     setUserId: jest.fn((instance, userId) => instance.setUserId(userId)),
     log: jest.fn((instance, message) => instance.log(message)),
@@ -49,7 +49,7 @@ jest.mock('@react-native-firebase/analytics', () => {
     logEvent: jest.fn(),
     logScreenView: jest.fn(),
     setAnalyticsCollectionEnabled: jest.fn((instance, enabled) =>
-      instance.setAnalyticsCollectionEnabled(enabled)
+      instance.setAnalyticsCollectionEnabled(enabled),
     ),
     setUserId: jest.fn((instance, userId) => instance.setUserId(userId)),
   }
@@ -164,8 +164,7 @@ jest.mock('expo-router', () => {
 const localStorageMock = (() => {
   let store = {}
   return {
-    getItem: (key) =>
-      Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null,
+    getItem: (key) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null),
     setItem: (key, value) => {
       store[key] = value.toString()
     },
@@ -206,7 +205,7 @@ Object.defineProperty(globalThis, '__setJestPlatformOS', {
           value: platform.OS,
           configurable: true,
           writable: true,
-        }
+        },
       )
     }
 

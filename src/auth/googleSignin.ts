@@ -7,7 +7,7 @@ export const initializeGoogleSignIn = () => {
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
   if (!webClientId) {
     throw new Error(
-      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.'
+      'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set. Configure it in .env or EAS secrets.',
     )
   }
 
@@ -59,7 +59,8 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
 
     const givenName = response.data.user?.givenName?.trim() ?? ''
     const familyName = response.data.user?.familyName?.trim() ?? ''
-    const googleDisplayName = response.data.user?.name?.trim() || `${givenName} ${familyName}`.trim()
+    const googleDisplayName =
+      response.data.user?.name?.trim() || `${givenName} ${familyName}`.trim()
 
     try {
       await syncDisplayNameFromCredential(userCredential.user, googleDisplayName)

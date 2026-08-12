@@ -5,13 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFloatingCardAnimation } from '~/hooks/useFloatingCardAnimation'
 import { FEATURES, FEATURES_SECTION, type LandingFeature } from '~/config/landingConfig'
 
-function FeatureCard({
-  feat,
-  index,
-}: {
-  feat: LandingFeature
-  index: number
-}) {
+function FeatureCard({ feat, index }: { feat: LandingFeature; index: number }) {
   const { colors } = useTheme()
   const cardAnimStyle = useFloatingCardAnimation(index)
   const isNew = 'isNew' in feat && feat.isNew === true
@@ -83,10 +77,7 @@ export default function FeaturesSection() {
 
   return (
     <View style={[styles.section, { backgroundColor: colors.surfaceVariant }]}>
-      <Text
-        variant="headlineMedium"
-        style={[styles.sectionTitle, { color: colors.onSurface }]}
-      >
+      <Text variant="headlineMedium" style={[styles.sectionTitle, { color: colors.onSurface }]}>
         {FEATURES_SECTION.title}
       </Text>
       <View style={styles.grid}>

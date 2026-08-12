@@ -41,7 +41,10 @@ export default function CookiePreferencesModal() {
       <View style={styles.backdrop}>
         <View
           testID="cookie-preferences-modal"
-          style={StyleSheet.flatten([styles.card, { backgroundColor: colors.surface, borderColor: colors.outline }])}
+          style={StyleSheet.flatten([
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.outline },
+          ])}
         >
           <Text variant="titleMedium" style={{ color: colors.onSurface, marginBottom: 12 }}>
             Cookie preferences

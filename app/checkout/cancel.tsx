@@ -3,7 +3,11 @@ import { StyleSheet, View } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { createCheckoutChannel } from '~/utilities/checkoutChannel'
-import { CHECKOUT_SCHEMA_VERSION, readCheckoutAttempts, upsertCheckoutAttempt } from '~/utilities/checkoutStateStore'
+import {
+  CHECKOUT_SCHEMA_VERSION,
+  readCheckoutAttempts,
+  upsertCheckoutAttempt,
+} from '~/utilities/checkoutStateStore'
 import { resolveCheckoutAttemptId } from '~/utilities/checkoutAttemptId'
 import { resolveCheckoutUid } from '~/utilities/resolveCheckoutUid'
 

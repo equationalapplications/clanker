@@ -34,12 +34,9 @@ export function ChatInputBar({
     setText('')
   }, [text, onSubmit])
 
-  const handleChangeText = useCallback(
-    (next: string) => {
-      setText(next)
-    },
-    [],
-  )
+  const handleChangeText = useCallback((next: string) => {
+    setText(next)
+  }, [])
 
   return (
     <View

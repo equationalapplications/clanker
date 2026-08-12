@@ -2,10 +2,16 @@ import type { SingleAction } from '../shared/dsl-types.js'
 import { extract, readDom, summarizeVisibleText } from './dom-extractor.js'
 import { classifyElement } from './safety-classifier.js'
 
-export interface ActionOutcome { data: Record<string, string>; activeUrl: string }
+export interface ActionOutcome {
+  data: Record<string, string>
+  activeUrl: string
+}
 export type ActionResult = ActionOutcome | { awaitingAuth: true }
 
-interface WinLike { scrollBy(x: number, y: number): void; location: { href: string } }
+interface WinLike {
+  scrollBy(x: number, y: number): void
+  location: { href: string }
+}
 
 export interface RunActionContext {
   skipLayerTwo?: boolean
@@ -37,12 +43,18 @@ export async function runAction(
       const el = doc.querySelector(action.selector)
       if (!el) throw new Error('SELECTOR_NOT_FOUND')
       const tag = el.tagName.toLowerCase()
-      if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') throw new Error('SELECTOR_NOT_FOUND')
-      if (!ctx.skipLayerTwo && classifyElement(el) === 'requires_auth') return { awaitingAuth: true }
+      if (tag !== 'input' && tag !== 'textarea' && tag !== 'select')
+        throw new Error('SELECTOR_NOT_FOUND')
+      if (!ctx.skipLayerTwo && classifyElement(el) === 'requires_auth')
+        return { awaitingAuth: true }
       const view = el.ownerDocument?.defaultView ?? globalThis
       const proto = (view as typeof globalThis).HTMLInputElement?.prototype
       const nativeSetter = proto ? Object.getOwnPropertyDescriptor(proto, 'value')?.set : undefined
-      if (nativeSetter) { nativeSetter.call(el, action.value) } else { ;(el as HTMLInputElement).value = action.value }
+      if (nativeSetter) {
+        nativeSetter.call(el, action.value)
+      } else {
+        ;(el as HTMLInputElement).value = action.value
+      }
       const EventCtor = (view as typeof globalThis).Event
       el.dispatchEvent(new EventCtor('input', { bubbles: true }))
       el.dispatchEvent(new EventCtor('change', { bubbles: true }))
@@ -51,7 +63,8 @@ export async function runAction(
     case 'click': {
       const el = doc.querySelector(action.selector)
       if (!el) throw new Error('SELECTOR_NOT_FOUND')
-      if (!ctx.skipLayerTwo && classifyElement(el) === 'requires_auth') return { awaitingAuth: true }
+      if (!ctx.skipLayerTwo && classifyElement(el) === 'requires_auth')
+        return { awaitingAuth: true }
       ;(el as HTMLElement).click()
       return { data: {}, activeUrl }
     }
@@ -60,6 +73,9 @@ export async function runAction(
   }
 }
 
-export async function runActionInPage(action: SingleAction, ctx: RunActionContext = {}): Promise<ActionResult> {
+export async function runActionInPage(
+  action: SingleAction,
+  ctx: RunActionContext = {},
+): Promise<ActionResult> {
   return runAction(action, document, window as unknown as WinLike, ctx)
 }

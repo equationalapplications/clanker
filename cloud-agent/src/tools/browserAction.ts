@@ -21,16 +21,20 @@ export interface BrowserActionDeps {
   pushToLive?: (taskId: string, sessionId: string, text: string) => void
   /** Voice-only: correlate an in-flight browser_action tool call with its taskId. */
   registerLiveCall?: (taskId: string) => void
-  wakeTimeoutMs?: number  // default 12_000
-  textTimeoutMs?: number  // default 30_000
+  wakeTimeoutMs?: number // default 12_000
+  textTimeoutMs?: number // default 30_000
 }
 
 const browserActionSchema = z.object({
-  actionSummary: z.string().describe(
-    'Human-readable description of what you are about to do (e.g. "Checking the article on your browser").',
-  ),
+  actionSummary: z
+    .string()
+    .describe(
+      'Human-readable description of what you are about to do (e.g. "Checking the article on your browser").',
+    ),
   intent: z.object({
-    action: z.record(z.string(), z.unknown()).describe('SingleAction or SequenceAction — see Task DSL spec.'),
+    action: z
+      .record(z.string(), z.unknown())
+      .describe('SingleAction or SequenceAction — see Task DSL spec.'),
   }),
 })
 
@@ -63,7 +67,7 @@ export function browserActionTool(
   return new FunctionTool({
     name: 'browser_action',
     description:
-      'Perform a web task on the user\'s paired desktop browser (read pages, extract data, navigate). ' +
+      "Perform a web task on the user's paired desktop browser (read pages, extract data, navigate). " +
       'Use only when the user asks you to look at or act on something in their browser.',
     parameters: browserActionSchema,
     execute: async (args: unknown): Promise<string> => {
@@ -93,15 +97,30 @@ export function browserActionTool(
       let allocations: CreditSpendAllocation[] | null = null
       let sessionCreated = false
       if (!context.preBilled) {
-        try { allocations = await deps.creditService.spendCredit(deps.userId) }
-        catch { deps.resumeBilling?.(); return 'You are out of credits for browser actions.' }
+        try {
+          allocations = await deps.creditService.spendCredit(deps.userId)
+        } catch {
+          deps.resumeBilling?.()
+          return 'You are out of credits for browser actions.'
+        }
       }
 
       try {
         // 3. Build intent + persist.
         const requiresAuth = intentRequiresAuth(actionSummary, action)
-        const taskIntent: TaskIntent = { version: '1', taskId, sessionId, requiresAuth, actionSummary, action }
-        await fs.createSession(deps.firebaseUid, sessionId, { status: 'pending', trigger: context.trigger, voiceInstanceId: deps.instanceId })
+        const taskIntent: TaskIntent = {
+          version: '1',
+          taskId,
+          sessionId,
+          requiresAuth,
+          actionSummary,
+          action,
+        }
+        await fs.createSession(deps.firebaseUid, sessionId, {
+          status: 'pending',
+          trigger: context.trigger,
+          voiceInstanceId: deps.instanceId,
+        })
         sessionCreated = true
         await fs.writeTask(deps.firebaseUid, sessionId, taskId, taskIntent)
 
@@ -119,20 +138,33 @@ export function browserActionTool(
           }
         }
         if (sessionCreated) {
-          try { await fs.closeSession(deps.firebaseUid, sessionId, 'aborted') } catch { /* ignore */ }
+          try {
+            await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
+          } catch {
+            /* ignore */
+          }
         }
         deps.resumeBilling?.()
         throw err
       }
 
       // 5. Durable wake timeout (queries Firestore, never sessionBridge).
-      const wakeTimer = setTimeout(() => { void enforceWakeTimeout() }, wakeTimeoutMs)
+      const wakeTimer = setTimeout(() => {
+        void enforceWakeTimeout()
+      }, wakeTimeoutMs)
       let settled = false
       async function enforceWakeTimeout(): Promise<void> {
         if (settled) return
         const aborted = await fs.abortPendingTaskIfOffline(deps.firebaseUid, sessionId, taskId, {
-          taskId, status: 'failed', data: {}, activeUrl: '',
-          error: { code: 'EXTENSION_OFFLINE', message: 'Browser extension did not connect', failedAction: action as never },
+          taskId,
+          status: 'failed',
+          data: {},
+          activeUrl: '',
+          error: {
+            code: 'EXTENSION_OFFLINE',
+            message: 'Browser extension did not connect',
+            failedAction: action as never,
+          },
         })
         if (aborted) {
           if (allocations) {
@@ -150,36 +182,44 @@ export function browserActionTool(
       }
 
       // 6. Result delivery.
-      const waitForTerminalTask = () => new Promise<TaskDoc>((resolve) => {
-        const timeout = setTimeout(() => {
-          void (async () => {
-            settled = true
-            clearTimeout(wakeTimer)
-            unsub()
-            await fs.writeTaskResult(deps.firebaseUid, sessionId, taskId, {
-              taskId, status: 'failed', data: {}, activeUrl: '',
-              error: { code: 'EXECUTION_TIMEOUT', message: 'Browser task exceeded 30s', failedAction: action as never },
-            })
-            await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
-            resolve(executionTimeoutTask())
-          })()
-        }, textTimeoutMs)
+      const waitForTerminalTask = () =>
+        new Promise<TaskDoc>((resolve) => {
+          const timeout = setTimeout(() => {
+            void (async () => {
+              settled = true
+              clearTimeout(wakeTimer)
+              unsub()
+              await fs.writeTaskResult(deps.firebaseUid, sessionId, taskId, {
+                taskId,
+                status: 'failed',
+                data: {},
+                activeUrl: '',
+                error: {
+                  code: 'EXECUTION_TIMEOUT',
+                  message: 'Browser task exceeded 30s',
+                  failedAction: action as never,
+                },
+              })
+              await fs.closeSession(deps.firebaseUid, sessionId, 'aborted')
+              resolve(executionTimeoutTask())
+            })()
+          }, textTimeoutMs)
 
-        const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
-          if (
-            task.status === 'awaiting_auth' ||
-            task.status === 'complete' ||
-            task.status === 'failed' ||
-            task.status === 'aborted'
-          ) {
-            settled = true
-            clearTimeout(timeout)
-            clearTimeout(wakeTimer)
-            unsub()
-            resolve(task)
-          }
+          const unsub = fs.watchTask(deps.firebaseUid, sessionId, taskId, (task) => {
+            if (
+              task.status === 'awaiting_auth' ||
+              task.status === 'complete' ||
+              task.status === 'failed' ||
+              task.status === 'aborted'
+            ) {
+              settled = true
+              clearTimeout(timeout)
+              clearTimeout(wakeTimer)
+              unsub()
+              resolve(task)
+            }
+          })
         })
-      })
 
       if (context.trigger === 'text') {
         return formatResult(await waitForTerminalTask())
@@ -190,7 +230,7 @@ export function browserActionTool(
         deps.resumeBilling?.()
         deps.pushToLive?.(taskId, sessionId, formatResult(task))
       })
-      return 'Sent the task to your browser. I\'ll read the result aloud when it arrives.'
+      return "Sent the task to your browser. I'll read the result aloud when it arrives."
     },
   })
 }

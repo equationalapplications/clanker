@@ -70,12 +70,32 @@ jest.mock('react-native', () => {
     StyleSheet: { create: (s: any) => s },
     Platform: { OS: 'web' },
     View: ({ children, style, accessibilityRole, accessibilityLabel, testID }: any) =>
-      React.createElement('View', { style, accessibilityRole, accessibilityLabel, testID }, children),
-    Pressable: ({ children, onPress, disabled, style, accessibilityRole, accessibilityLabel }: any) =>
-      React.createElement('Pressable', { onPress, disabled, style, accessibilityRole, accessibilityLabel }, children),
+      React.createElement(
+        'View',
+        { style, accessibilityRole, accessibilityLabel, testID },
+        children,
+      ),
+    Pressable: ({
+      children,
+      onPress,
+      disabled,
+      style,
+      accessibilityRole,
+      accessibilityLabel,
+    }: any) =>
+      React.createElement(
+        'Pressable',
+        { onPress, disabled, style, accessibilityRole, accessibilityLabel },
+        children,
+      ),
     TouchableOpacity: ({ children, onPress, accessibilityRole, accessibilityLabel }: any) =>
-      React.createElement('TouchableOpacity', { onPress, accessibilityRole, accessibilityLabel }, children),
-    ActivityIndicator: ({ size, style }: any) => React.createElement('ActivityIndicator', { size, style }),
+      React.createElement(
+        'TouchableOpacity',
+        { onPress, accessibilityRole, accessibilityLabel },
+        children,
+      ),
+    ActivityIndicator: ({ size, style }: any) =>
+      React.createElement('ActivityIndicator', { size, style }),
     Linking: { openURL: jest.fn() },
   }
 })
@@ -158,9 +178,7 @@ describe('Talk screen grounding display', () => {
     )
     expect(safeChip).toBeDefined()
 
-    const unsafeChip = tree.root.findAll(
-      (node: any) => node.props.accessibilityLabel === 'Unsafe',
-    )
+    const unsafeChip = tree.root.findAll((node: any) => node.props.accessibilityLabel === 'Unsafe')
     expect(unsafeChip).toHaveLength(0)
   })
 

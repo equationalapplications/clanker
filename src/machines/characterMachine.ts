@@ -1,9 +1,5 @@
 import { createMachine, assign, fromPromise } from 'xstate'
-import {
-  Character,
-  CharacterInsert,
-  CharacterUpdate,
-} from '~/services/characterService'
+import { Character, CharacterInsert, CharacterUpdate } from '~/services/characterService'
 import {
   getUserCharacters,
   getCharacter,
@@ -301,9 +297,7 @@ export const characterMachine = createMachine(
             target: 'idle',
             actions: assign({
               characters: ({ context, event }) =>
-                context.characters.map((c) =>
-                  c.id === context.pendingTempId ? event.output : c,
-                ),
+                context.characters.map((c) => (c.id === context.pendingTempId ? event.output : c)),
               pendingCharacterId: ({ event }) => event.output.id,
               optimisticSnapshot: null,
               error: null,
@@ -342,7 +336,9 @@ export const characterMachine = createMachine(
           characters: ({ context, event }) => {
             if (event.type !== 'UPDATE') return context.characters
             return context.characters.map((c) =>
-              c.id === event.id ? { ...c, ...event.updates, updated_at: new Date().toISOString() } : c,
+              c.id === event.id
+                ? { ...c, ...event.updates, updated_at: new Date().toISOString() }
+                : c,
             )
           },
         }),
@@ -424,7 +420,10 @@ export const characterMachine = createMachine(
           // character id whose update just enabled cloud sync" here — but only
           // when that's genuinely how we got here (an UPDATE→cloudSyncing
           // transition), not a manual CLOUD_SYNC from idle, which never sets it.
-          input: ({ context }) => ({ userId: context.userId, toggledOnId: context.pendingUnsyncId }),
+          input: ({ context }) => ({
+            userId: context.userId,
+            toggledOnId: context.pendingUnsyncId,
+          }),
           onDone: {
             target: 'loading',
             actions: assign({
@@ -577,19 +576,19 @@ export const characterMachine = createMachine(
           await removeCharacterFromCloud(input.id, input.userId)
         },
       ),
-      restoreDefaultActor: fromPromise(
-        async ({ input }: { input: { userId: string | null } }) => {
-          if (!input.userId) throw new Error('User not logged in')
-          await restoreFromCloud(input.userId)
-        },
-      ),
+      restoreDefaultActor: fromPromise(async ({ input }: { input: { userId: string | null } }) => {
+        if (!input.userId) throw new Error('User not logged in')
+        await restoreFromCloud(input.userId)
+      }),
     },
     guards: {
       hasCharacters: ({ context }) => context.characters.length > 0,
       hasUserId: ({ context }) => context.userId !== null,
       shouldAttemptRestore: ({ context }) => context.userId !== null && !context.attemptedRestore,
       updateTurnedOnCloud: ({ context, event }) => {
-        const output = (event as { output?: { save_to_cloud?: boolean; synced_to_cloud?: boolean } }).output
+        const output = (
+          event as { output?: { save_to_cloud?: boolean; synced_to_cloud?: boolean } }
+        ).output
         // Trigger sync whenever the saved character ends up cloud-enabled but not yet
         // confirmed-synced — not just on a false→true toggle edge. Covers the case where
         // save_to_cloud was already true (e.g. the default character) but no cloud record

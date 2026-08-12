@@ -10,7 +10,9 @@ function makeMockDb(queryRows: InsertedRow[] = []) {
   return {
     _inserted: inserted,
     insert: (_table: unknown) => ({
-      values: async (row: InsertedRow) => { inserted.push(row) },
+      values: async (row: InsertedRow) => {
+        inserted.push(row)
+      },
     }),
     select: () => ({
       from: (_table: unknown) => ({
@@ -43,8 +45,9 @@ test('createTaskTool: schema does not expose userId or characterId', () => {
 test('createTaskTool: inserts row with closure userId and characterId', async () => {
   const db = makeMockDb()
   const tool = createTaskTool(db, 'user-abc', 'char-xyz')
-  await (tool as unknown as { execute: (args: unknown) => Promise<string> })
-    .execute({ title: 'Buy milk' })
+  await (tool as unknown as { execute: (args: unknown) => Promise<string> }).execute({
+    title: 'Buy milk',
+  })
 
   const row = (db as unknown as { _inserted: InsertedRow[] })._inserted[0]
   assert.ok(row, 'expected one inserted row')
@@ -58,8 +61,9 @@ test('createTaskTool: inserts row with closure userId and characterId', async ()
 test('createTaskTool: returns JSON with taskId and title', async () => {
   const db = makeMockDb()
   const tool = createTaskTool(db, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> })
-    .execute({ title: 'Walk dog' })
+  const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> }).execute(
+    { title: 'Walk dog' },
+  )
   const parsed = JSON.parse(result) as { taskId: string; title: string }
   assert.equal(parsed.title, 'Walk dog')
   assert.ok(typeof parsed.taskId === 'string')
@@ -82,12 +86,21 @@ test('listTasksTool: schema does not expose userId or characterId', () => {
 
 test('listTasksTool: returns serialised task rows', async () => {
   const rows = [
-    { id: 't-1', characterId: 'char-1', userId: 'user-1', title: 'Task one', status: 'open', createdAt: new Date(), updatedAt: new Date() },
+    {
+      id: 't-1',
+      characterId: 'char-1',
+      userId: 'user-1',
+      title: 'Task one',
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   ]
   const db = makeMockDb(rows as InsertedRow[])
   const tool = listTasksTool(db, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> })
-    .execute({})
+  const result = await (tool as unknown as { execute: (args: unknown) => Promise<string> }).execute(
+    {},
+  )
   const parsed = JSON.parse(result) as typeof rows
   assert.equal(parsed.length, 1)
   assert.equal(parsed[0]!.title, 'Task one')
@@ -135,8 +148,10 @@ test('updateTaskTool: schema has taskId and title but not userId', () => {
 test('updateTaskTool: returns success string', async () => {
   const db = makeMutationDb()
   const tool = updateTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
-    .execute({ taskId: 't-1', title: 'New title' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    taskId: 't-1',
+    title: 'New title',
+  })
   assert.equal(result, 'Task updated.')
 })
 
@@ -149,8 +164,9 @@ test('completeTaskTool: name is complete_task', () => {
 test('completeTaskTool: returns success string', async () => {
   const db = makeMutationDb()
   const tool = completeTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
-    .execute({ taskId: 't-1' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    taskId: 't-1',
+  })
   assert.equal(result, 'Task marked as completed.')
 })
 
@@ -163,7 +179,8 @@ test('deleteTaskTool: name is delete_task', () => {
 test('deleteTaskTool: returns success string', async () => {
   const db = makeMutationDb()
   const tool = deleteTaskTool(db as unknown as DrizzleClient, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
-    .execute({ taskId: 't-1' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    taskId: 't-1',
+  })
   assert.equal(result, 'Task deleted.')
 })

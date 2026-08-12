@@ -14,20 +14,20 @@ This is a highly pragmatic, tightly scoped, defensively engineered specification
 
 ## Design Rationale (key decisions)
 
-| Decision | Why |
-|----------|-----|
-| `google_analytics_adid_collection_enabled: false` | No ad attribution needed; avoids the ATT prompt, keeps Store privacy labels clean, and leaves UX uninterrupted |
+| Decision                                                                    | Why                                                                                                                                                                       |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `google_analytics_adid_collection_enabled: false`                           | No ad attribution needed; avoids the ATT prompt, keeps Store privacy labels clean, and leaves UX uninterrupted                                                            |
 | Router-driven screen tracking (`usePathname()`) with native auto-screen off | Native GA4 auto-tracking captures UIViewController names that are meaningless in a JS/Expo Router app; router paths are unified and readable across iOS, Android, and web |
-| Fire-and-forget, self-swallowing service | Analytics is secondary; a telemetry failure must never cascade into a core app crash |
-| Console ops on day one (14-month retention, BigQuery export) | Data only collects forward — delaying console setup loses history forever |
+| Fire-and-forget, self-swallowing service                                    | Analytics is secondary; a telemetry failure must never cascade into a core app crash                                                                                      |
+| Console ops on day one (14-month retention, BigQuery export)                | Data only collects forward — delaying console setup loses history forever                                                                                                 |
 
 ## Approach Decision
 
-| Option | Verdict |
-|--------|---------|
-| A. `@react-native-firebase/analytics` (native) + `firebase/analytics` JS (web), unified wrapper service | **Chosen.** Matches existing RNFB + platform-split idiom; zero new vendors; free |
-| B. `expo-firebase-analytics` | Rejected — deprecated/removed by Expo |
-| C. PostHog / Amplitude / Segment | Rejected — new vendor and account for a buyer to inherit; GA4 free tier covers MAU/DAU/retention/funnel needs |
+| Option                                                                                                  | Verdict                                                                                                       |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| A. `@react-native-firebase/analytics` (native) + `firebase/analytics` JS (web), unified wrapper service | **Chosen.** Matches existing RNFB + platform-split idiom; zero new vendors; free                              |
+| B. `expo-firebase-analytics`                                                                            | Rejected — deprecated/removed by Expo                                                                         |
+| C. PostHog / Amplitude / Segment                                                                        | Rejected — new vendor and account for a buyer to inherit; GA4 free tier covers MAU/DAU/retention/funnel needs |
 
 ## Architecture
 
@@ -98,24 +98,26 @@ Hook in `app/_layout.tsx` using expo-router `usePathname()`; on pathname change,
 
 Six events, logged at existing action sites. GA4 standard names used where they exist (`sign_up`); custom names follow GA4 conventions (lowercase snake_case, no PII in params).
 
-| Event | Site |
-|-------|------|
-| `sign_up` | auth success handler (first-time account creation) |
-| `terms_accepted` | `src/machines/termsMachine.ts` — ACCEPT_TERMS transition |
-| `character_created` | `src/services/characterService.ts` create path |
-| `message_sent` | `src/services/messageService.ts` send path |
-| `voice_session_started` | `src/machines/liveVoiceMachine.ts` session start |
-| `subscribe_flow_started` | `app/(drawer)/subscribe.tsx` entry |
+| Event                    | Site                                                     |
+| ------------------------ | -------------------------------------------------------- |
+| `sign_up`                | auth success handler (first-time account creation)       |
+| `terms_accepted`         | `src/machines/termsMachine.ts` — ACCEPT_TERMS transition |
+| `character_created`      | `src/services/characterService.ts` create path           |
+| `message_sent`           | `src/services/messageService.ts` send path               |
+| `voice_session_started`  | `src/machines/liveVoiceMachine.ts` session start         |
+| `subscribe_flow_started` | `app/(drawer)/subscribe.tsx` entry                       |
 
 No message content, character names, or other user content in event params. Params limited to non-identifying dimensions (e.g., platform, character count bucket).
 
 ## Config Changes
 
 `app.config.ts`:
+
 - Add `@react-native-firebase/analytics` to plugins.
 - Add `RNFBAnalytics` to `expo-build-properties` → `forceStaticLinking`.
 
 `firebase.json` (create or extend):
+
 - `analytics_auto_collection_enabled: false`
 - `google_analytics_adid_collection_enabled: false` (no ad ID → minimal store privacy declarations, no ATT prompt)
 - `google_analytics_automatic_screen_reporting_enabled: false`

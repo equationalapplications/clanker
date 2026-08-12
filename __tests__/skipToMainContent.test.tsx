@@ -33,7 +33,9 @@ const MAIN_CONTENT_ID = 'main-content'
 describe('LandingPage skip link (web)', () => {
   it('renders a skip link <a> element with href="#main-content"', () => {
     let tree: any
-    act(() => { tree = create(<LandingPage />) })
+    act(() => {
+      tree = create(<LandingPage />)
+    })
 
     const skipLinks = tree.root.findAll(
       (node: any) => node.type === 'a' && node.props.href === `#${MAIN_CONTENT_ID}`,
@@ -44,7 +46,9 @@ describe('LandingPage skip link (web)', () => {
 
   it('skip link text is "Skip to main content"', () => {
     let tree: any
-    act(() => { tree = create(<LandingPage />) })
+    act(() => {
+      tree = create(<LandingPage />)
+    })
 
     const skipLinks = tree.root.findAll(
       (node: any) => node.type === 'a' && node.props.href === `#${MAIN_CONTENT_ID}`,
@@ -55,7 +59,9 @@ describe('LandingPage skip link (web)', () => {
 
   it('main content area has nativeID="main-content"', () => {
     let tree: any
-    act(() => { tree = create(<LandingPage />) })
+    act(() => {
+      tree = create(<LandingPage />)
+    })
 
     const mainContent = tree.root.findAll((node: any) => node.props.nativeID === MAIN_CONTENT_ID)
     expect(mainContent.length).toBeGreaterThan(0)
@@ -63,7 +69,9 @@ describe('LandingPage skip link (web)', () => {
 
   it('onClick prevents default and focuses the main content element', () => {
     let tree: any
-    act(() => { tree = create(<LandingPage />) })
+    act(() => {
+      tree = create(<LandingPage />)
+    })
 
     const mockFocus = jest.fn()
     const mockGetElementById = jest
@@ -76,7 +84,9 @@ describe('LandingPage skip link (web)', () => {
       )
 
       const mockEvent = { preventDefault: jest.fn() }
-      act(() => { skipLink.props.onClick(mockEvent) })
+      act(() => {
+        skipLink.props.onClick(mockEvent)
+      })
 
       expect(mockGetElementById).toHaveBeenCalledWith(MAIN_CONTENT_ID)
       expect(mockEvent.preventDefault).toHaveBeenCalled()

@@ -1,15 +1,19 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { PgDialect } from 'drizzle-orm/pg-core';
-import type { SQL } from 'drizzle-orm';
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { PgDialect } from 'drizzle-orm/pg-core'
+import type { SQL } from 'drizzle-orm'
 
-import { assertIdempotentDeltaMatch, createCreditService, type CreditSpendAllocation } from './creditService.js';
+import {
+  assertIdempotentDeltaMatch,
+  createCreditService,
+  type CreditSpendAllocation,
+} from './creditService.js'
 
-const pgDialect = new PgDialect();
+const pgDialect = new PgDialect()
 /** Compiles a drizzle WHERE condition to real SQL text (no live DB needed) so
  * we can assert on the actual filter predicates instead of a canned mock row. */
 function compileCondition(condition: SQL): string {
-  return pgDialect.sqlToQuery(condition).sql;
+  return pgDialect.sqlToQuery(condition).sql
 }
 
 // ---------------------------------------------------------------------------
@@ -18,23 +22,40 @@ function compileCondition(condition: SQL): string {
 
 test('assertIdempotentDeltaMatch allows duplicate when delta matches', () => {
   assert.doesNotThrow(() => {
-    assertIdempotentDeltaMatch({ requestedDelta: -5, existingDelta: -5, reason: 'image generation', referenceId: 'ref-1' });
-  });
-});
+    assertIdempotentDeltaMatch({
+      requestedDelta: -5,
+      existingDelta: -5,
+      reason: 'image generation',
+      referenceId: 'ref-1',
+    })
+  })
+})
 
 test('assertIdempotentDeltaMatch throws on delta mismatch', () => {
   assert.throws(
-    () => assertIdempotentDeltaMatch({ requestedDelta: 8, existingDelta: 2, reason: 'webhook', referenceId: 'ref-2' }),
-    /idempotency.*delta/i
-  );
-});
+    () =>
+      assertIdempotentDeltaMatch({
+        requestedDelta: 8,
+        existingDelta: 2,
+        reason: 'webhook',
+        referenceId: 'ref-2',
+      }),
+    /idempotency.*delta/i,
+  )
+})
 
 test('assertIdempotentDeltaMatch throws when transaction row missing', () => {
   assert.throws(
-    () => assertIdempotentDeltaMatch({ requestedDelta: 8, existingDelta: null, reason: 'webhook', referenceId: 'ref-2' }),
-    /idempotency.*missing/i
-  );
-});
+    () =>
+      assertIdempotentDeltaMatch({
+        requestedDelta: 8,
+        existingDelta: null,
+        reason: 'webhook',
+        referenceId: 'ref-2',
+      }),
+    /idempotency.*missing/i,
+  )
+})
 
 // ---------------------------------------------------------------------------
 // getCredits — reads SUM(remaining_balance) from creditTransactions
@@ -42,54 +63,54 @@ test('assertIdempotentDeltaMatch throws when transaction row missing', () => {
 
 test('getCredits returns sum of remaining_balance from non-expired rows', async () => {
   // syncSubscriptionCache makes two selects: (1) total with .limit(), (2) nextExpiry awaited directly.
-  let selectCount = 0;
+  let selectCount = 0
   const fakeTx = {
     select: () => {
-      selectCount++;
+      selectCount++
       return {
         from: () => ({
           where: () => {
-            const rows = selectCount % 2 !== 0 ? [{ total: 75 }] : [{ minExpiry: null }];
-            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+            const rows = selectCount % 2 !== 0 ? [{ total: 75 }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
           },
         }),
-      };
+      }
     },
     update: () => ({ set: () => ({ where: async () => {} }) }),
-  };
+  }
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const credits = await service.getCredits('user-1');
-  assert.equal(credits, 75);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const credits = await service.getCredits('user-1')
+  assert.equal(credits, 75)
+})
 
 test('getCredits returns 0 when no rows exist', async () => {
-  let selectCount = 0;
+  let selectCount = 0
   const fakeTx = {
     select: () => {
-      selectCount++;
+      selectCount++
       return {
         from: () => ({
           where: () => {
-            const rows = selectCount % 2 !== 0 ? [{ total: null }] : [{ minExpiry: null }];
-            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+            const rows = selectCount % 2 !== 0 ? [{ total: null }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
           },
         }),
-      };
+      }
     },
     update: () => ({ set: () => ({ where: async () => {} }) }),
-  };
+  }
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const credits = await service.getCredits('user-1');
-  assert.equal(credits, 0);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const credits = await service.getCredits('user-1')
+  assert.equal(credits, 0)
+})
 
 // ---------------------------------------------------------------------------
 // spendCredits — decrements remaining_balance on earliest-expiring row
@@ -98,10 +119,10 @@ test('getCredits returns 0 when no rows exist', async () => {
 test('spendCredits returns null when no qualifying creditTransactions row found', async () => {
   // select() call order: (1) subscriptions lock, (2) net balance check → 0 → InsufficientCreditsError.
   const selectQueue: unknown[][] = [
-    [{ userId: 'user-1' }],  // subscriptions FOR UPDATE lock
-    [{ total: 0 }],           // net balance → insufficient
-  ];
-  let selectIdx = 0;
+    [{ userId: 'user-1' }], // subscriptions FOR UPDATE lock
+    [{ total: 0 }], // net balance → insufficient
+  ]
+  let selectIdx = 0
   const fakeTx = {
     insert: () => ({
       values: () => ({
@@ -109,28 +130,32 @@ test('spendCredits returns null when no qualifying creditTransactions row found'
       }),
     }),
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
-          }),
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+            }),
         }),
-      };
+      }
     },
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
-  };
+    transaction: async (
+      fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>,
+      _opts?: unknown,
+    ) => fn(fakeTx),
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.spendCredits('user-1', 1);
-  assert.equal(result, null);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.spendCredits('user-1', 1)
+  assert.equal(result, null)
+})
 
 test('spendCredits returns transactionId and decrements balance on qualifying row', async () => {
-  let updatedId: string | null = null;
-  let cacheUpdated = false;
+  let updatedId: string | null = null
+  let cacheUpdated = false
 
   // select() call order:
   // 1. subscriptions FOR UPDATE lock
@@ -145,52 +170,56 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
     [{ total: 9 }],
     [{ minExpiry: null }],
     [],
-  ];
-  let selectIdx = 0;
+  ]
+  let selectIdx = 0
 
   const fakeTx = {
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
-            orderBy: () => ({
-              limit: () => ({ for: async () => rows }),
-              for: async () => rows,
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+              orderBy: () => ({
+                limit: () => ({ for: async () => rows }),
+                for: async () => rows,
+              }),
             }),
-          }),
         }),
-      };
+      }
     },
     update: () => ({
       set: (_vals: unknown) => ({
         where: async (_cond: unknown) => {
-          updatedId = 'tx-abc';
-          cacheUpdated = true;
+          updatedId = 'tx-abc'
+          cacheUpdated = true
         },
       }),
     }),
     insert: () => ({
       values: (_vals: unknown) => ({
-        onConflictDoNothing: (_opts: unknown) => ({})
+        onConflictDoNothing: (_opts: unknown) => ({}),
       }),
     }),
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
-  };
+    transaction: async (
+      fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>,
+      _opts?: unknown,
+    ) => fn(fakeTx),
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.spendCredits('user-1', 1);
-  assert.deepEqual(result, [{ transactionId: 'tx-abc', amount: 1 }]);
-  assert.equal(updatedId, 'tx-abc');
-  assert.equal(cacheUpdated, true);
-  assert.equal(selectIdx, 6);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.spendCredits('user-1', 1)
+  assert.deepEqual(result, [{ transactionId: 'tx-abc', amount: 1 }])
+  assert.equal(updatedId, 'tx-abc')
+  assert.equal(cacheUpdated, true)
+  assert.equal(selectIdx, 6)
+})
 
 test('spendCredits spends across multiple rows when balance is fragmented', async () => {
-  let decrementCount = 0;
+  let decrementCount = 0
 
   // select() call order:
   // 1. subscriptions FOR UPDATE lock
@@ -202,60 +231,67 @@ test('spendCredits spends across multiple rows when balance is fragmented', asyn
   const selectQueue: unknown[][] = [
     [{ userId: 'user-1' }],
     [{ total: 2 }],
-    [{ id: 'tx-early', remainingBalance: 1 }, { id: 'tx-late', remainingBalance: 1 }],
+    [
+      { id: 'tx-early', remainingBalance: 1 },
+      { id: 'tx-late', remainingBalance: 1 },
+    ],
     [{ total: 0 }],
     [{ minExpiry: null }],
     [],
-  ];
-  let selectIdx = 0;
+  ]
+  let selectIdx = 0
 
   const fakeTx = {
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
-            orderBy: () => ({ for: async () => rows }),
-          }),
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+              orderBy: () => ({ for: async () => rows }),
+            }),
         }),
-      };
+      }
     },
     update: () => ({
       set: (vals: Record<string, unknown>) => ({
         where: async () => {
-          if (vals && 'remainingBalance' in vals) decrementCount++;
+          if (vals && 'remainingBalance' in vals) decrementCount++
         },
       }),
     }),
     insert: () => ({
       values: () => ({ onConflictDoNothing: (_opts?: unknown) => ({}) }),
     }),
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>, _opts?: unknown) => fn(fakeTx),
-  };
+    transaction: async (
+      fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>,
+      _opts?: unknown,
+    ) => fn(fakeTx),
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.spendCredits('user-1', 2);
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.spendCredits('user-1', 2)
   assert.deepEqual(result, [
     { transactionId: 'tx-early', amount: 1 },
     { transactionId: 'tx-late', amount: 1 },
-  ]);
-  assert.equal(decrementCount, 2);        // both fragmented rows decremented
-});
+  ])
+  assert.equal(decrementCount, 2) // both fragmented rows decremented
+})
 
 // ---------------------------------------------------------------------------
 // addCredits — inserts credit_transactions row + updates cache
 // ---------------------------------------------------------------------------
 
 test('addCredits inserts a row with initialAmount and remainingBalance', async () => {
-  let insertedValues: Record<string, unknown> | null = null;
+  let insertedValues: Record<string, unknown> | null = null
 
   const fakeTx = {
     insert: () => ({
       values: async (vals: Record<string, unknown>) => {
-        insertedValues = vals;
+        insertedValues = vals
       },
     }),
     select: () => ({
@@ -266,148 +302,164 @@ test('addCredits inserts a row with initialAmount and remainingBalance', async (
       }),
     }),
     update: () => ({ set: () => ({ where: async () => {} }) }),
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.addCredits('user-1', 100, new Date('2026-06-21'), 'one_time', 'ref-123');
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.addCredits('user-1', 100, new Date('2026-06-21'), 'one_time', 'ref-123')
 
-  const iv = insertedValues as unknown as Record<string, unknown>;
-  assert.equal(iv?.initialAmount, 100);
-  assert.equal(iv?.remainingBalance, 100);
-  assert.equal(iv?.transactionType, 'one_time');
-  assert.equal(iv?.referenceId, 'ref-123');
-});
+  const iv = insertedValues as unknown as Record<string, unknown>
+  assert.equal(iv?.initialAmount, 100)
+  assert.equal(iv?.remainingBalance, 100)
+  assert.equal(iv?.transactionType, 'one_time')
+  assert.equal(iv?.referenceId, 'ref-123')
+})
 
 // ---------------------------------------------------------------------------
 // refundCredit — increments remaining_balance atomically (UPDATE+RETURNING)
 // ---------------------------------------------------------------------------
 
 test('refundCredit increments remaining_balance on the specified row', async () => {
-  let returningCalled = false;
+  let returningCalled = false
 
   // select() calls come from syncSubscriptionCache: (1) total, (2) nextExpiry.
-  let selectCount = 0;
+  let selectCount = 0
   const fakeTx = {
     update: () => ({
       set: () => ({
-        where: () => Object.assign(Promise.resolve(undefined), {
-          returning: async () => { returningCalled = true; return [{ id: 'tx-abc' }]; },
-        }),
+        where: () =>
+          Object.assign(Promise.resolve(undefined), {
+            returning: async () => {
+              returningCalled = true
+              return [{ id: 'tx-abc' }]
+            },
+          }),
       }),
     }),
     insert: () => ({ values: async () => {} }),
     select: () => {
-      selectCount++;
+      selectCount++
       return {
         from: () => ({
           where: () => {
-            const rows = selectCount % 2 !== 0 ? [{ total: 100 }] : [{ minExpiry: null }];
-            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+            const rows = selectCount % 2 !== 0 ? [{ total: 100 }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
           },
         }),
-      };
+      }
     },
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }]);
-  assert.equal(returningCalled, true);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }])
+  assert.equal(returningCalled, true)
+})
 
 test('refundCredit inserts compensation row when original transaction is expired', async () => {
-  let insertedValues: Record<string, unknown> | null = null;
+  let insertedValues: Record<string, unknown> | null = null
 
-  let selectCount = 0;
+  let selectCount = 0
   const fakeTx = {
     update: () => ({
       set: () => ({
-        where: () => Object.assign(Promise.resolve(undefined), {
-          returning: async () => [],  // row expired → nothing matched
-        }),
+        where: () =>
+          Object.assign(Promise.resolve(undefined), {
+            returning: async () => [], // row expired → nothing matched
+          }),
       }),
     }),
     insert: () => ({
-      values: async (vals: Record<string, unknown>) => { insertedValues = vals; },
+      values: async (vals: Record<string, unknown>) => {
+        insertedValues = vals
+      },
     }),
     select: () => {
-      selectCount++;
+      selectCount++
       return {
         from: () => ({
           where: () => {
-            const rows = selectCount % 2 !== 0 ? [{ total: 1 }] : [{ minExpiry: null }];
-            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+            const rows = selectCount % 2 !== 0 ? [{ total: 1 }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
           },
         }),
-      };
+      }
     },
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.refundCredit('user-1', [{ transactionId: 'tx-expired', amount: 1 }]);
-  assert.ok(insertedValues, 'compensation row should be inserted');
-  assert.equal((insertedValues as Record<string, unknown>).remainingBalance, 1);
-  assert.equal((insertedValues as Record<string, unknown>).expiresAt, null);
-  assert.equal((insertedValues as Record<string, unknown>).reason, 'refund_compensation');
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.refundCredit('user-1', [{ transactionId: 'tx-expired', amount: 1 }])
+  assert.ok(insertedValues, 'compensation row should be inserted')
+  assert.equal((insertedValues as Record<string, unknown>).remainingBalance, 1)
+  assert.equal((insertedValues as Record<string, unknown>).expiresAt, null)
+  assert.equal((insertedValues as Record<string, unknown>).reason, 'refund_compensation')
+})
 
 test('refundCredit restores each fragmented spend row by allocation', async () => {
-  let updateCalls = 0;
+  let updateCalls = 0
 
-  let selectCount = 0;
+  let selectCount = 0
   const fakeTx = {
     update: () => ({
       set: () => ({
-        where: () => Object.assign(Promise.resolve(undefined), {
-          returning: async () => {
-            updateCalls += 1;
-            return [{ id: 'matched' }];
-          },
-        }),
+        where: () =>
+          Object.assign(Promise.resolve(undefined), {
+            returning: async () => {
+              updateCalls += 1
+              return [{ id: 'matched' }]
+            },
+          }),
       }),
     }),
     insert: () => ({ values: async () => {} }),
     select: () => {
-      selectCount++;
+      selectCount++
       return {
         from: () => ({
           where: () => {
-            const rows = selectCount % 2 !== 0 ? [{ total: 2 }] : [{ minExpiry: null }];
-            return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+            const rows = selectCount % 2 !== 0 ? [{ total: 2 }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
           },
         }),
-      };
+      }
     },
-  };
+  }
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const service = createCreditService({ getDb: async () => fakeDb as never })
   await service.refundCredit('user-1', [
     { transactionId: 'tx-early', amount: 1 },
     { transactionId: 'tx-late', amount: 1 },
-  ]);
+  ])
 
-  assert.equal(updateCalls, 2);
-});
+  assert.equal(updateCalls, 2)
+})
 
 // ---------------------------------------------------------------------------
 // setCredits — atomic: lock + insert + expire old active rows + sync cache
 // ---------------------------------------------------------------------------
 
 test('setCredits inserts a non-expiring row, expires other active rows, and syncs the cache', async () => {
-  let insertCount = 0;
-  let insertedCtValues: Record<string, unknown> | null = null;
-  let expiredOldRows = false;
+  let insertCount = 0
+  let insertedCtValues: Record<string, unknown> | null = null
+  let expiredOldRows = false
 
   // select call order:
   // 1. subscriptions FOR UPDATE lock
@@ -419,60 +471,65 @@ test('setCredits inserts a non-expiring row, expires other active rows, and sync
     [{ total: 100 }],
     [{ minExpiry: null }],
     [{ currentCredits: 0, nextExpiryDate: null }],
-  ];
-  let selectIdx = 0;
+  ]
+  let selectIdx = 0
 
   const fakeTx = {
     insert: () => ({
       values: (vals: Record<string, unknown>) => {
-        insertCount++;
-        if (insertCount === 2) insertedCtValues = vals;
+        insertCount++
+        if (insertCount === 2) insertedCtValues = vals
         return {
-          onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
-            returning: async () => insertCount >= 2 ? [{ id: 'tx-new' }] : [],
-          }),
-        };
+          onConflictDoNothing: (_opts?: unknown) =>
+            Object.assign(Promise.resolve({}), {
+              returning: async () => (insertCount >= 2 ? [{ id: 'tx-new' }] : []),
+            }),
+        }
       },
     }),
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), {
-              for: async () => rows,
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () =>
+                Object.assign(Promise.resolve(rows), {
+                  for: async () => rows,
+                }),
             }),
-          }),
         }),
-      };
+      }
     },
     update: () => ({
       set: (vals: Record<string, unknown>) => ({
         where: async () => {
-          if ('expiresAt' in vals) expiredOldRows = true;
+          if ('expiresAt' in vals) expiredOldRows = true
         },
       }),
     }),
-  };
+  }
 
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.setCredits('user-1', 100, 'admin_set', 'req-123');
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.setCredits('user-1', 100, 'admin_set', 'req-123')
 
-  assert.ok(insertedCtValues, 'should insert a creditTransactions row');
-  assert.equal((insertedCtValues as Record<string, unknown>).delta, 100);
-  assert.equal((insertedCtValues as Record<string, unknown>).remainingBalance, 100);
-  assert.equal((insertedCtValues as Record<string, unknown>).reason, 'admin_set');
-  assert.equal((insertedCtValues as Record<string, unknown>).referenceId, 'req-123');
-  assert.equal((insertedCtValues as Record<string, unknown>).expiresAt, null);
-  assert.equal(expiredOldRows, true, 'should expire other active creditTransactions rows');
-});
+  assert.ok(insertedCtValues, 'should insert a creditTransactions row')
+  assert.equal((insertedCtValues as Record<string, unknown>).delta, 100)
+  assert.equal((insertedCtValues as Record<string, unknown>).remainingBalance, 100)
+  assert.equal((insertedCtValues as Record<string, unknown>).reason, 'admin_set')
+  assert.equal((insertedCtValues as Record<string, unknown>).referenceId, 'req-123')
+  assert.equal((insertedCtValues as Record<string, unknown>).expiresAt, null)
+  assert.equal(expiredOldRows, true, 'should expire other active creditTransactions rows')
+})
 
 test('setCredits is idempotent: re-play with same referenceId and amount does not expire rows', async () => {
-  let expiredOldRows = false;
+  let expiredOldRows = false
 
   // select call order:
   // 1. FOR UPDATE lock
@@ -486,90 +543,99 @@ test('setCredits is idempotent: re-play with same referenceId and amount does no
     [{ total: 50 }],
     [{ minExpiry: null }],
     [{ currentCredits: 50, nextExpiryDate: null }],
-  ];
-  let selectIdx = 0;
+  ]
+  let selectIdx = 0
 
   const fakeTx = {
     insert: () => ({
       values: () => ({
-        onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
-          returning: async () => [],  // conflict — row already exists
-        }),
+        onConflictDoNothing: (_opts?: unknown) =>
+          Object.assign(Promise.resolve({}), {
+            returning: async () => [], // conflict — row already exists
+          }),
       }),
     }),
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), {
-              for: async () => rows,
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () =>
+                Object.assign(Promise.resolve(rows), {
+                  for: async () => rows,
+                }),
             }),
-          }),
         }),
-      };
+      }
     },
     update: () => ({
       set: (vals: Record<string, unknown>) => ({
         where: async () => {
-          if ('expiresAt' in vals) expiredOldRows = true;
+          if ('expiresAt' in vals) expiredOldRows = true
         },
       }),
     }),
-  };
+  }
 
   const fakeDb = {
-    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => { await fn(fakeTx); },
-  };
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => {
+      await fn(fakeTx)
+    },
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await assert.doesNotReject(() => service.setCredits('user-1', 50, 'admin_set', 'req-dup'));
-  assert.equal(expiredOldRows, false, 'should not expire creditTransactions rows on idempotent re-run');
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await assert.doesNotReject(() => service.setCredits('user-1', 50, 'admin_set', 'req-dup'))
+  assert.equal(
+    expiredOldRows,
+    false,
+    'should not expire creditTransactions rows on idempotent re-run',
+  )
+})
 
 test('setCredits throws when same referenceId is replayed with a different amount', async () => {
   // select call order:
   // 1. FOR UPDATE lock
   // 2. existing tx row — delta was 100, new request is 50
-  const selectQueue: unknown[][] = [
-    [{ userId: 'user-1' }],
-    [{ delta: 100 }],
-  ];
-  let selectIdx = 0;
+  const selectQueue: unknown[][] = [[{ userId: 'user-1' }], [{ delta: 100 }]]
+  let selectIdx = 0
 
   const fakeTx = {
     insert: () => ({
       values: () => ({
-        onConflictDoNothing: (_opts?: unknown) => Object.assign(Promise.resolve({}), {
-          returning: async () => [],  // conflict
-        }),
+        onConflictDoNothing: (_opts?: unknown) =>
+          Object.assign(Promise.resolve({}), {
+            returning: async () => [], // conflict
+          }),
       }),
     }),
     select: () => {
-      const rows = selectQueue[selectIdx++] ?? [];
+      const rows = selectQueue[selectIdx++] ?? []
       return {
         from: () => ({
-          where: () => Object.assign(Promise.resolve(rows), {
-            limit: () => Object.assign(Promise.resolve(rows), {
-              for: async () => rows,
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () =>
+                Object.assign(Promise.resolve(rows), {
+                  for: async () => rows,
+                }),
             }),
-          }),
         }),
-      };
+      }
     },
     update: () => ({ set: () => ({ where: async () => {} }) }),
-  };
+  }
 
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => fn(fakeTx),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
+  const service = createCreditService({ getDb: async () => fakeDb as never })
   await assert.rejects(
     () => service.setCredits('user-1', 50, 'admin_set', 'req-mismatch'),
-    /idempotency.*delta/i
-  );
-});
+    /idempotency.*delta/i,
+  )
+})
 
 // ---------------------------------------------------------------------------
 // renewSubscriptionCredits — atomic: idempotency + expire old + grant new
@@ -584,34 +650,36 @@ test('renewSubscriptionCredits returns false when referenceId already processed'
         }),
       }),
     }),
-  };
+  }
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => fn(fakeTx),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.renewSubscriptionCredits('user-1', 300, new Date(), 'evt_dup');
-  assert.equal(result, false);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.renewSubscriptionCredits('user-1', 300, new Date(), 'evt_dup')
+  assert.equal(result, false)
+})
 
 test('renewSubscriptionCredits returns true, inserts credits first, then expires old rows', async () => {
-  let expiredOldCredits = false;
-  let grantedNewCredits = false;
+  let expiredOldCredits = false
+  let grantedNewCredits = false
 
   const fakeTx = {
     insert: () => ({
       values: () => ({
         onConflictDoNothing: () => ({
           returning: async () => {
-            grantedNewCredits = true;
-            return [{ id: 'tx-new' }];
+            grantedNewCredits = true
+            return [{ id: 'tx-new' }]
           },
         }),
       }),
     }),
     update: () => ({
       set: () => ({
-        where: async () => { expiredOldCredits = true; },
+        where: async () => {
+          expiredOldCredits = true
+        },
       }),
     }),
     select: () => ({
@@ -621,17 +689,17 @@ test('renewSubscriptionCredits returns true, inserts credits first, then expires
         }),
       }),
     }),
-  };
+  }
   const fakeDb = {
     transaction: async (fn: (tx: typeof fakeTx) => Promise<boolean>) => fn(fakeTx),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const result = await service.renewSubscriptionCredits('user-1', 300, new Date(), 'evt_new');
-  assert.equal(result, true);
-  assert.equal(grantedNewCredits, true);
-  assert.equal(expiredOldCredits, true);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.renewSubscriptionCredits('user-1', 300, new Date(), 'evt_new')
+  assert.equal(result, true)
+  assert.equal(grantedNewCredits, true)
+  assert.equal(expiredOldCredits, true)
+})
 
 // ---------------------------------------------------------------------------
 // getGrantedTotal — sums initial_amount over live rows (remaining > 0, unexpired)
@@ -644,12 +712,12 @@ test('getGrantedTotal sums initial_amount over live rows only', async () => {
         where: async () => [{ total: '35000' }],
       }),
     }),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const total = await service.getGrantedTotal('user-1');
-  assert.equal(total, 35000);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const total = await service.getGrantedTotal('user-1')
+  assert.equal(total, 35000)
+})
 
 test('getGrantedTotal returns 0 when user has no live rows', async () => {
   const fakeDb = {
@@ -658,44 +726,44 @@ test('getGrantedTotal returns 0 when user has no live rows', async () => {
         where: async () => [{ total: '0' }],
       }),
     }),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const total = await service.getGrantedTotal('user-1');
-  assert.equal(total, 0);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const total = await service.getGrantedTotal('user-1')
+  assert.equal(total, 0)
+})
 
 test('getGrantedTotal WHERE clause excludes exhausted and expired rows (compiled SQL)', async () => {
-  let capturedCondition: SQL | undefined;
+  let capturedCondition: SQL | undefined
   const fakeDb = {
     select: () => ({
       from: () => ({
         where: (condition: SQL) => {
-          capturedCondition = condition;
-          return Promise.resolve([{ total: '0' }]);
+          capturedCondition = condition
+          return Promise.resolve([{ total: '0' }])
         },
       }),
     }),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  await service.getGrantedTotal('user-1');
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.getGrantedTotal('user-1')
 
-  assert.ok(capturedCondition, 'where() should have been called with a condition');
-  const sqlText = compileCondition(capturedCondition as SQL);
+  assert.ok(capturedCondition, 'where() should have been called with a condition')
+  const sqlText = compileCondition(capturedCondition as SQL)
   // remaining_balance > 0 excludes exhausted rows
-  assert.match(sqlText, /"remaining_balance"\s*>/);
+  assert.match(sqlText, /"remaining_balance"\s*>/)
   // expires_at IS NULL OR expires_at > NOW() excludes expired rows while keeping non-expiring ones
-  assert.match(sqlText, /"expires_at" is null/i);
-  assert.match(sqlText, /"expires_at"\s*>/);
+  assert.match(sqlText, /"expires_at" is null/i)
+  assert.match(sqlText, /"expires_at"\s*>/)
   // scoped to the requested user
-  assert.match(sqlText, /"user_id"\s*=/);
-});
+  assert.match(sqlText, /"user_id"\s*=/)
+})
 
 test('getGrantedTotal reflects upward jump when an exhausted pool drops out of the denominator', async () => {
   // Simulates: signup (5,000, remaining 0, exhausted) + pack (10,000, remaining 10,000, live).
   // Once the signup grant is exhausted it must not count toward grantedTotal.
-  const liveRows = [{ initialAmount: 10000, remainingBalance: 10000, expiresAt: null }];
+  const liveRows = [{ initialAmount: 10000, remainingBalance: 10000, expiresAt: null }]
   const fakeDb = {
     select: () => ({
       from: () => ({
@@ -706,36 +774,36 @@ test('getGrantedTotal reflects upward jump when an exhausted pool drops out of t
         ],
       }),
     }),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const total = await service.getGrantedTotal('user-1');
-  assert.equal(total, 10000);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const total = await service.getGrantedTotal('user-1')
+  assert.equal(total, 10000)
+})
 
 // ---------------------------------------------------------------------------
 // getLastProcessedChargeRefundTotal — delta-based partial refund tracking
 // ---------------------------------------------------------------------------
 
 test('getLastProcessedChargeRefundTotal treats legacy chargeId-only referenceId as fully processed', async () => {
-  let selectCount = 0;
+  let selectCount = 0
   const fakeDb = {
     select: () => ({
       from: () => ({
         where: () => ({
           limit: async () => {
-            selectCount++;
+            selectCount++
             if (selectCount === 1) {
-              return [{ referenceId: 'ch_legacy' }];
+              return [{ referenceId: 'ch_legacy' }]
             }
-            return [];
+            return []
           },
         }),
       }),
     }),
-  };
+  }
 
-  const service = createCreditService({ getDb: async () => fakeDb as never });
-  const total = await service.getLastProcessedChargeRefundTotal('ch_legacy');
-  assert.equal(total, Number.MAX_SAFE_INTEGER);
-});
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const total = await service.getLastProcessedChargeRefundTotal('ch_legacy')
+  assert.equal(total, Number.MAX_SAFE_INTEGER)
+})

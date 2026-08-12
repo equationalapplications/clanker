@@ -3,7 +3,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 
-const { buildVaultTools, createVaultToolDeps, resetVaultTurnState, VAULT_WIRE_TOOL } = await import('./vaultTools.js')
+const { buildVaultTools, createVaultToolDeps, resetVaultTurnState, VAULT_WIRE_TOOL } =
+  await import('./vaultTools.js')
 const { browserActionTool } = await import('./browserAction.js')
 const { createDesktopBridge } = await import('../services/desktopBridge.js')
 
@@ -16,11 +17,18 @@ class FakeWs extends EventEmitter {
   OPEN = 1
   readyState = 1
   sent: string[] = []
-  send(data: string) { this.sent.push(data) }
+  send(data: string) {
+    this.sent.push(data)
+  }
 }
 
 function fakeSession(over: Record<string, unknown> = {}) {
-  const created: Array<{ taskId: string; deviceId: string; tool: string; params: Record<string, unknown> }> = []
+  const created: Array<{
+    taskId: string
+    deviceId: string
+    tool: string
+    params: Record<string, unknown>
+  }> = []
   let taskCb: ((task: Record<string, unknown>) => void) | null = null
   return {
     created,
@@ -28,12 +36,21 @@ function fakeSession(over: Record<string, unknown> = {}) {
       taskCb?.({ taskId: created.at(-1)?.taskId, status, ...payload })
     },
     getActiveDesktopDevice: async () => ({ deviceId: 'desk1', deviceName: 'Mac mini' }),
-    createDesktopTask: async (_u: string, taskId: string, deviceId: string, tool: string, params: Record<string, unknown>) => {
+    createDesktopTask: async (
+      _u: string,
+      taskId: string,
+      deviceId: string,
+      tool: string,
+      params: Record<string, unknown>,
+    ) => {
       created.push({ taskId, deviceId, tool, params })
     },
     markDesktopTaskExecuting: async () => {},
     watchDesktopTask: (_u: string, _t: string, cb: (task: Record<string, unknown>) => void) => {
-      taskCb = cb; return () => { taskCb = null }
+      taskCb = cb
+      return () => {
+        taskCb = null
+      }
     },
     failDesktopTaskIfUnresolved: async () => true,
     ...over,
@@ -52,8 +69,11 @@ function deps(fs: ReturnType<typeof fakeSession>, over: Record<string, unknown> 
 test('exposes five tools with vault_ names and correct wire mapping', () => {
   const tools = buildVaultTools(deps(fakeSession()))
   assert.deepEqual(tools.map((t) => t.name).sort(), [
-    'vault_get_ontology', 'vault_related_chunks', 'vault_semantic_search',
-    'vault_traverse_graph', 'vault_wiki_search',
+    'vault_get_ontology',
+    'vault_related_chunks',
+    'vault_semantic_search',
+    'vault_traverse_graph',
+    'vault_wiki_search',
   ])
   assert.equal(VAULT_WIRE_TOOL.vault_wiki_search, 'wiki_search')
   assert.equal(VAULT_WIRE_TOOL.vault_get_ontology, 'wiki_get_ontology')
@@ -87,7 +107,10 @@ test('successful call writes task with wire tool name and returns JSON result', 
 test('timeout: marks task failed and returns timeout message', async () => {
   const fs = fakeSession()
   const failed: unknown[] = []
-  fs.failDesktopTaskIfUnresolved = (async (...a: unknown[]) => { failed.push(a); return true }) as never
+  fs.failDesktopTaskIfUnresolved = (async (...a: unknown[]) => {
+    failed.push(a)
+    return true
+  }) as never
   const tools = buildVaultTools(deps(fs, { callTimeoutMs: 30 }))
   const search = tools.find((t) => t.name === 'vault_wiki_search')!
   const out = await execTool(search, { query: 'x' })
@@ -189,7 +212,12 @@ test('no spendCredit on vault path (text preBilled analogue)', async () => {
   const fs = fakeSession()
   const d = deps(fs, {
     callTimeoutMs: 500,
-    creditService: { spendCredit: async (...args: unknown[]) => { spendCalls.push(args); return [] } },
+    creditService: {
+      spendCredit: async (...args: unknown[]) => {
+        spendCalls.push(args)
+        return []
+      },
+    },
   })
   const tools = buildVaultTools(d)
   const search = tools.find((t) => t.name === 'vault_wiki_search')!
@@ -248,12 +276,18 @@ test('browser_action destructive classifier unchanged after vault call in same t
       abortPendingTaskIfOffline: async () => true,
       closeSession: async () => {},
       watchTask: (_u: string, _s: string, _t: string, cb: (d: unknown) => void) => {
-        setTimeout(() => cb({ status: 'complete', result: { data: {}, activeUrl: 'https://x' } }), 5)
+        setTimeout(
+          () => cb({ status: 'complete', result: { data: {}, activeUrl: 'https://x' } }),
+          5,
+        )
         return () => {}
       },
     },
     fcmDispatcher: { wakeExtension: async () => {} },
-    creditService: { spendCredit: async () => [{ transactionId: 'tx1', amount: 1 }], refundCredit: async () => {} },
+    creditService: {
+      spendCredit: async () => [{ transactionId: 'tx1', amount: 1 }],
+      refundCredit: async () => {},
+    },
     instanceId: 'i1',
     wakeTimeoutMs: 50,
     textTimeoutMs: 200,
@@ -261,7 +295,9 @@ test('browser_action destructive classifier unchanged after vault call in same t
   const browserTool = browserActionTool(browserDeps as never, { trigger: 'text', preBilled: true })
   await execTool(browserTool as { name: string }, {
     actionSummary: 'Submit the checkout form',
-    intent: { action: { type: 'click', selector: '#buy', label: 'Submit payment', tier: 'stateful' } },
+    intent: {
+      action: { type: 'click', selector: '#buy', label: 'Submit payment', tier: 'stateful' },
+    },
   })
   assert.equal(capturedRequiresAuth, true)
 })

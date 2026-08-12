@@ -1,34 +1,36 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import {HttpsError} from "firebase-functions/v2/https";
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { HttpsError } from 'firebase-functions/v2/https'
 
-import {generateReplyHandler, toGenAITool, buildToolsForRequest} from "./generateReply.js";
-import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-import {creditService} from "./services/creditService.js";
+import { generateReplyHandler, toGenAITool, buildToolsForRequest } from './generateReply.js'
+import { userRepository } from './services/userRepository.js'
+import { subscriptionService } from './services/subscriptionService.js'
+import { creditService } from './services/creditService.js'
 
-type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>;
-type SubscriptionRecord = NonNullable<Awaited<ReturnType<typeof subscriptionService.getSubscription>>>;
+type UserRecord = NonNullable<Awaited<ReturnType<typeof userRepository.findUserByFirebaseUid>>>
+type SubscriptionRecord = NonNullable<
+  Awaited<ReturnType<typeof subscriptionService.getSubscription>>
+>
 
-const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity;
-const originalGetSubscription = subscriptionService.getSubscription;
-const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription;
-const originalSpendCredits = creditService.spendCredits;
-const originalRefundCredit = creditService.refundCredit;
-const originalGetCredits = creditService.getCredits;
+const originalGetOrCreateUser = userRepository.getOrCreateUserByFirebaseIdentity
+const originalGetSubscription = subscriptionService.getSubscription
+const originalGetOrCreateDefaultSubscription = subscriptionService.getOrCreateDefaultSubscription
+const originalSpendCredits = creditService.spendCredits
+const originalRefundCredit = creditService.refundCredit
+const originalGetCredits = creditService.getCredits
 
-let authCounter = 0;
+let authCounter = 0
 
 function buildAuth() {
-  authCounter += 1;
-  const uid = `firebase-uid-${authCounter}`;
+  authCounter += 1
+  const uid = `firebase-uid-${authCounter}`
   return {
     uid,
     token: {
       uid,
       email: `person-${authCounter}@example.com`,
     },
-  };
+  }
 }
 
 function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
@@ -43,14 +45,14 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
     defaultCharacterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  }
 }
 
 function buildSubscription(
   userId: string,
-  planTier: "payg" | "monthly_20",
+  planTier: 'payg' | 'monthly_20',
   currentCredits: number,
-  planStatus: "active" | "cancelled" | "expired" = "active"
+  planStatus: 'active' | 'cancelled' | 'expired' = 'active',
 ): SubscriptionRecord {
   return {
     id: `sub-${userId}`,
@@ -71,7 +73,7 @@ function buildSubscription(
     cancelAtPeriodEnd: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  }
 }
 
 function buildStructuredRequestData(
@@ -97,65 +99,68 @@ function buildStructuredRequestData(
 
 async function withServiceMocks(run: () => Promise<void>) {
   try {
-    await run();
+    await run()
   } finally {
-    userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser;
-    subscriptionService.getSubscription = originalGetSubscription;
-    subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription;
-    creditService.spendCredits = originalSpendCredits;
-    creditService.refundCredit = originalRefundCredit;
-    creditService.getCredits = originalGetCredits;
+    userRepository.getOrCreateUserByFirebaseIdentity = originalGetOrCreateUser
+    subscriptionService.getSubscription = originalGetSubscription
+    subscriptionService.getOrCreateDefaultSubscription = originalGetOrCreateDefaultSubscription
+    creditService.spendCredits = originalSpendCredits
+    creditService.refundCredit = originalRefundCredit
+    creditService.getCredits = originalGetCredits
   }
 }
 
-test("toGenAITool maps a google_search entry to the camelCase googleSearch field", () => {
-  const result = toGenAITool({ google_search: {} } as never);
-  assert.deepEqual(result, { googleSearch: {} });
-});
+test('toGenAITool maps a google_search entry to the camelCase googleSearch field', () => {
+  const result = toGenAITool({ google_search: {} } as never)
+  assert.deepEqual(result, { googleSearch: {} })
+})
 
-test("toGenAITool passes functionDeclarations entries through", () => {
+test('toGenAITool passes functionDeclarations entries through', () => {
   const functionDeclarations = [
-    { name: "get_current_time", description: "Returns the current time." },
-  ];
-  const result = toGenAITool({ functionDeclarations } as never);
-  assert.deepEqual(result, { functionDeclarations });
-});
+    { name: 'get_current_time', description: 'Returns the current time.' },
+  ]
+  const result = toGenAITool({ functionDeclarations } as never)
+  assert.deepEqual(result, { functionDeclarations })
+})
 
-test("toGenAITool throws on an unrecognized tool entry", () => {
-  assert.throws(
-    () => toGenAITool({} as never),
-    /Unsupported tool entry/
-  );
-});
+test('toGenAITool throws on an unrecognized tool entry', () => {
+  assert.throws(() => toGenAITool({} as never), /Unsupported tool entry/)
+})
 
-test("buildToolsForRequest falls back to googleSearch when no tools are provided", () => {
-  const result = buildToolsForRequest(undefined);
-  assert.deepEqual(result, [{ googleSearch: {} }]);
-});
+test('buildToolsForRequest falls back to googleSearch when no tools are provided', () => {
+  const result = buildToolsForRequest(undefined)
+  assert.deepEqual(result, [{ googleSearch: {} }])
+})
 
-test("buildToolsForRequest uses provided functionDeclarations and omits googleSearch when tools are present", () => {
-  const tools = [{ name: "get_current_time", description: "Get the time", parameters: { type: "object", properties: {} } }];
-  const result = buildToolsForRequest(tools);
-  assert.deepEqual(result, [{ functionDeclarations: tools }]);
-});
+test('buildToolsForRequest uses provided functionDeclarations and omits googleSearch when tools are present', () => {
+  const tools = [
+    {
+      name: 'get_current_time',
+      description: 'Get the time',
+      parameters: { type: 'object', properties: {} },
+    },
+  ]
+  const result = buildToolsForRequest(tools)
+  assert.deepEqual(result, [{ functionDeclarations: tools }])
+})
 
-test("generateReplyHandler rejects unauthenticated calls", async () => {
+test('generateReplyHandler rejects unauthenticated calls', async () => {
   await assert.rejects(
-    async () => generateReplyHandler({auth: null, data: {prompt: "Hello"}} as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    async () => generateReplyHandler({ auth: null, data: { prompt: 'Hello' } } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
-test("generateReplyHandler validates prompt", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler validates prompt', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -163,97 +168,95 @@ test("generateReplyHandler validates prompt", async () => {
           {
             auth,
             data: {
-              prompt: "   ",
+              prompt: '   ',
             },
           } as never,
           {
-            generateText: async () => ({ text: "unused" }),
-          }
+            generateText: async () => ({ text: 'unused' }),
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-    );
-  });
-});
+      (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+    )
+  })
+})
 
-test("generateReplyHandler returns soft break for legacy prompt-only requests", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler returns soft break for legacy prompt-only requests', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
     const result = await generateReplyHandler(
       {
         auth,
         data: {
-          prompt: "hello legacy",
+          prompt: 'hello legacy',
         },
       } as never,
       {
         generateText: async () => {
           throw new Error('generateText should not be invoked for legacy soft breaks')
         },
-      }
-    );
+      },
+    )
 
     assert.equal(
       result.reply,
-      "🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.",
-    );
+      '🤖 **System Update:** A massive brain upgrade is available! Please update Clanker to the latest version in the App Store to continue chatting.',
+    )
     assert.ok(typeof result.messageId === 'string' && result.messageId.startsWith('system-update-'))
     assert.equal(result.creditsSpent, 0)
     assert.equal(result.remainingCredits, undefined)
-  });
-});
+  })
+})
 
-test("generateReplyHandler allows intro requests with structured payload to proceed", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler allows intro requests with structured payload to proceed', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async (_userId, amount) => {
-      assert.equal(amount, 300);
-      return [{ transactionId: 'mock-tx-id', amount: 300 }];
-    };
-    creditService.getCredits = async () => 2;
+      assert.equal(amount, 300)
+      return [{ transactionId: 'mock-tx-id', amount: 300 }]
+    }
+    creditService.getCredits = async () => 2
 
-    let generateTextCalled = false;
+    let generateTextCalled = false
     const result = await generateReplyHandler(
       {
         auth,
         data: {
-          contents: [
-            { role: 'user', parts: [{ text: 'hello intro' }] },
-          ],
+          contents: [{ role: 'user', parts: [{ text: 'hello intro' }] }],
           systemInstruction: 'You are a helpful assistant.',
-          referenceId: "intro-char-1",
+          referenceId: 'intro-char-1',
         },
       } as never,
       {
         generateText: async () => {
-          generateTextCalled = true;
-          return { text: 'intro response' };
+          generateTextCalled = true
+          return { text: 'intro response' }
         },
-      }
-    );
+      },
+    )
 
-    assert.ok(generateTextCalled, 'generateText should be invoked for intro requests');
-    assert.equal(result.reply, 'intro response');
-    assert.equal(result.creditsSpent, 300);
-    assert.equal(result.remainingCredits, 2);
-  });
-});
+    assert.ok(generateTextCalled, 'generateText should be invoked for intro requests')
+    assert.equal(result.reply, 'intro response')
+    assert.equal(result.creditsSpent, 300)
+    assert.equal(result.remainingCredits, 2)
+  })
+})
 
-test("generateReplyHandler rejects oversized structured contents payloads", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects oversized structured contents payloads', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -261,31 +264,29 @@ test("generateReplyHandler rejects oversized structured contents payloads", asyn
           {
             auth,
             data: {
-              contents: [
-                { role: 'user', parts: [{ text: 'a'.repeat(12_001) }] },
-              ],
+              contents: [{ role: 'user', parts: [{ text: 'a'.repeat(12_001) }] }],
               systemInstruction: 'You are a helpful assistant.',
             },
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects malformed structured contents items", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects malformed structured contents items', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -299,10 +300,10 @@ test("generateReplyHandler rejects malformed structured contents items", async (
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
+    )
 
     await assert.rejects(
       async () =>
@@ -316,23 +317,23 @@ test("generateReplyHandler rejects malformed structured contents items", async (
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects tools with an unrecognized name", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects tools with an unrecognized name', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -342,34 +343,40 @@ test("generateReplyHandler rejects tools with an unrecognized name", async () =>
             data: {
               contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
               systemInstruction: 'You are a helpful assistant.',
-              tools: [{ name: 'delete_everything', description: 'Bad tool', parameters: { type: 'object', properties: {} } }],
+              tools: [
+                {
+                  name: 'delete_everything',
+                  description: 'Bad tool',
+                  parameters: { type: 'object', properties: {} },
+                },
+              ],
             },
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects oversized tools payload", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects oversized tools payload', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     const oversizedTools = Array.from({ length: 500 }, () => ({
       name: 'get_current_time',
       description: 'x'.repeat(30),
       parameters: { type: 'object', properties: {} },
-    }));
+    }))
 
     await assert.rejects(
       async () =>
@@ -384,23 +391,23 @@ test("generateReplyHandler rejects oversized tools payload", async () => {
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects array-valued structured content parts", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects array-valued structured content parts', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -414,23 +421,23 @@ test("generateReplyHandler rejects array-valued structured content parts", async
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects array-valued functionCall and functionResponse parts", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects array-valued functionCall and functionResponse parts', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -444,10 +451,10 @@ test("generateReplyHandler rejects array-valued functionCall and functionRespons
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
+    )
 
     await assert.rejects(
       async () =>
@@ -455,29 +462,34 @@ test("generateReplyHandler rejects array-valued functionCall and functionRespons
           {
             auth,
             data: {
-              contents: [{ role: 'user', parts: [{ functionResponse: { name: 'get_current_time', response: [] } }] }],
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ functionResponse: { name: 'get_current_time', response: [] } }],
+                },
+              ],
               systemInstruction: 'You are a helpful assistant.',
             },
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler rejects array-valued tool declarations", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects array-valued tool declarations', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -492,26 +504,32 @@ test("generateReplyHandler rejects array-valued tool declarations", async () => 
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler accepts recognized tools and forwards them to generateText", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler accepts recognized tools and forwards them to generateText', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
-    const tools = [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }];
-    let receivedTools: unknown;
+    const tools = [
+      {
+        name: 'get_current_time',
+        description: 'Get the time',
+        parameters: { type: 'object', properties: {} },
+      },
+    ]
+    let receivedTools: unknown
 
     const result = await generateReplyHandler(
       {
@@ -524,27 +542,27 @@ test("generateReplyHandler accepts recognized tools and forwards them to generat
       } as never,
       {
         generateText: async (input) => {
-          receivedTools = input.tools;
-          return { text: 'It is noon.' };
+          receivedTools = input.tools
+          return { text: 'It is noon.' }
         },
-      }
-    );
+      },
+    )
 
-    assert.deepEqual(receivedTools, tools);
-    assert.equal(result.reply, 'It is noon.');
-  });
-});
+    assert.deepEqual(receivedTools, tools)
+    assert.equal(result.reply, 'It is noon.')
+  })
+})
 
-test("generateReplyHandler accepts contents with functionCall and functionResponse parts", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler accepts contents with functionCall and functionResponse parts', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -553,30 +571,35 @@ test("generateReplyHandler accepts contents with functionCall and functionRespon
           contents: [
             { role: 'user', parts: [{ text: 'what time is it' }] },
             { role: 'model', parts: [{ functionCall: { name: 'get_current_time', args: {} } }] },
-            { role: 'user', parts: [{ functionResponse: { name: 'get_current_time', response: { output: 'noon' } } }] },
+            {
+              role: 'user',
+              parts: [
+                { functionResponse: { name: 'get_current_time', response: { output: 'noon' } } },
+              ],
+            },
           ],
           systemInstruction: 'You are a helpful assistant.',
         },
       } as never,
       {
         generateText: async () => ({ text: 'It is noon.' }),
-      }
-    );
+      },
+    )
 
-    assert.equal(result.reply, 'It is noon.');
-  });
-});
+    assert.equal(result.reply, 'It is noon.')
+  })
+})
 
-test("generateReplyHandler rejects a contents part with neither text, functionCall, nor functionResponse", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects a contents part with neither text, functionCall, nor functionResponse', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -590,25 +613,25 @@ test("generateReplyHandler rejects a contents part with neither text, functionCa
           } as never,
           {
             generateText: async () => ({ text: 'unused' }),
-          }
+          },
         ),
       (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
-    );
-  });
-});
+    )
+  })
+})
 
-test("generateReplyHandler returns functionCalls instead of throwing on an empty text response", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler returns functionCalls instead of throwing on an empty text response', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
-    const functionCalls = [{ name: 'get_current_time', args: {} }];
+    const functionCalls = [{ name: 'get_current_time', args: {} }]
 
     const result = await generateReplyHandler(
       {
@@ -616,35 +639,41 @@ test("generateReplyHandler returns functionCalls instead of throwing on an empty
         data: {
           contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
           systemInstruction: 'You are a helpful assistant.',
-          tools: [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }],
+          tools: [
+            {
+              name: 'get_current_time',
+              description: 'Get the time',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
         },
       } as never,
       {
         generateText: async () => ({ functionCalls }),
-      }
-    );
+      },
+    )
 
-    assert.deepEqual(result.functionCalls, functionCalls);
-    assert.equal(result.reply, '');
-    assert.equal(result.creditsSpent, 100);
-    assert.equal(result.remainingCredits, 2);
-  });
-});
+    assert.deepEqual(result.functionCalls, functionCalls)
+    assert.equal(result.reply, '')
+    assert.equal(result.creditsSpent, 100)
+    assert.equal(result.remainingCredits, 2)
+  })
+})
 
-test("generateReplyHandler charges 3 credits when no tools are supplied (grounded default)", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler charges 3 credits when no tools are supplied (grounded default)', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let capturedAmount: number | null = null;
+    const user = buildUser(auth)
+    let capturedAmount: number | null = null
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async (_userId, amount) => {
-      capturedAmount = amount;
-      return [{ transactionId: 'mock-tx-id', amount }];
-    };
-    creditService.getCredits = async () => 2;
+      capturedAmount = amount
+      return [{ transactionId: 'mock-tx-id', amount }]
+    }
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -652,29 +681,29 @@ test("generateReplyHandler charges 3 credits when no tools are supplied (grounde
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => ({ text: "grounded reply" }),
-      }
-    );
+        generateText: async () => ({ text: 'grounded reply' }),
+      },
+    )
 
-    assert.equal(capturedAmount, 300);
-    assert.equal(result.creditsSpent, 300);
-  });
-});
+    assert.equal(capturedAmount, 300)
+    assert.equal(result.creditsSpent, 300)
+  })
+})
 
-test("generateReplyHandler charges 1 credit when explicit tools are supplied (standard)", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler charges 1 credit when explicit tools are supplied (standard)', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let capturedAmount: number | null = null;
+    const user = buildUser(auth)
+    let capturedAmount: number | null = null
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async (_userId, amount) => {
-      capturedAmount = amount;
-      return [{ transactionId: 'mock-tx-id', amount }];
-    };
-    creditService.getCredits = async () => 2;
+      capturedAmount = amount
+      return [{ transactionId: 'mock-tx-id', amount }]
+    }
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -682,34 +711,40 @@ test("generateReplyHandler charges 1 credit when explicit tools are supplied (st
         data: {
           contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
           systemInstruction: 'You are a helpful assistant.',
-          tools: [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }],
+          tools: [
+            {
+              name: 'get_current_time',
+              description: 'Get the time',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
         },
       } as never,
       {
-        generateText: async () => ({ text: "standard reply" }),
-      }
-    );
+        generateText: async () => ({ text: 'standard reply' }),
+      },
+    )
 
-    assert.equal(capturedAmount, 100);
-    assert.equal(result.creditsSpent, 100);
-  });
-});
+    assert.equal(capturedAmount, 100)
+    assert.equal(result.creditsSpent, 100)
+  })
+})
 
-test("generateReplyHandler spends three credits for payg users on the grounded default path", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler spends three credits for payg users on the grounded default path', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
+    const user = buildUser(auth)
+    let spendCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async (_userId, amount) => {
-      spendCalls += 1;
-      assert.equal(amount, 300);
-      return [{ transactionId: 'mock-tx-id', amount: 300 }];
-    };
-    creditService.getCredits = async () => 2;
+      spendCalls += 1
+      assert.equal(amount, 300)
+      return [{ transactionId: 'mock-tx-id', amount: 300 }]
+    }
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -717,34 +752,34 @@ test("generateReplyHandler spends three credits for payg users on the grounded d
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => ({ text: "reply from model" }),
-      }
-    );
+        generateText: async () => ({ text: 'reply from model' }),
+      },
+    )
 
-    assert.equal(result.reply, "reply from model");
-    assert.equal(result.creditsSpent, 300);
-    assert.equal(result.remainingCredits, 2);
-    assert.equal(result.planTier, "payg");
-    assert.equal(result.planStatus, "active");
-    assert.ok(typeof result.verifiedAt === "string" && result.verifiedAt.length > 0);
-    assert.equal(spendCalls, 1);
-  });
-});
+    assert.equal(result.reply, 'reply from model')
+    assert.equal(result.creditsSpent, 300)
+    assert.equal(result.remainingCredits, 2)
+    assert.equal(result.planTier, 'payg')
+    assert.equal(result.planStatus, 'active')
+    assert.ok(typeof result.verifiedAt === 'string' && result.verifiedAt.length > 0)
+    assert.equal(spendCalls, 1)
+  })
+})
 
-test("generateReplyHandler rejects users without credits", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects users without credits', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
+    const user = buildUser(auth)
+    let spendCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "monthly_20", 0);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'monthly_20', 0)
     creditService.spendCredits = async () => {
-      spendCalls += 1;
-      return null;
-    };
-    creditService.getCredits = async () => 0;
+      spendCalls += 1
+      return null
+    }
+    creditService.getCredits = async () => 0
 
     await assert.rejects(
       async () =>
@@ -754,31 +789,32 @@ test("generateReplyHandler rejects users without credits", async () => {
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => ({ text: "subscriber reply" }),
-          }
+            generateText: async () => ({ text: 'subscriber reply' }),
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-    );
+      (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+    )
 
-    assert.equal(spendCalls, 1);
-  });
-});
+    assert.equal(spendCalls, 1)
+  })
+})
 
-test("generateReplyHandler allows cancelled plans to spend remaining credits", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler allows cancelled plans to spend remaining credits', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
+    const user = buildUser(auth)
+    let spendCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3, "cancelled");
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () =>
+      buildSubscription(user.id, 'payg', 3, 'cancelled')
     creditService.spendCredits = async (_userId, amount) => {
-      spendCalls += 1;
-      assert.equal(amount, 300);
-      return [{ transactionId: 'mock-tx-id', amount: 300 }];
-    };
-    creditService.getCredits = async () => 2;
+      spendCalls += 1
+      assert.equal(amount, 300)
+      return [{ transactionId: 'mock-tx-id', amount: 300 }]
+    }
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -786,26 +822,26 @@ test("generateReplyHandler allows cancelled plans to spend remaining credits", a
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => ({ text: "reply from model" }),
-      }
-    );
+        generateText: async () => ({ text: 'reply from model' }),
+      },
+    )
 
-    assert.equal(result.creditsSpent, 300);
-    assert.equal(result.remainingCredits, 2);
-    assert.equal(spendCalls, 1);
-  });
-});
+    assert.equal(result.creditsSpent, 300)
+    assert.equal(result.remainingCredits, 2)
+    assert.equal(spendCalls, 1)
+  })
+})
 
-test("generateReplyHandler rejects when user has no credits and no unlimited plan", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects when user has no credits and no unlimited plan', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 0);
-    creditService.spendCredits = async () => null;
-    creditService.getCredits = async () => 0;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 0)
+    creditService.spendCredits = async () => null
+    creditService.getCredits = async () => 0
 
     await assert.rejects(
       async () =>
@@ -815,24 +851,24 @@ test("generateReplyHandler rejects when user has no credits and no unlimited pla
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => ({ text: "unused" }),
-          }
+            generateText: async () => ({ text: 'unused' }),
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-    );
-  });
-});
+      (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+    )
+  })
+})
 
-test("generateReplyHandler rejects unsyncedHistory entries with non-user roles", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler rejects unsyncedHistory entries with non-user roles', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 4;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 5)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 4
 
     await assert.rejects(
       async () =>
@@ -848,27 +884,27 @@ test("generateReplyHandler rejects unsyncedHistory entries with non-user roles",
             },
           } as never,
           {
-            generateText: async () => ({ text: "reply" }),
-          }
+            generateText: async () => ({ text: 'reply' }),
+          },
         ),
       (err: unknown) =>
         err instanceof HttpsError &&
-        err.code === "invalid-argument" &&
-        /user-role messages/.test((err as Error).message)
-    );
-  });
-});
+        err.code === 'invalid-argument' &&
+        /user-role messages/.test((err as Error).message),
+    )
+  })
+})
 
-test("generateReplyHandler treats null unsyncedHistory as absent (Firebase web encodes undefined as null)", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler treats null unsyncedHistory as absent (Firebase web encodes undefined as null)', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 4;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 5)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 4
 
     const result = await generateReplyHandler(
       {
@@ -879,24 +915,24 @@ test("generateReplyHandler treats null unsyncedHistory as absent (Firebase web e
         },
       } as never,
       {
-        generateText: async () => ({ text: "reply" }),
-      }
-    );
+        generateText: async () => ({ text: 'reply' }),
+      },
+    )
 
-    assert.equal(result.reply, "reply");
-  });
-});
+    assert.equal(result.reply, 'reply')
+  })
+})
 
-test("generateReplyHandler validates character ownership before bulk inserting unsyncedHistory", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler validates character ownership before bulk inserting unsyncedHistory', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 4;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 5)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 4
 
     const mockDb = {
       select: () => ({
@@ -911,7 +947,7 @@ test("generateReplyHandler validates character ownership before bulk inserting u
           onConflictDoNothing: (_opts: unknown) => Promise.resolve(),
         }),
       }),
-    };
+    }
 
     await assert.rejects(
       async () =>
@@ -927,30 +963,30 @@ test("generateReplyHandler validates character ownership before bulk inserting u
             },
           } as never,
           {
-            generateText: async () => ({ text: "reply" }),
+            generateText: async () => ({ text: 'reply' }),
             getDb: async () => mockDb as never,
-          }
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "permission-denied"
-    );
-  });
-});
+      (err: unknown) => err instanceof HttpsError && err.code === 'permission-denied',
+    )
+  })
+})
 
-test("generateReplyHandler does not bootstrap a subscription in the new credit flow", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler does not bootstrap a subscription in the new credit flow', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let bootstrapCalls = 0;
+    const user = buildUser(auth)
+    let bootstrapCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => null as never;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => null as never
     subscriptionService.getOrCreateDefaultSubscription = async () => {
-      bootstrapCalls += 1;
-      return buildSubscription(user.id, "payg", 50);
-    };
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }];
-    creditService.getCredits = async () => 49;
+      bootstrapCalls += 1
+      return buildSubscription(user.id, 'payg', 50)
+    }
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }]
+    creditService.getCredits = async () => 49
 
     const result = await generateReplyHandler(
       {
@@ -958,36 +994,36 @@ test("generateReplyHandler does not bootstrap a subscription in the new credit f
         data: buildStructuredRequestData('hello'),
       } as never,
       {
-        generateText: async () => ({ text: "reply from model" }),
-      }
-    );
+        generateText: async () => ({ text: 'reply from model' }),
+      },
+    )
 
-    assert.equal(result.creditsSpent, 300);
-    assert.equal(result.remainingCredits, 49);
-    assert.equal(bootstrapCalls, 0);
-  });
-});
+    assert.equal(result.creditsSpent, 300)
+    assert.equal(result.remainingCredits, 49)
+    assert.equal(bootstrapCalls, 0)
+  })
+})
 
-test("generateReplyHandler refunds credit when model generation fails", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler refunds credit when model generation fails', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
-    let refundCalls = 0;
+    const user = buildUser(auth)
+    let spendCalls = 0
+    let refundCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async () => {
-      spendCalls += 1;
-      return [{ transactionId: 'mock-tx-id', amount: 1 }];
-    };
+      spendCalls += 1
+      return [{ transactionId: 'mock-tx-id', amount: 1 }]
+    }
     creditService.refundCredit = async (userId, allocations) => {
-      assert.equal(userId, user.id);
-      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
-      refundCalls += 1;
-    };
-    creditService.getCredits = async () => 2;
+      assert.equal(userId, user.id)
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }])
+      refundCalls += 1
+    }
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -998,38 +1034,38 @@ test("generateReplyHandler refunds credit when model generation fails", async ()
           } as never,
           {
             generateText: async () => {
-              throw new Error("model down");
+              throw new Error('model down')
             },
-          }
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "internal"
-    );
+      (err: unknown) => err instanceof HttpsError && err.code === 'internal',
+    )
 
-    assert.equal(spendCalls, 1);
-    assert.equal(refundCalls, 1);
-  });
-});
+    assert.equal(spendCalls, 1)
+    assert.equal(refundCalls, 1)
+  })
+})
 
-test("generateReplyHandler preserves HttpsError from model generation and refunds credit", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler preserves HttpsError from model generation and refunds credit', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
-    let spendCalls = 0;
-    let refundCalls = 0;
+    const user = buildUser(auth)
+    let spendCalls = 0
+    let refundCalls = 0
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
     creditService.spendCredits = async () => {
-      spendCalls += 1;
-      return [{ transactionId: 'mock-tx-id', amount: 1 }];
-    };
+      spendCalls += 1
+      return [{ transactionId: 'mock-tx-id', amount: 1 }]
+    }
     creditService.refundCredit = async (userId, allocations) => {
-      assert.equal(userId, user.id);
-      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }]);
-      refundCalls += 1;
-    };
-    creditService.getCredits = async () => 2;
+      assert.equal(userId, user.id)
+      assert.deepEqual(allocations, [{ transactionId: 'mock-tx-id', amount: 1 }])
+      refundCalls += 1
+    }
+    creditService.getCredits = async () => 2
 
     await assert.rejects(
       async () =>
@@ -1040,31 +1076,31 @@ test("generateReplyHandler preserves HttpsError from model generation and refund
           } as never,
           {
             generateText: async () => {
-              throw new HttpsError("failed-precondition", "Vertex AI unavailable");
+              throw new HttpsError('failed-precondition', 'Vertex AI unavailable')
             },
-          }
+          },
         ),
       (err: unknown) =>
         err instanceof HttpsError &&
-        err.code === "failed-precondition" &&
-        err.message.includes("Vertex AI unavailable")
-    );
+        err.code === 'failed-precondition' &&
+        err.message.includes('Vertex AI unavailable'),
+    )
 
-    assert.equal(spendCalls, 1);
-    assert.equal(refundCalls, 1);
-  });
-});
+    assert.equal(spendCalls, 1)
+    assert.equal(refundCalls, 1)
+  })
+})
 
-test("generateReplyHandler maps identity conflicts to failed-precondition", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler maps identity conflicts to failed-precondition', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
     userRepository.getOrCreateUserByFirebaseIdentity = async () => {
-      throw new Error("Existing user email is linked to a different Firebase UID.");
-    };
-    subscriptionService.getSubscription = async () => buildSubscription("unused-user", "payg", 1);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 0;
+      throw new Error('Existing user email is linked to a different Firebase UID.')
+    }
+    subscriptionService.getSubscription = async () => buildSubscription('unused-user', 'payg', 1)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 0
 
     await assert.rejects(
       async () =>
@@ -1074,26 +1110,26 @@ test("generateReplyHandler maps identity conflicts to failed-precondition", asyn
             data: buildStructuredRequestData('hello'),
           } as never,
           {
-            generateText: async () => ({ text: "unused" }),
-          }
+            generateText: async () => ({ text: 'unused' }),
+          },
         ),
-      (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-    );
-  });
-});
+      (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+    )
+  })
+})
 
-test("generateReplyHandler bulk inserts unsyncedHistory before generating a reply", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler bulk inserts unsyncedHistory before generating a reply', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 4;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 5)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 4
 
-    const insertedRows: unknown[] = [];
+    const insertedRows: unknown[] = []
     const mockDb = {
       select: () => ({
         from: () => ({
@@ -1104,17 +1140,17 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
       }),
       insert: (_table: unknown) => ({
         values: (rows: unknown[]) => {
-          insertedRows.push(...rows);
+          insertedRows.push(...rows)
           return {
             onConflictDoNothing: (_opts: unknown) => Promise.resolve(),
-          };
+          }
         },
       }),
-    };
+    }
 
     const unsyncedHistory = [
       { id: 'msg-1', role: 'user' as const, text: 'hello from edge', createdAt: 1_000_000 },
-    ];
+    ]
 
     const result = await generateReplyHandler(
       {
@@ -1126,33 +1162,33 @@ test("generateReplyHandler bulk inserts unsyncedHistory before generating a repl
         },
       } as never,
       {
-        generateText: async () => ({ text: "cloud reply" }),
+        generateText: async () => ({ text: 'cloud reply' }),
         getDb: async () => mockDb as never,
-      }
-    );
+      },
+    )
 
-    assert.equal(result.reply, "cloud reply");
-    assert.equal(insertedRows.length, 1);
+    assert.equal(result.reply, 'cloud reply')
+    assert.equal(insertedRows.length, 1)
 
-    const row0 = insertedRows[0] as Record<string, unknown>;
-    assert.equal(row0.messageId, 'msg-1');
-    assert.equal(row0.characterId, 'char-uuid-123');
-    assert.equal(row0.senderUserId, user.id);
-    assert.equal(row0.text, 'hello from edge');
-    assert.deepEqual(row0.createdAt, new Date(1_000_000));
-  });
-});
+    const row0 = insertedRows[0] as Record<string, unknown>
+    assert.equal(row0.messageId, 'msg-1')
+    assert.equal(row0.characterId, 'char-uuid-123')
+    assert.equal(row0.senderUserId, user.id)
+    assert.equal(row0.text, 'hello from edge')
+    assert.deepEqual(row0.createdAt, new Date(1_000_000))
+  })
+})
 
-test("generateReplyHandler still returns reply when unsyncedHistory DB insert fails", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler still returns reply when unsyncedHistory DB insert fails', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 5);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }];
-    creditService.getCredits = async () => 4;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 5)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 300 }]
+    creditService.getCredits = async () => 4
 
     const failingDb = {
       select: () => ({
@@ -1165,11 +1201,11 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
       insert: (_table: unknown) => ({
         values: (_rows: unknown[]) => ({
           onConflictDoNothing: (_opts: unknown) => {
-            throw new Error("DB connection refused");
+            throw new Error('DB connection refused')
           },
         }),
       }),
-    };
+    }
 
     const result = await generateReplyHandler(
       {
@@ -1178,37 +1214,42 @@ test("generateReplyHandler still returns reply when unsyncedHistory DB insert fa
           ...buildStructuredRequestData('still works'),
           characterId: 'char-uuid-456',
           unsyncedHistory: [
-            { id: 'msg-3', role: 'user' as const, text: 'will fail to insert', createdAt: 2_000_000 },
+            {
+              id: 'msg-3',
+              role: 'user' as const,
+              text: 'will fail to insert',
+              createdAt: 2_000_000,
+            },
           ],
         },
       } as never,
       {
-        generateText: async () => ({ text: "reply despite db failure" }),
+        generateText: async () => ({ text: 'reply despite db failure' }),
         getDb: async () => failingDb as never,
-      }
-    );
+      },
+    )
 
-    assert.equal(result.reply, "reply despite db failure");
-    assert.equal(result.creditsSpent, 300);
-  });
-});
+    assert.equal(result.reply, 'reply despite db failure')
+    assert.equal(result.creditsSpent, 300)
+  })
+})
 
-test("generateReplyHandler forwards groundingMetadata when the model grounds its reply", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler forwards groundingMetadata when the model grounds its reply', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     const groundingMetadata = {
       webSearchQueries: ['weather in Tokyo'],
       groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
       searchEntryPoint: { renderedContent: '<div>suggestions</div>' },
-    };
+    }
 
     const result = await generateReplyHandler(
       {
@@ -1217,24 +1258,24 @@ test("generateReplyHandler forwards groundingMetadata when the model grounds its
       } as never,
       {
         generateText: async () => ({ text: 'It is sunny in Tokyo.', groundingMetadata }),
-      }
-    );
+      },
+    )
 
-    assert.equal(result.reply, 'It is sunny in Tokyo.');
-    assert.deepEqual(result.groundingMetadata, groundingMetadata);
-  });
-});
+    assert.equal(result.reply, 'It is sunny in Tokyo.')
+    assert.deepEqual(result.groundingMetadata, groundingMetadata)
+  })
+})
 
-test("generateReplyHandler omits groundingMetadata when the model does not ground its reply", async () => {
-  const auth = buildAuth();
+test('generateReplyHandler omits groundingMetadata when the model does not ground its reply', async () => {
+  const auth = buildAuth()
 
   await withServiceMocks(async () => {
-    const user = buildUser(auth);
+    const user = buildUser(auth)
 
-    userRepository.getOrCreateUserByFirebaseIdentity = async () => user;
-    subscriptionService.getSubscription = async () => buildSubscription(user.id, "payg", 3);
-    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }];
-    creditService.getCredits = async () => 2;
+    userRepository.getOrCreateUserByFirebaseIdentity = async () => user
+    subscriptionService.getSubscription = async () => buildSubscription(user.id, 'payg', 3)
+    creditService.spendCredits = async () => [{ transactionId: 'mock-tx-id', amount: 1 }]
+    creditService.getCredits = async () => 2
 
     const result = await generateReplyHandler(
       {
@@ -1243,10 +1284,10 @@ test("generateReplyHandler omits groundingMetadata when the model does not groun
       } as never,
       {
         generateText: async () => ({ text: 'hi there' }),
-      }
-    );
+      },
+    )
 
-    assert.equal(result.reply, 'hi there');
-    assert.equal(result.groundingMetadata, undefined);
-  });
-});
+    assert.equal(result.reply, 'hi there')
+    assert.equal(result.groundingMetadata, undefined)
+  })
+})

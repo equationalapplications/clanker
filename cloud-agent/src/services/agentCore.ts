@@ -1,6 +1,12 @@
 import { LlmAgent, GOOGLE_SEARCH } from '@google/adk'
 import { and, eq, isNull, sql } from 'drizzle-orm'
-import { createTaskTool, listTasksTool, updateTaskTool, completeTaskTool, deleteTaskTool } from '../tools/tasks.js'
+import {
+  createTaskTool,
+  listTasksTool,
+  updateTaskTool,
+  completeTaskTool,
+  deleteTaskTool,
+} from '../tools/tasks.js'
 import { wikiReadTool, wikiWriteTool } from '../tools/wiki.js'
 import { wikiGetOntologyManifestTool, wikiTraverseGraphTool } from '../tools/ontology.js'
 import { getCurrentTimeTool } from '../tools/time.js'
@@ -48,7 +54,13 @@ export function buildAgent(
 }
 
 export function assembleSystemInstruction(
-  character: { name: string; appearance: string | null; traits: string | null; emotions: string | null; context: string | null },
+  character: {
+    name: string
+    appearance: string | null
+    traits: string | null
+    emotions: string | null
+    context: string | null
+  },
   wikiContext: string,
   recentChatContext?: string,
 ): string {
@@ -92,14 +104,16 @@ export async function queryWikiContext(
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)
-      .where(and(
-        eq(llmWikiEntries.entityId, characterId),
-        eq(llmWikiEntries.userId, userId),
-        isNull(llmWikiEntries.deletedAt),
-      ))
+      .where(
+        and(
+          eq(llmWikiEntries.entityId, characterId),
+          eq(llmWikiEntries.userId, userId),
+          isNull(llmWikiEntries.deletedAt),
+        ),
+      )
       .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
       .limit(5)
-    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
+    return rows.map((r) => `- ${r.title}: ${r.body}`).join('\n')
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw err
@@ -108,13 +122,15 @@ export async function queryWikiContext(
     const rows = await db
       .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
       .from(llmWikiEntries)
-      .where(and(
-        eq(llmWikiEntries.entityId, characterId),
-        eq(llmWikiEntries.userId, userId),
-        isNull(llmWikiEntries.deletedAt),
-        sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${normalizedQuery})`,
-      ))
+      .where(
+        and(
+          eq(llmWikiEntries.entityId, characterId),
+          eq(llmWikiEntries.userId, userId),
+          isNull(llmWikiEntries.deletedAt),
+          sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${normalizedQuery})`,
+        ),
+      )
       .limit(5)
-    return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
+    return rows.map((r) => `- ${r.title}: ${r.body}`).join('\n')
   }
 }

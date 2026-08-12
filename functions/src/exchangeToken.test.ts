@@ -1,26 +1,26 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import assert from 'node:assert/strict'
+import test from 'node:test'
 
 // Force test mode before imports that might initialize Cloud SQL clients.
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test'
 
-import {HttpsError} from "firebase-functions/v2/https";
-import {exchangeTokenHandler} from "./exchangeToken.js";
+import { HttpsError } from 'firebase-functions/v2/https'
+import { exchangeTokenHandler } from './exchangeToken.js'
 
-type ExchangeTokenDeps = NonNullable<Parameters<typeof exchangeTokenHandler>[1]>;
+type ExchangeTokenDeps = NonNullable<Parameters<typeof exchangeTokenHandler>[1]>
 
-test("exchangeTokenHandler rejects unauthenticated requests", async () => {
+test('exchangeTokenHandler rejects unauthenticated requests', async () => {
   await assert.rejects(
-    async () => exchangeTokenHandler({auth: null} as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    async () => exchangeTokenHandler({ auth: null } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
-test("exchangeTokenHandler normalizes token email before repository lookup", async () => {
+test('exchangeTokenHandler normalizes token email before repository lookup', async () => {
   const mockUser = {
-    id: "user-normalized-email",
-    firebaseUid: "firebase-uid-normalized-email",
-    email: "normalized@example.com",
+    id: 'user-normalized-email',
+    firebaseUid: 'firebase-uid-normalized-email',
+    email: 'normalized@example.com',
     displayName: null,
     expoPushToken: null,
     avatarUrl: null,
@@ -28,24 +28,24 @@ test("exchangeTokenHandler normalizes token email before repository lookup", asy
     defaultCharacterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  }
 
   const mockSubscription = {
-    userId: "user-normalized-email",
-    planTier: "free",
-    planStatus: "active",
+    userId: 'user-normalized-email',
+    planTier: 'free',
+    planStatus: 'active',
     currentCredits: 50,
     termsVersion: null,
     termsAcceptedAt: null,
-  };
+  }
 
-  let capturedEmail = "";
+  let capturedEmail = ''
 
   const mockDeps = {
     userRepository: {
-      getOrCreateUserByFirebaseIdentity: async ({email}: {email: string}) => {
-        capturedEmail = email;
-        return mockUser;
+      getOrCreateUserByFirebaseIdentity: async ({ email }: { email: string }) => {
+        capturedEmail = email
+        return mockUser
       },
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
@@ -61,44 +61,47 @@ test("exchangeTokenHandler normalizes token email before repository lookup", asy
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 0,
     },
-  };
+  }
 
-  await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-normalized-email",
-      token: {
-        uid: "firebase-uid-normalized-email",
-        email: "  Normalized@Example.Com  ",
+  await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-normalized-email',
+        token: {
+          uid: 'firebase-uid-normalized-email',
+          email: '  Normalized@Example.Com  ',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
-  assert.strictEqual(capturedEmail, "normalized@example.com");
-});
+  assert.strictEqual(capturedEmail, 'normalized@example.com')
+})
 
-test("exchangeTokenHandler bootstraps a new user with onboarding credits", async () => {
+test('exchangeTokenHandler bootstraps a new user with onboarding credits', async () => {
   const mockUser = {
-    id: "user-123",
-    firebaseUid: "firebase-uid-1",
-    email: "new-user@example.com",
-    displayName: "New User",
-    avatarUrl: "https://example.com/photo.png",
+    id: 'user-123',
+    firebaseUid: 'firebase-uid-1',
+    email: 'new-user@example.com',
+    displayName: 'New User',
+    avatarUrl: 'https://example.com/photo.png',
     isProfilePublic: false,
     defaultCharacterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  }
 
   const mockSubscription = {
-    userId: "user-123",
-    planTier: "free",
-    planStatus: "active",
+    userId: 'user-123',
+    planTier: 'free',
+    planStatus: 'active',
     currentCredits: 50,
     termsVersion: null,
     termsAcceptedAt: null,
     nextExpiryDate: null,
     cancelAtPeriodEnd: false,
-  };
+  }
 
   const mockDeps = {
     userRepository: {
@@ -117,19 +120,22 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 5000,
     },
-  };
+  }
 
-  const result = await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-1",
-      token: {
-        uid: "firebase-uid-1",
-        email: "new-user@example.com",
-        name: "New User",
-        picture: "https://example.com/photo.png",
+  const result = await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-1',
+        token: {
+          uid: 'firebase-uid-1',
+          email: 'new-user@example.com',
+          name: 'New User',
+          picture: 'https://example.com/photo.png',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
   assert.deepEqual(result, {
     user: {
@@ -154,33 +160,33 @@ test("exchangeTokenHandler bootstraps a new user with onboarding credits", async
       cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
       subscriptionProvider: null,
     },
-  });
-});
+  })
+})
 
-test("exchangeTokenHandler returns existing user and subscription", async () => {
+test('exchangeTokenHandler returns existing user and subscription', async () => {
   const mockUser = {
-    id: "user-123",
-    firebaseUid: "firebase-uid-1",
-    email: "existing@example.com",
-    displayName: "Existing User",
+    id: 'user-123',
+    firebaseUid: 'firebase-uid-1',
+    email: 'existing@example.com',
+    displayName: 'Existing User',
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  }
 
   const mockSubscription = {
-    userId: "user-123",
-    planTier: "monthly_20",
-    planStatus: "active",
+    userId: 'user-123',
+    planTier: 'monthly_20',
+    planStatus: 'active',
     currentCredits: 150,
-    termsVersion: "v1",
+    termsVersion: 'v1',
     termsAcceptedAt: new Date(),
-    nextExpiryDate: new Date("2026-01-01T00:00:00.000Z"),
+    nextExpiryDate: new Date('2026-01-01T00:00:00.000Z'),
     cancelAtPeriodEnd: true,
-    subscriptionProvider: "revenuecat",
-  };
+    subscriptionProvider: 'revenuecat',
+  }
 
   const mockDeps = {
     userRepository: {
@@ -199,17 +205,20 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 15000,
     },
-  };
+  }
 
-  const result = await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-1",
-      token: {
-        uid: "firebase-uid-1",
-        email: "existing@example.com",
+  const result = await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-1',
+        token: {
+          uid: 'firebase-uid-1',
+          email: 'existing@example.com',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
   assert.deepEqual(result, {
     user: {
@@ -234,34 +243,34 @@ test("exchangeTokenHandler returns existing user and subscription", async () => 
       cancelAtPeriodEnd: mockSubscription.cancelAtPeriodEnd,
       subscriptionProvider: mockSubscription.subscriptionProvider,
     },
-  });
+  })
 
-  assert.strictEqual(result.subscription.subscriptionProvider, "revenuecat");
-});
+  assert.strictEqual(result.subscription.subscriptionProvider, 'revenuecat')
+})
 
-test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects", async () => {
-  const now = new Date("2025-06-15T12:00:00.000Z");
+test('exchangeTokenHandler returns timestamps as ISO strings, not Date objects', async () => {
+  const now = new Date('2025-06-15T12:00:00.000Z')
   const mockUser = {
-    id: "user-ts",
-    firebaseUid: "firebase-uid-ts",
-    email: "ts@example.com",
-    displayName: "TS User",
+    id: 'user-ts',
+    firebaseUid: 'firebase-uid-ts',
+    email: 'ts@example.com',
+    displayName: 'TS User',
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
     createdAt: now,
     updatedAt: now,
-  };
+  }
 
-  const accepted = new Date("2025-06-16T08:00:00.000Z");
+  const accepted = new Date('2025-06-16T08:00:00.000Z')
   const mockSubscription = {
-    userId: "user-ts",
-    planTier: "free",
-    planStatus: "active",
+    userId: 'user-ts',
+    planTier: 'free',
+    planStatus: 'active',
     currentCredits: 50,
-    termsVersion: "v1",
+    termsVersion: 'v1',
     termsAcceptedAt: accepted,
-  };
+  }
 
   const mockDeps = {
     userRepository: {
@@ -280,34 +289,37 @@ test("exchangeTokenHandler returns timestamps as ISO strings, not Date objects",
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 0,
     },
-  };
+  }
 
-  const result = await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-ts",
-      token: {
-        uid: "firebase-uid-ts",
-        email: "ts@example.com",
+  const result = await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-ts',
+        token: {
+          uid: 'firebase-uid-ts',
+          email: 'ts@example.com',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
   // Timestamps must be ISO strings so Firebase callable encode() doesn't
   // corrupt them to empty objects (Date → {} via Object.entries).
-  assert.strictEqual(typeof result.user.createdAt, "string");
-  assert.strictEqual(typeof result.user.updatedAt, "string");
-  assert.strictEqual(result.user.createdAt, "2025-06-15T12:00:00.000Z");
-  assert.strictEqual(result.user.updatedAt, "2025-06-15T12:00:00.000Z");
-  assert.strictEqual(typeof result.subscription.termsAcceptedAt, "string");
-  assert.strictEqual(result.subscription.termsAcceptedAt, "2025-06-16T08:00:00.000Z");
-});
+  assert.strictEqual(typeof result.user.createdAt, 'string')
+  assert.strictEqual(typeof result.user.updatedAt, 'string')
+  assert.strictEqual(result.user.createdAt, '2025-06-15T12:00:00.000Z')
+  assert.strictEqual(result.user.updatedAt, '2025-06-15T12:00:00.000Z')
+  assert.strictEqual(typeof result.subscription.termsAcceptedAt, 'string')
+  assert.strictEqual(result.subscription.termsAcceptedAt, '2025-06-16T08:00:00.000Z')
+})
 
-test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
-  const now = new Date("2025-06-15T12:00:00.000Z");
+test('exchangeTokenHandler returns null termsAcceptedAt as null', async () => {
+  const now = new Date('2025-06-15T12:00:00.000Z')
   const mockUser = {
-    id: "user-null",
-    firebaseUid: "firebase-uid-null",
-    email: "null@example.com",
+    id: 'user-null',
+    firebaseUid: 'firebase-uid-null',
+    email: 'null@example.com',
     displayName: null,
     expoPushToken: null,
     avatarUrl: null,
@@ -315,16 +327,16 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
     defaultCharacterId: null,
     createdAt: now,
     updatedAt: now,
-  };
+  }
 
   const mockSubscription = {
-    userId: "user-null",
-    planTier: "free",
-    planStatus: "active",
+    userId: 'user-null',
+    planTier: 'free',
+    planStatus: 'active',
     currentCredits: 50,
     termsVersion: null,
     termsAcceptedAt: null,
-  };
+  }
 
   const mockDeps = {
     userRepository: {
@@ -343,27 +355,30 @@ test("exchangeTokenHandler returns null termsAcceptedAt as null", async () => {
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 0,
     },
-  };
+  }
 
-  const result = await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-null",
-      token: {
-        uid: "firebase-uid-null",
-        email: "null@example.com",
+  const result = await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-null',
+        token: {
+          uid: 'firebase-uid-null',
+          email: 'null@example.com',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
-  assert.strictEqual(result.subscription.termsAcceptedAt, null);
-});
+  assert.strictEqual(result.subscription.termsAcceptedAt, null)
+})
 
-test("exchangeTokenHandler does not reset credits when default subscription creation races", async () => {
-  const now = new Date("2026-04-20T00:00:00.000Z");
+test('exchangeTokenHandler does not reset credits when default subscription creation races', async () => {
+  const now = new Date('2026-04-20T00:00:00.000Z')
   const mockUser = {
-    id: "user-race",
-    firebaseUid: "firebase-uid-race",
-    email: "race@example.com",
+    id: 'user-race',
+    firebaseUid: 'firebase-uid-race',
+    email: 'race@example.com',
     displayName: null,
     expoPushToken: null,
     avatarUrl: null,
@@ -371,16 +386,16 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
     defaultCharacterId: null,
     createdAt: now,
     updatedAt: now,
-  };
+  }
 
   const existingSubscription = {
-    userId: "user-race",
-    planTier: "monthly_20",
-    planStatus: "active",
+    userId: 'user-race',
+    planTier: 'monthly_20',
+    planStatus: 'active',
     currentCredits: 200,
-    termsVersion: "v1",
+    termsVersion: 'v1',
     termsAcceptedAt: null,
-  };
+  }
 
   const mockDeps = {
     userRepository: {
@@ -393,7 +408,7 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
       getSubscription: async () => null,
       getOrCreateDefaultSubscription: async () => existingSubscription,
       upsertSubscription: async () => {
-        throw new Error("upsertSubscription should not be used for bootstrap defaults");
+        throw new Error('upsertSubscription should not be used for bootstrap defaults')
       },
       acceptTerms: async () => {},
     },
@@ -401,102 +416,115 @@ test("exchangeTokenHandler does not reset credits when default subscription crea
       getCredits: async () => existingSubscription.currentCredits,
       getGrantedTotal: async () => 0,
     },
-  };
+  }
 
-  const result = await exchangeTokenHandler({
-    auth: {
-      uid: "firebase-uid-race",
-      token: {
-        uid: "firebase-uid-race",
-        email: "race@example.com",
+  const result = await exchangeTokenHandler(
+    {
+      auth: {
+        uid: 'firebase-uid-race',
+        token: {
+          uid: 'firebase-uid-race',
+          email: 'race@example.com',
+        },
       },
-    },
-  } as never, mockDeps as unknown as ExchangeTokenDeps);
+    } as never,
+    mockDeps as unknown as ExchangeTokenDeps,
+  )
 
-  assert.strictEqual(result.subscription.currentCredits, 200);
-});
+  assert.strictEqual(result.subscription.currentCredits, 200)
+})
 
-test("exchangeTokenHandler maps singular Cloud SQL env var error to failed-precondition", async () => {
+test('exchangeTokenHandler maps singular Cloud SQL env var error to failed-precondition', async () => {
   const mockDeps = {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => {
-        throw new Error("Missing required Cloud SQL environment variable: CLOUD_SQL_DB_NAME");
+        throw new Error('Missing required Cloud SQL environment variable: CLOUD_SQL_DB_NAME')
       },
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
       updateUser: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
     },
     subscriptionService: {
       getSubscription: async () => null,
       getOrCreateDefaultSubscription: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
       upsertSubscription: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
       acceptTerms: async () => {},
     },
-  };
+  }
 
   await assert.rejects(
-    async () => exchangeTokenHandler({
-      auth: {
-        uid: "firebase-uid-err-1",
-        token: {
-          uid: "firebase-uid-err-1",
-          email: "err1@example.com",
-        },
-      },
-    } as never, mockDeps as unknown as ExchangeTokenDeps),
-    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-  );
-});
+    async () =>
+      exchangeTokenHandler(
+        {
+          auth: {
+            uid: 'firebase-uid-err-1',
+            token: {
+              uid: 'firebase-uid-err-1',
+              email: 'err1@example.com',
+            },
+          },
+        } as never,
+        mockDeps as unknown as ExchangeTokenDeps,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+  )
+})
 
-test("exchangeTokenHandler maps plural Cloud SQL env vars error to failed-precondition", async () => {
+test('exchangeTokenHandler maps plural Cloud SQL env vars error to failed-precondition', async () => {
   const mockDeps = {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => {
-        throw new Error("Missing required Cloud SQL environment variables: CLOUD_SQL_DB_NAME, CLOUD_SQL_DB_USER");
+        throw new Error(
+          'Missing required Cloud SQL environment variables: CLOUD_SQL_DB_NAME, CLOUD_SQL_DB_USER',
+        )
       },
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
       updateUser: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
     },
     subscriptionService: {
       getSubscription: async () => null,
       getOrCreateDefaultSubscription: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
       upsertSubscription: async () => {
-        throw new Error("not used");
+        throw new Error('not used')
       },
       acceptTerms: async () => {},
     },
-  };
+  }
 
   await assert.rejects(
-    async () => exchangeTokenHandler({
-      auth: {
-        uid: "firebase-uid-err-2",
-        token: {
-          uid: "firebase-uid-err-2",
-          email: "err2@example.com",
-        },
-      },
-    } as never, mockDeps as unknown as ExchangeTokenDeps),
-    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-  );
-});
+    async () =>
+      exchangeTokenHandler(
+        {
+          auth: {
+            uid: 'firebase-uid-err-2',
+            token: {
+              uid: 'firebase-uid-err-2',
+              email: 'err2@example.com',
+            },
+          },
+        } as never,
+        mockDeps as unknown as ExchangeTokenDeps,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+  )
+})
 
-test("exchangeTokenHandler throws internal error when userRepository fails", async () => {
+test('exchangeTokenHandler throws internal error when userRepository fails', async () => {
   const mockDeps = {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => {
-        throw new Error("DB error");
+        throw new Error('DB error')
       },
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
@@ -508,24 +536,28 @@ test("exchangeTokenHandler throws internal error when userRepository fails", asy
       upsertSubscription: async () => null,
       acceptTerms: async () => {},
     },
-  };
+  }
 
   await assert.rejects(
-    async () => exchangeTokenHandler({
-      auth: {
-        uid: "firebase-uid-1",
-        token: {uid: "firebase-uid-1", email: "fail@example.com"},
-      },
-    } as never, mockDeps as unknown as ExchangeTokenDeps),
-    (err: unknown) => err instanceof HttpsError && err.code === "internal"
-  );
-});
+    async () =>
+      exchangeTokenHandler(
+        {
+          auth: {
+            uid: 'firebase-uid-1',
+            token: { uid: 'firebase-uid-1', email: 'fail@example.com' },
+          },
+        } as never,
+        mockDeps as unknown as ExchangeTokenDeps,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'internal',
+  )
+})
 
-test("exchangeTokenHandler maps Cloud SQL config errors to failed-precondition", async () => {
+test('exchangeTokenHandler maps Cloud SQL config errors to failed-precondition', async () => {
   const mockDeps = {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => {
-        throw new Error("Missing required Cloud SQL environment variables: CLOUD_SQL_DB_USER");
+        throw new Error('Missing required Cloud SQL environment variables: CLOUD_SQL_DB_USER')
       },
       findUserByEmail: async () => null,
       findUserByFirebaseUid: async () => null,
@@ -537,24 +569,28 @@ test("exchangeTokenHandler maps Cloud SQL config errors to failed-precondition",
       upsertSubscription: async () => null,
       acceptTerms: async () => {},
     },
-  };
+  }
 
   await assert.rejects(
-    async () => exchangeTokenHandler({
-      auth: {
-        uid: "firebase-uid-1",
-        token: {uid: "firebase-uid-1", email: "fail@example.com"},
-      },
-    } as never, mockDeps as unknown as ExchangeTokenDeps),
-    (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition"
-  );
-});
+    async () =>
+      exchangeTokenHandler(
+        {
+          auth: {
+            uid: 'firebase-uid-1',
+            token: { uid: 'firebase-uid-1', email: 'fail@example.com' },
+          },
+        } as never,
+        mockDeps as unknown as ExchangeTokenDeps,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'failed-precondition',
+  )
+})
 
-test("exchangeTokenHandler throws when required user timestamps are missing", async () => {
+test('exchangeTokenHandler throws when required user timestamps are missing', async () => {
   const mockUser = {
-    id: "user-missing-ts",
-    firebaseUid: "firebase-uid-missing-ts",
-    email: "missing-ts@example.com",
+    id: 'user-missing-ts',
+    firebaseUid: 'firebase-uid-missing-ts',
+    email: 'missing-ts@example.com',
     displayName: null,
     expoPushToken: null,
     avatarUrl: null,
@@ -562,16 +598,16 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
     defaultCharacterId: null,
     createdAt: undefined,
     updatedAt: new Date(),
-  };
+  }
 
   const mockSubscription = {
-    userId: "user-missing-ts",
-    planTier: "free",
-    planStatus: "active",
+    userId: 'user-missing-ts',
+    planTier: 'free',
+    planStatus: 'active',
     currentCredits: 50,
     termsVersion: null,
     termsAcceptedAt: null,
-  };
+  }
 
   const mockDeps = {
     userRepository: {
@@ -590,18 +626,22 @@ test("exchangeTokenHandler throws when required user timestamps are missing", as
       getCredits: async () => mockSubscription.currentCredits,
       getGrantedTotal: async () => 0,
     },
-  };
+  }
 
   await assert.rejects(
-    async () => exchangeTokenHandler({
-      auth: {
-        uid: "firebase-uid-missing-ts",
-        token: {
-          uid: "firebase-uid-missing-ts",
-          email: "missing-ts@example.com",
-        },
-      },
-    } as never, mockDeps as unknown as ExchangeTokenDeps),
-    (err: unknown) => err instanceof HttpsError && err.code === "internal"
-  );
-});
+    async () =>
+      exchangeTokenHandler(
+        {
+          auth: {
+            uid: 'firebase-uid-missing-ts',
+            token: {
+              uid: 'firebase-uid-missing-ts',
+              email: 'missing-ts@example.com',
+            },
+          },
+        } as never,
+        mockDeps as unknown as ExchangeTokenDeps,
+      ),
+    (err: unknown) => err instanceof HttpsError && err.code === 'internal',
+  )
+})

@@ -14,7 +14,10 @@ const liveTestsEnabled = process.env.RUN_LIVE_TESTS === '1'
 
 test(
   'runAgentReal: mixes GOOGLE_SEARCH and a custom FunctionTool in one live turn',
-  { skip: !liveTestsEnabled && 'set RUN_LIVE_TESTS=1 to run against live Vertex AI', timeout: 30_000 },
+  {
+    skip: !liveTestsEnabled && 'set RUN_LIVE_TESTS=1 to run against live Vertex AI',
+    timeout: 30_000,
+  },
   async () => {
     const { reply, toolCalls } = await runAgentReal({
       db: mockDb,

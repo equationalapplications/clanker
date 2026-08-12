@@ -73,9 +73,7 @@ export default function GoogleSignInButton({ onLoadingChange, loading, disabled,
         <ProviderButton type="google" onPress={() => {}} disabled style={style}>
           Google
         </ProviderButton>
-        <Text style={styles.caption}>
-          Google Sign-In unavailable. Please refresh or try Apple.
-        </Text>
+        <Text style={styles.caption}>Google Sign-In unavailable. Please refresh or try Apple.</Text>
       </View>
     )
   }
@@ -91,7 +89,11 @@ export default function GoogleSignInButton({ onLoadingChange, loading, disabled,
     >
       <View ref={containerRef} style={styles.container} />
       {showLoadingOverlay ? (
-        <View style={styles.loadingOverlay} pointerEvents="none" testID="google-signin-loading-overlay">
+        <View
+          style={styles.loadingOverlay}
+          pointerEvents="none"
+          testID="google-signin-loading-overlay"
+        >
           <ActivityIndicator />
         </View>
       ) : null}

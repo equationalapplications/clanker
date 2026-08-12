@@ -1,5 +1,5 @@
-import { FunctionTool } from '@google/adk';
-import { getCurrentTimeManifest } from '@equationalapplications/core-llm-tools';
+import { FunctionTool } from '@google/adk'
+import { getCurrentTimeManifest } from '@equationalapplications/core-llm-tools'
 
 export const getCurrentTimeTool = new FunctionTool({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,6 +13,6 @@ export const getCurrentTimeTool = new FunctionTool({
       hour: 'numeric',
       minute: '2-digit',
       timeZoneName: 'short',
-    });
+    })
   },
-});
+})

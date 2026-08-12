@@ -15,7 +15,12 @@ import {
 } from 'react-native-paper'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from '@xstate/react'
-import { useCharacter, useUpdateCharacter, useUnsyncCharacter, useSyncCharacters } from '~/hooks/useCharacters'
+import {
+  useCharacter,
+  useUpdateCharacter,
+  useUnsyncCharacter,
+  useSyncCharacters,
+} from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { AvatarPicker } from '~/components/AvatarPicker'
@@ -23,10 +28,7 @@ import { buildImagePrompt } from '~/utils/buildImagePrompt'
 import { useEditDirtyState } from '~/hooks/useEditDirtyState'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { reportError } from '~/utilities/reportError'
-import {
-  buildCharacterShareUrl,
-  buildNativeCharacterShareLink,
-} from '~/utilities/characterShare'
+import { buildCharacterShareUrl, buildNativeCharacterShareLink } from '~/utilities/characterShare'
 import { DEFAULT_VOICE, GEMINI_LIVE_VOICES, resolveLiveVoice } from '~/constants/geminiVoices'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { useExportCharacterOKF } from '~/hooks/useExportCharacterOKF'
@@ -42,11 +44,7 @@ export default function EditCharacterScreen() {
     user: state.context.user,
   }))
   const { character, isLoading } = useCharacter(characterId)
-  const {
-    update,
-    isPending: isUpdating,
-    error: updateError,
-  } = useUpdateCharacter()
+  const { update, isPending: isUpdating, error: updateError } = useUpdateCharacter()
   const { isCloudUnsyncing, error: unsyncError } = useUnsyncCharacter()
   const { isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
   const { sync: wikiSyncHandler } = useCharacterWiki(characterId)
@@ -147,7 +145,7 @@ export default function EditCharacterScreen() {
           saveToCloud: saveToCloud ? 'true' : 'false',
           isShareable: isCharacterShareable ? 'true' : 'false',
         }
-      : loadedValues ?? {
+      : (loadedValues ?? {
           name: '',
           appearance: '',
           traits: '',
@@ -156,7 +154,7 @@ export default function EditCharacterScreen() {
           voice: DEFAULT_VOICE,
           saveToCloud: 'false',
           isShareable: 'false',
-        },
+        }),
     loadedValues,
   )
 
@@ -182,7 +180,13 @@ export default function EditCharacterScreen() {
     const justFinishedUpdating = !isUpdating && prevIsUpdatingRef.current
     const justFinishedUnsyncing = !isCloudUnsyncing && prevIsCloudUnsyncingRef.current
     const justFinishedSyncing = !isCloudSyncing && prevIsCloudSyncingRef.current
-    if (isSaving && !isUpdating && !isCloudUnsyncing && !isCloudSyncing && (justFinishedUpdating || justFinishedUnsyncing || justFinishedSyncing)) {
+    if (
+      isSaving &&
+      !isUpdating &&
+      !isCloudUnsyncing &&
+      !isCloudSyncing &&
+      (justFinishedUpdating || justFinishedUnsyncing || justFinishedSyncing)
+    ) {
       // Update (and any subsequent cloud sync or unsync) has completed
       setIsSaving(false)
       if (!updateError && !unsyncError && !cloudSyncError) {
@@ -198,7 +202,15 @@ export default function EditCharacterScreen() {
     prevIsUpdatingRef.current = isUpdating
     prevIsCloudUnsyncingRef.current = isCloudUnsyncing
     prevIsCloudSyncingRef.current = isCloudSyncing
-  }, [isUpdating, isCloudUnsyncing, isCloudSyncing, isSaving, updateError, unsyncError, cloudSyncError])
+  }, [
+    isUpdating,
+    isCloudUnsyncing,
+    isCloudSyncing,
+    isSaving,
+    updateError,
+    unsyncError,
+    cloudSyncError,
+  ])
 
   useEffect(() => {
     if (didImport && !prevDidImportRef.current) {
@@ -211,7 +223,8 @@ export default function EditCharacterScreen() {
     if (importError && importError !== importErrorShownRef.current) {
       setToastState({
         message:
-          (importError as Error & { displayMessage?: string }).displayMessage ?? importError.message,
+          (importError as Error & { displayMessage?: string }).displayMessage ??
+          importError.message,
         requiresSubscription: false,
       })
       importErrorShownRef.current = importError
@@ -411,9 +424,7 @@ export default function EditCharacterScreen() {
         <Text>Character not found</Text>
         <Button
           mode="contained"
-          onPress={() =>
-            router.canGoBack() ? router.back() : router.replace('/characters/list')
-          }
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
         >
           Go Back
         </Button>
@@ -506,7 +517,9 @@ export default function EditCharacterScreen() {
 
           <Divider style={styles.voiceDivider} />
 
-          <Text variant="labelLarge" style={styles.voiceLabel}>Voice</Text>
+          <Text variant="labelLarge" style={styles.voiceLabel}>
+            Voice
+          </Text>
           <Menu
             visible={voiceMenuVisible}
             onDismiss={() => setVoiceMenuVisible(false)}
@@ -537,7 +550,11 @@ export default function EditCharacterScreen() {
             <View style={styles.toggleTextContainer}>
               <Text variant="titleMedium">Save to Cloud</Text>
             </View>
-            <Switch value={saveToCloud} onValueChange={handleToggleSaveToCloud} disabled={!canEdit || isSaving || isUpdating || isCloudSyncing || isCloudUnsyncing} />
+            <Switch
+              value={saveToCloud}
+              onValueChange={handleToggleSaveToCloud}
+              disabled={!canEdit || isSaving || isUpdating || isCloudSyncing || isCloudUnsyncing}
+            />
           </View>
 
           {character.owner_user_id && canEdit ? (
@@ -565,7 +582,13 @@ export default function EditCharacterScreen() {
           </View>
 
           {isCharacterShareable ? (
-            <Button mode="outlined" icon="share-variant" onPress={handleOpenShareCard} style={styles.shareButton} disabled={!canEdit}>
+            <Button
+              mode="outlined"
+              icon="share-variant"
+              onPress={handleOpenShareCard}
+              style={styles.shareButton}
+              disabled={!canEdit}
+            >
               Share Character
             </Button>
           ) : null}
@@ -628,7 +651,9 @@ export default function EditCharacterScreen() {
           <View style={styles.buttonContainer}>
             <Button
               mode="text"
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/characters/list'))}
+              onPress={() =>
+                router.canGoBack() ? router.back() : router.replace('/characters/list')
+              }
               style={styles.button}
             >
               Cancel
@@ -648,10 +673,10 @@ export default function EditCharacterScreen() {
               {unsyncError instanceof Error
                 ? unsyncError.message
                 : cloudSyncError instanceof Error
-                ? cloudSyncError.message
-                : updateError instanceof Error
-                ? updateError.message
-                : 'Failed to save character. Please try again.'}
+                  ? cloudSyncError.message
+                  : updateError instanceof Error
+                    ? updateError.message
+                    : 'Failed to save character. Please try again.'}
             </HelperText>
           ) : null}
         </View>
@@ -730,11 +755,7 @@ export default function EditCharacterScreen() {
                 >
                   Replace Memory
                 </Button>
-                <Button
-                  mode="text"
-                  onPress={handleImportCancel}
-                  disabled={isImporting}
-                >
+                <Button mode="text" onPress={handleImportCancel} disabled={isImporting}>
                   Cancel
                 </Button>
               </>
@@ -747,11 +768,7 @@ export default function EditCharacterScreen() {
         visible={toastState !== null}
         onDismiss={() => setToastState(null)}
         duration={4000}
-        action={
-          toastState?.onRetry
-            ? { label: 'Retry', onPress: toastState.onRetry }
-            : undefined
-        }
+        action={toastState?.onRetry ? { label: 'Retry', onPress: toastState.onRetry } : undefined}
       >
         {toastState?.message}
       </Snackbar>

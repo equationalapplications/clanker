@@ -79,8 +79,13 @@ export type ToolExecutor = (args: Record<string, unknown>) => unknown
 export const edgeToolExecutors: Record<string, ToolExecutor> = {
   get_current_time: () =>
     new Date().toLocaleString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long',
-      day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
     }),
   // escalate_to_cloud is NOT in this map — it triggers a state change, not an execution.
 }
@@ -96,7 +101,7 @@ export type EscalationState = 'idle' | 'escalating'
 export interface UseEdgeAgentOptions {
   character: Character
   userId: string
-  priorMessages: IMessage[]      // read from useMessages — not managed here
+  priorMessages: IMessage[] // read from useMessages — not managed here
   memoryBlock?: string
 }
 
@@ -126,11 +131,13 @@ export interface UseEdgeAgentReturn {
 - Reads `escalationState` from `useAIChat`.
 - When `escalationState === 'escalating'`, renders a status banner identical to the existing `wikiStatus` banners:
   ```tsx
-  {escalationState === 'escalating' && (
-    <Text style={styles.statusText} accessibilityLabel="Thinking deeply">
-      🧠 Thinking deeply…
-    </Text>
-  )}
+  {
+    escalationState === 'escalating' && (
+      <Text style={styles.statusText} accessibilityLabel="Thinking deeply">
+        🧠 Thinking deeply…
+      </Text>
+    )
+  }
   ```
 
 ---
@@ -156,14 +163,16 @@ Model: `gemini-2.5-flash` — matches the Firebase Functions backend model selec
 Schemas come from `@equationalapplications/core-llm-tools` (already installed as `^4.10.0`):
 
 ```typescript
-import { getCurrentTimeManifest, escalateToCloudManifest } from '@equationalapplications/core-llm-tools'
+import {
+  getCurrentTimeManifest,
+  escalateToCloudManifest,
+} from '@equationalapplications/core-llm-tools'
 
-const tools = [{
-  functionDeclarations: [
-    getCurrentTimeManifest.schema,
-    escalateToCloudManifest.schema,
-  ],
-}]
+const tools = [
+  {
+    functionDeclarations: [getCurrentTimeManifest.schema, escalateToCloudManifest.schema],
+  },
+]
 ```
 
 No hardcoded schema strings in `useEdgeAgent`. When the manifest description changes in the package, both edge and cloud consumers update automatically.
@@ -198,29 +207,29 @@ The while-loop is capped at **5 iterations** to prevent runaway tool loops. If t
 
 ## 7. Acceptance Criteria
 
-| Test | Expected |
-|------|----------|
-| Query requires `get_current_time` | Firebase not called; reply contains current time |
-| Query triggers escalation | `escalationState === 'escalating'`; Firebase `generateChatReply` called |
-| System prompt | Built from `character.name`, `.appearance`, `.traits`, `.emotions`, `.context` |
-| Tool schemas | `getCurrentTimeManifest.schema` and `escalateToCloudManifest.schema` spread, no hardcoded strings |
-| Credit deduction | Escalated messages deduct credits; edge-resolved messages do not |
-| GiftedChat | No regressions in message rendering or composer |
-| TypeScript build | `npm run typecheck` passes |
-| App test suite | `npm test` passes |
+| Test                              | Expected                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Query requires `get_current_time` | Firebase not called; reply contains current time                                                  |
+| Query triggers escalation         | `escalationState === 'escalating'`; Firebase `generateChatReply` called                           |
+| System prompt                     | Built from `character.name`, `.appearance`, `.traits`, `.emotions`, `.context`                    |
+| Tool schemas                      | `getCurrentTimeManifest.schema` and `escalateToCloudManifest.schema` spread, no hardcoded strings |
+| Credit deduction                  | Escalated messages deduct credits; edge-resolved messages do not                                  |
+| GiftedChat                        | No regressions in message rendering or composer                                                   |
+| TypeScript build                  | `npm run typecheck` passes                                                                        |
+| App test suite                    | `npm test` passes                                                                                 |
 
 ---
 
 ## 8. Files Changed
 
-| File | Change |
-|------|--------|
-| `package.json` | Add `@google/genai` |
-| `src/services/characterPromptBuilder.ts` | **New** — builds `systemInstruction` and `Content[]` from `Character` |
-| `src/services/edgeToolExecutors.ts` | **New** — pure local tool execution map |
-| `src/hooks/useEdgeAgent.ts` | **New** — ADK-style while-loop, manages `escalationState` |
-| `src/hooks/useAIChat.ts` | **Modify** — call `useEdgeAgent`, surface `escalationState`, route escalated messages to Firebase |
-| `src/components/ChatView.tsx` | **Modify** — render escalation banner from `escalationState` |
+| File                                     | Change                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `package.json`                           | Add `@google/genai`                                                                               |
+| `src/services/characterPromptBuilder.ts` | **New** — builds `systemInstruction` and `Content[]` from `Character`                             |
+| `src/services/edgeToolExecutors.ts`      | **New** — pure local tool execution map                                                           |
+| `src/hooks/useEdgeAgent.ts`              | **New** — ADK-style while-loop, manages `escalationState`                                         |
+| `src/hooks/useAIChat.ts`                 | **Modify** — call `useEdgeAgent`, surface `escalationState`, route escalated messages to Firebase |
+| `src/components/ChatView.tsx`            | **Modify** — render escalation banner from `escalationState`                                      |
 
 ---
 

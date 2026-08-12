@@ -107,7 +107,9 @@ phase 1 and none of which should be an unroled `accessible` view:
   size={size}
   source={{ uri: imageUrl }}
   resizeMode="cover"
-  onError={() => { setErroredUrl(imageUrl ?? null) }}
+  onError={() => {
+    setErroredUrl(imageUrl ?? null)
+  }}
   accessible
   accessibilityRole="image"
   accessibilityLabel={characterName ? `${characterName} avatar` : 'Character avatar'}
@@ -157,7 +159,9 @@ function bubbleCharacterProps() {
     currentMessage: { user: { _id: 'char-1' } },
   })
   capturedAvatarProps.length = 0
-  act(() => { create(rendered) })
+  act(() => {
+    create(rendered)
+  })
   expect(capturedAvatarProps).toHaveLength(1)
   return capturedAvatarProps[0]
 }
@@ -168,7 +172,9 @@ function bubbleUserLabel(): string | null {
     currentMessage: { user: { _id: 'user-1' } },
   })
   let holder: any
-  act(() => { holder = create(rendered) })
+  act(() => {
+    holder = create(rendered)
+  })
   const txt = holder.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })[0]
   return txt ? txt.props.label : null
 }
@@ -204,7 +210,9 @@ it('character bubble renders CharacterAvatar, not initials, when there is no ima
   })
   capturedAvatarProps.length = 0
   let holder: any
-  act(() => { holder = create(rendered) })
+  act(() => {
+    holder = create(rendered)
+  })
 
   expect(capturedAvatarProps).toHaveLength(1)
   expect(capturedAvatarProps[0].imageUrl).toBeNull()
@@ -221,7 +229,7 @@ it('character bubble renders CharacterAvatar, not initials, when there is no ima
 it('user bubble shows initials when user has no avatar', () => {
   mockResolved = null
   renderChat(baseCharacter({}))
-  expect(bubbleUserLabel()).toBe('T')  // 'Test' → 'T'
+  expect(bubbleUserLabel()).toBe('T') // 'Test' → 'T'
 })
 ```
 

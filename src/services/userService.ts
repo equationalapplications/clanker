@@ -83,7 +83,7 @@ export const upsertUserProfile = async (
       isProfilePublic: profile.is_profile_public,
       defaultCharacterId: profile.default_character_id,
     })
-    
+
     const user = result.data
     return {
       user_id: user.id,
@@ -144,12 +144,13 @@ export const getUserPrivate = async (): Promise<UserPrivate | null> => {
 export const deleteUser = async (): Promise<void> => {
   await appCheckReady
 
-  const deleteMyAccountCallable =
-    deleteMyAccountFn as Callable<Record<string, never>, DeleteMyAccountResponse>
+  const deleteMyAccountCallable = deleteMyAccountFn as Callable<
+    Record<string, never>,
+    DeleteMyAccountResponse
+  >
   const response = await deleteMyAccountCallable({})
 
   if (!response.data?.success || !response.data.deleted) {
     throw new Error('Account deletion did not complete successfully')
   }
 }
-

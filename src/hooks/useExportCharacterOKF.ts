@@ -36,9 +36,7 @@ export function useExportCharacterOKF(characterId: string, characterName: string
       const entity = dump.entities[characterId]
       const isEmpty =
         !entity ||
-        (entity.facts.length === 0 &&
-          entity.tasks.length === 0 &&
-          entity.events.length === 0)
+        (entity.facts.length === 0 && entity.tasks.length === 0 && entity.events.length === 0)
 
       const { files } = formatOkfBundle(dump)
       const filesWithReadme: OkfFile[] = [

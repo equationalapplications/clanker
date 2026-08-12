@@ -13,10 +13,16 @@ function parseSummary(summary: string): { title: string; body: string; tags: str
   return { title, body, tags: inferTags(summary) }
 }
 
-export function wikiReadTool(db: DrizzleClient, userId: string, characterId: string, embed: EmbedFn): FunctionTool {
+export function wikiReadTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+  embed: EmbedFn,
+): FunctionTool {
   return new FunctionTool({
     name: 'wiki_read',
-    description: "Search the user's long-term memory using semantic search. ALWAYS use if the user asks to recall something previously discussed.",
+    description:
+      "Search the user's long-term memory using semantic search. ALWAYS use if the user asks to recall something previously discussed.",
     parameters: z.object({
       query: z.string().describe('Topic or keywords to search for.'),
     }),
@@ -32,11 +38,13 @@ export function wikiReadTool(db: DrizzleClient, userId: string, characterId: str
           rows = await db
             .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
             .from(llmWikiEntries)
-            .where(and(
-              eq(llmWikiEntries.entityId, characterId),
-              eq(llmWikiEntries.userId, userId),
-              isNull(llmWikiEntries.deletedAt),
-            ))
+            .where(
+              and(
+                eq(llmWikiEntries.entityId, characterId),
+                eq(llmWikiEntries.userId, userId),
+                isNull(llmWikiEntries.deletedAt),
+              ),
+            )
             .orderBy(sql`${llmWikiEntries.embedding} <=> ${JSON.stringify(vec)}::vector`)
             .limit(5)
         } catch {
@@ -44,17 +52,19 @@ export function wikiReadTool(db: DrizzleClient, userId: string, characterId: str
           rows = await db
             .select({ title: llmWikiEntries.title, body: llmWikiEntries.body })
             .from(llmWikiEntries)
-            .where(and(
-              eq(llmWikiEntries.entityId, characterId),
-              eq(llmWikiEntries.userId, userId),
-              isNull(llmWikiEntries.deletedAt),
-              sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${query.trim().slice(0, 200)})`,
-            ))
+            .where(
+              and(
+                eq(llmWikiEntries.entityId, characterId),
+                eq(llmWikiEntries.userId, userId),
+                isNull(llmWikiEntries.deletedAt),
+                sql`to_tsvector('english', coalesce(${llmWikiEntries.title}, '') || ' ' || coalesce(${llmWikiEntries.body}, '')) @@ websearch_to_tsquery('english', ${query.trim().slice(0, 200)})`,
+              ),
+            )
             .limit(5)
         }
 
         if (rows.length === 0) return ''
-        return rows.map(r => `- ${r.title}: ${r.body}`).join('\n')
+        return rows.map((r) => `- ${r.title}: ${r.body}`).join('\n')
       } catch (error) {
         console.error('[CloudAgent] wiki_read failed:', error)
         return 'Failed to search memory due to an internal error.'
@@ -63,10 +73,16 @@ export function wikiReadTool(db: DrizzleClient, userId: string, characterId: str
   })
 }
 
-export function wikiWriteTool(db: DrizzleClient, userId: string, characterId: string, embed: EmbedFn): FunctionTool {
+export function wikiWriteTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+  embed: EmbedFn,
+): FunctionTool {
   return new FunctionTool({
     name: 'wiki_write',
-    description: 'Record a new observation about the user into long-term memory. Call when the user shares a personal detail, preference, or fact.',
+    description:
+      'Record a new observation about the user into long-term memory. Call when the user shares a personal detail, preference, or fact.',
     parameters: z.object({
       summary: z.string().describe('Observation to record.'),
     }),
@@ -80,29 +96,36 @@ export function wikiWriteTool(db: DrizzleClient, userId: string, characterId: st
         const now = Date.now()
 
         let embedding: number[] | null = null
-        try { embedding = await embed(body) } catch { console.warn('[CloudAgent] wiki_write embed failed, inserting with null embedding') }
+        try {
+          embedding = await embed(body)
+        } catch {
+          console.warn('[CloudAgent] wiki_write embed failed, inserting with null embedding')
+        }
 
         await db.transaction(async (tx) => {
-          await (tx as unknown as typeof db).insert(llmWikiEntries).values({
-            id: entryId,
-            entityId: characterId,
-            userId,
-            title,
-            body,
-            tags,
-            confidence: 'inferred',
-            sourceType: 'agent_inferred',
-            embedding,
-            createdAt: now,
-            updatedAt: now,
-          }).onConflictDoUpdate({
-            target: [llmWikiEntries.id, llmWikiEntries.userId],
-            set: {
-              body: sql`excluded.body`,
-              updatedAt: sql`excluded.updated_at`,
-              embedding: sql`excluded.embedding`,
-            },
-          })
+          await (tx as unknown as typeof db)
+            .insert(llmWikiEntries)
+            .values({
+              id: entryId,
+              entityId: characterId,
+              userId,
+              title,
+              body,
+              tags,
+              confidence: 'inferred',
+              sourceType: 'agent_inferred',
+              embedding,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [llmWikiEntries.id, llmWikiEntries.userId],
+              set: {
+                body: sql`excluded.body`,
+                updatedAt: sql`excluded.updated_at`,
+                embedding: sql`excluded.embedding`,
+              },
+            })
 
           await (tx as unknown as typeof db).insert(llmWikiEvents).values({
             id: crypto.randomUUID(),

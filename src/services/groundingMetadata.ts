@@ -19,7 +19,10 @@ export function parseGroundingMetadata(raw: unknown): GroundingMetadata | undefi
 
   const metadata: GroundingMetadata = {}
 
-  if (Array.isArray(raw.webSearchQueries) && raw.webSearchQueries.every((q) => typeof q === 'string')) {
+  if (
+    Array.isArray(raw.webSearchQueries) &&
+    raw.webSearchQueries.every((q) => typeof q === 'string')
+  ) {
     metadata.webSearchQueries = raw.webSearchQueries as string[]
   }
 

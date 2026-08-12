@@ -89,7 +89,7 @@ describe('CreditsDisplay purchase flows', () => {
   }
 
   beforeEach(() => {
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     jest.clearAllMocks()
     __setJestPlatformOS('web')
 
@@ -149,30 +149,33 @@ describe('CreditsDisplay purchase flows', () => {
       buttonTestId: '30,000 Power / month · $20',
       packageType: 'monthly_20',
     },
-  ])('ignores a rapid second same-tab web purchase start for %s', async ({ buttonTestId, packageType }) => {
-    const { purchasePromise, resolvePurchase } = createDeferredPurchase()
-    mockMakePackagePurchase.mockReturnValueOnce(purchasePromise)
+  ])(
+    'ignores a rapid second same-tab web purchase start for %s',
+    async ({ buttonTestId, packageType }) => {
+      const { purchasePromise, resolvePurchase } = createDeferredPurchase()
+      mockMakePackagePurchase.mockReturnValueOnce(purchasePromise)
 
-    const CreditsDisplay = require('~/components/CreditsDisplay').default
-    let tree!: ReturnType<typeof create>
+      const CreditsDisplay = require('~/components/CreditsDisplay').default
+      let tree!: ReturnType<typeof create>
 
-    await act(async () => {
-      tree = create(<CreditsDisplay />)
-    })
+      await act(async () => {
+        tree = create(<CreditsDisplay />)
+      })
 
-    const purchaseButton = tree.root.findByProps({ testID: buttonTestId })
+      const purchaseButton = tree.root.findByProps({ testID: buttonTestId })
 
-    await act(async () => {
-      const firstPress = purchaseButton.props.onPress()
-      const secondPress = purchaseButton.props.onPress()
+      await act(async () => {
+        const firstPress = purchaseButton.props.onPress()
+        const secondPress = purchaseButton.props.onPress()
 
-      resolvePurchase(undefined)
-      await Promise.all([firstPress, secondPress])
-    })
+        resolvePurchase(undefined)
+        await Promise.all([firstPress, secondPress])
+      })
 
-    expect(mockMakePackagePurchase).toHaveBeenCalledTimes(1)
-    expect(mockMakePackagePurchase).toHaveBeenCalledWith(packageType)
-  })
+      expect(mockMakePackagePurchase).toHaveBeenCalledTimes(1)
+      expect(mockMakePackagePurchase).toHaveBeenCalledWith(packageType)
+    },
+  )
 
   it('resets web purchase state and shows error snackbar on checkout failure', async () => {
     mockMakePackagePurchase.mockRejectedValueOnce(new Error('checkout failed'))
@@ -198,8 +201,10 @@ describe('CreditsDisplay purchase flows', () => {
 
   it('shows the server-provided message when subscribe is blocked by an existing mobile subscription', async () => {
     const blockedError = Object.assign(
-      new Error('You already have an active subscription on mobile. Manage it in the App Store or Play Store.'),
-      { code: 'functions/already-exists' }
+      new Error(
+        'You already have an active subscription on mobile. Manage it in the App Store or Play Store.',
+      ),
+      { code: 'functions/already-exists' },
     )
     mockMakePackagePurchase.mockRejectedValueOnce(blockedError)
     const CreditsDisplay = require('~/components/CreditsDisplay').default
@@ -216,7 +221,7 @@ describe('CreditsDisplay purchase flows', () => {
     })
 
     expect(JSON.stringify(tree.toJSON())).toContain(
-      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.',
     )
   })
 
@@ -416,7 +421,7 @@ describe('CreditsDisplay purchase flows', () => {
 
     expect(mockMakePackagePurchase).not.toHaveBeenCalled()
     expect(JSON.stringify(tree.toJSON())).toContain(
-      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.'
+      'You already have an active subscription on mobile. Manage it in the App Store or Play Store.',
     )
     expect(subscribeButton.props.disabled).toBe(false)
   })
@@ -440,7 +445,7 @@ describe('CreditsDisplay purchase flows', () => {
     })
 
     expect(JSON.stringify(tree.toJSON())).toContain(
-      'This app version is out of date — please refresh and try again.'
+      'This app version is out of date — please refresh and try again.',
     )
   })
 

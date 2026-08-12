@@ -37,14 +37,14 @@ deprecated but keeps it populated for public import and web compatibility.
 
 Two screens were adopted; two were not.
 
-| Call site | Reads | Correct? |
-|---|---|---|
-| `src/components/CharacterCard.tsx:27` | `useResolvedImage(activeImageId, 'thumb')` | yes |
-| `app/(drawer)/(tabs)/characters/[id]/edit.tsx:64` | `useResolvedImage(activeImageId, 'master')` | yes |
-| `app/(drawer)/(tabs)/talk/index.tsx:139` (header) | `character.avatar` | **no** |
-| `app/(drawer)/(tabs)/talk/index.tsx:194` (body) | `character.avatar` | **no** |
-| `src/components/ChatView.tsx:157` (header) | `character.avatar` | **no** |
-| `src/components/ChatView.tsx:385` → `:455` (bubbles) | `character.avatar` | **no** |
+| Call site                                            | Reads                                       | Correct? |
+| ---------------------------------------------------- | ------------------------------------------- | -------- |
+| `src/components/CharacterCard.tsx:27`                | `useResolvedImage(activeImageId, 'thumb')`  | yes      |
+| `app/(drawer)/(tabs)/characters/[id]/edit.tsx:64`    | `useResolvedImage(activeImageId, 'master')` | yes      |
+| `app/(drawer)/(tabs)/talk/index.tsx:139` (header)    | `character.avatar`                          | **no**   |
+| `app/(drawer)/(tabs)/talk/index.tsx:194` (body)      | `character.avatar`                          | **no**   |
+| `src/components/ChatView.tsx:157` (header)           | `character.avatar`                          | **no**   |
+| `src/components/ChatView.tsx:385` → `:455` (bubbles) | `character.avatar`                          | **no**   |
 
 `toAppFormat` (`src/database/characterDatabase.ts:93`) passes `char.avatar`
 through unchanged and also exposes `active_image_id`, so both fields reach the
@@ -114,7 +114,7 @@ Non-avatar items from the same report, verified with no action required:
 
 - **`logScreenView` deprecated (RNFirebase v22).** `src/services/analyticsService.ts:44`
   already uses the modular form, `logScreenView(getAnalytics(), { screen_name,
-  screen_class })`, on `@react-native-firebase/analytics` ^23.8.8. The
+screen_class })`, on `@react-native-firebase/analytics` ^23.8.8. The
   deprecation targets the namespaced `firebase.analytics().logScreenView()`.
 - **`UIBackgroundModes` missing `remote-notification`.** Already configured:
   `app.config.ts:246` sets `enableBackgroundRemoteNotifications: true` on the
@@ -163,12 +163,12 @@ still wins whenever a row exists, which is what fixes the reported staleness.
 
 Variants:
 
-| Site | Variant | Rationale |
-|---|---|---|
-| `talk/index.tsx:139` header | `thumb` | 40 px |
-| `talk/index.tsx:194` body | `master` | `AVATAR_SIZE`, the screen's focal element |
-| `ChatView.tsx:157` header | `thumb` | 40 px |
-| `ChatView.tsx:385` `characterAvatar` | `thumb` | bubble-sized |
+| Site                                 | Variant  | Rationale                                 |
+| ------------------------------------ | -------- | ----------------------------------------- |
+| `talk/index.tsx:139` header          | `thumb`  | 40 px                                     |
+| `talk/index.tsx:194` body            | `master` | `AVATAR_SIZE`, the screen's focal element |
+| `ChatView.tsx:157` header            | `thumb`  | 40 px                                     |
+| `ChatView.tsx:385` `characterAvatar` | `thumb`  | bubble-sized                              |
 
 Two implementation constraints:
 
@@ -240,7 +240,7 @@ leaving newly created characters broken.
 
 Chat message bubbles are the deliberate exception. `ChatView`'s `renderAvatar`
 builds its own `Avatar.Image`/`Avatar.Text` pair rather than delegating to
-`CharacterAvatar`, and the same branch renders the *user's* avatar, where
+`CharacterAvatar`, and the same branch renders the _user's_ avatar, where
 initials remain the right fallback. Unifying the bubble on `CharacterAvatar`
 would change user-avatar behavior too, so it stays out of this render-layer fix.
 An avatar-less character therefore still shows initials in bubbles while showing

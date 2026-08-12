@@ -12,6 +12,7 @@
 The existing bridge extension is functionally complete per the June 29 spec (Phase 1 + Phase 2 stateful actions both implemented). This spec covers exactly what is required to pass the Chrome Web Store review gauntlet: five targeted code changes, a set of store submission artifacts, and the MV3 policy rationale behind each decision.
 
 **Phase 3 gate from existing spec:**
+
 > Policy preflight checklist passes, store listing approved.
 
 This spec is that checklist.
@@ -62,6 +63,7 @@ The `.pem` file is in 1Password. Never commit the private `.pem` — only the de
 ```
 
 To extract the public key from an existing `.pem`:
+
 ```bash
 openssl rsa -in key.pem -pubout -outform DER | base64 | tr -d '\n'
 ```
@@ -84,8 +86,12 @@ MV3 enforces a strict CSP by default, but reviewers confirm compliance by readin
 
 ```typescript
 // BEFORE (lines 87-88) — flagged by CWS scanner
-;($('log')).innerHTML = (actionLog as Array<{ ts: number; action: string; status: string }>)
-  .map((e) => `<li>${new Date(e.ts).toLocaleTimeString()} ${e.action} ${e.status === 'complete' ? '✓' : '✕'}</li>`).join('')
+$('log').innerHTML = (actionLog as Array<{ ts: number; action: string; status: string }>)
+  .map(
+    (e) =>
+      `<li>${new Date(e.ts).toLocaleTimeString()} ${e.action} ${e.status === 'complete' ? '✓' : '✕'}</li>`,
+  )
+  .join('')
 
 // AFTER — safe DOM insertion
 const logEl = $('log')
@@ -132,11 +138,13 @@ Copy-paste ready for the CWS developer dashboard.
 **Extension name:** `Clanker Desktop Bridge`
 
 **Short description (132-char max):**
+
 ```text
 Remote browser bridge for Clanker AI. Lets your AI assistant perform web tasks you explicitly request on this browser.
 ```
 
 **Detailed description:**
+
 ```text
 Clanker Desktop Bridge connects your Clanker AI assistant (iOS and Android) to your desktop browser so it can help you with web tasks you explicitly request — reading articles, extracting data, opening tabs, and (with your approval) filling fields or clicking buttons.
 
@@ -160,36 +168,43 @@ No browsing data is collected or sold. Task results are sent only to your own Cl
 One entry per permission, formatted for the CWS dashboard justification fields.
 
 **`scripting`**
+
 ```text
 Injects the task executor into the active tab during a user-triggered task. Scripts are injected programmatically per-task only — never declared in content_scripts, never running between tasks.
 ```
 
 **`tabs`**
+
 ```text
 The Clanker extension acts as a remote bridge for the user's mobile AI assistant. Because tasks are triggered remotely via background Google Cloud Messaging (FCM) pushes rather than direct clicks on the extension icon, we cannot rely on the activeTab permission (which requires a manual user gesture). We require the tabs permission to use chrome.tabs.query() to locate the user's active tab for script injection during these background wakes, as well as chrome.tabs.create() and chrome.tabs.update() to allow the AI to open and focus new web pages as explicitly commanded by the user.
 ```
 
 **`storage`**
+
 ```text
 Stores device ID, GCM registration token, pause state, action log (last 50 entries), and pending host permission state in chrome.storage.local. No browsing history or page content is stored.
 ```
 
 **`sidePanel`**
+
 ```text
 Provides the primary user interface: sign-in, device registration status, action log, pause toggle, and the host permission grant button. chrome.permissions.request() requires a user gesture — the side panel Grant Access button provides it.
 ```
 
 **`notifications`**
+
 ```text
 Shows a single notification when the extension lacks permission to access a host that a user-requested task targets. The notification prompts the user to open the side panel and tap Grant Access. No other notification types are used.
 ```
 
 **`gcm`**
+
 ```text
 Registers with Firebase Cloud Messaging via chrome.gcm.register() and listens for incoming silent pushes via chrome.gcm.onMessage. FCM is the sole mechanism that wakes the extension when the user's Clanker assistant has a task ready. Without this permission the extension cannot receive tasks from the mobile app.
 ```
 
 **`offscreen`**
+
 ```text
 Hosts the Firebase Auth Web SDK (firebase/auth/web-extension) in an offscreen document. MV3 service workers cannot access DOM storage APIs required for auth token persistence. The offscreen document is created only during an active bridge session and closed immediately after SESSION_END.
 ```
@@ -240,27 +255,27 @@ not used for advertising, creditworthiness, or lending purposes.
 
 ### 3.1 Change → policy mapping
 
-| Change | Policy basis | Risk if skipped |
-|--------|-------------|-----------------|
-| `innerHTML` → safe DOM | CWS automated scanner flags `innerHTML` with string concatenation regardless of data source. Triggers manual review queue. | Automated rejection before human review. |
-| Explicit CSP | Reviewers confirm no `eval()` / remote code by reading the manifest. Absent field forces inference. | Extended manual review; reviewer may assume worst case. |
-| `key` field | CWS binds the published extension ID to this key. Without it, ID can change between submission attempts, breaking existing Firestore device registrations. | Silent breakage of FCM wake pipeline post-publish. |
+| Change                             | Policy basis                                                                                                                                                                          | Risk if skipped                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `innerHTML` → safe DOM             | CWS automated scanner flags `innerHTML` with string concatenation regardless of data source. Triggers manual review queue.                                                            | Automated rejection before human review.                       |
+| Explicit CSP                       | Reviewers confirm no `eval()` / remote code by reading the manifest. Absent field forces inference.                                                                                   | Extended manual review; reviewer may assume worst case.        |
+| `key` field                        | CWS binds the published extension ID to this key. Without it, ID can change between submission attempts, breaking existing Firestore device registrations.                            | Silent breakage of FCM wake pipeline post-publish.             |
 | Improved `offscreen` justification | Chrome policy requires the `justification` string to clearly explain why the offscreen document is needed. The previous string did not name the SDK or the service worker constraint. | Reviewer flags insufficient justification; delay or rejection. |
-| `icons` field | CWS submission upload pipeline requires `icons.128`. Hard technical gate — submission blocked, not a policy issue. | Upload fails at submission step. |
+| `icons` field                      | CWS submission upload pipeline requires `icons.128`. Hard technical gate — submission blocked, not a policy issue.                                                                    | Upload fails at submission step.                               |
 
 ### 3.2 Clean audit results
 
 The following were audited and found clean. No changes required.
 
-| Concern | Result |
-|---------|--------|
-| `eval()` / `new Function()` | None in extension source |
-| `document.write()` | None |
-| Remote script imports (CDN `<script src>`, `importScripts`) | None — all HTML pages load only bundled local `.js` files |
-| Remote code fetch at runtime | None — `esbuild.mjs` bundles everything at build time; all `extensionEnv` values are compile-time constants |
-| `innerHTML` write paths | One: `panel.ts:87` — fixed in §1.2. `dom-extractor.ts:10` is a read of page content; correct behavior |
-| Declarative `content_scripts` | `[]` — empty, confirmed. Scripts injected only per-task |
-| `optional_host_permissions` grant flow | Requires explicit user gesture (side panel button). Cannot be requested from service worker — correct |
+| Concern                                                     | Result                                                                                                      |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `eval()` / `new Function()`                                 | None in extension source                                                                                    |
+| `document.write()`                                          | None                                                                                                        |
+| Remote script imports (CDN `<script src>`, `importScripts`) | None — all HTML pages load only bundled local `.js` files                                                   |
+| Remote code fetch at runtime                                | None — `esbuild.mjs` bundles everything at build time; all `extensionEnv` values are compile-time constants |
+| `innerHTML` write paths                                     | One: `panel.ts:87` — fixed in §1.2. `dom-extractor.ts:10` is a read of page content; correct behavior       |
+| Declarative `content_scripts`                               | `[]` — empty, confirmed. Scripts injected only per-task                                                     |
+| `optional_host_permissions` grant flow                      | Requires explicit user gesture (side panel button). Cannot be requested from service worker — correct       |
 
 ### 3.3 Known risk outside this spec's scope
 
@@ -272,10 +287,10 @@ The following were audited and found clean. No changes required.
 
 This spec is Phase 3 of the existing roadmap:
 
-| Phase | Gate |
-|-------|------|
-| 1 | 5 E2E read tasks + 1 approval flow ✓ |
-| 2 | Stateful actions with mobile approval ✓ |
+| Phase             | Gate                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| 1                 | 5 E2E read tasks + 1 approval flow ✓                                                 |
+| 2                 | Stateful actions with mobile approval ✓                                              |
 | **3 (this spec)** | **All §1 changes landed + §2 artifacts ready + §3 preflight passes → submit to CWS** |
 
 ---
@@ -283,6 +298,7 @@ This spec is Phase 3 of the existing roadmap:
 ## Open Questions (Deferred)
 
 All open questions from the June 29 spec remain deferred:
+
 1. Phase 2: auto-retry after host permission grant?
 2. Phase 3: Cloud Scheduler task format?
 3. Phase 4: single CWS listing vs. separate developer extension?

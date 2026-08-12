@@ -41,27 +41,27 @@ The core package owns the schema contract. Each consumer owns only its runtime e
 
 ```typescript
 interface AgentToolManifest {
-  name: string;        // e.g. 'get_current_time'
-  scope: AgentScope;   // e.g. 'core'
-  schema: AgentToolSchema;
+  name: string // e.g. 'get_current_time'
+  scope: AgentScope // e.g. 'core'
+  schema: AgentToolSchema
 }
 
 interface AgentToolSchema {
-  name: string;
-  description: string;
+  name: string
+  description: string
   parameters?: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
+    type: 'object'
+    properties: Record<string, unknown>
+    required?: string[]
+  }
 }
 
-export const getCurrentTimeManifest: AgentToolManifest;
-export const escalateToCloudManifest: AgentToolManifest;
+export const getCurrentTimeManifest: AgentToolManifest
+export const escalateToCloudManifest: AgentToolManifest
 export function buildAuthorizedSchemaArray(
   manifests: AgentToolManifest[],
-  userGrantedScopes: string[]
-): AgentToolSchema[];
+  userGrantedScopes: string[],
+): AgentToolSchema[]
 ```
 
 ---
@@ -69,8 +69,8 @@ export function buildAuthorizedSchemaArray(
 ## 4. Consumer B Usage (functions/)
 
 ```typescript
-import { FunctionTool } from '@google/adk';
-import { getCurrentTimeManifest } from '@equationalapplications/core-llm-tools';
+import { FunctionTool } from '@google/adk'
+import { getCurrentTimeManifest } from '@equationalapplications/core-llm-tools'
 
 export const getCurrentTimeTool = new FunctionTool({
   ...(getCurrentTimeManifest.schema as any),
@@ -83,9 +83,9 @@ export const getCurrentTimeTool = new FunctionTool({
       hour: 'numeric',
       minute: '2-digit',
       timeZoneName: 'short',
-    });
+    })
   },
-});
+})
 ```
 
 The `as any` cast is required because `@google/adk`'s `FunctionTool` constructor expects a slightly different schema shape than `AgentToolSchema`. Runtime behavior is unaffected.
@@ -118,25 +118,25 @@ cd functions && npm install @equationalapplications/core-llm-tools
 
 ## 6. Acceptance Criteria
 
-| Test | Expected |
-|------|----------|
-| `getCurrentTimeTool.name` | `'get_current_time'` (inherited from manifest, not hardcoded) |
-| `getCurrentTimeTool.execute({})` | Returns non-empty localized time string |
-| TypeScript build | `cd functions && npm run typecheck` passes with no errors |
-| Functions test suite | `cd functions && npm test` passes with no failures |
+| Test                             | Expected                                                      |
+| -------------------------------- | ------------------------------------------------------------- |
+| `getCurrentTimeTool.name`        | `'get_current_time'` (inherited from manifest, not hardcoded) |
+| `getCurrentTimeTool.execute({})` | Returns non-empty localized time string                       |
+| TypeScript build                 | `cd functions && npm run typecheck` passes with no errors     |
+| Functions test suite             | `cd functions && npm test` passes with no failures            |
 
 ---
 
 ## 7. Files Changed (equationalapplications/clanker)
 
-| File | Change |
-|------|--------|
-| `package.json` | Add `@equationalapplications/core-llm-tools` dependency (Consumer A) |
-| `package-lock.json` | Updated lockfile (root) |
-| `functions/package.json` | Add `@equationalapplications/core-llm-tools` dependency (Consumer B) |
-| `functions/package-lock.json` | Updated lockfile (functions) |
-| `functions/src/tools/time.ts` | Spread `getCurrentTimeManifest.schema`; update execute() to localized string |
-| `functions/src/tools/time.test.ts` | Assert name inherited from manifest + execute() returns non-empty string |
+| File                               | Change                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `package.json`                     | Add `@equationalapplications/core-llm-tools` dependency (Consumer A)         |
+| `package-lock.json`                | Updated lockfile (root)                                                      |
+| `functions/package.json`           | Add `@equationalapplications/core-llm-tools` dependency (Consumer B)         |
+| `functions/package-lock.json`      | Updated lockfile (functions)                                                 |
+| `functions/src/tools/time.ts`      | Spread `getCurrentTimeManifest.schema`; update execute() to localized string |
+| `functions/src/tools/time.test.ts` | Assert name inherited from manifest + execute() returns non-empty string     |
 
 ---
 

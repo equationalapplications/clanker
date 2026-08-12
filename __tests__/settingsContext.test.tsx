@@ -2,11 +2,7 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Appearance } from 'react-native'
 import { CookieConsentProvider } from '~/components/CookieConsent'
-import {
-  SettingsProvider,
-  clearSettings,
-  useSettings,
-} from '~/contexts/SettingsContext'
+import { SettingsProvider, clearSettings, useSettings } from '~/contexts/SettingsContext'
 import * as analyticsService from '~/services/analyticsService'
 import * as crashlyticsService from '~/services/crashlyticsService'
 import { Storage } from '~/utilities/kvStorage'
@@ -97,7 +93,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -119,7 +119,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -138,7 +142,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -157,7 +165,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -197,7 +209,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -214,7 +230,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -232,7 +252,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -250,7 +274,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )
@@ -268,7 +296,11 @@ describe('SettingsContext', () => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
-              <Probe onReady={(a) => { api = a }} />
+              <Probe
+                onReady={(a) => {
+                  api = a
+                }}
+              />
             </SettingsProvider>
           </CookieConsentProvider>,
         )

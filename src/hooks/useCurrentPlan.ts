@@ -24,16 +24,11 @@ const isPlanTier = (value: unknown): value is PlanTier => {
 export function useCurrentPlan(): CurrentPlan {
   const authService = useAuthMachine()
 
-  const subscription = useSelector(
-    authService,
-    (state) => state.context.subscription,
-  )
+  const subscription = useSelector(authService, (state) => state.context.subscription)
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
 
   const tier = isPlanTier(subscription?.planTier) ? subscription.planTier : null
@@ -44,8 +39,7 @@ export function useCurrentPlan(): CurrentPlan {
       : null
 
   const isSubscriber =
-    isActive &&
-    (tier === PLAN_TIERS.MONTHLY_20 || tier === PLAN_TIERS.MONTHLY_50)
+    isActive && (tier === PLAN_TIERS.MONTHLY_20 || tier === PLAN_TIERS.MONTHLY_50)
 
   return { tier, isSubscriber, isLoading, remainingCredits }
 }

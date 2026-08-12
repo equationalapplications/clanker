@@ -2,9 +2,7 @@ import { linkifyUrls } from '../linkifyUrls'
 
 describe('linkifyUrls', () => {
   it('returns a single text segment when there are no URLs', () => {
-    expect(linkifyUrls('hello world')).toEqual([
-      { type: 'text', value: 'hello world' },
-    ])
+    expect(linkifyUrls('hello world')).toEqual([{ type: 'text', value: 'hello world' }])
   })
 
   it('splits a string on a URL', () => {
@@ -28,9 +26,7 @@ describe('linkifyUrls', () => {
   })
 
   it('does not match phone numbers', () => {
-    expect(linkifyUrls('call 555-123-4567')).toEqual([
-      { type: 'text', value: 'call 555-123-4567' },
-    ])
+    expect(linkifyUrls('call 555-123-4567')).toEqual([{ type: 'text', value: 'call 555-123-4567' }])
   })
 
   it('matches multiple URLs in one string', () => {

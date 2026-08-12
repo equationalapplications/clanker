@@ -11,11 +11,27 @@ jest.mock('~/services/chatReplyService', () => ({
 jest.mock('~/services/clankerManifests', () => ({
   getSchemasForEdge: jest.fn((hasWiki: boolean, isCloudSynced: boolean) => {
     const schemas = [
-      { name: 'get_current_time', description: 'Get current time', parameters: { type: 'object', properties: {}, required: [] } },
-      { name: 'escalate_to_cloud_agent', description: 'Escalate to cloud', parameters: { type: 'object', properties: {}, required: [] } },
+      {
+        name: 'get_current_time',
+        description: 'Get current time',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+      {
+        name: 'escalate_to_cloud_agent',
+        description: 'Escalate to cloud',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
     ]
     if (hasWiki) {
-      schemas.push({ name: 'wiki_read', description: 'Search memory', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } } as never)
+      schemas.push({
+        name: 'wiki_read',
+        description: 'Search memory',
+        parameters: {
+          type: 'object',
+          properties: { query: { type: 'string' } },
+          required: ['query'],
+        },
+      } as never)
     }
     if (!isCloudSynced) {
       return schemas.filter((s) => s.name !== 'escalate_to_cloud_agent')
@@ -26,7 +42,9 @@ jest.mock('~/services/clankerManifests', () => ({
 
 const mockExecutors = {
   get_current_time: jest.fn(() => 'Thursday, May 28, 2026 at 10:00 AM PDT'),
-  wiki_read: jest.fn(async () => JSON.stringify({ facts: [{ content: 'User likes tea' }], tasks: [], events: [] })),
+  wiki_read: jest.fn(async () =>
+    JSON.stringify({ facts: [{ content: 'User likes tea' }], tasks: [], events: [] }),
+  ),
 }
 jest.mock('~/services/edgeToolExecutors', () => ({
   createEdgeToolExecutors: jest.fn(() => mockExecutors),
@@ -96,7 +114,11 @@ describe('useEdgeAgent', () => {
   })
 
   it('returns escalated:false and text when the model returns a text reply with no functionCalls', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hello! How are you?', functionCalls: undefined, ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hello! How are you?',
+      functionCalls: undefined,
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -117,7 +139,12 @@ describe('useEdgeAgent', () => {
 
   it('executes get_current_time and loops to a final text reply', async () => {
     mockGenerateChatReply
-      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields, remainingCredits: 41 })
+      .mockResolvedValueOnce({
+        reply: '',
+        functionCalls: [{ name: 'get_current_time', args: {} }],
+        ...usageFields,
+        remainingCredits: 41,
+      })
       .mockResolvedValueOnce({ reply: 'It is Thursday.', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
@@ -139,7 +166,11 @@ describe('useEdgeAgent', () => {
   })
 
   it('escalates when the model calls escalate_to_cloud_agent', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }], ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: '',
+      functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }],
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -156,7 +187,11 @@ describe('useEdgeAgent', () => {
 
   it('ignores hallucinated escalate_to_cloud_agent for local-only characters', async () => {
     mockGenerateChatReply
-      .mockResolvedValueOnce({ reply: '', functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }], ...usageFields })
+      .mockResolvedValueOnce({
+        reply: '',
+        functionCalls: [{ name: 'escalate_to_cloud_agent', args: {} }],
+        ...usageFields,
+      })
       .mockResolvedValueOnce({ reply: 'Handled locally', functionCalls: undefined, ...usageFields })
 
     const { result } = renderHook(() =>
@@ -178,7 +213,11 @@ describe('useEdgeAgent', () => {
   })
 
   it('escalates automatically when MAX_ITERATIONS (5) is reached for cloud-synced characters', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: '',
+      functionCalls: [{ name: 'get_current_time', args: {} }],
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -195,7 +234,11 @@ describe('useEdgeAgent', () => {
   })
 
   it('returns no text (no escalation) when MAX_ITERATIONS is reached for local-only characters', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: '', functionCalls: [{ name: 'get_current_time', args: {} }], ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: '',
+      functionCalls: [{ name: 'get_current_time', args: {} }],
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
@@ -228,7 +271,11 @@ describe('useEdgeAgent', () => {
 
   it('isThinking is true during the call and false after it resolves', async () => {
     let resolveReply: (v: unknown) => void = () => {}
-    mockGenerateChatReply.mockReturnValueOnce(new Promise((resolve) => { resolveReply = resolve }))
+    mockGenerateChatReply.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveReply = resolve
+      }),
+    )
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
@@ -238,7 +285,9 @@ describe('useEdgeAgent', () => {
 
     let done = false
     act(() => {
-      void result.current.sendMessage('Hello').then(() => { done = true })
+      void result.current.sendMessage('Hello').then(() => {
+        done = true
+      })
     })
 
     expect(result.current.isThinking).toBe(true)
@@ -252,11 +301,21 @@ describe('useEdgeAgent', () => {
   })
 
   it('passes characterId and wiki to createEdgeToolExecutors', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined, ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hi!',
+      functionCalls: undefined,
+      ...usageFields,
+    })
     const mockWiki = { id: 'wiki-1' } as never
 
     const { result } = renderHook(() =>
-      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: mockWiki }),
+      useEdgeAgent({
+        character,
+        userId: 'u1',
+        priorMessages,
+        isCloudSynced: false,
+        wiki: mockWiki,
+      }),
     )
 
     await act(async () => {
@@ -267,7 +326,11 @@ describe('useEdgeAgent', () => {
   })
 
   it('passes tools from getSchemasForEdge to generateChatReply', async () => {
-    mockGenerateChatReply.mockResolvedValue({ reply: 'Hi!', functionCalls: undefined, ...usageFields })
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'Hi!',
+      functionCalls: undefined,
+      ...usageFields,
+    })
 
     const { result } = renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),

@@ -91,9 +91,7 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
 
   it('reuses the same pending_cloud_id on a retry after a dropped response', async () => {
     const pendingId = '11111111-1111-4111-8111-111111111111'
-    mockGetUnsyncedCharacters.mockResolvedValue([
-      makeUnsyncedChar({ pending_cloud_id: pendingId }),
-    ])
+    mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar({ pending_cloud_id: pendingId })])
     mockSyncCharacterFn.mockResolvedValue({ data: null })
 
     await syncAllToCloud('user-1')

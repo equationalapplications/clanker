@@ -16,11 +16,11 @@ For C4-level routing diagrams, see [Architecture Charts — C4](flowcharts/c4/sy
 
 Before a call starts, `useLiveVoiceChat` enforces:
 
-| Requirement | Why |
-|---|---|
-| Character has a **voice** configured | Gemini Live needs a voice profile |
-| **`save_to_cloud` enabled** | Wiki/memory must sync so the agent can read cloud-backed memory |
-| **≥ 2 credits** remaining | Live sessions bill via usage snapshots on the socket |
+| Requirement                          | Why                                                             |
+| ------------------------------------ | --------------------------------------------------------------- |
+| Character has a **voice** configured | Gemini Live needs a voice profile                               |
+| **`save_to_cloud` enabled**          | Wiki/memory must sync so the agent can read cloud-backed memory |
+| **≥ 2 credits** remaining            | Live sessions bill via usage snapshots on the socket            |
 
 If any check fails, the user sees an alert with a shortcut to character edit or subscribe.
 
@@ -45,11 +45,11 @@ Talk tab: Start Call
 
 ## Client Architecture
 
-| Module | Role |
-|---|---|
-| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state |
-| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor |
-| `useLiveAudioIO` | Hardware: unified duplex mic + playback via `@speechmatics/expo-two-way-audio`, 24→16 kHz resample, barge-in flush |
+| Module             | Role                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state                                       |
+| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor                                          |
+| `useLiveAudioIO`   | Hardware: unified duplex mic + playback via `@speechmatics/expo-two-way-audio`, 24→16 kHz resample, barge-in flush |
 
 **Key files:**
 
@@ -88,9 +88,9 @@ Text chat reaches the same tool via Cloud Agent `POST /agent/run` (synchronous `
 
 **Native audio (Talk tab):** Uses `@speechmatics/expo-two-way-audio` (MIT, stock, Speechmatics-maintained) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
 
-| Direction | Format | Library |
-|---|---|---|
-| Mic uplink | 16 kHz, mono, 16-bit PCM | `@speechmatics/expo-two-way-audio` |
+| Direction        | Format                                  | Library                            |
+| ---------------- | --------------------------------------- | ---------------------------------- |
+| Mic uplink       | 16 kHz, mono, 16-bit PCM                | `@speechmatics/expo-two-way-audio` |
 | Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `@speechmatics/expo-two-way-audio` |
 
 **Native rebuild required** — `@speechmatics/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).

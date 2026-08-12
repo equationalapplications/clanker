@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import { JSDOM } from 'jsdom'
 import { extract, readDom, summarizeVisibleText } from './dom-extractor.js'
 
-function doc(html: string) { return new JSDOM(html).window.document }
+function doc(html: string) {
+  return new JSDOM(html).window.document
+}
 
 test('extract returns matched text keyed by label', () => {
   const d = doc('<div class="price">$42.99</div>')

@@ -20,20 +20,20 @@ module.exports = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  setupFiles: [
-    '<rootDir>/jest.setup.early.js',
-    '<rootDir>/jest.setup.js'
-  ],
-  testMatch: [
-    '**/__tests__/**/*.{test,spec}.[jt]s?(x)',
-    '**/?(*.)+(spec|test).[jt]s?(x)'
-  ],
+  setupFiles: ['<rootDir>/jest.setup.early.js', '<rootDir>/jest.setup.js'],
+  testMatch: ['**/__tests__/**/*.{test,spec}.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
+  // Anything excluded here must run somewhere else, or it does not run at all.
+  // Where each exclusion is covered is noted inline; see .github/workflows/staging-test.yml.
   testPathIgnorePatterns: [
     '/node_modules/',
+    // functions/ and cloud-agent/ use node:test, not Jest. Both are run by
+    // staging-test.yml as separate `npm test` steps.
     '<rootDir>/functions/',
     '<rootDir>/cloud-agent/dist/',
     '<rootDir>/cloud-agent/src/',
     '<rootDir>/extension/',
+    // Excluded from cloud-agent's build too, so these run in staging-test.yml
+    // via `node --import tsx/esm --test`.
     '<rootDir>/shared/constants.test.ts',
     '<rootDir>/shared/dsl-schema.test.ts',
     '<rootDir>/shared/hostPolicy.test.ts',
@@ -43,10 +43,14 @@ module.exports = {
     '<rootDir>/dist/',
     '<rootDir>/coverage/',
     '<rootDir>/__tests__/helpers/',
-    '.*\\.int\\.test\\.ts$'
+    // Live edge-agent evals. MANUAL ONLY and intentionally not in CI — they
+    // cost money per run and need live credentials. Run with `npm run
+    // edge-evals`, whose jest.evals.config.js testRegex matches exactly this
+    // pattern. Nothing else executes these files.
+    '.*\\.int\\.test\\.ts$',
   ],
   modulePathIgnorePatterns: ['<rootDir>/\\.worktrees/'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)'
-  ]
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
+  ],
 }

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type SyntheticEvent,
+} from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import {
   applyHorizontalWheelToScrollport,

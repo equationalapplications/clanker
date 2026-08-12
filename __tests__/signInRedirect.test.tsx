@@ -52,7 +52,7 @@ describe('toValidatedInternalHref', () => {
     expect(toValidatedInternalHref('/characters/list')).toBe('/characters/list')
     expect(toValidatedInternalHref('/chat')).toBe('/chat')
     expect(toValidatedInternalHref('/characters/shared/abc?foo=bar')).toBe(
-      '/characters/shared/abc?foo=bar'
+      '/characters/shared/abc?foo=bar',
     )
   })
 
@@ -90,13 +90,12 @@ describe('resolveRedirectDestination', () => {
   })
 
   it('prefers deep link over redirect param', () => {
-    expect(
-      resolveRedirectDestination('/characters/shared/abc' as Href, '/characters/list')
-    ).toBe('/characters/shared/abc')
+    expect(resolveRedirectDestination('/characters/shared/abc' as Href, '/characters/list')).toBe(
+      '/characters/shared/abc',
+    )
   })
 
   it('prefers deep link over fallback when no param', () => {
     expect(resolveRedirectDestination('/profile' as Href, undefined)).toBe('/profile')
   })
 })
-

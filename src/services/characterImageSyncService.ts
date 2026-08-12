@@ -25,8 +25,16 @@ import {
 } from '~/database/characterImageDatabase'
 import type { CharacterImageSnapshot } from '~/services/apiClient'
 import { getAllCharactersIncludingDeleted, getCharacter } from '~/database/characterDatabase'
-import { deleteLocalImageBytes, resolveImageUri, writeLocalImageBytes } from '~/services/localImageStore'
-import { deleteStorageObject, downloadImageBase64, uploadImageBytes } from '~/services/storageService'
+import {
+  deleteLocalImageBytes,
+  resolveImageUri,
+  writeLocalImageBytes,
+} from '~/services/localImageStore'
+import {
+  deleteStorageObject,
+  downloadImageBase64,
+  uploadImageBytes,
+} from '~/services/storageService'
 import { buildStoragePath } from '~/services/characterImageService'
 import { syncCharacterImagesFn } from '~/services/apiClient'
 import { reportError } from '~/utilities/reportError'
@@ -57,9 +65,12 @@ function isTerminalError(error: unknown): boolean {
   return TERMINAL_ERROR_CODES.has(code)
 }
 
-async function readBase64(row: CharacterImageRow, variant: 'master' | 'thumb'): Promise<string | null> {
+async function readBase64(
+  row: CharacterImageRow,
+  variant: 'master' | 'thumb',
+): Promise<string | null> {
   if (row.storage_kind === 'inline') {
-    return variant === 'thumb' ? row.thumb_ref ?? row.master_ref : row.master_ref
+    return variant === 'thumb' ? (row.thumb_ref ?? row.master_ref) : row.master_ref
   }
   const uri = await resolveImageUri(row, variant)
   return new File(uri).base64()
@@ -258,7 +269,8 @@ export async function syncCharacterImages(localUserId: string): Promise<void> {
       const activeRow = localCharacterId ? await getActiveCharacterImage(localCharacterId) : null
       const activeImageId =
         activeRow &&
-        (activeRow.storage_kind === 'cloud' || bucket.uploaded.some((row) => row.id === activeRow.id))
+        (activeRow.storage_kind === 'cloud' ||
+          bucket.uploaded.some((row) => row.id === activeRow.id))
           ? activeRow.id
           : undefined
 
@@ -430,12 +442,8 @@ export async function reconcileCharacterImages(
       // names. The unique key (id) does not change, so this is an update, not
       // a reinsert.
       const mergedSource = existing.source ?? snapshot.source
-      const mergedMessageId =
-        existing.message_id ?? snapshot.messageId ?? null
-      if (
-        mergedSource !== existing.source ||
-        mergedMessageId !== existing.message_id
-      ) {
+      const mergedMessageId = existing.message_id ?? snapshot.messageId ?? null
+      if (mergedSource !== existing.source || mergedMessageId !== existing.message_id) {
         await updateImageLinkage(existing.id, {
           source: mergedSource,
           message_id: mergedMessageId,
@@ -529,7 +537,9 @@ export async function demoteCharacterImagesToLocal(
   const rewritten: { row: CharacterImageRow; masterRef: string; thumbRef: string | null }[] = []
   for (const item of downloaded) {
     const masterRef =
-      localKind === 'inline' ? item.master : await writeLocalImageBytes(item.row.id, item.master, 'master')
+      localKind === 'inline'
+        ? item.master
+        : await writeLocalImageBytes(item.row.id, item.master, 'master')
     const thumbRef = item.thumb
       ? localKind === 'inline'
         ? item.thumb

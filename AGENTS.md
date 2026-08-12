@@ -1,14 +1,17 @@
 # Docs
+
 - Read README links for implementation details.
 - Read exact Expo docs at https://docs.expo.dev/versions/v56.0.0/ before writing code.
 - Hand-written docs in `docs/` use **kebab-case** filenames (e.g. `edge-agent.md`). Auto-generated flowcharts in `docs/flowcharts/` use ALL CAPS.
 
 # Checks
+
 - After changing `root` or `functions/`, run: `npm run typecheck && npm run lint && npm run test`
 - After changing `cloud-agent/`, run: `cd cloud-agent && npm run typecheck && npm test`
 - After changing `extension/`, run: `cd extension && npm run typecheck && npm test`
 
 # Git & Commits
+
 - **Flow**: feature → `staging` → `main` (via PRs only).
 - **Commits**: Use Conventional Commits.
   - `feat`: Minor bump (OTA)
@@ -20,5 +23,6 @@
   `package.json` and `package-lock.json` are allowed when the task requires them.
 
 # PRs & Reviews
+
 - **Template**: Always use `.github/pull_request_template.md`.
 - **Copilot**: Ignore `package.json`, `package-lock.json`, and `CHANGELOG.md` changes in staging PRs if they match `main` (these are semantic-release artifacts).

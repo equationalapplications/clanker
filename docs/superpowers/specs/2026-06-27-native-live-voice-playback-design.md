@@ -17,10 +17,10 @@ Web already does this correctly via the Web Audio API (`useLiveAudioIO.web.ts`).
 
 Native currently uses **`expo-audio` per-chunk file playback** (raw PCM data URIs fail on both platforms) plus **`react-native-live-audio-stream`** for mic capture. That split is **not production-viable**:
 
-| Failure mode | Cause |
-|---|---|
-| Stutter, pops, crashes | Per-chunk WAV files + new `MediaPlayer`/`AVPlayer` instance per chunk |
-| Stuck avatar glow | `didJustFinish` / JS timer drift vs hardware playback |
+| Failure mode                  | Cause                                                                                                                                                                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stutter, pops, crashes        | Per-chunk WAV files + new `MediaPlayer`/`AVPlayer` instance per chunk                                                                                                                                                                     |
+| Stuck avatar glow             | `didJustFinish` / JS timer drift vs hardware playback                                                                                                                                                                                     |
 | **Echo loop / self-barge-in** | **Two isolated native modules cannot link `AudioRecord` + `AudioTrack` to the same session ID on Android; iOS `VoiceProcessingIO` requires a unified graph. Mic picks up speaker output → Gemini VAD treats agent voice as user speech.** |
 
 **Decision (rev. 3):** Skip playback-only alternatives (Option B). Adopt **stock `@speechmatics/expo-two-way-audio`** with a 24→16 kHz adapter-layer resample (**Option C′**) as a **single unified duplex module** — the only architecturally sound path for speakerphone Gemini Live, without fork maintenance burden.
@@ -31,12 +31,12 @@ No spike to “prove” dual-module AEC failure — that outcome is predictable 
 
 ## 2. Problem Statement
 
-| Symptom | Root cause |
-|---|---|
-| Stuttering / robotic audio | File-based `expo-audio` per chunk; no gapless PCM pipeline |
-| Avatar glow stuck | `playbackState` tied to enqueue / broken completion events |
-| App crash (Android) | High-frequency file I/O + player allocation |
-| Silent playback (earlier) | Raw PCM data URIs rejected by high-level media players |
+| Symptom                                       | Root cause                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Stuttering / robotic audio                    | File-based `expo-audio` per chunk; no gapless PCM pipeline                                 |
+| Avatar glow stuck                             | `playbackState` tied to enqueue / broken completion events                                 |
+| App crash (Android)                           | High-frequency file I/O + player allocation                                                |
+| Silent playback (earlier)                     | Raw PCM data URIs rejected by high-level media players                                     |
 | **Agent cuts itself off / replies to itself** | **No hardware AEC — mic hears 24 kHz speaker output; Gemini Live VAD is highly sensitive** |
 
 Phase 1 design already called for native streaming playback. Implementation diverged to `expo-audio` + separate mic module. This spec realigns native with **full-duplex conversational audio** requirements.
@@ -64,14 +64,14 @@ Phase 1 design already called for native streaming playback. Implementation dive
 
 ## 5. Constraints
 
-| Constraint | Detail |
-|---|---|
-| Audio format (downlink) | 24 kHz, mono, 16-bit signed LE PCM, base64 on wire |
-| Audio format (uplink) | 16 kHz, mono, 16-bit — matches Gemini Live input |
-| Chunk cadence | ~20–100 ms from Gemini Live |
-| Interface stability | `playChunk`, `clearPlaybackQueue`, `playbackState`, `onAudioChunk` unchanged |
-| Expo SDK | 56, dev client + EAS production builds |
-| Speakerphone | Primary UX — AEC is mandatory, not optional |
+| Constraint                                 | Detail                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Audio format (downlink)                    | 24 kHz, mono, 16-bit signed LE PCM, base64 on wire                                           |
+| Audio format (uplink)                      | 16 kHz, mono, 16-bit — matches Gemini Live input                                             |
+| Chunk cadence                              | ~20–100 ms from Gemini Live                                                                  |
+| Interface stability                        | `playChunk`, `clearPlaybackQueue`, `playbackState`, `onAudioChunk` unchanged                 |
+| Expo SDK                                   | 56, dev client + EAS production builds                                                       |
+| Speakerphone                               | Primary UX — AEC is mandatory, not optional                                                  |
 | `@speechmatics/expo-two-way-audio` (stock) | Playback at **16 kHz** — adapter resamples 24→16 kHz before enqueue; wire protocol unchanged |
 
 ---
@@ -98,35 +98,35 @@ Without cancellation, the microphone captures 24 kHz speaker output. Gemini Live
 
 ### Option A — `expo-audio` + WAV cache files (current / interim)
 
-| | |
-|---|---|
+|             |                                                                          |
+| ----------- | ------------------------------------------------------------------------ |
 | **Verdict** | **Reject.** Stutter, I/O thrashing, crashes. Already reverted from repo. |
 
 ### Option B — `react-native-pcm-player-lite` + `react-native-live-audio-stream`
 
-| | |
-|---|---|
-| **Pros** | Simple playback API; small diff |
-| **Cons** | **No unified session → no hardware AEC → echo loop on speakerphone** |
-| **Verdict** | **Rejected.** Dead end for Talk tab UX. |
+|             |                                                                      |
+| ----------- | -------------------------------------------------------------------- |
+| **Pros**    | Simple playback API; small diff                                      |
+| **Cons**    | **No unified session → no hardware AEC → echo loop on speakerphone** |
+| **Verdict** | **Rejected.** Dead end for Talk tab UX.                              |
 
 ### Option C — 24 kHz fork of `@speechmatics/expo-two-way-audio`
 
-| | |
-|---|---|
-| **Pros** | Unified duplex; **hardware AEC + noise suppression**; no resample step |
-| **Cons** | Hobbyist forks (sugaith / talantiq-dev) — unvetted native C++/Java/ObjC; no license audit; supply-chain risk; fork maintenance burden; may diverge from upstream Expo SDK bumps |
-| **Verdict** | **Fallback** — use if Option C′ fails AEC acceptance on both platforms. |
+|             |                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pros**    | Unified duplex; **hardware AEC + noise suppression**; no resample step                                                                                                          |
+| **Cons**    | Hobbyist forks (sugaith / talantiq-dev) — unvetted native C++/Java/ObjC; no license audit; supply-chain risk; fork maintenance burden; may diverge from upstream Expo SDK bumps |
+| **Verdict** | **Fallback** — use if Option C′ fails AEC acceptance on both platforms.                                                                                                         |
 
 ### Option C′ — Stock `@speechmatics/expo-two-way-audio` + 24→16 kHz adapter resample (**recommended**)
 
-| | |
-|---|---|
-| **Pros** | **Officially maintained** Speechmatics package; no fork; MIT-licensed; Expo 56 tested; unified duplex → hardware AEC; adapter-managed playback state; resample is pure-JS, unit-testable, fractions of a ms per chunk |
-| **Cons** | 24→16 kHz downsample = wideband (16 kHz) vs super-wideband (24 kHz) playback quality. Perceptible only on high-fidelity headphones; inaudible on phone speaker. Adapter adds ~5 lines of math. |
-| **Verdict** | **Adopt for v1.** |
+|             |                                                                                                                                                                                                                       |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pros**    | **Officially maintained** Speechmatics package; no fork; MIT-licensed; Expo 56 tested; unified duplex → hardware AEC; adapter-managed playback state; resample is pure-JS, unit-testable, fractions of a ms per chunk |
+| **Cons**    | 24→16 kHz downsample = wideband (16 kHz) vs super-wideband (24 kHz) playback quality. Perceptible only on high-fidelity headphones; inaudible on phone speaker. Adapter adds ~5 lines of math.                        |
+| **Verdict** | **Adopt for v1.**                                                                                                                                                                                                     |
 
-**Why 16 kHz quality is acceptable:** Gemini Live *input* already at 16 kHz; agent voice is generated speech, not music. ITU-T G.722 wideband (16 kHz) is the standard for HD voice calls. Downgrade to wideband is a pragmatic swap for zero fork maintenance.
+**Why 16 kHz quality is acceptable:** Gemini Live _input_ already at 16 kHz; agent voice is generated speech, not music. ITU-T G.722 wideband (16 kHz) is the standard for HD voice calls. Downgrade to wideband is a pragmatic swap for zero fork maintenance.
 
 **Resample location:** `src/utils/audioResample.ts` — imported by adapter only. Hook stays at wire-protocol rate (24 kHz base64 in). See §9.
 
@@ -134,22 +134,22 @@ Without cancellation, the microphone captures 24 kHz speaker output. Gemini Live
 
 ### Option D — `expo-audio-stream` (edkimmel)
 
-| | |
-|---|---|
-| **Pros** | AI voice streaming; `playbackMode: "conversation"`; jitter buffer |
-| **Cons** | Heavier API; less proven in this repo; still need full mic+playback validation |
+|             |                                                                                 |
+| ----------- | ------------------------------------------------------------------------------- |
+| **Pros**    | AI voice streaming; `playbackMode: "conversation"`; jitter buffer               |
+| **Cons**    | Heavier API; less proven in this repo; still need full mic+playback validation  |
 | **Verdict** | **Second fallback** only if both C′ and C fail Expo 56 build or AEC acceptance. |
 
 ### Option E — `react-native-audio-api`
 
-| | |
-|---|---|
+|             |                                          |
+| ----------- | ---------------------------------------- |
 | **Verdict** | **Defer** — gapless queue API not ready. |
 
 ### Option F — Custom Expo native module
 
-| | |
-|---|---|
+|             |                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------- |
 | **Verdict** | **Defer** — Option C′ already provides the required native primitives without fork maintenance. |
 
 ---
@@ -273,17 +273,17 @@ export function resample24to16(pcm24: Uint8Array): Uint8Array {
 
 Behavior must match web semantics where possible. **`UseLiveAudioIOReturn` unchanged.**
 
-| Event / action | Native behavior (new) |
-|---|---|
-| Mount | `adapter.initialize()` |
-| `startRecording()` | Request mic permission (stock module or expo-audio permission API); `adapter.startRecording(cb)`; register `cb` → fan-out to `chunkListenersRef` |
-| `stopRecording()` | `adapter.stopRecording()` |
-| First `playChunk()` | `playChunk` on adapter; set `playbackState = 'playing'` |
-| Subsequent `playChunk()` | `playChunk` only |
-| `clearPlaybackQueue()` | `adapter.clearPlaybackQueue()` → `restart()`; `playbackState = 'idle'` |
-| `AUDIO_INTERRUPTED` | Same as `clearPlaybackQueue()` — already wired in `useLiveVoiceChat` |
-| `endCall` / unmount | `tearDown()` |
-| Malformed base64 | Log warning, skip chunk |
+| Event / action           | Native behavior (new)                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Mount                    | `adapter.initialize()`                                                                                                                           |
+| `startRecording()`       | Request mic permission (stock module or expo-audio permission API); `adapter.startRecording(cb)`; register `cb` → fan-out to `chunkListenersRef` |
+| `stopRecording()`        | `adapter.stopRecording()`                                                                                                                        |
+| First `playChunk()`      | `playChunk` on adapter; set `playbackState = 'playing'`                                                                                          |
+| Subsequent `playChunk()` | `playChunk` only                                                                                                                                 |
+| `clearPlaybackQueue()`   | `adapter.clearPlaybackQueue()` → `restart()`; `playbackState = 'idle'`                                                                           |
+| `AUDIO_INTERRUPTED`      | Same as `clearPlaybackQueue()` — already wired in `useLiveVoiceChat`                                                                             |
+| `endCall` / unmount      | `tearDown()`                                                                                                                                     |
+| Malformed base64         | Log warning, skip chunk                                                                                                                          |
 
 ### `playbackState` semantics
 
@@ -303,29 +303,29 @@ Mic events: replace `LiveAudioStream.on('data')` with stock module `useExpoTwoWa
 
 **One JS path, one native module, two platform backends inside `@speechmatics/expo-two-way-audio`.**
 
-| Platform | Native duplex stack (inside module) | AEC |
-|---|---|---|
-| **Android** | Linked `AudioRecord` + `AudioTrack` session | Hardware `AcousticEchoCanceler` when session unified |
-| **iOS** | `VoiceProcessingIO` / unified `AVAudioEngine` graph | System voice-processing AEC |
+| Platform    | Native duplex stack (inside module)                 | AEC                                                  |
+| ----------- | --------------------------------------------------- | ---------------------------------------------------- |
+| **Android** | Linked `AudioRecord` + `AudioTrack` session         | Hardware `AcousticEchoCanceler` when session unified |
+| **iOS**     | `VoiceProcessingIO` / unified `AVAudioEngine` graph | System voice-processing AEC                          |
 
 No separate iOS or Android playback branches in JS.
 
 ### iOS-specific validation (physical device)
 
-| Quirk | Mitigation |
-|---|---|
-| Earpiece routing | Module routes to main speaker by default; verify at ~70% volume |
-| Silent switch | Confirm agent audible with silent switch on |
-| Voice Isolation / mic modes | Module supports iOS mic mode APIs — test if user prompted |
-| Barge-in ducking | Real barge-in should work; **false barge-in from echo must not occur** |
+| Quirk                       | Mitigation                                                             |
+| --------------------------- | ---------------------------------------------------------------------- |
+| Earpiece routing            | Module routes to main speaker by default; verify at ~70% volume        |
+| Silent switch               | Confirm agent audible with silent switch on                            |
+| Voice Isolation / mic modes | Module supports iOS mic mode APIs — test if user prompted              |
+| Barge-in ducking            | Real barge-in should work; **false barge-in from echo must not occur** |
 
 ### Android-specific validation (physical device)
 
-| Quirk | Mitigation |
-|---|---|
-| Session linking | Verify no echo loop — primary acceptance test |
+| Quirk                                    | Mitigation                                                     |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Session linking                          | Verify no echo loop — primary acceptance test                  |
 | `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` | Already in Expo config for speech; confirm stock module plugin |
-| Emulator | Insufficient for AEC — physical device required |
+| Emulator                                 | Insufficient for AEC — physical device required                |
 
 ---
 
@@ -350,15 +350,15 @@ import { requestRecordingPermissionsAsync } from 'expo-audio'
 
 ## 13. Build & Deployment Requirements
 
-| Requirement | Detail |
-|---|---|
-| Native rebuild | **Mandatory** — install `@speechmatics/expo-two-way-audio` + remove old native deps |
-| OTA | **Insufficient** |
-| Dev client | Rebuild `build:dev-a` / `build:dev-i` after adding module |
-| Production | Next store release |
-| `app.config.ts` | Add `@speechmatics/expo-two-way-audio` Expo plugin if required; keep `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` |
-| Dependencies | Add `@speechmatics/expo-two-way-audio` (stock npm); **remove** `react-native-live-audio-stream` after spike passes (§15 Step 1). No `buffer` polyfill needed — use `atob()`. |
-| iOS | `pod install` via EAS |
+| Requirement     | Detail                                                                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Native rebuild  | **Mandatory** — install `@speechmatics/expo-two-way-audio` + remove old native deps                                                                                          |
+| OTA             | **Insufficient**                                                                                                                                                             |
+| Dev client      | Rebuild `build:dev-a` / `build:dev-i` after adding module                                                                                                                    |
+| Production      | Next store release                                                                                                                                                           |
+| `app.config.ts` | Add `@speechmatics/expo-two-way-audio` Expo plugin if required; keep `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`                                                                 |
+| Dependencies    | Add `@speechmatics/expo-two-way-audio` (stock npm); **remove** `react-native-live-audio-stream` after spike passes (§15 Step 1). No `buffer` polyfill needed — use `atob()`. |
+| iOS             | `pod install` via EAS                                                                                                                                                        |
 
 Update `docs/real-time-voice-chat.md`: unified duplex module, rebuild required, AEC dependency.
 
@@ -366,18 +366,18 @@ Update `docs/real-time-voice-chat.md`: unified duplex module, rebuild required, 
 
 ## 14. Files to Create / Modify
 
-| File | Action |
-|---|---|
-| `src/native/twoWayAudioAdapter.ts` | **Create** — wrapper over stock module; owns `atob` decode + resample |
-| `src/utils/audioResample.ts` | **Create** — `resample24to16(pcm24: Uint8Array): Uint8Array`; pure TS |
-| `src/hooks/useLiveAudioIO.ts` | **Modify** — unified duplex via adapter; remove `LiveAudioStream` + `expo-audio` playback |
-| `__tests__/useLiveAudioIO.test.tsx` | **Modify** — mock `TwoWayAudioAdapter` |
-| `__tests__/twoWayAudioAdapter.test.ts` | **Create** — base64 decode, resample call, error handling |
-| `__tests__/audioResample.test.ts` | **Create** — `resample24to16`: known PCM in → expected 16 kHz bytes out |
-| `app.config.ts` | **Modify** — Expo plugin for `@speechmatics/expo-two-way-audio` if required |
-| `package.json` | **Add** `@speechmatics/expo-two-way-audio`; **remove** `react-native-live-audio-stream` (after spike) |
-| `docs/real-time-voice-chat.md` | **Update** |
-| `docs/superpowers/specs/2026-06-26-real-time-voice-chat-design.md` | **Append errata** |
+| File                                                               | Action                                                                                                |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `src/native/twoWayAudioAdapter.ts`                                 | **Create** — wrapper over stock module; owns `atob` decode + resample                                 |
+| `src/utils/audioResample.ts`                                       | **Create** — `resample24to16(pcm24: Uint8Array): Uint8Array`; pure TS                                 |
+| `src/hooks/useLiveAudioIO.ts`                                      | **Modify** — unified duplex via adapter; remove `LiveAudioStream` + `expo-audio` playback             |
+| `__tests__/useLiveAudioIO.test.tsx`                                | **Modify** — mock `TwoWayAudioAdapter`                                                                |
+| `__tests__/twoWayAudioAdapter.test.ts`                             | **Create** — base64 decode, resample call, error handling                                             |
+| `__tests__/audioResample.test.ts`                                  | **Create** — `resample24to16`: known PCM in → expected 16 kHz bytes out                               |
+| `app.config.ts`                                                    | **Modify** — Expo plugin for `@speechmatics/expo-two-way-audio` if required                           |
+| `package.json`                                                     | **Add** `@speechmatics/expo-two-way-audio`; **remove** `react-native-live-audio-stream` (after spike) |
+| `docs/real-time-voice-chat.md`                                     | **Update**                                                                                            |
+| `docs/superpowers/specs/2026-06-26-real-time-voice-chat-design.md` | **Append errata**                                                                                     |
 
 **Unchanged:** `useLiveAudioIO.web.ts`, `useLiveVoiceChat.ts`, `liveVoiceMachine.ts`, talk UI.
 
@@ -408,17 +408,20 @@ Update `docs/real-time-voice-chat.md`: unified duplex module, rebuild required, 
 ### Unit tests (Jest)
 
 **`audioResample.test.ts`** (`src/utils/audioResample.ts`):
+
 - Known 24 kHz sine burst (48 samples / 1 ms) → output is 32 samples (2:3 ratio)
 - Output length = `floor(input_sample_count * 2/3) * 2` bytes (16-bit LE)
 - Silence in → silence out (no DC offset introduced)
 - Odd-length input does not throw
 
 **`twoWayAudioAdapter.test.ts`**:
+
 - Valid base64 → `atob` decode → `resample24to16` called with correct byte count
 - Malformed base64 does not throw; logs warning
 - `playChunk` calls module `playPCMData` with 16000 sample rate
 
 **`useLiveAudioIO.test.tsx`** (mock adapter):
+
 - `startRecording` registers callback; chunks fan out to `onAudioChunk` subscribers
 - `playChunk` forwards base64 to adapter
 - `clearPlaybackQueue` calls adapter clear/stop
@@ -426,18 +429,18 @@ Update `docs/real-time-voice-chat.md`: unified duplex module, rebuild required, 
 
 ### Manual device acceptance (required — physical devices)
 
-| # | Scenario | Pass criteria |
-|---|---|---|
-| **0** | **Echo loop (P0)** | Agent speaks 30 s at ~70% speaker volume, user **silent** — **no self-interruption**, no phantom user turns in transcript, no echo in uplink |
-| 1 | Continuous agent speech 30 s | Gapless subjectively; no crash |
-| 2 | Real barge-in | User speech stops agent < 200 ms; mic still live |
-| 3 | False barge-in | Must **not** trigger when user is silent during agent speech |
-| 4 | End call / remount | Clean teardown; no leaked audio |
-| 5 | Full-duplex | User speaks while agent speaks; uplink reaches server |
-| 6 | Silent mode (iOS) | Agent audible |
-| 7 | Bluetooth headset | Routes correctly; AEC acceptable |
-| 8 | Long call (5+ min) | No memory growth / crash |
-| 9 | Avatar glow | Tracks speech end within 500 ms |
+| #     | Scenario                     | Pass criteria                                                                                                                                |
+| ----- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0** | **Echo loop (P0)**           | Agent speaks 30 s at ~70% speaker volume, user **silent** — **no self-interruption**, no phantom user turns in transcript, no echo in uplink |
+| 1     | Continuous agent speech 30 s | Gapless subjectively; no crash                                                                                                               |
+| 2     | Real barge-in                | User speech stops agent < 200 ms; mic still live                                                                                             |
+| 3     | False barge-in               | Must **not** trigger when user is silent during agent speech                                                                                 |
+| 4     | End call / remount           | Clean teardown; no leaked audio                                                                                                              |
+| 5     | Full-duplex                  | User speaks while agent speaks; uplink reaches server                                                                                        |
+| 6     | Silent mode (iOS)            | Agent audible                                                                                                                                |
+| 7     | Bluetooth headset            | Routes correctly; AEC acceptable                                                                                                             |
+| 8     | Long call (5+ min)           | No memory growth / crash                                                                                                                     |
+| 9     | Avatar glow                  | Tracks speech end within 500 ms                                                                                                              |
 
 ### Regression
 
@@ -449,16 +452,16 @@ npx jest __tests__/liveVoiceMachine.test.ts __tests__/useLiveAudioIO.test.tsx __
 
 ## 17. Risks & Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| **Stock module license / provenance** | `@speechmatics/expo-two-way-audio` is MIT, Speechmatics-maintained — verify with `npm info @speechmatics/expo-two-way-audio license` before first build |
-| Stock module API incompatible with Expo 56 | Check peer deps at install time; `expo install` version resolution; fallback to Option C if blocked |
-| Resample quality unacceptable on headphones | 2:3 linear interp is wideband-grade — sufficient for voice. If rejected: upgrade to sinc or fall back to Option C (24 kHz fork) |
-| AEC spike fails (§15 Step 1) | Evaluate Option C (24 kHz fork — fallback) before full refactor |
-| Option C fork unmaintained / supply-chain | Only vendor if C′ spike fails; audit license + last commit date before vendoring |
-| `setAudioModeAsync` conflicts | Let module own session; remove duplicate config |
-| AEC insufficient at max volume | Document max recommended volume; headset fallback UX (future) |
-| iOS simulator misleading | Physical device sign-off only |
+| Risk                                        | Mitigation                                                                                                                                              |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stock module license / provenance**       | `@speechmatics/expo-two-way-audio` is MIT, Speechmatics-maintained — verify with `npm info @speechmatics/expo-two-way-audio license` before first build |
+| Stock module API incompatible with Expo 56  | Check peer deps at install time; `expo install` version resolution; fallback to Option C if blocked                                                     |
+| Resample quality unacceptable on headphones | 2:3 linear interp is wideband-grade — sufficient for voice. If rejected: upgrade to sinc or fall back to Option C (24 kHz fork)                         |
+| AEC spike fails (§15 Step 1)                | Evaluate Option C (24 kHz fork — fallback) before full refactor                                                                                         |
+| Option C fork unmaintained / supply-chain   | Only vendor if C′ spike fails; audit license + last commit date before vendoring                                                                        |
+| `setAudioModeAsync` conflicts               | Let module own session; remove duplicate config                                                                                                         |
+| AEC insufficient at max volume              | Document max recommended volume; headset fallback UX (future)                                                                                           |
+| iOS simulator misleading                    | Physical device sign-off only                                                                                                                           |
 
 ---
 
@@ -490,10 +493,10 @@ npx jest __tests__/liveVoiceMachine.test.ts __tests__/useLiveAudioIO.test.tsx __
 
 ## 20. Decision Log
 
-| Date | Decision |
-|---|---|
-| 2026-06-27 | Spec v1 recommended Option B (`pcm-player-lite`) with adapter pattern |
-| 2026-06-27 | **Spec v2: Option B rejected.** Dual-module cannot satisfy Android session-linked AEC or iOS `VoiceProcessingIO`. **Option C (24 kHz fork) adopted.** No AEC spike. Unified duplex in one PR. |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-06-27 | Spec v1 recommended Option B (`pcm-player-lite`) with adapter pattern                                                                                                                                                                                                                                                                                                                                                                |
+| 2026-06-27 | **Spec v2: Option B rejected.** Dual-module cannot satisfy Android session-linked AEC or iOS `VoiceProcessingIO`. **Option C (24 kHz fork) adopted.** No AEC spike. Unified duplex in one PR.                                                                                                                                                                                                                                        |
 | 2026-06-27 | **Spec v3: Option C superseded by Option C′.** 24 kHz hobbyist forks carry supply-chain risk and fork maintenance burden. Stock `@speechmatics/expo-two-way-audio` (MIT, officially maintained) + 24→16 kHz linear resample in adapter layer achieves same AEC correctness with zero fork overhead. Resample is wideband-grade (16 kHz), acceptable for agent speech. **Thin AEC spike added as P0 gate before full hook refactor.** |
 
 ---

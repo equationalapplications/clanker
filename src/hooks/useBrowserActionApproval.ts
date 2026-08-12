@@ -15,8 +15,12 @@ if (!TaskManager.isTaskDefined(APPROVAL_TASK)) {
       if (!('actionIdentifier' in data)) return BackgroundNotificationTaskResult.NoData
       const { actionIdentifier, notification } = data
       // Ignore plain notification body taps — only act on explicit APPROVE/DENY button presses.
-      if (actionIdentifier !== 'APPROVE' && actionIdentifier !== 'DENY') return BackgroundNotificationTaskResult.NoData
-      const { sessionId, taskId } = notification.request.content.data as { sessionId: string; taskId: string }
+      if (actionIdentifier !== 'APPROVE' && actionIdentifier !== 'DENY')
+        return BackgroundNotificationTaskResult.NoData
+      const { sessionId, taskId } = notification.request.content.data as {
+        sessionId: string
+        taskId: string
+      }
       const user = getAuth().currentUser
       if (!user) return BackgroundNotificationTaskResult.NoData
 

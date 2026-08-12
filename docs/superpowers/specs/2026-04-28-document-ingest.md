@@ -98,7 +98,7 @@ interface ExtractedFact {
 
 Document content is fed directly to an LLM. A crafted document could attempt to override the extraction system prompt or plant malicious facts into future conversation context.
 
-- Wrap each chunk in explicit delimiters in the system prompt: `<DOCUMENT_START>...<DOCUMENT_END>`. Instruct the model that anything between delimiters is *data to extract from*, never *instructions to follow*.
+- Wrap each chunk in explicit delimiters in the system prompt: `<DOCUMENT_START>...<DOCUMENT_END>`. Instruct the model that anything between delimiters is _data to extract from_, never _instructions to follow_.
 - Before sending to the LLM, strip or escape any token that could escape the delimiter boundary. Tokens to strip/replace: `<DOCUMENT_START>`, `<DOCUMENT_END>`, `[SYSTEM]`, `<|im_start|>`, `<|im_end|>`, `<|endoftext|>`, and any other control/special tokens for the model family in use.
 - Use structured output mode (Gemini schema / OpenAI JSON mode) for the extraction call — the model should never be allowed to return freeform text outside the `ExtractedFact[]` schema.
 - **Validate every returned field server-side before returning to client**: `title.length ≤ 80`, `body.length ≤ 200`, `tags` is `string[]` with `length ≤ 6` and each tag `≤ 40 chars`, `confidence ∈ { 'certain', 'inferred', 'tentative' }`. Drop any entry that fails validation; do not propagate injected content.
@@ -114,7 +114,7 @@ Document content is fed directly to an LLM. A crafted document could attempt to 
 
 Inconsistent Unicode forms between client and server will cause hash mismatches and break dedup.
 
-- **Normalize to NFC** on both client and server *before* hashing. This must happen in the same order: normalize → hash → (server) truncate if needed → re-hash.
+- **Normalize to NFC** on both client and server _before_ hashing. This must happen in the same order: normalize → hash → (server) truncate if needed → re-hash.
 - Strip BOM (`\uFEFF`) consistently — strip before normalization on both sides.
 - Strip null bytes (`\u0000`) — they are valid Unicode but break some SQLite TEXT column behavior.
 - Zero-width characters (`\u200B–\u200F`, `\u202E`, etc.) are preserved in storage (they may be intentional in some documents) but the BOM strip covers the most common accidental case.
@@ -137,11 +137,11 @@ Show a one-time disclosure in the action sheet or a persistent note in the UI: `
 ### Constants
 
 ```ts
-const MAX_DOCUMENT_CHARS = 200_000;           // ~50KB markdown after parsing
-const MAX_DOCUMENTS_PER_DAY = 5;              // per user, across all characters
-const MAX_CHUNKS = 100;
-const CHUNK_TARGET_CHARS = 2000;
-const EXTRACTION_CONCURRENCY = 4;
+const MAX_DOCUMENT_CHARS = 200_000 // ~50KB markdown after parsing
+const MAX_DOCUMENTS_PER_DAY = 5 // per user, across all characters
+const MAX_CHUNKS = 100
+const CHUNK_TARGET_CHARS = 2000
+const EXTRACTION_CONCURRENCY = 4
 ```
 
 ## Client: `documentIngestMachine`
@@ -199,15 +199,15 @@ error           [stores last error message in context for UI surfacing via toast
 
 ```ts
 interface DocumentIngestContext {
-  characterId: string;
-  userId: string;
-  filename: string | null;
-  contentHash: string | null;
-  content: string | null;        // cleared after extracting completes (memory hygiene)
-  facts: ExtractedFact[];        // from extracting → applying
-  duplicateEntryCount: number;   // from checkingDuplicate; drives action sheet copy
-  progress: number;              // 0..1, derived from current state for UI
-  errorMessage: string | null;
+  characterId: string
+  userId: string
+  filename: string | null
+  contentHash: string | null
+  content: string | null // cleared after extracting completes (memory hygiene)
+  facts: ExtractedFact[] // from extracting → applying
+  duplicateEntryCount: number // from checkingDuplicate; drives action sheet copy
+  progress: number // 0..1, derived from current state for UI
+  errorMessage: string | null
 }
 ```
 
@@ -229,8 +229,8 @@ Extend `forgetMemory` signature:
 type ForgetTarget =
   | { entryId: string }
   | { taskId: string }
-  | { sourceRef: string }     // NEW: soft-delete all entries with matching source_ref
-  | { clearAll: true };
+  | { sourceRef: string } // NEW: soft-delete all entries with matching source_ref
+  | { clearAll: true }
 
 export async function forgetMemory(characterId: string, target: ForgetTarget): Promise<void>
 ```
@@ -242,7 +242,7 @@ When `target` is `{ sourceRef }`, callable soft-deletes both local SQLite and (i
 Thin wrapper around the `documentExtract` callable matching the [src/services/chatReplyService.ts](/src/services/chatReplyService.ts) pattern:
 
 ```ts
-const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract');
+const documentExtractFn = httpsCallable(functionsInstance, 'documentExtract')
 export async function extractDocument(input: DocumentExtractInput): Promise<DocumentExtractOutput>
 ```
 
@@ -251,9 +251,15 @@ export async function extractDocument(input: DocumentExtractInput): Promise<Docu
 ### `src/database/wikiDatabase.ts` extensions
 
 ```ts
-export async function findEntriesByHash(characterId: string, hash: string): Promise<LocalWikiEntry[]>
-export async function findEntriesBySourceRef(characterId: string, sourceRef: string): Promise<LocalWikiEntry[]>
-export async function bulkInsertEntries(entries: LocalWikiEntry[]): Promise<void>  // single transaction
+export async function findEntriesByHash(
+  characterId: string,
+  hash: string,
+): Promise<LocalWikiEntry[]>
+export async function findEntriesBySourceRef(
+  characterId: string,
+  sourceRef: string,
+): Promise<LocalWikiEntry[]>
+export async function bulkInsertEntries(entries: LocalWikiEntry[]): Promise<void> // single transaction
 ```
 
 `bulkInsertEntries` wraps all inserts (and FTS5 trigger fan-out) in one SQLite transaction so an `applying`-phase crash leaves nothing partial.
@@ -269,6 +275,7 @@ Add a `+` icon button on the left side of the composer text input, before the se
 ### Action sheet
 
 Tap → native action sheet with options:
+
 - **Add document to memory** → dispatches `INGEST` to `documentIngestMachine` for the active character
 - **Cancel**
 
@@ -279,6 +286,7 @@ Tap → native action sheet with options:
 Use plain `useState<number>(0)` driven by selecting `progress` from the machine context via `useSelector(actorRef, (s) => s.context.progress)`. Render as a thin horizontal bar above the composer, hidden when `state === 'idle'`. **No Reanimated** — progress updates are coarse (handful per ingest), 60fps animation is unnecessary.
 
 Progress mapping (deterministic from state):
+
 - `picking` → 0.0
 - `reading` → 0.1
 - `checkingDuplicate` → 0.2
@@ -315,6 +323,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 ## Files Touched
 
 **New**:
+
 - `src/machines/documentIngestMachine.ts`
 - `src/services/documentIngestService.ts`
 - `src/components/composer/IngestProgressBar.tsx` (small enough to colocate, but separate keeps `ChatComposer` lean)
@@ -324,6 +333,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 - `functions/src/documentExtract.test.ts`
 
 **Modified**:
+
 - [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 16; add `MIGRATIONS[13]` (ALTER `wiki_entries` add `source_hash`), `MIGRATIONS[14]` (add `source_ref`), `MIGRATIONS[15]` (swap `source_hash` to partial index), `MIGRATIONS[16]` (add partial index on `source_ref`); extend `LATEST_SCHEMA_REQUIRED_COLUMNS['wiki_entries']`
 - [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add `sourceHash` column + index to `wikiEntries` table; new Drizzle migration generated at `functions/drizzle/000X_document_source_hash.sql`
 - `src/database/wikiDatabase.ts` — add `findEntriesByHash`, `findEntriesBySourceRef`, `bulkInsertEntries`; extend `LocalWikiEntry` interface and `source_type` union
@@ -337,6 +347,7 @@ Document this skip behavior at the top of `memoryHealHandler`.
 - `__tests__/wikiDatabase.test.ts` — tests for `findEntriesByHash`, `findEntriesBySourceRef`, `bulkInsertEntries` transaction rollback
 
 **Unchanged**:
+
 - v1 `wikiHealMachine` — no changes; document ingest is an independent flow
 - v1 callables (`memoryRead`, `memoryWrite`, `memoryHeal`) — only `memoryHeal` handler internals change
 - `aiChatService.ts` — no pre-turn or post-turn changes; document entries flow into existing `fetchMemoryBundle` reads automatically

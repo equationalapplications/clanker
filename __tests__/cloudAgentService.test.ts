@@ -26,7 +26,7 @@ class FailingWebSocket {
 // Helper to create module with specific mocks
 function loadWithMocks({ hasCurrentUser = true, token = 'firebase-id-token' } = {}) {
   jest.resetModules()
-  
+
   if (hasCurrentUser) {
     jest.doMock('~/config/firebaseConfig', () => ({
       getCurrentUser: jest.fn().mockReturnValue({
@@ -38,7 +38,7 @@ function loadWithMocks({ hasCurrentUser = true, token = 'firebase-id-token' } = 
       getCurrentUser: jest.fn().mockReturnValue(null),
     }))
   }
-  
+
   return require('~/services/cloudAgentService')
 }
 
@@ -61,16 +61,16 @@ describe('callCloudAgent', () => {
   it('throws when EXPO_PUBLIC_CLOUD_AGENT_URL is not set', async () => {
     process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = ''
     const { callCloudAgent } = loadWithMocks()
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.toThrow('EXPO_PUBLIC_CLOUD_AGENT_URL is not configured')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'EXPO_PUBLIC_CLOUD_AGENT_URL is not configured',
+    )
   })
 
   it('throws when auth.currentUser is null', async () => {
     const { callCloudAgent } = loadWithMocks({ hasCurrentUser: false })
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.toThrow('No authenticated user')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'No authenticated user',
+    )
   })
 
   it('makes POST with Authorization header and returns reply', async () => {
@@ -84,7 +84,9 @@ describe('callCloudAgent', () => {
       message: 'hi',
       characterId: 'char-1',
       history: [{ role: 'user', parts: [{ text: 'hey' }] }],
-      unsyncedHistory: [{ type: 'task', id: 't1', title: 'Buy milk', status: 'open', createdAt: 1000 }],
+      unsyncedHistory: [
+        { type: 'task', id: 't1', title: 'Buy milk', status: 'open', createdAt: 1000 },
+      ],
     })
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -99,7 +101,9 @@ describe('callCloudAgent', () => {
           message: 'hi',
           characterId: 'char-1',
           history: [{ role: 'user', parts: [{ text: 'hey' }] }],
-          unsyncedHistory: [{ type: 'task', id: 't1', title: 'Buy milk', status: 'open', createdAt: 1000 }],
+          unsyncedHistory: [
+            { type: 'task', id: 't1', title: 'Buy milk', status: 'open', createdAt: 1000 },
+          ],
         }),
       }),
     )
@@ -119,9 +123,9 @@ describe('callCloudAgent', () => {
   it('throws when response is not ok', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 401 })
     const { callCloudAgent } = loadWithMocks()
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.toThrow('Cloud Agent responded with 401')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'Cloud Agent responded with 401',
+    )
   })
 
   it('logs a dev hint when local cloud-agent reports expired GCP credentials', async () => {
@@ -152,17 +156,17 @@ describe('callCloudAgent', () => {
   it('throws CLOUD_AGENT_INSUFFICIENT_CREDITS when server returns 402', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 402 })
     const { callCloudAgent } = loadWithMocks()
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'CLOUD_AGENT_INSUFFICIENT_CREDITS',
+    )
   })
 
   it('does not throw generic HTTP error for 402 — only CLOUD_AGENT_INSUFFICIENT_CREDITS', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 402 })
     const { callCloudAgent } = loadWithMocks()
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.not.toThrow('Cloud Agent responded with 402')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.not.toThrow(
+      'Cloud Agent responded with 402',
+    )
   })
 
   it('returns usageSnapshot with remainingCredits when present in response', async () => {
@@ -210,7 +214,11 @@ describe('callCloudAgent', () => {
   it('returns usageSnapshot: null when remainingCredits is not a number', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ reply: 'Hi!', toolCalls: [], usageSnapshot: { remainingCredits: 'bad' } }),
+      json: async () => ({
+        reply: 'Hi!',
+        toolCalls: [],
+        usageSnapshot: { remainingCredits: 'bad' },
+      }),
     })
     const { callCloudAgent } = loadWithMocks()
     const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
@@ -220,7 +228,11 @@ describe('callCloudAgent', () => {
   it('returns usageSnapshot: null when usageSnapshot.remainingCredits is null', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ reply: 'Hi!', toolCalls: [], usageSnapshot: { remainingCredits: null } }),
+      json: async () => ({
+        reply: 'Hi!',
+        toolCalls: [],
+        usageSnapshot: { remainingCredits: null },
+      }),
     })
     const { callCloudAgent } = loadWithMocks()
     const result = await callCloudAgent({ message: 'hi', characterId: 'char-1' })
@@ -233,9 +245,9 @@ describe('callCloudAgent', () => {
       json: async () => ({ toolCalls: [] }),
     })
     const { callCloudAgent } = loadWithMocks()
-    await expect(
-      callCloudAgent({ message: 'hi', characterId: 'char-1' }),
-    ).rejects.toThrow('Invalid Cloud Agent response')
+    await expect(callCloudAgent({ message: 'hi', characterId: 'char-1' })).rejects.toThrow(
+      'Invalid Cloud Agent response',
+    )
   })
 
   describe('local Docker character routing', () => {
@@ -271,92 +283,90 @@ describe('callCloudAgent', () => {
       })
       const { callCloudAgent } = loadWithMocks()
       await callCloudAgent({ message: 'hi', characterId: 'char-1' })
-      expect(mockFetch).toHaveBeenCalledWith(
-        expectedFetchUrl,
-        expect.any(Object),
-      )
+      expect(mockFetch).toHaveBeenCalledWith(expectedFetchUrl, expect.any(Object))
     })
   })
 
   describe('attachments on the wire payload', () => {
-  afterEach(() => {
-    ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
-  })
-
-  const ATTACHMENT = { mimeType: 'image/webp' as const, data: 'AAAA' }
-
-  it('sends attachments over HTTP', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ reply: 'I see a photo', toolCalls: [] }),
-    })
-    const { callCloudAgent } = loadWithMocks()
-    await callCloudAgent({
-      message: 'what is this?',
-      characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      attachments: [ATTACHMENT],
+    afterEach(() => {
+      ;(global as unknown as { WebSocket: typeof FailingWebSocket }).WebSocket = FailingWebSocket
     })
 
-    const [, init] = mockFetch.mock.calls[0]
-    expect(JSON.parse(init.body).attachments).toEqual([ATTACHMENT])
-  })
+    const ATTACHMENT = { mimeType: 'image/webp' as const, data: 'AAAA' }
 
-  it('sends attachments over WebSocket', async () => {
-    const sendMock = jest.fn()
+    it('sends attachments over HTTP', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ reply: 'I see a photo', toolCalls: [] }),
+      })
+      const { callCloudAgent } = loadWithMocks()
+      await callCloudAgent({
+        message: 'what is this?',
+        characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        attachments: [ATTACHMENT],
+      })
 
-    class CapturingWebSocket {
-      static CONNECTING = 0
-      static OPEN = 1
-      readyState = CapturingWebSocket.CONNECTING
-      private listeners = new Map<string, Set<(ev: unknown) => void>>()
+      const [, init] = mockFetch.mock.calls[0]
+      expect(JSON.parse(init.body).attachments).toEqual([ATTACHMENT])
+    })
 
-      addEventListener(type: string, listener: (ev: unknown) => void) {
-        if (!this.listeners.has(type)) this.listeners.set(type, new Set())
-        this.listeners.get(type)!.add(listener)
-        if (type === 'open') {
-          queueMicrotask(() => {
-            listener(new Event('open'))
-            this.emit('message', {
-              data: JSON.stringify({ type: 'token', text: 'I see a photo' }),
+    it('sends attachments over WebSocket', async () => {
+      const sendMock = jest.fn()
+
+      class CapturingWebSocket {
+        static CONNECTING = 0
+        static OPEN = 1
+        readyState = CapturingWebSocket.CONNECTING
+        private listeners = new Map<string, Set<(ev: unknown) => void>>()
+
+        addEventListener(type: string, listener: (ev: unknown) => void) {
+          if (!this.listeners.has(type)) this.listeners.set(type, new Set())
+          this.listeners.get(type)!.add(listener)
+          if (type === 'open') {
+            queueMicrotask(() => {
+              listener(new Event('open'))
+              this.emit('message', {
+                data: JSON.stringify({ type: 'token', text: 'I see a photo' }),
+              })
+              this.emit('message', {
+                data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 1 }),
+              })
+              this.emit('close', { type: 'close' })
             })
-            this.emit('message', {
-              data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 1 }),
-            })
-            this.emit('close', { type: 'close' })
-          })
+          }
         }
+
+        removeEventListener(type: string, listener: (ev: unknown) => void) {
+          this.listeners.get(type)?.delete(listener)
+        }
+
+        private emit(type: string, ev: unknown) {
+          for (const listener of this.listeners.get(type) ?? []) listener(ev)
+        }
+
+        send(raw: string) {
+          sendMock(raw)
+        }
+
+        close() {}
       }
 
-      removeEventListener(type: string, listener: (ev: unknown) => void) {
-        this.listeners.get(type)?.delete(listener)
-      }
+      ;(global as unknown as { WebSocket: typeof CapturingWebSocket }).WebSocket =
+        CapturingWebSocket
+      const { callCloudAgent } = loadWithMocks()
+      await callCloudAgent({
+        message: 'what is this?',
+        characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        attachments: [ATTACHMENT],
+      })
 
-      private emit(type: string, ev: unknown) {
-        for (const listener of this.listeners.get(type) ?? []) listener(ev)
-      }
-
-      send(raw: string) {
-        sendMock(raw)
-      }
-
-      close() {}
-    }
-
-    ;(global as unknown as { WebSocket: typeof CapturingWebSocket }).WebSocket = CapturingWebSocket
-    const { callCloudAgent } = loadWithMocks()
-    await callCloudAgent({
-      message: 'what is this?',
-      characterId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      attachments: [ATTACHMENT],
+      const frames = sendMock.mock.calls.map(([raw]: [string]) => JSON.parse(raw))
+      const agentRun = frames.find((f) => f.type === 'agent_run')
+      expect(agentRun.attachments).toEqual([ATTACHMENT])
     })
-
-    const frames = sendMock.mock.calls.map(([raw]: [string]) => JSON.parse(raw))
-    const agentRun = frames.find((f) => f.type === 'agent_run')
-    expect(agentRun.attachments).toEqual([ATTACHMENT])
   })
-})
 
-it('falls back to HTTP when WebSocket connection fails', async () => {
+  it('falls back to HTTP when WebSocket connection fails', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -488,7 +498,10 @@ it('falls back to HTTP when WebSocket connection fails', async () => {
 
     ;(global as unknown as { WebSocket: typeof GroundingWebSocket }).WebSocket = GroundingWebSocket
     const { callCloudAgent } = loadWithMocks()
-    const result = await callCloudAgent({ message: 'What is the weather?', characterId: 'char-123' })
+    const result = await callCloudAgent({
+      message: 'What is the weather?',
+      characterId: 'char-123',
+    })
 
     expect(mockFetch).not.toHaveBeenCalled()
     expect(result.reply).toBe('Grounded reply')

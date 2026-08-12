@@ -28,11 +28,11 @@ export function useFloatingCardAnimation(index: number) {
       withRepeat(
         withSequence(
           withTiming(FLOAT_AMPLITUDE_DP, { duration: FLOAT_HALF_CYCLE_MS }),
-          withTiming(0, { duration: FLOAT_HALF_CYCLE_MS })
+          withTiming(0, { duration: FLOAT_HALF_CYCLE_MS }),
         ),
         -1,
-        true
-      )
+        true,
+      ),
     )
   }, [floatY, index])
 

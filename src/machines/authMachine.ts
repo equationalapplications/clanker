@@ -17,12 +17,7 @@ import { resetLowPowerSession } from '~/state/lowPowerSession'
 import { kvStorePersister } from '~/config/queryPersister'
 import { clearSettings } from '~/utilities/settingsStorage'
 
-export type BootstrapRefreshReason =
-  | 'purchase'
-  | 'restore'
-  | 'manual'
-  | 'terms'
-  | 'foreground'
+export type BootstrapRefreshReason = 'purchase' | 'restore' | 'manual' | 'terms' | 'foreground'
 
 type UsagePlanStatus = 'active' | 'cancelled' | 'expired' | null
 
@@ -219,7 +214,10 @@ export const authMachine = createMachine(
           },
           onError: {
             target: 'signedOut',
-            actions: ['clearFailedBootstrapSession', assign({ error: ({ event }) => event.error as Error })],
+            actions: [
+              'clearFailedBootstrapSession',
+              assign({ error: ({ event }) => event.error as Error }),
+            ],
           },
         },
       },
@@ -345,7 +343,10 @@ export const authMachine = createMachine(
       applyTermsAcceptedLocal: assign({
         subscription: ({ context, event }) => {
           if (!context.subscription) return context.subscription
-          const acceptedEvent = event as Extract<AuthMachineEvents, { type: 'TERMS_ACCEPTED_LOCAL' }>
+          const acceptedEvent = event as Extract<
+            AuthMachineEvents,
+            { type: 'TERMS_ACCEPTED_LOCAL' }
+          >
           return {
             ...context.subscription,
             termsVersion: acceptedEvent.termsVersion,
@@ -356,7 +357,10 @@ export const authMachine = createMachine(
       applyTermsRevertedLocal: assign({
         subscription: ({ context, event }) => {
           if (!context.subscription) return context.subscription
-          const revertedEvent = event as Extract<AuthMachineEvents, { type: 'TERMS_REVERTED_LOCAL' }>
+          const revertedEvent = event as Extract<
+            AuthMachineEvents,
+            { type: 'TERMS_REVERTED_LOCAL' }
+          >
           return {
             ...context.subscription,
             termsVersion: revertedEvent.termsVersion,
@@ -380,7 +384,10 @@ export const authMachine = createMachine(
       applyUsageSnapshotIfNewer: assign({
         subscription: ({ context, event }) => {
           if (!context.subscription) return context.subscription
-          const usageEvent = event as Extract<AuthMachineEvents, { type: 'USAGE_SNAPSHOT_RECEIVED' }>
+          const usageEvent = event as Extract<
+            AuthMachineEvents,
+            { type: 'USAGE_SNAPSHOT_RECEIVED' }
+          >
           const incomingTs = parseTimestamp(usageEvent.verifiedAt)
           const currentTs = parseTimestamp(context.lastUsageSnapshotAt)
           if (!incomingTs) {
@@ -401,7 +408,10 @@ export const authMachine = createMachine(
           }
         },
         lastUsageSnapshotAt: ({ context, event }) => {
-          const usageEvent = event as Extract<AuthMachineEvents, { type: 'USAGE_SNAPSHOT_RECEIVED' }>
+          const usageEvent = event as Extract<
+            AuthMachineEvents,
+            { type: 'USAGE_SNAPSHOT_RECEIVED' }
+          >
           const incomingTs = parseTimestamp(usageEvent.verifiedAt)
           const currentTs = parseTimestamp(context.lastUsageSnapshotAt)
           if (!incomingTs) return context.lastUsageSnapshotAt
@@ -456,7 +466,9 @@ export const authMachine = createMachine(
       },
       shouldRefreshOnForeground: ({ context, event }) => {
         if (!context.user) return false
-        const atMs = Date.parse((event as Extract<AuthMachineEvents, { type: 'APP_FOREGROUNDED' }>).at)
+        const atMs = Date.parse(
+          (event as Extract<AuthMachineEvents, { type: 'APP_FOREGROUNDED' }>).at,
+        )
         if (Number.isNaN(atMs)) return false
         if (!context.lastRefreshAt) return true
         const lastMs = Date.parse(context.lastRefreshAt)

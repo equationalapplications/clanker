@@ -44,7 +44,9 @@ export function useTabCharacterId(): {
     defaultCharacterId && characterIds.has(defaultCharacterId) ? defaultCharacterId : undefined
 
   const validatedDevLinkedCharacterId =
-    devLinkedCharacterId && characterIds.has(devLinkedCharacterId) ? devLinkedCharacterId : undefined
+    devLinkedCharacterId && characterIds.has(devLinkedCharacterId)
+      ? devLinkedCharacterId
+      : undefined
 
   const characterId =
     validatedActiveCharacterId ??

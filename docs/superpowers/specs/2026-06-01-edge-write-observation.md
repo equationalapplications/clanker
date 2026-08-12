@@ -6,6 +6,7 @@
 **Scope:** Phase 3 of the edge-agent architectural upgrades. Add a `write_observation` tool so the local Gemini edge loop can proactively persist user observations to the local SQLite wiki without escalating to Firebase.
 
 **Related Docs:**
+
 - Phase 1: [Edge Agent Chat Architecture](2026-05-28-edge-agent-chat-architecture.md)
 - Phase 2: [Manifest Override + Local `search_memory`](2026-05-28-manifest-override-memory-search-design.md)
 - Implementation Plan: [2026-06-01-edge-write-observation-plan.md](../plans/2026-06-01-edge-write-observation-plan.md)
@@ -46,15 +47,15 @@ Additionally, the `clankerEscalationSchema` description does not currently forbi
 
 ### Files Changed
 
-| File | Change |
-|---|---|
-| `src/services/clankerManifests.ts` | Export `clankerWriteObservationSchema`; tighten `clankerEscalationSchema.description` |
-| `src/services/wikiService.ts` | Export `writeToWiki` thin wrapper |
-| `src/services/edgeToolExecutors.ts` | Import `writeToWiki`; add `write_observation` in `createEdgeToolExecutors` |
-| `src/hooks/useEdgeAgent.ts` | Import + inject `clankerWriteObservationSchema` inside `if (wiki)` block |
-| `src/services/__tests__/clankerManifests.test.ts` | Tests for new schema + updated escalation description |
-| `src/services/__tests__/edgeToolExecutors.test.ts` | Tests for `write_observation` executor; extend `wikiService` mock to include `writeToWiki` |
-| `src/hooks/__tests__/useEdgeAgent.test.ts` | Update `clankerManifests` mock; update `createEdgeToolExecutors` mock; tests for injection + execution |
+| File                                               | Change                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `src/services/clankerManifests.ts`                 | Export `clankerWriteObservationSchema`; tighten `clankerEscalationSchema.description`                  |
+| `src/services/wikiService.ts`                      | Export `writeToWiki` thin wrapper                                                                      |
+| `src/services/edgeToolExecutors.ts`                | Import `writeToWiki`; add `write_observation` in `createEdgeToolExecutors`                             |
+| `src/hooks/useEdgeAgent.ts`                        | Import + inject `clankerWriteObservationSchema` inside `if (wiki)` block                               |
+| `src/services/__tests__/clankerManifests.test.ts`  | Tests for new schema + updated escalation description                                                  |
+| `src/services/__tests__/edgeToolExecutors.test.ts` | Tests for `write_observation` executor; extend `wikiService` mock to include `writeToWiki`             |
+| `src/hooks/__tests__/useEdgeAgent.test.ts`         | Update `clankerManifests` mock; update `createEdgeToolExecutors` mock; tests for injection + execution |
 
 ---
 
@@ -93,6 +94,7 @@ export const clankerWriteObservationSchema = {
 ### 5.2 `src/services/wikiService.ts`
 
 Export a thin `writeToWiki` helper after `readFromWiki`. It is intentionally minimal — no retry logic; it also clears the per-entity “no result” cache so newly written observations can be discovered immediately.
+
 ```typescript
 export async function writeToWiki(
   wiki: Wiki,
@@ -124,14 +126,20 @@ import type { Wiki } from './wikiService'
 
 // ... (edgeToolExecutors static map unchanged)
 
-export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null): Record<string, ToolExecutor> {
+export function createEdgeToolExecutors(
+  characterId: string,
+  wiki: Wiki | null,
+): Record<string, ToolExecutor> {
   return {
     ...edgeToolExecutors,
-    search_memory: async (args) => { /* unchanged */ },
+    search_memory: async (args) => {
+      /* unchanged */
+    },
     write_observation: async (args) => {
       try {
         const summary = typeof args.summary === 'string' ? args.summary.trim() : ''
-        if (!wiki || !summary) return 'Failed to record observation: Invalid input or missing database.'
+        if (!wiki || !summary)
+          return 'Failed to record observation: Invalid input or missing database.'
         await writeToWiki(wiki, characterId, { event_type: 'observation', summary })
         return 'Observation recorded successfully.'
       } catch (error) {
@@ -152,20 +160,22 @@ The executor always returns a string — it never throws. This prevents a reject
 Two changes only:
 
 **Import:**
+
 ```typescript
 import {
   clankerTimeSchema,
   clankerEscalationSchema,
   clankerMemorySchema,
-  clankerWriteObservationSchema,   // add
+  clankerWriteObservationSchema, // add
 } from '~/services/clankerManifests'
 ```
 
 **Tool injection** — inside the existing `if (wiki)` block:
+
 ```typescript
 if (wiki) {
   functionDeclarations.push(clankerMemorySchema)
-  functionDeclarations.push(clankerWriteObservationSchema)  // add
+  functionDeclarations.push(clankerWriteObservationSchema) // add
 }
 ```
 
@@ -203,13 +213,13 @@ The `write_observation` response part is fed back to the model in the next itera
 
 ## 7. Error Handling
 
-| Scenario | Behavior |
-|---|---|
-| `wiki` is null | Returns `'Failed to record observation: Invalid input or missing database.'` — no throw |
-| `summary` missing or empty or non-string | Same early return — no throw |
-| `wiki.write` throws (e.g., `WikiBusyError`, SQLite locked) | Caught in `try/catch`; logs error; returns `'Failed to record observation due to an internal error.'` — no escalation triggered |
-| Model calls `write_observation` when wiki is null (schema not injected) | Cannot happen — schema is only added to `functionDeclarations` when `wiki` is truthy |
-| Model calls `escalate_to_cloud_agent` for a memory write | Prevented by updated description; if it still escalates, existing escalation path handles it |
+| Scenario                                                                | Behavior                                                                                                                        |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `wiki` is null                                                          | Returns `'Failed to record observation: Invalid input or missing database.'` — no throw                                         |
+| `summary` missing or empty or non-string                                | Same early return — no throw                                                                                                    |
+| `wiki.write` throws (e.g., `WikiBusyError`, SQLite locked)              | Caught in `try/catch`; logs error; returns `'Failed to record observation due to an internal error.'` — no escalation triggered |
+| Model calls `write_observation` when wiki is null (schema not injected) | Cannot happen — schema is only added to `functionDeclarations` when `wiki` is truthy                                            |
+| Model calls `escalate_to_cloud_agent` for a memory write                | Prevented by updated description; if it still escalates, existing escalation path handles it                                    |
 
 ---
 
@@ -217,37 +227,37 @@ The `write_observation` response part is fed back to the model in the next itera
 
 ### `clankerManifests.test.ts`
 
-| Test | Assertion |
-|---|---|
-| `clankerWriteObservationSchema.name` | `'write_observation'` |
-| `clankerWriteObservationSchema.description` | Contains `'long-term memory'` |
-| `clankerWriteObservationSchema.parameters.type` | `'object'` |
-| `summary` parameter | In `required`; `type === 'string'` |
-| Updated `clankerEscalationSchema.description` | Contains `'WRITING/saving observations'` |
+| Test                                            | Assertion                                |
+| ----------------------------------------------- | ---------------------------------------- |
+| `clankerWriteObservationSchema.name`            | `'write_observation'`                    |
+| `clankerWriteObservationSchema.description`     | Contains `'long-term memory'`            |
+| `clankerWriteObservationSchema.parameters.type` | `'object'`                               |
+| `summary` parameter                             | In `required`; `type === 'string'`       |
+| Updated `clankerEscalationSchema.description`   | Contains `'WRITING/saving observations'` |
 
 ### `edgeToolExecutors.test.ts`
 
-| Test | Assertion |
-|---|---|
-| `write_observation` present in `createEdgeToolExecutors` output | `typeof ... === 'function'` |
-| `wiki` null | Returns failure message; `writeToWiki` not called |
-| `summary` empty string | Returns failure message; `writeToWiki` not called |
-| `summary` whitespace only | Returns failure message; `writeToWiki` not called |
-| `summary` missing from args | Returns failure message; `writeToWiki` not called |
-| `summary` not a string | Returns failure message; `writeToWiki` not called |
-| Happy path | `writeToWiki` called with `(wiki, 'char-42', { event_type: 'observation', summary: '...' })` |
-| Happy path return | `'Observation recorded successfully.'` |
-| `writeToWiki` throws | Returns `'Failed to record observation due to an internal error.'` |
+| Test                                                            | Assertion                                                                                    |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `write_observation` present in `createEdgeToolExecutors` output | `typeof ... === 'function'`                                                                  |
+| `wiki` null                                                     | Returns failure message; `writeToWiki` not called                                            |
+| `summary` empty string                                          | Returns failure message; `writeToWiki` not called                                            |
+| `summary` whitespace only                                       | Returns failure message; `writeToWiki` not called                                            |
+| `summary` missing from args                                     | Returns failure message; `writeToWiki` not called                                            |
+| `summary` not a string                                          | Returns failure message; `writeToWiki` not called                                            |
+| Happy path                                                      | `writeToWiki` called with `(wiki, 'char-42', { event_type: 'observation', summary: '...' })` |
+| Happy path return                                               | `'Observation recorded successfully.'`                                                       |
+| `writeToWiki` throws                                            | Returns `'Failed to record observation due to an internal error.'`                           |
 
 `writeToWiki` is added to the `wikiService` mock alongside the existing `readFromWiki` mock.
 
 ### `useEdgeAgent.test.ts`
 
-| Test | Assertion |
-|---|---|
-| `write_observation` included when `wiki` provided | Name in `functionDeclarations` |
-| `write_observation` excluded when `wiki` null | Name NOT in `functionDeclarations` |
-| Tool executes and loops to text reply | Model called twice; second call follows function response; `escalated: false` |
+| Test                                              | Assertion                                                                     |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `write_observation` included when `wiki` provided | Name in `functionDeclarations`                                                |
+| `write_observation` excluded when `wiki` null     | Name NOT in `functionDeclarations`                                            |
+| Tool executes and loops to text reply             | Model called twice; second call follows function response; `escalated: false` |
 
 `clankerManifests` mock gains `clankerWriteObservationSchema`. `createEdgeToolExecutors` mock gains `write_observation: async () => 'Observation recorded successfully.'`.
 
@@ -266,12 +276,12 @@ The `write_observation` response part is fed back to the model in the next itera
 
 ## 10. Acceptance Criteria
 
-| Scenario | Expected |
-|---|---|
-| User shares a preference during edge session | `write_observation` called; `wiki.write` called with `{ event_type: 'observation', summary }` |
-| User asks agent to recall the fact in a later session | `search_memory` returns the written observation |
-| `wiki` is null (wiki not initialized) | `write_observation` not offered to the model; executor returns failure string if somehow called |
-| `write_observation` throws internally | No Firebase escalation; agent replies with internal error string |
-| LLM tries to escalate a write observation task | Escalation description contains explicit prohibition; LLM directed to `write_observation` instead |
-| `npx tsc --noEmit` | No new type errors |
-| `npx jest --no-coverage` | No regressions; new tests pass |
+| Scenario                                              | Expected                                                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| User shares a preference during edge session          | `write_observation` called; `wiki.write` called with `{ event_type: 'observation', summary }`     |
+| User asks agent to recall the fact in a later session | `search_memory` returns the written observation                                                   |
+| `wiki` is null (wiki not initialized)                 | `write_observation` not offered to the model; executor returns failure string if somehow called   |
+| `write_observation` throws internally                 | No Firebase escalation; agent replies with internal error string                                  |
+| LLM tries to escalate a write observation task        | Escalation description contains explicit prohibition; LLM directed to `write_observation` instead |
+| `npx tsc --noEmit`                                    | No new type errors                                                                                |
+| `npx jest --no-coverage`                              | No regressions; new tests pass                                                                    |

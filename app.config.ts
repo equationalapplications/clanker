@@ -27,7 +27,7 @@ const getCharacterShareHost = () => {
     return new URL(configured).host
   } catch {
     throw new Error(
-      `Invalid EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL (must be a full URL): ${configured}`
+      `Invalid EXPO_PUBLIC_CHARACTER_SHARE_BASE_URL (must be a full URL): ${configured}`,
     )
   }
 }
@@ -38,8 +38,7 @@ const breakingChangeVersion = pkg.version.split('.')[0]
 
 const runtimeVer = breakingChangeVersion + '.0.0'
 
-const formatError = (err: unknown): string =>
-  err instanceof Error ? err.message : String(err)
+const formatError = (err: unknown): string => (err instanceof Error ? err.message : String(err))
 
 /** EAS local/cloud builds set EAS_BUILD_PROFILE; dev client runs omit it. */
 const isProductionPushBuild =
@@ -53,15 +52,13 @@ const getGoogleServicesJson = () => {
     const tmpPath = path.join('./temp', 'google-services.json')
     try {
       fs.mkdirSync('./temp', { recursive: true })
-      fs.writeFileSync(
-        tmpPath,
-        Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64'),
-        { mode: 0o600 }
-      )
+      fs.writeFileSync(tmpPath, Buffer.from(process.env.GOOGLE_SERVICES_JSON_BASE64, 'base64'), {
+        mode: 0o600,
+      })
       return tmpPath
     } catch (err) {
       throw new Error(
-        `Failed to write GOOGLE_SERVICES_JSON_BASE64 to ${tmpPath}: ${formatError(err)}`
+        `Failed to write GOOGLE_SERVICES_JSON_BASE64 to ${tmpPath}: ${formatError(err)}`,
       )
     }
   }
@@ -85,12 +82,12 @@ const getGoogleServiceInfoPlist = () => {
       fs.writeFileSync(
         tmpPath,
         Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST_BASE64, 'base64'),
-        { mode: 0o600 }
+        { mode: 0o600 },
       )
       return tmpPath
     } catch (err) {
       throw new Error(
-        `Failed to write GOOGLE_SERVICE_INFO_PLIST_BASE64 to ${tmpPath}: ${formatError(err)}`
+        `Failed to write GOOGLE_SERVICE_INFO_PLIST_BASE64 to ${tmpPath}: ${formatError(err)}`,
       )
     }
   }
@@ -200,7 +197,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         ios: {
           useFrameworks: 'static',
-          forceStaticLinking: ['RNFBApp', 'RNFBAuth', 'RNFBCrashlytics', 'RNFBFunctions', 'RNFBAppCheck', 'RNFBAnalytics'],
+          forceStaticLinking: [
+            'RNFBApp',
+            'RNFBAuth',
+            'RNFBCrashlytics',
+            'RNFBFunctions',
+            'RNFBAppCheck',
+            'RNFBAnalytics',
+          ],
         },
       },
     ],
@@ -222,24 +226,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-image-picker',
       {
-        photosPermission:
-          'Allow Clanker to access your photo library to set a character avatar.',
-        cameraPermission:
-          'Allow Clanker to access your camera to take a photo to send in chat.',
+        photosPermission: 'Allow Clanker to access your photo library to set a character avatar.',
+        cameraPermission: 'Allow Clanker to access your camera to take a photo to send in chat.',
       },
     ],
     [
       'expo-speech-recognition',
       {
         microphonePermission: 'Allow Clanker to access your microphone for voice conversations.',
-        speechRecognitionPermission: 'Allow Clanker to transcribe your speech for voice conversations.',
+        speechRecognitionPermission:
+          'Allow Clanker to transcribe your speech for voice conversations.',
       },
     ],
     [
-      "@react-native-google-signin/google-signin",
+      '@react-native-google-signin/google-signin',
       {
-        "iosUrlScheme": process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME
-      }
+        iosUrlScheme: process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME,
+      },
     ],
     [
       'expo-notifications',

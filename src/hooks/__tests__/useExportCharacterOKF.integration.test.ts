@@ -63,9 +63,7 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('exports character memory and saves ZIP', async () => {
-    const { result } = renderHook(() =>
-      useExportCharacterOKF('char_123', 'TestChar'),
-    )
+    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     expect(result.current.isExporting).toBe(false)
     expect(result.current.error).toBeNull()
@@ -95,9 +93,7 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('passes formatOkfBundle files through unmodified, plus the README', async () => {
-    const { result } = renderHook(() =>
-      useExportCharacterOKF('char_123', 'TestChar'),
-    )
+    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     await act(async () => {
       await result.current.exportOkf()
@@ -116,10 +112,9 @@ describe('useExportCharacterOKF', () => {
     const { result, rerender } = renderHook<
       ReturnType<typeof useExportCharacterOKF>,
       { characterName: string }
-    >(
-      ({ characterName }) => useExportCharacterOKF('char_123', characterName),
-      { initialProps: { characterName: 'OriginalName' } },
-    )
+    >(({ characterName }) => useExportCharacterOKF('char_123', characterName), {
+      initialProps: { characterName: 'OriginalName' },
+    })
     const firstExportOkf = result.current.exportOkf
 
     rerender({ characterName: 'RenamedCharacter' })
@@ -138,13 +133,9 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('handles export errors and sets error state', async () => {
-    const { result } = renderHook(() =>
-      useExportCharacterOKF('char_123', 'TestChar'),
-    )
+    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
-    ;(okfSave.zipAndSaveOKF as jest.Mock).mockRejectedValueOnce(
-      new Error('ZIP generation failed'),
-    )
+    ;(okfSave.zipAndSaveOKF as jest.Mock).mockRejectedValueOnce(new Error('ZIP generation failed'))
 
     await act(async () => {
       await result.current.exportOkf()
@@ -170,9 +161,7 @@ describe('useExportCharacterOKF', () => {
           }),
       )
     })
-    const { result } = renderHook(() =>
-      useExportCharacterOKF('char_123', 'TestChar'),
-    )
+    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     let exportPromise!: Promise<void>
     await act(async () => {
@@ -203,9 +192,7 @@ describe('useExportCharacterOKF', () => {
           }),
       )
     })
-    const { result } = renderHook(() =>
-      useExportCharacterOKF('char_123', 'TestChar'),
-    )
+    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     await act(async () => {
       const firstExport = result.current.exportOkf()

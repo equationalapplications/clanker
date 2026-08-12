@@ -14,17 +14,22 @@ export default function CookieConsentBanner() {
   return (
     <View
       accessibilityLabel="Cookie consent"
-      style={StyleSheet.flatten([styles.container, { backgroundColor: colors.elevation.level3, borderColor: colors.outline }])}
+      style={StyleSheet.flatten([
+        styles.container,
+        { backgroundColor: colors.elevation.level3, borderColor: colors.outline },
+      ])}
     >
       <Text variant="titleSmall" style={{ color: colors.onSurface, marginBottom: 8 }}>
         Cookies on Clanker
       </Text>
       <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant, marginBottom: 12 }}>
-        We use cookies necessary to run the app. With your consent we may also use cookies for
-        crash reporting, preferences, and marketing. You can change your choice anytime in Cookie
+        We use cookies necessary to run the app. With your consent we may also use cookies for crash
+        reporting, preferences, and marketing. You can change your choice anytime in Cookie
         Preferences.{' '}
         <Link href="/privacy">
-          <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>Privacy policy</Text>
+          <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>
+            Privacy policy
+          </Text>
         </Link>
         .
       </Text>
@@ -70,7 +75,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     zIndex: 1000,
   },
-  row: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 8, rowGap: 8, justifyContent: 'flex-end' },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 8,
+    justifyContent: 'flex-end',
+  },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   btnPrimary: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   link: { textDecorationLine: 'underline' },

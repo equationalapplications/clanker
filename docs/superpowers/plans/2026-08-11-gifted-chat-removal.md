@@ -11,6 +11,7 @@
 **Tech Stack:** React Native 0.86, Expo SDK 57, TypeScript, React Native Paper (theming), React Query (data), `react-native-keyboard-controller@1.21.9` (already a direct dep), `node:test` test syntax (Jest's syntax is DOA here — see [[cloud-agent-uses-node-test-not-jest]] note in MEMORY; this is the RN app, which uses Jest, but the plan keeps Jest-only constructs verifiable).
 
 **Repo facts that drive plan shape (see [[gifted-chat-removal]] memory):**
+
 - No semicolons. Every import line ends without one. Match the real text in every `Edit`.
 - 6 of the 14 `IMessage` consumers use value imports: `messageDatabase.ts:6`, `useAIChat.ts:2`, `useMessages.ts:12`, `aiChatService.ts:14`, `messageService.ts:6`, `postNewMessage.ts:1`.
 - No live staging environment. PRs target `staging` (the default branch), then are fast-forwarded to `main` — both reach production. Each slice must be independently revertable.
@@ -23,54 +24,54 @@
 
 ### Files to create
 
-| Path | Responsibility |
-|---|---|
-| `src/types/chat.ts` | `ChatUser`, `Message`, intersection helpers — the type we own (Slice 0) |
-| `src/utils/linkifyUrls.ts` | Pure function: text → `Array<{ type: 'text' \| 'url'; value: string }>` (Slice 1) |
-| `src/components/MessageBubble.tsx` | Themed bubble rendering text + image + footer (Slice 1) |
-| `src/components/MessageText.tsx` | `<Text>` with nested URL taps via `linkifyUrls` (Slice 1) |
-| `src/components/GroundingFooter.tsx` | Citation chips + `GroundingHtml` (Slice 1) |
-| `src/components/ChatInputBar.tsx` | Owns `text` state; renders `ChatComposer` + `SendButton` (Slice 2) |
-| `src/components/ChatComposer.tsx` | Unified, replaces both `.tsx` and `.web.tsx` variants (Slice 2) |
-| `src/components/SendButton.tsx` | Spinner-while-generating pill (Slice 2) |
-| `src/components/MessageList.tsx` | Inverted FlatList with `MessageRow` (Slice 3) |
-| `src/components/MessageRow.tsx` | Side selection + avatar positioning (Slice 3) |
-| `src/utils/__tests__/linkifyUrls.test.ts` | Pure function tests (Slice 1) |
-| `src/components/__tests__/MessageText.test.tsx` | Segmentation tests (Slice 1) |
-| `src/components/__tests__/MessageBubble.test.tsx` | Side/theming/photo tests (Slice 1) |
-| `src/components/__tests__/GroundingFooter.test.tsx` | Citation chips + search suggestions (Slice 1) |
-| `src/components/__tests__/ChatComposer.test.tsx` | Unified composer tests (Slice 2) |
-| `src/components/__tests__/ChatComposerWebHeightLoop.test.tsx` | Real-composer height loop regression (Slice 2) |
-| `src/components/__tests__/MessageList.test.tsx` | Streaming-key invariant (Slice 3) |
+| Path                                                          | Responsibility                                                                    |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `src/types/chat.ts`                                           | `ChatUser`, `Message`, intersection helpers — the type we own (Slice 0)           |
+| `src/utils/linkifyUrls.ts`                                    | Pure function: text → `Array<{ type: 'text' \| 'url'; value: string }>` (Slice 1) |
+| `src/components/MessageBubble.tsx`                            | Themed bubble rendering text + image + footer (Slice 1)                           |
+| `src/components/MessageText.tsx`                              | `<Text>` with nested URL taps via `linkifyUrls` (Slice 1)                         |
+| `src/components/GroundingFooter.tsx`                          | Citation chips + `GroundingHtml` (Slice 1)                                        |
+| `src/components/ChatInputBar.tsx`                             | Owns `text` state; renders `ChatComposer` + `SendButton` (Slice 2)                |
+| `src/components/ChatComposer.tsx`                             | Unified, replaces both `.tsx` and `.web.tsx` variants (Slice 2)                   |
+| `src/components/SendButton.tsx`                               | Spinner-while-generating pill (Slice 2)                                           |
+| `src/components/MessageList.tsx`                              | Inverted FlatList with `MessageRow` (Slice 3)                                     |
+| `src/components/MessageRow.tsx`                               | Side selection + avatar positioning (Slice 3)                                     |
+| `src/utils/__tests__/linkifyUrls.test.ts`                     | Pure function tests (Slice 1)                                                     |
+| `src/components/__tests__/MessageText.test.tsx`               | Segmentation tests (Slice 1)                                                      |
+| `src/components/__tests__/MessageBubble.test.tsx`             | Side/theming/photo tests (Slice 1)                                                |
+| `src/components/__tests__/GroundingFooter.test.tsx`           | Citation chips + search suggestions (Slice 1)                                     |
+| `src/components/__tests__/ChatComposer.test.tsx`              | Unified composer tests (Slice 2)                                                  |
+| `src/components/__tests__/ChatComposerWebHeightLoop.test.tsx` | Real-composer height loop regression (Slice 2)                                    |
+| `src/components/__tests__/MessageList.test.tsx`               | Streaming-key invariant (Slice 3)                                                 |
 
 ### Files to modify
 
-| Path | Slices |
-|---|---|
-| `src/components/ChatView.tsx` | S1 (bubble render), S2 (composer render), S3 (list render + mint `_id`) |
-| `src/components/ChatComposer.tsx` | S2 (full rewrite into unified composer) |
-| `src/components/ChatComposer.tsx` (delete) | S2 (merges into the above) |
-| `src/components/ChatComposer.web.tsx` (delete) | S2 |
-| `src/database/messageDatabase.ts` | S0 (repoint + drop `received`) |
-| `src/services/aiChatService.ts` | S0 (repoint + alias `GroundedIMessage`), S1 (drop alias) |
-| `src/hooks/useAIChat.ts` | S0 (repoint), S1 (drop `image` sentinel) |
-| `src/hooks/useEdgeAgent.ts` | S0 (repoint) |
-| `src/hooks/useLiveVoiceChat.ts` | S0 (repoint) |
-| `src/hooks/useMessages.ts` | S0 (repoint) |
-| `src/hooks/__tests__/useEdgeAgent.test.ts` | S0 (repoint) |
-| `src/machines/liveVoiceMachine.ts` | S0 (repoint), S1 (drop `GroundedIMessage` import) |
-| `src/services/CharacterPromptBuilder.ts` | S0 (repoint) |
-| `src/services/__tests__/characterPromptBuilder.test.ts` | S0 (repoint) |
-| `src/services/liveMemoryQuery.ts` | S0 (repoint) |
-| `src/services/messageService.ts` | S0 (repoint) |
-| `src/utilities/postNewMessage.ts` | S0 (repoint) |
-| `src/components/ChatImageBubble.tsx` | S0 (repoint) |
-| `package.json` | S3 (delete `react-native-gifted-chat`) |
-| `package-lock.json` | S3 (regenerated by `npm install`) |
-| `__tests__/chatViewAccessibility.test.tsx` | S2 (rewrite 8 tests), S3 (rewrite 9) |
-| `__tests__/chatViewAvatarSource.test.tsx` | S3 (mock factory removed) |
-| `__tests__/chatComposer.test.tsx` | S2 (mock factory deleted, 7 query sites repointed) |
-| `__tests__/chatComposerWebHeightLoop.test.tsx` | S2 (rewrite against real composer) |
+| Path                                                    | Slices                                                                  |
+| ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/components/ChatView.tsx`                           | S1 (bubble render), S2 (composer render), S3 (list render + mint `_id`) |
+| `src/components/ChatComposer.tsx`                       | S2 (full rewrite into unified composer)                                 |
+| `src/components/ChatComposer.tsx` (delete)              | S2 (merges into the above)                                              |
+| `src/components/ChatComposer.web.tsx` (delete)          | S2                                                                      |
+| `src/database/messageDatabase.ts`                       | S0 (repoint + drop `received`)                                          |
+| `src/services/aiChatService.ts`                         | S0 (repoint + alias `GroundedIMessage`), S1 (drop alias)                |
+| `src/hooks/useAIChat.ts`                                | S0 (repoint), S1 (drop `image` sentinel)                                |
+| `src/hooks/useEdgeAgent.ts`                             | S0 (repoint)                                                            |
+| `src/hooks/useLiveVoiceChat.ts`                         | S0 (repoint)                                                            |
+| `src/hooks/useMessages.ts`                              | S0 (repoint)                                                            |
+| `src/hooks/__tests__/useEdgeAgent.test.ts`              | S0 (repoint)                                                            |
+| `src/machines/liveVoiceMachine.ts`                      | S0 (repoint), S1 (drop `GroundedIMessage` import)                       |
+| `src/services/CharacterPromptBuilder.ts`                | S0 (repoint)                                                            |
+| `src/services/__tests__/characterPromptBuilder.test.ts` | S0 (repoint)                                                            |
+| `src/services/liveMemoryQuery.ts`                       | S0 (repoint)                                                            |
+| `src/services/messageService.ts`                        | S0 (repoint)                                                            |
+| `src/utilities/postNewMessage.ts`                       | S0 (repoint)                                                            |
+| `src/components/ChatImageBubble.tsx`                    | S0 (repoint)                                                            |
+| `package.json`                                          | S3 (delete `react-native-gifted-chat`)                                  |
+| `package-lock.json`                                     | S3 (regenerated by `npm install`)                                       |
+| `__tests__/chatViewAccessibility.test.tsx`              | S2 (rewrite 8 tests), S3 (rewrite 9)                                    |
+| `__tests__/chatViewAvatarSource.test.tsx`               | S3 (mock factory removed)                                               |
+| `__tests__/chatComposer.test.tsx`                       | S2 (mock factory deleted, 7 query sites repointed)                      |
+| `__tests__/chatComposerWebHeightLoop.test.tsx`          | S2 (rewrite against real composer)                                      |
 
 ### Files to leave untouched
 
@@ -110,6 +111,7 @@ Create `src/types/chat.ts`; repoint the 14 type-only consumers at `~/types/chat`
 ### Task 0.1: Create `src/types/chat.ts`
 
 **Files:**
+
 - Create: `src/types/chat.ts`
 
 - [ ] **Step 1: Write the type module**
@@ -162,6 +164,7 @@ git commit -m "feat(chat): add locally-owned Message and ChatUser types"
 ### Task 0.2: Repoint the 8 type-import consumers
 
 **Files:**
+
 - Modify: `src/hooks/useEdgeAgent.ts:2`
 - Modify: `src/hooks/useLiveVoiceChat.ts:6`
 - Modify: `src/machines/liveVoiceMachine.ts:3`
@@ -213,6 +216,7 @@ git commit -m "refactor(chat): repoint type-import consumers of IMessage to ~/ty
 ### Task 0.3: Repoint the 6 value-import consumers
 
 **Files:**
+
 - Modify: `src/database/messageDatabase.ts:6`
 - Modify: `src/utilities/postNewMessage.ts:1`
 - Modify: `src/hooks/useAIChat.ts:2`
@@ -261,6 +265,7 @@ git commit -m "refactor(chat): repoint value-import consumers of IMessage to ~/t
 ### Task 0.4: Drop the `received` line in `messageDatabase.ts`
 
 **Files:**
+
 - Modify: `src/database/messageDatabase.ts:46`
 
 `received: !isUserMessage && msg.sent === 1` is the only producer of `received` and no consumer reads it. Delete it in the same slice as the type repointing so the typecheck does not surface it as a surprise.
@@ -304,6 +309,7 @@ git commit -m "refactor(chat): drop unused received field from messageDatabase"
 ### Task 0.5: Define `GroundedIMessage` as an alias to `Message`
 
 **Files:**
+
 - Modify: `src/services/aiChatService.ts:28`
 
 `aiChatService.ts` exports `GroundedIMessage` and five other files consume it, including `ChatView.tsx:25,223,357` (a runtime consumer Slice 0 must not touch). Redefine the alias as `= Message` so Slice 0 does not pull `ChatView` into scope.
@@ -387,6 +393,7 @@ Introduce `MessageBubble`, `MessageText`, `GroundingFooter`, `linkifyUrls`, rend
 ### Task 1.1: Write `linkifyUrls` (TDD)
 
 **Files:**
+
 - Create: `src/utils/linkifyUrls.ts`
 - Create: `src/utils/__tests__/linkifyUrls.test.ts`
 
@@ -398,9 +405,7 @@ import { linkifyUrls } from '../linkifyUrls'
 
 describe('linkifyUrls', () => {
   it('returns a single text segment when there are no URLs', () => {
-    expect(linkifyUrls('hello world')).toEqual([
-      { type: 'text', value: 'hello world' },
-    ])
+    expect(linkifyUrls('hello world')).toEqual([{ type: 'text', value: 'hello world' }])
   })
 
   it('splits a string on a URL', () => {
@@ -424,9 +429,7 @@ describe('linkifyUrls', () => {
   })
 
   it('does not match phone numbers', () => {
-    expect(linkifyUrls('call 555-123-4567')).toEqual([
-      { type: 'text', value: 'call 555-123-4567' },
-    ])
+    expect(linkifyUrls('call 555-123-4567')).toEqual([{ type: 'text', value: 'call 555-123-4567' }])
   })
 
   it('matches multiple URLs in one string', () => {
@@ -458,9 +461,7 @@ Expected: FAIL — `linkifyUrls` not exported.
 // user-visible behavior. Add a new spec if you want them.
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g
 
-export type LinkSegment =
-  | { type: 'text'; value: string }
-  | { type: 'url'; value: string }
+export type LinkSegment = { type: 'text'; value: string } | { type: 'url'; value: string }
 
 export function linkifyUrls(text: string): LinkSegment[] {
   if (!text) return []
@@ -500,6 +501,7 @@ git commit -m "feat(chat): add linkifyUrls pure function"
 ### Task 1.2: Write `MessageText` (TDD)
 
 **Files:**
+
 - Create: `src/components/MessageText.tsx`
 - Create: `src/components/__tests__/MessageText.test.tsx`
 
@@ -625,6 +627,7 @@ git commit -m "feat(chat): add MessageText component with URL tap-through"
 ### Task 1.3: Write `GroundingFooter` (TDD)
 
 **Files:**
+
 - Create: `src/components/GroundingFooter.tsx`
 - Create: `src/components/__tests__/GroundingFooter.test.tsx`
 
@@ -794,6 +797,7 @@ git commit -m "feat(chat): add GroundingFooter component"
 ### Task 1.4: Write `MessageBubble` (TDD)
 
 **Files:**
+
 - Create: `src/components/MessageBubble.tsx`
 - Create: `src/components/__tests__/MessageBubble.test.tsx`
 
@@ -816,23 +820,17 @@ const baseMessage: Message = {
   user: baseUser,
 }
 
-const renderWithProvider = (ui: React.ReactElement) =>
-  render(<PaperProvider>{ui}</PaperProvider>)
+const renderWithProvider = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>)
 
 describe('MessageBubble', () => {
   it('renders the text', () => {
-    const { getByText } = renderWithProvider(
-      <MessageBubble message={baseMessage} isOwn={true} />,
-    )
+    const { getByText } = renderWithProvider(<MessageBubble message={baseMessage} isOwn={true} />)
     expect(getByText('hello')).toBeTruthy()
   })
 
   it('renders ChatImageBubble when imageId is set, with no `image` field required', () => {
     const { UNSAFE_getByType } = renderWithProvider(
-      <MessageBubble
-        message={{ ...baseMessage, imageId: 'img-1' }}
-        isOwn={true}
-      />,
+      <MessageBubble message={{ ...baseMessage, imageId: 'img-1' }} isOwn={true} />,
     )
     expect(UNSAFE_getByType(ChatImageBubble)).toBeTruthy()
   })
@@ -850,9 +848,7 @@ describe('MessageBubble', () => {
         message={{
           ...baseMessage,
           groundingMetadata: {
-            groundingChunks: [
-              { web: { uri: 'https://example.com', title: 'Example' } },
-            ],
+            groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
           },
         }}
         isOwn={false}
@@ -892,9 +888,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const { colors, roundness } = useTheme()
   const webConstraints =
-    Platform.OS === 'web'
-      ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
-      : {}
+    Platform.OS === 'web' ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const) : {}
 
   const bubbleStyle = [
     styles.bubble,
@@ -950,6 +944,7 @@ git commit -m "feat(chat): add MessageBubble component"
 ### Task 1.5: Wire `MessageBubble` into `ChatView.renderBubble`
 
 **Files:**
+
 - Modify: `src/components/ChatView.tsx:220-276`
 
 - [ ] **Step 1: Replace `renderBubble` body**
@@ -1027,11 +1022,24 @@ The surface stays inside gifted-chat's list until Slice 3, so `MessageRow` is no
 ```ts
 // Before
 import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
+import type {
+  IMessage,
+  User,
+  ComposerProps,
+  SendProps,
+  InputToolbarProps,
+  MessageTextProps,
+} from 'react-native-gifted-chat'
 
 // After
 import { GiftedChat, InputToolbar, Send } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
+import type {
+  IMessage,
+  User,
+  ComposerProps,
+  SendProps,
+  InputToolbarProps,
+} from 'react-native-gifted-chat'
 ```
 
 - [ ] **Step 3: Repoint `GroundedIMessage` consumers in `ChatView.tsx` to `Message`**
@@ -1089,6 +1097,7 @@ git commit -m "refactor(chat): route renderBubble through MessageBubble"
 ### Task 1.6: Delete the `image` sentinel in `useAIChat.sendPhoto`
 
 **Files:**
+
 - Modify: `src/hooks/useAIChat.ts:489-506`
 
 - [ ] **Step 1: Delete the `image` field and the cover comment**
@@ -1164,6 +1173,7 @@ git commit -m "refactor(chat): drop image sentinel in sendPhoto"
 ### Task 1.7: Drop the `GroundedIMessage` alias
 
 **Files:**
+
 - Modify: `src/services/aiChatService.ts:28`
 - Modify: `src/machines/liveVoiceMachine.ts:3`
 
@@ -1250,6 +1260,7 @@ Introduce `ChatInputBar` + unified `ChatComposer` through `renderInputToolbar`. 
 ### Task 2.1: Create `SendButton`
 
 **Files:**
+
 - Create: `src/components/SendButton.tsx`
 
 - [ ] **Step 1: Implement `SendButton`**
@@ -1334,6 +1345,7 @@ git commit -m "feat(chat): add SendButton with generating spinner state"
 ### Task 2.2: Write the unified `ChatComposer` (TDD)
 
 **Files:**
+
 - Create: `src/components/ChatComposer.tsx` (overwrites the existing one)
 
 The new `ChatComposer` is one component with no `.web` variant. Height is internal state derived from `onContentSizeChange` and clamped to `[MIN_INPUT_HEIGHT, MAX_INPUT_HEIGHT]`. There is **no `composerHeight` prop coming in** — that is what kills the height-on-height feedback loop that gifted-chat's `Composer` triggered on web.
@@ -1414,13 +1426,22 @@ export default function ChatComposer({
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
-  const [pendingImageAsset, setPendingImageAsset] = useState<
-    { uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null
-  >(null)
+  const [pendingImageAsset, setPendingImageAsset] = useState<{
+    uri: string
+    width: number
+    height: number
+    asset: DocumentPicker.DocumentPickerAsset
+  } | null>(null)
   const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
-  const { prepareFromAsset, captureFromCamera, isPreparing, error: photoError, clearError: clearPhotoError } = useChatPhotoUpload()
+  const {
+    prepareFromAsset,
+    captureFromCamera,
+    isPreparing,
+    error: photoError,
+    clearError: clearPhotoError,
+  } = useChatPhotoUpload()
   const characterWiki = useCharacterWiki(characterId)
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
@@ -1461,14 +1482,27 @@ export default function ChatComposer({
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        {showPlusButton && (
-          (isIngesting || isPreparing || phase !== null) ? (
-            <View style={styles.spinnerContainer} accessible accessibilityRole="progressbar" accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'} accessibilityState={{ busy: true }}>
+        {showPlusButton &&
+          (isIngesting || isPreparing || phase !== null ? (
+            <View
+              style={styles.spinnerContainer}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'}
+              accessibilityState={{ busy: true }}
+            >
               <ActivityIndicator size={20} />
             </View>
           ) : (
             <View style={styles.attachmentRow}>
-              <IconButton icon="plus" size={20} onPress={handlePlusPress} style={styles.plusButton} accessibilityLabel="Attach a photo or document" accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory" />
+              <IconButton
+                icon="plus"
+                size={20}
+                onPress={handlePlusPress}
+                style={styles.plusButton}
+                accessibilityLabel="Attach a photo or document"
+                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
+              />
               {canSendPhoto && (
                 <IconButton
                   icon="camera"
@@ -1487,15 +1521,19 @@ export default function ChatComposer({
                 />
               )}
             </View>
-          )
-        )}
-        <View style={[styles.composerWrapper, {
-          backgroundColor: colors.surfaceVariant,
-          borderRadius: roundness * 4,
-          marginVertical: 4,
-          marginRight: 12,
-          overflow: 'hidden',
-        }]}>
+          ))}
+        <View
+          style={[
+            styles.composerWrapper,
+            {
+              backgroundColor: colors.surfaceVariant,
+              borderRadius: roundness * 4,
+              marginVertical: 4,
+              marginRight: 12,
+              overflow: 'hidden',
+            },
+          ]}
+        >
           <TextInput
             value={text}
             onChangeText={onChangeText}
@@ -1503,7 +1541,10 @@ export default function ChatComposer({
               const contentHeight = event.nativeEvent.contentSize.height
               const height = Math.max(
                 MIN_INPUT_HEIGHT,
-                Math.min(MAX_INPUT_HEIGHT, contentHeight + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL),
+                Math.min(
+                  MAX_INPUT_HEIGHT,
+                  contentHeight + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL,
+                ),
               )
               if (height !== inputHeight) {
                 setInputHeight(height)
@@ -1533,9 +1574,13 @@ export default function ChatComposer({
         <Dialog visible={pendingImageAsset !== null} onDismiss={() => setPendingImageAsset(null)}>
           <Dialog.Title>Add this image</Dialog.Title>
           {!canSendPhoto ? (
-            <Dialog.Content><Text>Only cloud-synced characters can see photos in chat.</Text></Dialog.Content>
+            <Dialog.Content>
+              <Text>Only cloud-synced characters can see photos in chat.</Text>
+            </Dialog.Content>
           ) : isSending ? (
-            <Dialog.Content><Text>Wait for the current reply to finish before sending a photo.</Text></Dialog.Content>
+            <Dialog.Content>
+              <Text>Wait for the current reply to finish before sending a photo.</Text>
+            </Dialog.Content>
           ) : null}
           <Dialog.Actions>
             <Button
@@ -1545,21 +1590,29 @@ export default function ChatComposer({
                 setPendingImageAsset(null)
                 if (!picked) return
                 try {
-                  const photo = await prepareFromAsset({ uri: picked.uri, width: picked.width, height: picked.height })
+                  const photo = await prepareFromAsset({
+                    uri: picked.uri,
+                    width: picked.width,
+                    height: picked.height,
+                  })
                   onSendPhoto?.(photo, text)
                   onChangeText('')
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }
               }}
-            >Send in chat</Button>
+            >
+              Send in chat
+            </Button>
             <Button
               onPress={async () => {
                 const picked = pendingImageAsset
                 setPendingImageAsset(null)
                 if (picked) await ingestDocument(picked.asset)
               }}
-            >Add to memory</Button>
+            >
+              Add to memory
+            </Button>
           </Dialog.Actions>
         </Dialog>
         <Snackbar
@@ -1608,6 +1661,7 @@ git commit -m "feat(chat): unified ChatComposer with no .web variant"
 ### Task 2.3: Create `messengerIdGenerator` utility
 
 **Files:**
+
 - Create: `src/utils/messageIdGenerator.ts`
 
 The current `messageIdGenerator` lives inline in `ChatView.tsx:484` but is needed in `ChatComposer.tsx` for the camera-button photo path in this slice — actually no, photo path uses `photo.messageId`. Wait — re-reading the spec: `messageIdGenerator` is deleted in Slice 3 and `handleSend` is the constructor. For Slice 2 we don't need it exported yet. Skip this task.
@@ -1617,6 +1671,7 @@ The current `messageIdGenerator` lives inline in `ChatView.tsx:484` but is neede
 ### Task 2.4: Create `ChatInputBar`
 
 **Files:**
+
 - Create: `src/components/ChatInputBar.tsx`
 
 - [ ] **Step 1: Implement `ChatInputBar`**
@@ -1662,12 +1717,9 @@ export function ChatInputBar({
     setText('')
   }, [text, onSubmit])
 
-  const handleChangeText = useCallback(
-    (next: string) => {
-      setText(next)
-    },
-    [],
-  )
+  const handleChangeText = useCallback((next: string) => {
+    setText(next)
+  }, [])
 
   return (
     <View
@@ -1725,6 +1777,7 @@ git commit -m "feat(chat): add ChatInputBar that owns input text state"
 ### Task 2.5: Wire `ChatInputBar` into `ChatView.renderInputToolbar`
 
 **Files:**
+
 - Modify: `src/components/ChatView.tsx:278-292,472-489`
 
 - [ ] **Step 1: Replace `renderInputToolbar` and drop `renderSend` / `renderComposer`**
@@ -1852,7 +1905,13 @@ The empty-message round-trip is dead in this slice: `ChatInputBar` owns `text`, 
 ```ts
 // Before
 import { GiftedChat, InputToolbar, Send } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps } from 'react-native-gifted-chat'
+import type {
+  IMessage,
+  User,
+  ComposerProps,
+  SendProps,
+  InputToolbarProps,
+} from 'react-native-gifted-chat'
 
 // After
 import { GiftedChat } from 'react-native-gifted-chat'
@@ -1879,6 +1938,7 @@ git commit -m "refactor(chat): route renderInputToolbar through ChatInputBar"
 ### Task 2.6: Rewrite `chatComposer.test.tsx` to delete the mock factory
 
 **Files:**
+
 - Modify: `__tests__/chatComposer.test.tsx`
 
 The old `jest.mock('react-native-gifted-chat')` factory exposes a `Composer` element with `__chatComposerMock: true`. Seven test sites query `tree.root.findByProps({ __chatComposerMock: true })`. After Slice 2.2, `ChatComposer` renders a plain `TextInput` — there is no inner `Composer` to substitute. Repoint the 7 sites to `findByProps({ accessibilityLabel: 'Message input' })`.
@@ -1921,6 +1981,7 @@ git commit -m "test(chat): delete gifted-chat mock factory from chatComposer tes
 ### Task 2.7: Rewrite `chatComposerWebHeightLoop.test.tsx`
 
 **Files:**
+
 - Modify: `__tests__/chatComposerWebHeightLoop.test.tsx`
 
 The old file mocks `react-native-gifted-chat` and asserts against the inner `Composer` mock. After Slice 2.2, `ChatComposer` is the real component. The four behaviours the file proves must still hold:
@@ -1937,7 +1998,8 @@ Edit `__tests__/chatComposerWebHeightLoop.test.tsx`:
 ```ts
 // Before
 jest.mock('react-native-gifted-chat', () => ({
-  Composer: (props: any) => ReactLib.createElement('Composer', { __chatComposerMock: true, ...props }),
+  Composer: (props: any) =>
+    ReactLib.createElement('Composer', { __chatComposerMock: true, ...props }),
   Send: () => null,
 }))
 
@@ -1957,7 +2019,15 @@ The test creates `ChatComposer` directly. The new `ChatComposer` requires `chara
 
 ```ts
 const noop = () => {}
-const photo = { messageId: 'm', imageId: 'i', uri: 'u', width: 0, height: 0, attachment: {} as any, variants: {} }
+const photo = {
+  messageId: 'm',
+  imageId: 'i',
+  uri: 'u',
+  width: 0,
+  height: 0,
+  attachment: {} as any,
+  variants: {},
+}
 const fakeProps = {
   text: '',
   onChangeText: noop,
@@ -1990,6 +2060,7 @@ git commit -m "test(chat): rewrite height-loop tests against the real ChatCompos
 ### Task 2.8: Rewrite the 8 affected tests in `chatViewAccessibility.test.tsx`
 
 **Files:**
+
 - Modify: `__tests__/chatViewAccessibility.test.tsx`
 
 The 8 affected tests are at lines 279, 335, 353, 449–458, 500, 502, 523. They drive `renderSend`, `renderComposer`, `renderInputToolbar`, `alwaysShowSend`. After Slice 2.5, those props are gone — `ChatInputBar` and `SendButton` are the new surface.
@@ -2028,15 +2099,15 @@ The eight tests are:
 
 Rewrite each to import `ChatInputBar` and `SendButton` and assert directly. The semantics to preserve:
 
-| Old assertion | New assertion |
-|---|---|
-| `renderSend` returns a `button` with `accessibilityLabel: 'Send message'` | `SendButton` exposes `accessibilityRole: 'button'`, `accessibilityLabel: 'Send message'` |
-| `renderSend` returns a `progressbar` while generating | `SendButton` exposes `accessibilityRole: 'progressbar'`, `accessibilityState: { busy: true }` |
-| `renderSend`'s pill uses `primaryContainer` background | `SendButton`'s pill uses `colors.primaryContainer` background |
-| `renderInputToolbar` is a function | Not applicable — `renderInputToolbar` is replaced by `ChatInputBar` |
-| `renderComposer` exists | Not applicable — composer is internal to `ChatInputBar` |
-| `alwaysShowSend` matches `isGeneratingResponse` | `ChatInputBar`'s `isGenerating` prop is `isGeneratingResponse` |
-| `minInputToolbarHeight` = `74 + 16` | The library prop is gone; if we still want to assert the input is at least 74px, query the inner `TextInput` style — but the spec says rewrite against `ChatInputBar` directly, so this assertion is OK to drop |
+| Old assertion                                                             | New assertion                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderSend` returns a `button` with `accessibilityLabel: 'Send message'` | `SendButton` exposes `accessibilityRole: 'button'`, `accessibilityLabel: 'Send message'`                                                                                                                        |
+| `renderSend` returns a `progressbar` while generating                     | `SendButton` exposes `accessibilityRole: 'progressbar'`, `accessibilityState: { busy: true }`                                                                                                                   |
+| `renderSend`'s pill uses `primaryContainer` background                    | `SendButton`'s pill uses `colors.primaryContainer` background                                                                                                                                                   |
+| `renderInputToolbar` is a function                                        | Not applicable — `renderInputToolbar` is replaced by `ChatInputBar`                                                                                                                                             |
+| `renderComposer` exists                                                   | Not applicable — composer is internal to `ChatInputBar`                                                                                                                                                         |
+| `alwaysShowSend` matches `isGeneratingResponse`                           | `ChatInputBar`'s `isGenerating` prop is `isGeneratingResponse`                                                                                                                                                  |
+| `minInputToolbarHeight` = `74 + 16`                                       | The library prop is gone; if we still want to assert the input is at least 74px, query the inner `TextInput` style — but the spec says rewrite against `ChatInputBar` directly, so this assertion is OK to drop |
 
 For line 449, replace the test with one that asserts `ChatInputBar` is rendered (via `findByType(ChatInputBar)`) with the correct props.
 
@@ -2094,6 +2165,7 @@ Our own `MessageList` + `KeyboardAvoidingView`. `handleSend` mints `_id` / `crea
 ### Task 3.1: Create `MessageRow`
 
 **Files:**
+
 - Create: `src/components/MessageRow.tsx`
 
 - [ ] **Step 1: Implement `MessageRow`**
@@ -2113,12 +2185,7 @@ interface MessageRowProps {
 
 export function MessageRow({ message, isOwn, renderAvatar }: MessageRowProps) {
   return (
-    <View
-      style={[
-        styles.row,
-        Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {},
-      ]}
-    >
+    <View style={[styles.row, Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {}]}>
       {renderAvatar(message)}
       <View style={[styles.content, isOwn ? styles.right : styles.left]}>
         <MessageBubble message={message} isOwn={isOwn} />
@@ -2157,6 +2224,7 @@ git commit -m "feat(chat): add MessageRow with avatar positioning"
 ### Task 3.2: Create `MessageList`
 
 **Files:**
+
 - Create: `src/components/MessageList.tsx`
 
 - [ ] **Step 1: Implement `MessageList`**
@@ -2216,6 +2284,7 @@ git commit -m "feat(chat): add MessageList with inverted FlatList"
 ### Task 3.3: Write the streaming-key invariant test
 
 **Files:**
+
 - Create: `src/components/__tests__/MessageList.test.tsx`
 
 - [ ] **Step 1: Write the test**
@@ -2237,10 +2306,14 @@ const baseMessage: Message = {
 describe('MessageList streaming-key invariant', () => {
   it('preserves the message _id across streaming updates', () => {
     const renderAvatar = () => null
-    const first = render(<MessageList messages={[baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />)
+    const first = render(
+      <MessageList messages={[baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
     // Force a streaming update — same _id, new text
     const updated: Message = { ...baseMessage, text: 'hello world' }
-    first.rerender(<MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />)
+    first.rerender(
+      <MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
     // The keyed row should not have remounted.
     // Find the row by querying the live tree: the inner MessageText should
     // show the new text.
@@ -2250,7 +2323,11 @@ describe('MessageList streaming-key invariant', () => {
   it('does not duplicate rows when the same _id is passed twice', () => {
     const renderAvatar = () => null
     const { queryAllByText } = render(
-      <MessageList messages={[baseMessage, baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />,
+      <MessageList
+        messages={[baseMessage, baseMessage]}
+        currentUserId="user"
+        renderAvatar={renderAvatar}
+      />,
     )
     // FlatList dedupes by key — the same _id twice collapses to one row.
     // The bubble does not render the text (it's empty), so verify via the
@@ -2279,6 +2356,7 @@ git commit -m "test(chat): pin streaming-key invariant on MessageList"
 ### Task 3.4: Rewrite `chatViewAvatarSource.test.tsx`
 
 **Files:**
+
 - Modify: `__tests__/chatViewAvatarSource.test.tsx`
 
 The 10 tests use `capturedGiftedChatProps.renderAvatar(...)` at lines 215, 226, 290 to exercise avatar rendering. After Slice 3.2, `MessageList` is the source of truth and `renderAvatar` is provided as a prop to `ChatView`. Update the test to:
@@ -2317,6 +2395,7 @@ git commit -m "test(chat): rewrite chatViewAvatarSource tests against MessageLis
 ### Task 3.5: Rewrite the remaining 9 tests in `chatViewAccessibility.test.tsx`
 
 **Files:**
+
 - Modify: `__tests__/chatViewAccessibility.test.tsx`
 
 The 9 tests that survived Slice 2 are the ones still driving `renderAvatar` (lines 394, 401, 413, 420), the `GiftedChat` mock factory itself, and a few grab-bag assertions on `capturedGiftedChatProps`. After Slice 3, the `GiftedChat` mock is gone — rewrite the tests against `MessageList` and the `renderAvatar` callback.
@@ -2370,6 +2449,7 @@ git commit -m "test(chat): rewrite remaining 9 tests against MessageList"
 ### Task 3.6: Replace `GiftedChat` with `MessageList` in `ChatView`
 
 **Files:**
+
 - Modify: `src/components/ChatView.tsx`
 
 - [ ] **Step 1: Replace the `GiftedChat` JSX with `MessageList` + `KeyboardAvoidingView`**
@@ -2550,6 +2630,7 @@ git commit -m "feat(chat): replace GiftedChat with MessageList + KeyboardAvoidin
 ### Task 3.7: Remove `react-native-gifted-chat` from `package.json`
 
 **Files:**
+
 - Modify: `package.json`
 - Regenerate: `package-lock.json`
 
@@ -2667,19 +2748,19 @@ Run this once the plan is complete. If anything fails, fix inline.
    - `messageIdGenerator` is **not** exported (the spec says the body is moved into `handleSend` in Slice 3, not exported). Task 2.3 was a self-correction: removed.
    - `MIN_INPUT_HEIGHT` and `MAX_INPUT_HEIGHT` are exported from `ChatComposer.tsx` only; `ChatInputBar` does not export them.
    - `pendingImageAsset` type is preserved as `{ uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null` (carried verbatim from the prior `ChatComposer.tsx`).
-   - `handleInputSubmit` in Slice 2.5 was renamed to `handleSend` in Slice 3.6 — the plan states this transition explicitly. *(Superseded: this name inconsistency was caught in self-review and resolved to `handleSend` everywhere. The earlier draft introduced `handleInputSubmit` only to rename it back; the saved version uses `handleSend` from Slice 2.5 onward, with the signature change `(newMessages: IMessage[]) => Promise<void>` → `(text: string) => void` documented in Task 2.5 Step 1.)*
+   - `handleInputSubmit` in Slice 2.5 was renamed to `handleSend` in Slice 3.6 — the plan states this transition explicitly. _(Superseded: this name inconsistency was caught in self-review and resolved to `handleSend` everywhere. The earlier draft introduced `handleInputSubmit` only to rename it back; the saved version uses `handleSend` from Slice 2.5 onward, with the signature change `(newMessages: IMessage[]) => Promise<void>` → `(text: string) => void` documented in Task 2.5 Step 1.)_
    - `ChatInputBar` props are consistent across Slice 2.4 (`onHeightChange`) and Slice 3.6 (removed).
 
 ---
 
 ## Manual Test Summary (per slice)
 
-| Slice | iOS / Android | Web |
-|---|---|---|
-| 0 | No manual pass — type-only. | No manual pass — type-only. |
-| 1 | Text bubble both sides; URL tap opens browser; photo bubble; grounding chips + search suggestions without overlap. | Same. |
-| 2 | Composer grows to ~6 lines then scrolls; collapses on send; document ingest end-to-end; photo from picker & camera; send ↔ spinner swap. | **Web gets the closest look** — the height-loop regression is the focus. |
-| 3 | Keyboard does not cover input above tab bar; avatars correct; scrollback smooth; streaming reply does not jump; **send-then-force-quit-then-reopen** preserves the message. | Same. |
+| Slice | iOS / Android                                                                                                                                                               | Web                                                                      |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 0     | No manual pass — type-only.                                                                                                                                                 | No manual pass — type-only.                                              |
+| 1     | Text bubble both sides; URL tap opens browser; photo bubble; grounding chips + search suggestions without overlap.                                                          | Same.                                                                    |
+| 2     | Composer grows to ~6 lines then scrolls; collapses on send; document ingest end-to-end; photo from picker & camera; send ↔ spinner swap.                                    | **Web gets the closest look** — the height-loop regression is the focus. |
+| 3     | Keyboard does not cover input above tab bar; avatars correct; scrollback smooth; streaming reply does not jump; **send-then-force-quit-then-reopen** preserves the message. | Same.                                                                    |
 
 Each slice is a separate PR to `staging`, independently revertable. Slices 0–2 leave `react-native-gifted-chat` installed.
 
@@ -2688,6 +2769,6 @@ Each slice is a separate PR to `staging`, independently revertable. Slices 0–2
 ## Rollback
 
 - **Slice 0 → 2:** single-PR revert, no dependency churn.
-- **Slice 3:** revert `package.json` + `package-lock.json` + the component changes. Without Slice 3, `react-native-gifted-chat` is still installed, so the pre-Slice-3 components from `ChatView` would still need to drive the gifted-chat props. Practically: revert the entire Slice 3 PR. The components from Slices 1–2 keep working because they were built to render *inside* gifted-chat.
+- **Slice 3:** revert `package.json` + `package-lock.json` + the component changes. Without Slice 3, `react-native-gifted-chat` is still installed, so the pre-Slice-3 components from `ChatView` would still need to drive the gifted-chat props. Practically: revert the entire Slice 3 PR. The components from Slices 1–2 keep working because they were built to render _inside_ gifted-chat.
 
 There is no live staging environment ([[no-live-staging-environment]]). PRs target `staging`, then are fast-forwarded to `main` — both reach production. Each slice must be independently revertable.

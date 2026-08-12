@@ -5,7 +5,9 @@ import type { DrizzleClient } from '../db/client.js'
 type InsertedRow = Record<string, unknown>
 
 const mockEmbed = async (_text: string): Promise<number[]> => [0.1, 0.2, 0.3]
-const failEmbed = async (_text: string): Promise<number[]> => { throw new Error('embed failed') }
+const failEmbed = async (_text: string): Promise<number[]> => {
+  throw new Error('embed failed')
+}
 
 function makeMockDb(queryRows: InsertedRow[] = []) {
   const txInserted: InsertedRow[] = []
@@ -63,7 +65,9 @@ test('wikiReadTool: returns formatted context when results found', async () => {
   ]
   const db = makeMockDb(rows as InsertedRow[])
   const tool = wikiReadTool(db, 'user-1', 'char-1', mockEmbed)
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ query: 'food' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    query: 'food',
+  })
   assert.ok(result.includes('User is vegetarian'))
   assert.ok(result.includes('User likes cats'))
 })
@@ -71,7 +75,9 @@ test('wikiReadTool: returns formatted context when results found', async () => {
 test('wikiReadTool: returns empty string when no results', async () => {
   const db = makeMockDb([])
   const tool = wikiReadTool(db, 'user-1', 'char-1', mockEmbed)
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ query: 'nothing' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    query: 'nothing',
+  })
   assert.equal(result, '')
 })
 
@@ -94,12 +100,14 @@ test('wikiWriteTool: schema does not expose characterId or userId', () => {
 test('wikiWriteTool: dual-write inserts entry and event in transaction', async () => {
   const db = makeMockDb()
   const tool = wikiWriteTool(db, 'user-99', 'char-42', mockEmbed)
-  await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ summary: 'User prefers morning meetings.' })
+  await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    summary: 'User prefers morning meetings.',
+  })
 
   const rows = (db as unknown as { _txInserted: InsertedRow[] })._txInserted
   assert.equal(rows.length, 2)
-  const entry = rows.find(r => 'body' in r)
-  const event = rows.find(r => 'eventType' in r)
+  const entry = rows.find((r) => 'body' in r)
+  const event = rows.find((r) => 'eventType' in r)
   assert.ok(entry, 'expected llm_wiki_entries insert')
   assert.ok(event, 'expected llm_wiki_events insert')
   assert.equal(entry!['entityId'], 'char-42')
@@ -113,10 +121,12 @@ test('wikiWriteTool: dual-write inserts entry and event in transaction', async (
 test('wikiWriteTool: inserts entry with null embedding when embed fails', async () => {
   const db = makeMockDb()
   const tool = wikiWriteTool(db, 'user-1', 'char-1', failEmbed)
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ summary: 'User is left-handed.' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    summary: 'User is left-handed.',
+  })
   assert.equal(result, 'Observation recorded successfully.')
   const rows = (db as unknown as { _txInserted: InsertedRow[] })._txInserted
-  const entry = rows.find(r => 'body' in r)
+  const entry = rows.find((r) => 'body' in r)
   assert.ok(entry)
   assert.equal(entry!['embedding'], null)
 })
@@ -124,6 +134,8 @@ test('wikiWriteTool: inserts entry with null embedding when embed fails', async 
 test('wikiWriteTool: returns success string', async () => {
   const db = makeMockDb()
   const tool = wikiWriteTool(db, 'user-1', 'char-1', mockEmbed)
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ summary: 'User is left-handed.' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    summary: 'User is left-handed.',
+  })
   assert.equal(result, 'Observation recorded successfully.')
 })

@@ -18,13 +18,13 @@ Update Clanker's privacy policy and app store disclosures to address compliance 
 
 ## Design Rationale
 
-| Decision | Why |
-|----------|-----|
-| Comprehensive privacy spec (Option A) | Buyer due diligence needs single source of truth for all privacy practices |
-| Crashlytics opt-in documented | GDPR/CCPA require explicit consent; app store labels must declare "Optional" |
-| Stripe details added | Current policy mentions "payment information" but doesn't detail processor |
-| Data deletion flow documented | GDPR Article 17 / CCPA "right to delete"; Apple/Google require clear deletion mechanism |
-| Firebase SDK deferral required | SDKs must NOT initialize before consent; otherwise "Optional" becomes "Required" |
+| Decision                              | Why                                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| Comprehensive privacy spec (Option A) | Buyer due diligence needs single source of truth for all privacy practices              |
+| Crashlytics opt-in documented         | GDPR/CCPA require explicit consent; app store labels must declare "Optional"            |
+| Stripe details added                  | Current policy mentions "payment information" but doesn't detail processor              |
+| Data deletion flow documented         | GDPR Article 17 / CCPA "right to delete"; Apple/Google require clear deletion mechanism |
+| Firebase SDK deferral required        | SDKs must NOT initialize before consent; otherwise "Optional" becomes "Required"        |
 
 ## Architecture
 
@@ -42,6 +42,7 @@ Update Clanker's privacy policy and app store disclosures to address compliance 
 **CRITICAL:** SDKs must NOT initialize before user consent.
 
 Current flow (to verify):
+
 1. App launches
 2. `initializeCrashlytics()` reads `Storage.getItemSync(ANALYTICS_KEY)`
 3. If `raw === '1'`, enable Crashlytics; otherwise disable
@@ -49,6 +50,7 @@ Current flow (to verify):
 5. User opts in → `setCrashlyticsEnabled(true)` / `setAnalyticsEnabled(true)`
 
 **Required behavior:**
+
 - New users: Crashlytics = disabled, Analytics = disabled (until consent)
 - Existing users: Respect persisted choice
 - SDKs must not send data before `setCrashlyticsCollectionEnabled(true)`
@@ -60,22 +62,23 @@ Current flow (to verify):
 **Location:** After "AI Processing of Chat Content" section
 
 **Text:**
+
 ```
 Crash Reporting and Diagnostics
 
-To ensure the stability and reliability of the App, we use Firebase Crashlytics, 
-a crash reporting service provided by Google LLC. If the App crashes or encounters 
-an error, Crashlytics automatically collects diagnostic information to help us identify, 
+To ensure the stability and reliability of the App, we use Firebase Crashlytics,
+a crash reporting service provided by Google LLC. If the App crashes or encounters
+an error, Crashlytics automatically collects diagnostic information to help us identify,
 troubleshoot, and resolve the issue.
 
-The information collected does not include your name or email, but may include your 
-device's Internet Protocol (IP) address, hardware model, operating system version, 
-a unique device installation identifier (UUID), and the state of the App at the time 
-of the crash. This diagnostic data is transmitted to and stored by Google in 
+The information collected does not include your name or email, but may include your
+device's Internet Protocol (IP) address, hardware model, operating system version,
+a unique device installation identifier (UUID), and the state of the App at the time
+of the crash. This diagnostic data is transmitted to and stored by Google in
 accordance with the Google Privacy Policy.
 
-Crash reporting is disabled by default. We rely on your explicit consent before 
-collecting this diagnostic data. You can enable or disable crash reporting at any 
+Crash reporting is disabled by default. We rely on your explicit consent before
+collecting this diagnostic data. You can enable or disable crash reporting at any
 time within the App's settings.
 ```
 
@@ -84,12 +87,14 @@ time within the App's settings.
 **Location:** "Cookies and Similar Technologies (Web Only)" → Analytics bullet
 
 **Current text:**
+
 ```
 - Analytics: helps us understand product usage to improve the app (off by default,
   not currently active).
 ```
 
 **Updated text:**
+
 ```
 - Analytics: helps us understand product usage to improve the app (off by default,
   requires explicit opt-in).
@@ -100,18 +105,19 @@ time within the App's settings.
 **Location:** After "How We Share Your Information" section
 
 **Text:**
+
 ```
 Payment Processing
 
-We use Stripe, a third-party payment processor, to handle securely all payment 
-transactions. When you make a purchase, you provide your payment details directly 
-to Stripe. We do not collect, process, or store your full credit card numbers or 
+We use Stripe, a third-party payment processor, to handle securely all payment
+transactions. When you make a purchase, you provide your payment details directly
+to Stripe. We do not collect, process, or store your full credit card numbers or
 bank account information on our servers.
 
-The payment information you provide to Stripe is governed by Stripe's Privacy Policy 
-(https://stripe.com/privacy). We only receive limited information from Stripe, such 
-as payment confirmation, the last four digits of your card, and billing zip code, 
-which we use solely to fulfill your order, prevent fraud, and maintain transaction 
+The payment information you provide to Stripe is governed by Stripe's Privacy Policy
+(https://stripe.com/privacy). We only receive limited information from Stripe, such
+as payment confirmation, the last four digits of your card, and billing zip code,
+which we use solely to fulfill your order, prevent fraud, and maintain transaction
 records for tax and legal purposes.
 ```
 
@@ -120,6 +126,7 @@ records for tax and legal purposes.
 **Location:** "Data Deletion" section
 
 **Current text:**
+
 ```
 Data Deletion
 If you wish to have your data deleted, please contact us at
@@ -127,26 +134,28 @@ If you wish to have your data deleted, please contact us at
 ```
 
 **Updated text:**
+
 ```
 Your Data Rights and Account Deletion
 
-You have the right to access, update, or delete the personal information we hold 
+You have the right to access, update, or delete the personal information we hold
 about you.
 
-How to request deletion: You can delete your account and associated personal data 
-at any time directly within the App by navigating to Settings > Account > Delete 
+How to request deletion: You can delete your account and associated personal data
+at any time directly within the App by navigating to Settings > Account > Delete
 Account. Alternatively, you can request data deletion by contacting us at [EMAIL].
 
-What happens when you delete your account: Upon receiving a deletion request, we 
-will promptly delete your account and personal data from our active databases. Please 
-note that we may retain certain limited information (such as transaction records) for 
-a period of time as required by law, for tax and accounting purposes, or to resolve 
+What happens when you delete your account: Upon receiving a deletion request, we
+will promptly delete your account and personal data from our active databases. Please
+note that we may retain certain limited information (such as transaction records) for
+a period of time as required by law, for tax and accounting purposes, or to resolve
 disputes.
 ```
 
 ### 5. Increment Version
 
 **Current:**
+
 ```typescript
 export const PRIVACY: PrivacyConfig = {
   version: '1.7',
@@ -156,6 +165,7 @@ export const PRIVACY: PrivacyConfig = {
 ```
 
 **Updated:**
+
 ```typescript
 export const PRIVACY: PrivacyConfig = {
   version: '1.8',
@@ -168,46 +178,46 @@ export const PRIVACY: PrivacyConfig = {
 
 ### Apple App Store Connect
 
-Navigate to: *App Store Connect → Your App → App Privacy*
+Navigate to: _App Store Connect → Your App → App Privacy_
 
-| Data Type | Collected By | Optional/Required | Linked to User? | Used for Tracking? | Purpose |
-|-----------|----------------|---------------------|-------------------|---------------------|----------|
-| **Diagnostics → Crash Data** | Firebase Crashlytics | **Optional** (opt-in) | **No** | No | Analytics, App Functionality |
-| **Usage Data → Product Interaction** | Firebase Analytics | **Optional** (opt-in) | **Yes** (if logged in) | No | Analytics |
-| **Identifiers → Device ID** | Firebase Analytics | **Optional** (opt-in) | **Yes** (if logged in) | No | Analytics |
-| **Financial Info → Payment Info** | Stripe | **Required** (for purchases) | **Yes** | No | App Functionality |
-| **Contact Info → Email, Name** | Stripe | **Required** (for purchases) | **Yes** | No | App Functionality |
-| **Identifiers → User ID** | Stripe | **Required** (for purchases) | **Yes** | No | Fraud Prevention |
+| Data Type                            | Collected By         | Optional/Required            | Linked to User?        | Used for Tracking? | Purpose                      |
+| ------------------------------------ | -------------------- | ---------------------------- | ---------------------- | ------------------ | ---------------------------- |
+| **Diagnostics → Crash Data**         | Firebase Crashlytics | **Optional** (opt-in)        | **No**                 | No                 | Analytics, App Functionality |
+| **Usage Data → Product Interaction** | Firebase Analytics   | **Optional** (opt-in)        | **Yes** (if logged in) | No                 | Analytics                    |
+| **Identifiers → Device ID**          | Firebase Analytics   | **Optional** (opt-in)        | **Yes** (if logged in) | No                 | Analytics                    |
+| **Financial Info → Payment Info**    | Stripe               | **Required** (for purchases) | **Yes**                | No                 | App Functionality            |
+| **Contact Info → Email, Name**       | Stripe               | **Required** (for purchases) | **Yes**                | No                 | App Functionality            |
+| **Identifiers → User ID**            | Stripe               | **Required** (for purchases) | **Yes**                | No                 | Fraud Prevention             |
 
 ### Google Play Console
 
-Navigate to: *Google Play Console → Your App → Policy and Programs → App Content → Data Safety*
+Navigate to: _Google Play Console → Your App → Policy and Programs → App Content → Data Safety_
 
 **Data Collection and Security Section:**
 
-| Question | Answer |
-|----------|--------|
-| Is data encrypted in transit? | **Yes** (Firebase and Stripe enforce HTTPS) |
-| Do you provide a way for users to request data deletion? | **Yes** (Delete Account in Settings) |
+| Question                                                 | Answer                                      |
+| -------------------------------------------------------- | ------------------------------------------- |
+| Is data encrypted in transit?                            | **Yes** (Firebase and Stripe enforce HTTPS) |
+| Do you provide a way for users to request data deletion? | **Yes** (Delete Account in Settings)        |
 
 **Data Types:**
 
-| Category | Data Type | Collected By | Optional/Required | Purpose |
-|----------|----------|----------------|---------------------|----------|
-| **App info and performance** | Crash logs, Diagnostics | Firebase Crashlytics | **Optional** (opt-in) | App functionality, Analytics |
-| **App info and performance** | Device or other IDs | Firebase Crashlytics | **Optional** (opt-in) | App functionality |
-| **App activity** | App interactions | Firebase Analytics | **Optional** (opt-in) | Analytics |
-| **App activity** | Device or other IDs | Firebase Analytics | **Optional** (opt-in) | Analytics |
-| **Financial info** | User payment info | Stripe | **Required** (for purchases) | App functionality, Fraud prevention |
-| **Personal info** | Name, Email address | Stripe | **Required** (for purchases) | App functionality |
-| **Device or other IDs** | Device ID (fraud prevention) | Stripe | **Required** (for purchases) | Fraud prevention, security |
+| Category                     | Data Type                    | Collected By         | Optional/Required            | Purpose                             |
+| ---------------------------- | ---------------------------- | -------------------- | ---------------------------- | ----------------------------------- |
+| **App info and performance** | Crash logs, Diagnostics      | Firebase Crashlytics | **Optional** (opt-in)        | App functionality, Analytics        |
+| **App info and performance** | Device or other IDs          | Firebase Crashlytics | **Optional** (opt-in)        | App functionality                   |
+| **App activity**             | App interactions             | Firebase Analytics   | **Optional** (opt-in)        | Analytics                           |
+| **App activity**             | Device or other IDs          | Firebase Analytics   | **Optional** (opt-in)        | Analytics                           |
+| **Financial info**           | User payment info            | Stripe               | **Required** (for purchases) | App functionality, Fraud prevention |
+| **Personal info**            | Name, Email address          | Stripe               | **Required** (for purchases) | App functionality                   |
+| **Device or other IDs**      | Device ID (fraud prevention) | Stripe               | **Required** (for purchases) | Fraud prevention, security          |
 
 ## Implementation Verification Checklist
 
 Before submitting to app stores, verify:
 
 - [ ] **Crashlytics toggle** in Settings defaults to OFF for new users
-- [ ] **Analytics toggle** in Settings defaults to OFF for new users  
+- [ ] **Analytics toggle** in Settings defaults to OFF for new users
 - [ ] **Firebase SDKs** do NOT initialize before user consents (check `initializeCrashlytics()` and `setAnalyticsEnabled()` flow)
 - [ ] **"Delete Account"** button exists in Settings → Account and triggers deletion API
 - [ ] **Privacy Policy** link is visible in App Settings

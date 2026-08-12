@@ -7,7 +7,10 @@ interface IngestProgressBarProps {
   visible?: boolean
 }
 
-export default function IngestProgressBar({ progress, visible = progress > 0 }: IngestProgressBarProps) {
+export default function IngestProgressBar({
+  progress,
+  visible = progress > 0,
+}: IngestProgressBarProps) {
   const { colors } = useTheme()
 
   if (!visible) return null
@@ -17,7 +20,10 @@ export default function IngestProgressBar({ progress, visible = progress > 0 }: 
       <View
         style={[
           styles.bar,
-          { width: `${Math.min(100, Math.max(0, progress * 100))}%`, backgroundColor: colors.primary },
+          {
+            width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+            backgroundColor: colors.primary,
+          },
         ]}
       />
     </View>

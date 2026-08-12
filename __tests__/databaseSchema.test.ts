@@ -33,7 +33,9 @@ describe('database schema migration guards', () => {
 
   it('has migration guards for v11 and v12', () => {
     expect(MIGRATION_SKIP_GUARDS[11]).toEqual([{ table: 'characters', column: 'heal_checkpoint' }])
-    expect(MIGRATION_SKIP_GUARDS[12]).toEqual([{ table: 'characters', column: 'memory_checkpoint' }])
+    expect(MIGRATION_SKIP_GUARDS[12]).toEqual([
+      { table: 'characters', column: 'memory_checkpoint' },
+    ])
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.characters).toEqual(
       expect.arrayContaining(['heal_checkpoint', 'memory_checkpoint']),
     )
@@ -56,15 +58,11 @@ describe('database schema migration guards', () => {
     expect(MIGRATIONS[14]).toContain('ALTER TABLE wiki_entries ADD COLUMN source_ref TEXT')
     expect(MIGRATIONS[14]).not.toContain('idx_wiki_entries_source_hash')
     // Migration 15: swaps to partial index — skipped if wiki_entries table is missing
-    expect(MIGRATION_SKIP_GUARDS[15]).toEqual([
-      { table: 'wiki_entries', skipIfTableMissing: true },
-    ])
+    expect(MIGRATION_SKIP_GUARDS[15]).toEqual([{ table: 'wiki_entries', skipIfTableMissing: true }])
     expect(MIGRATIONS[15]).toContain('DROP INDEX IF EXISTS idx_wiki_entries_source_hash')
     expect(MIGRATIONS[15]).toContain('WHERE source_hash IS NOT NULL')
     // Migration 16: adds partial index on source_ref — skipped if wiki_entries table is missing
-    expect(MIGRATION_SKIP_GUARDS[16]).toEqual([
-      { table: 'wiki_entries', skipIfTableMissing: true },
-    ])
+    expect(MIGRATION_SKIP_GUARDS[16]).toEqual([{ table: 'wiki_entries', skipIfTableMissing: true }])
     expect(MIGRATIONS[16]).toContain('CREATE INDEX IF NOT EXISTS idx_wiki_entries_source_ref')
     expect(MIGRATIONS[16]).toContain('WHERE source_ref IS NOT NULL')
     // Migration 17: drops old wiki tables
@@ -100,9 +98,13 @@ describe('database schema migration guards', () => {
   })
 
   it('adds heal_checkpoint in migration 11 and memory_checkpoint in migration 12', () => {
-    expect(MIGRATIONS[11]).toContain('ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0')
+    expect(MIGRATIONS[11]).toContain(
+      'ALTER TABLE characters ADD COLUMN heal_checkpoint INTEGER NOT NULL DEFAULT 0',
+    )
     expect(MIGRATIONS[11]).not.toContain('memory_checkpoint')
-    expect(MIGRATIONS[12]).toContain('ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0')
+    expect(MIGRATIONS[12]).toContain(
+      'ALTER TABLE characters ADD COLUMN memory_checkpoint INTEGER NOT NULL DEFAULT 0',
+    )
     expect(MIGRATIONS[12]).not.toContain('heal_checkpoint')
   })
 })

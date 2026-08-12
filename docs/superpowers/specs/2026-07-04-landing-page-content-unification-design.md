@@ -15,7 +15,7 @@ copy. They have drifted:
 - `LandingFooter.tsx` (React) links only Real-Time Voice / Terms / Privacy / Equational
   Applications LLC / Cookie Preferences; the static footer also links OKF Memory, Advanced
   Memory, Privacy Mode, Open Source, Support, and a self-link to `/welcome`.
-- SEO meta tags (title, description, keywords, og:*, twitter:*) are hardcoded identically in
+- SEO meta tags (title, description, keywords, og:_, twitter:_) are hardcoded identically in
   both `app/index.web.tsx`'s `<Head>` and `public/welcome/index.html`'s `<head>` — copy-pasted,
   will silently drift on the next edit.
 - JSON-LD (`SoftwareApplication` + `VideoObject`) exists only in the static page.
@@ -46,7 +46,7 @@ Single source of truth:
 - `HERO` — announcement pill text/href, headline, tagline, CTA label (signed-in vs signed-out),
   sign-in button label
 - `FEATURES[]` — `{ icon: string, emoji: string, title, body, learnMoreHref?,
-  isNew? }` — includes a new "Open Source" entry (`/open-source`) that today only exists in the
+isNew? }` — includes a new "Open Source" entry (`/open-source`) that today only exists in the
   static page
 - `VIDEO` — YouTube video id, section heading, and iframe title
 - `FOOTER_LINKS[]` — full link set: Real-Time Voice, OKF Memory, Advanced Memory, Privacy Mode,

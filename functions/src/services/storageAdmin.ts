@@ -1,12 +1,12 @@
-import {getStorage} from "firebase-admin/storage";
-import * as logger from "firebase-functions/logger";
+import { getStorage } from 'firebase-admin/storage'
+import * as logger from 'firebase-functions/logger'
 
-const SIGNED_URL_TTL_MS = 15 * 60 * 1000;
+const SIGNED_URL_TTL_MS = 15 * 60 * 1000
 
-type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
-type BucketProvider = () => Bucket;
+type Bucket = ReturnType<ReturnType<typeof getStorage>['bucket']>
+type BucketProvider = () => Bucket
 
-const defaultBucketProvider: BucketProvider = () => getStorage().bucket();
+const defaultBucketProvider: BucketProvider = () => getStorage().bucket()
 
 /**
  * Server-side Storage operations the client cannot perform: prefix deletes
@@ -19,20 +19,20 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
    * safe to re-run, which is exactly what the deletion paths need.
    */
   async deletePrefix(prefix: string): Promise<void> {
-    const [files] = await bucketProvider().getFiles({prefix});
-    const failed: string[] = [];
+    const [files] = await bucketProvider().getFiles({ prefix })
+    const failed: string[] = []
     for (const file of files) {
       try {
-        await file.delete();
+        await file.delete()
       } catch (error) {
-        const code = (error as {code?: number}).code;
-        if (code === 404) continue;
-        logger.warn("Failed to delete storage object during prefix delete", {
+        const code = (error as { code?: number }).code
+        if (code === 404) continue
+        logger.warn('Failed to delete storage object during prefix delete', {
           prefix,
           name: file.name,
           error,
-        });
-        failed.push(file.name);
+        })
+        failed.push(file.name)
       }
     }
     // Every path is attempted before throwing, so a single bad object does not
@@ -41,30 +41,28 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
     // one can find again. Failing keeps the operation retryable.
     if (failed.length > 0) {
       throw new Error(
-        `Failed to delete ${failed.length} storage object(s) under prefix ${prefix}: ${failed.join(", ")}`
-      );
+        `Failed to delete ${failed.length} storage object(s) under prefix ${prefix}: ${failed.join(', ')}`,
+      )
     }
   },
 
   async deleteObjects(paths: string[]): Promise<void> {
-    const bucket = bucketProvider();
-    const failed: string[] = [];
+    const bucket = bucketProvider()
+    const failed: string[] = []
     for (const path of paths) {
       try {
-        await bucket.file(path).delete();
+        await bucket.file(path).delete()
       } catch (error) {
-        const code = (error as {code?: number}).code;
-        if (code === 404) continue;
-        logger.warn("Failed to delete storage object", {path, error});
-        failed.push(path);
+        const code = (error as { code?: number }).code
+        if (code === 404) continue
+        logger.warn('Failed to delete storage object', { path, error })
+        failed.push(path)
       }
     }
     // Same contract as deletePrefix: attempt all, then fail loudly so the
     // caller does not drop the rows that reference these objects.
     if (failed.length > 0) {
-      throw new Error(
-        `Failed to delete ${failed.length} storage object(s): ${failed.join(", ")}`
-      );
+      throw new Error(`Failed to delete ${failed.length} storage object(s): ${failed.join(', ')}`)
     }
   },
 
@@ -76,13 +74,15 @@ export const createStorageAdmin = (bucketProvider: BucketProvider = defaultBucke
    * signBlob permission error. That is IAM configuration, not a code defect.
    */
   async createSignedUrl(path: string): Promise<string> {
-    const [url] = await bucketProvider().file(path).getSignedUrl({
-      version: "v4",
-      action: "read",
-      expires: Date.now() + SIGNED_URL_TTL_MS,
-    });
-    return url;
+    const [url] = await bucketProvider()
+      .file(path)
+      .getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + SIGNED_URL_TTL_MS,
+      })
+    return url
   },
-});
+})
 
-export const storageAdmin = createStorageAdmin();
+export const storageAdmin = createStorageAdmin()

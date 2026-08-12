@@ -68,7 +68,6 @@ describe('analyticsService.web', () => {
     expect(setAnalyticsCollectionEnabled).not.toHaveBeenCalled()
   })
 
-
   it('does not queue logEvent calls after isSupported() resolves false', async () => {
     jest.mocked(isSupported).mockResolvedValue(false)
     await setAnalyticsEnabled(true)
@@ -96,12 +95,18 @@ describe('analyticsService.web', () => {
   it('after enabling, logEvent forwards name and params', async () => {
     await setAnalyticsEnabled(true)
     logEvent('character_created', { platform: 'web' })
-    expect(firebaseLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'character_created', { platform: 'web' })
+    expect(firebaseLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'character_created', {
+      platform: 'web',
+    })
   })
 
   it('queues logEvent calls made while async init is in flight and flushes after init', async () => {
     let resolveSupported!: (v: boolean) => void
-    jest.mocked(isSupported).mockReturnValue(new Promise<boolean>((r) => { resolveSupported = r }))
+    jest.mocked(isSupported).mockReturnValue(
+      new Promise<boolean>((r) => {
+        resolveSupported = r
+      }),
+    )
 
     const enablePromise = setAnalyticsEnabled(true)
     logEvent('sign_up', { platform: 'web' })
@@ -109,12 +114,18 @@ describe('analyticsService.web', () => {
 
     resolveSupported(true)
     await enablePromise
-    expect(firebaseLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'sign_up', { platform: 'web' })
+    expect(firebaseLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'sign_up', {
+      platform: 'web',
+    })
   })
 
   it('queues setUserId calls made while async init is in flight and flushes after init', async () => {
     let resolveSupported!: (v: boolean) => void
-    jest.mocked(isSupported).mockReturnValue(new Promise<boolean>((r) => { resolveSupported = r }))
+    jest.mocked(isSupported).mockReturnValue(
+      new Promise<boolean>((r) => {
+        resolveSupported = r
+      }),
+    )
 
     const enablePromise = setAnalyticsEnabled(true)
     const userIdPromise = setUserId('firebase-uid-123')

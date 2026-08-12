@@ -36,7 +36,10 @@ test('buildLiveTools declarations each have name, description, parameters', () =
   const { declarations } = buildLiveTools(mockDb, 'user-1', 'char-1', mockEmbed, 'UTC')
   for (const decl of declarations) {
     assert.ok(typeof decl.name === 'string' && decl.name.length > 0, `${decl.name}: missing name`)
-    assert.ok(typeof decl.description === 'string' && decl.description.length > 0, `${decl.name}: missing description`)
+    assert.ok(
+      typeof decl.description === 'string' && decl.description.length > 0,
+      `${decl.name}: missing description`,
+    )
     assert.ok(decl.parameters !== undefined, `${decl.name}: missing parameters`)
   }
 })

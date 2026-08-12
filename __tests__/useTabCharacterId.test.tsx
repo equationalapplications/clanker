@@ -12,7 +12,10 @@ jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: jest.fn(() => ({})),
 }))
 
-const mockUseMostRecentMessage = jest.fn(() => ({ data: undefined as { character_id: string } | undefined, isLoading: false }))
+const mockUseMostRecentMessage = jest.fn(() => ({
+  data: undefined as { character_id: string } | undefined,
+  isLoading: false,
+}))
 jest.mock('~/hooks/useMessages', () => ({
   useMostRecentMessage: () => mockUseMostRecentMessage(),
 }))
@@ -33,8 +36,9 @@ describe('useTabCharacterId', () => {
   beforeEach(() => {
     setActiveCharacterId(null)
     mockUseMostRecentMessage.mockReturnValue({ data: undefined, isLoading: false })
-    mockUseSelector.mockImplementation((_service: unknown, selector: (s: typeof mockMachineState) => unknown) =>
-      selector(mockMachineState),
+    mockUseSelector.mockImplementation(
+      (_service: unknown, selector: (s: typeof mockMachineState) => unknown) =>
+        selector(mockMachineState),
     )
     mockUseCharacters.mockReturnValue({
       characters: [{ id: 'char-a' }, { id: 'char-b' }],
@@ -75,8 +79,12 @@ describe('useTabCharacterId', () => {
   })
 
   it('skips stale defaultCharacterId', () => {
-    mockUseSelector.mockImplementation((_service: unknown, selector: (s: typeof mockMachineState) => unknown) =>
-      selector({ ...mockMachineState, context: { dbUser: { defaultCharacterId: 'deleted-char' } } }),
+    mockUseSelector.mockImplementation(
+      (_service: unknown, selector: (s: typeof mockMachineState) => unknown) =>
+        selector({
+          ...mockMachineState,
+          context: { dbUser: { defaultCharacterId: 'deleted-char' } },
+        }),
     )
 
     const { result } = renderHook(() => useTabCharacterId())

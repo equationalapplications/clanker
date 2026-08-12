@@ -42,7 +42,9 @@ beforeEach(() => {
   mockGetDownloadURL.mockResolvedValue('https://cdn/x.webp')
 })
 
-afterEach(() => { global.fetch = realFetch })
+afterEach(() => {
+  global.fetch = realFetch
+})
 
 describe('storageService (web)', () => {
   it('uploads a Blob with the declared content type', async () => {
@@ -60,7 +62,9 @@ describe('storageService (web)', () => {
   })
 
   it('treats a missing object as deleted', async () => {
-    mockDeleteObject.mockRejectedValue(Object.assign(new Error('x'), { code: 'storage/object-not-found' }))
+    mockDeleteObject.mockRejectedValue(
+      Object.assign(new Error('x'), { code: 'storage/object-not-found' }),
+    )
     await expect(deleteStorageObject('users/u/a.webp')).resolves.toBeUndefined()
   })
 

@@ -46,7 +46,13 @@ function toUsageSnapshot(result: GenerateChatReplyResult): UsageSnapshotPayload 
   }
 }
 
-export function useEdgeAgent({ character, userId, priorMessages, isCloudSynced, wiki }: UseEdgeAgentOptions): UseEdgeAgentReturn {
+export function useEdgeAgent({
+  character,
+  userId,
+  priorMessages,
+  isCloudSynced,
+  wiki,
+}: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
   const priorMessagesRef = useRef(priorMessages)

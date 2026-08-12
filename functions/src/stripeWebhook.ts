@@ -1,232 +1,301 @@
-import {onRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import admin from "firebase-admin";
-import Stripe from "stripe";
-import type {Request, Response} from "express";
-import {getStripePriceIds} from "./runtimeConfig.js";
-import {validateAndNormalizeStripeSecretKey} from "./stripeConfig.js";
-import {userRepository} from "./services/userRepository.js";
-import {subscriptionService} from "./services/subscriptionService.js";
-import {creditService} from "./services/creditService.js";
-import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
-import type {UpsertSubscriptionParams} from "./services/subscriptionService.js";
-import {stripeEventDedupeService} from "./services/stripeEventDedupeService.js";
-import {CREDIT_PACK_AMOUNT, CREDIT_PACK_EXPIRY_MS, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT} from "./constants/credits.js";
-import {sendPurchaseEvent as sendGa4PurchaseEvent, sendRefundEvent as sendGa4RefundEvent} from "./services/ga4MeasurementService.js";
+import { onRequest } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import admin from 'firebase-admin'
+import Stripe from 'stripe'
+import type { Request, Response } from 'express'
+import { getStripePriceIds } from './runtimeConfig.js'
+import { validateAndNormalizeStripeSecretKey } from './stripeConfig.js'
+import { userRepository } from './services/userRepository.js'
+import { subscriptionService } from './services/subscriptionService.js'
+import { creditService } from './services/creditService.js'
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import type { UpsertSubscriptionParams } from './services/subscriptionService.js'
+import { stripeEventDedupeService } from './services/stripeEventDedupeService.js'
+import {
+  CREDIT_PACK_AMOUNT,
+  CREDIT_PACK_EXPIRY_MS,
+  SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+} from './constants/credits.js'
+import {
+  sendPurchaseEvent as sendGa4PurchaseEvent,
+  sendRefundEvent as sendGa4RefundEvent,
+} from './services/ga4MeasurementService.js'
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp()
 }
 
 type UserLookup = {
-  id: string;
-  email: string;
-  firebaseUid?: string;
-};
+  id: string
+  email: string
+  firebaseUid?: string
+}
 
 interface StripeWebhookDeps {
-  findUserByEmail: (email: string) => Promise<UserLookup | null>;
-  findUserByFirebaseUid: (firebaseUid: string) => Promise<UserLookup | null>;
-  findUserByStripeCustomerId: (customerId: string) => Promise<UserLookup | null>;
-  upsertSubscription: (params: UpsertSubscriptionParams) => Promise<void>;
-  renewSubscriptionCredits: (userId: string, amount: number, expiresAt: Date, referenceId: string) => Promise<boolean>;
-  addCredits: (userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) => Promise<void>;
-  adjustCredits: (userId: string, delta: number, reason: string, referenceId?: string) => Promise<void>;
-  sendPurchaseEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"; items?: Array<{item_id: string; item_name: string}>}) => Promise<void>;
-  sendRefundEvent: (params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) => Promise<void>;
-  isEventProcessed: (eventId: string) => Promise<boolean>;
-  markEventProcessed: (eventId: string) => Promise<boolean>;
-  completeEventProcessed: (eventId: string) => Promise<void>;
-  unmarkEventProcessed: (eventId: string) => Promise<void>;
-  expireProcessingClaim: (eventId: string) => Promise<void>;
-  getLastProcessedChargeRefundTotal: (chargeId: string) => Promise<number>;
+  findUserByEmail: (email: string) => Promise<UserLookup | null>
+  findUserByFirebaseUid: (firebaseUid: string) => Promise<UserLookup | null>
+  findUserByStripeCustomerId: (customerId: string) => Promise<UserLookup | null>
+  upsertSubscription: (params: UpsertSubscriptionParams) => Promise<void>
+  renewSubscriptionCredits: (
+    userId: string,
+    amount: number,
+    expiresAt: Date,
+    referenceId: string,
+  ) => Promise<boolean>
+  addCredits: (
+    userId: string,
+    amount: number,
+    expiresAt: Date | null,
+    transactionType: 'one_time' | 'signup' | 'legacy',
+    referenceId?: string,
+  ) => Promise<void>
+  adjustCredits: (
+    userId: string,
+    delta: number,
+    reason: string,
+    referenceId?: string,
+  ) => Promise<void>
+  sendPurchaseEvent: (params: {
+    firebaseUid: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+    paymentProvider: 'stripe'
+    items?: Array<{ item_id: string; item_name: string }>
+  }) => Promise<void>
+  sendRefundEvent: (params: {
+    firebaseUid: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+    paymentProvider: 'stripe'
+  }) => Promise<void>
+  isEventProcessed: (eventId: string) => Promise<boolean>
+  markEventProcessed: (eventId: string) => Promise<boolean>
+  completeEventProcessed: (eventId: string) => Promise<void>
+  unmarkEventProcessed: (eventId: string) => Promise<void>
+  expireProcessingClaim: (eventId: string) => Promise<void>
+  getLastProcessedChargeRefundTotal: (chargeId: string) => Promise<number>
 }
 
 const defaultDeps: StripeWebhookDeps = {
   async findUserByEmail(email: string) {
-    const user = await userRepository.findUserByEmail(email);
+    const user = await userRepository.findUserByEmail(email)
     if (!user) {
-      return null;
+      return null
     }
-    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
+    return { id: user.id, email: user.email, firebaseUid: user.firebaseUid }
   },
   async findUserByFirebaseUid(firebaseUid: string) {
-    const user = await userRepository.findUserByFirebaseUid(firebaseUid);
+    const user = await userRepository.findUserByFirebaseUid(firebaseUid)
     if (!user) {
-      return null;
+      return null
     }
-    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
+    return { id: user.id, email: user.email, firebaseUid: user.firebaseUid }
   },
   async findUserByStripeCustomerId(customerId: string) {
-    const userId = await subscriptionService.findUserIdByStripeCustomerId(customerId);
+    const userId = await subscriptionService.findUserIdByStripeCustomerId(customerId)
     if (!userId) {
-      return null;
+      return null
     }
-    const user = await userRepository.findUserById(userId);
+    const user = await userRepository.findUserById(userId)
     if (!user) {
-      return null;
+      return null
     }
-    return {id: user.id, email: user.email, firebaseUid: user.firebaseUid};
+    return { id: user.id, email: user.email, firebaseUid: user.firebaseUid }
   },
   async upsertSubscription(params: UpsertSubscriptionParams) {
-    await subscriptionService.upsertSubscription(params);
+    await subscriptionService.upsertSubscription(params)
   },
-  async renewSubscriptionCredits(userId: string, amount: number, expiresAt: Date, referenceId: string) {
-    return creditService.renewSubscriptionCredits(userId, amount, expiresAt, referenceId);
+  async renewSubscriptionCredits(
+    userId: string,
+    amount: number,
+    expiresAt: Date,
+    referenceId: string,
+  ) {
+    return creditService.renewSubscriptionCredits(userId, amount, expiresAt, referenceId)
   },
-  async addCredits(userId: string, amount: number, expiresAt: Date | null, transactionType: 'one_time' | 'signup' | 'legacy', referenceId?: string) {
-    await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId);
+  async addCredits(
+    userId: string,
+    amount: number,
+    expiresAt: Date | null,
+    transactionType: 'one_time' | 'signup' | 'legacy',
+    referenceId?: string,
+  ) {
+    await creditService.addCredits(userId, amount, expiresAt, transactionType, referenceId)
   },
   async adjustCredits(userId: string, delta: number, reason: string, referenceId?: string) {
-    await creditService.adjustCredits(userId, delta, reason, referenceId);
+    await creditService.adjustCredits(userId, delta, reason, referenceId)
   },
-  async sendPurchaseEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"; items?: Array<{item_id: string; item_name: string}>}) {
-    await sendGa4PurchaseEvent(params);
+  async sendPurchaseEvent(params: {
+    firebaseUid: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+    paymentProvider: 'stripe'
+    items?: Array<{ item_id: string; item_name: string }>
+  }) {
+    await sendGa4PurchaseEvent(params)
   },
-  async sendRefundEvent(params: {firebaseUid: string; transactionId: string; valueMinorUnits: number; currency: string; paymentProvider: "stripe"}) {
-    await sendGa4RefundEvent(params);
+  async sendRefundEvent(params: {
+    firebaseUid: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+    paymentProvider: 'stripe'
+  }) {
+    await sendGa4RefundEvent(params)
   },
   async isEventProcessed(eventId: string) {
-    return stripeEventDedupeService.isEventProcessed(eventId);
+    return stripeEventDedupeService.isEventProcessed(eventId)
   },
   async markEventProcessed(eventId: string) {
-    return stripeEventDedupeService.markEventProcessed(eventId);
+    return stripeEventDedupeService.markEventProcessed(eventId)
   },
   async completeEventProcessed(eventId: string) {
-    await stripeEventDedupeService.completeEventProcessed(eventId);
+    await stripeEventDedupeService.completeEventProcessed(eventId)
   },
   async unmarkEventProcessed(eventId: string) {
-    await stripeEventDedupeService.unmarkEventProcessed(eventId);
+    await stripeEventDedupeService.unmarkEventProcessed(eventId)
   },
   async expireProcessingClaim(eventId: string) {
-    await stripeEventDedupeService.expireProcessingClaim(eventId);
+    await stripeEventDedupeService.expireProcessingClaim(eventId)
   },
   async getLastProcessedChargeRefundTotal(chargeId: string) {
-    return creditService.getLastProcessedChargeRefundTotal(chargeId);
+    return creditService.getLastProcessedChargeRefundTotal(chargeId)
   },
-};
+}
 
-type StripeExpandableId = string | {id?: string} | null | undefined;
+type StripeExpandableId = string | { id?: string } | null | undefined
 type StripePriceIds = {
-  monthly20: string;
-  monthly50: string;
-  creditPack: string;
-};
+  monthly20: string
+  monthly50: string
+  creditPack: string
+}
 
-type StripeWebhookRequest = Request & {rawBody: Buffer};
+type StripeWebhookRequest = Request & { rawBody: Buffer }
 
 // Stripe SDK v22 removed current_period_end from its types (present at runtime).
-type StripeSubRuntime = { deleted?: boolean; current_period_end?: number };
+type StripeSubRuntime = { deleted?: boolean; current_period_end?: number }
 
 function getStripeId(value: StripeExpandableId): string | null {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (typeof value === "object" && typeof value.id === "string") return value.id;
-  return null;
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && typeof value.id === 'string') return value.id
+  return null
 }
 
 function getRequiredStripePriceIds(): StripePriceIds {
-  const {monthly20, monthly50, creditPack} = getStripePriceIds();
-  const missing: string[] = [];
+  const { monthly20, monthly50, creditPack } = getStripePriceIds()
+  const missing: string[] = []
 
-  if (!monthly20) missing.push("STRIPE_MONTHLY_20_PRICE_ID");
-  if (!monthly50) missing.push("STRIPE_MONTHLY_50_PRICE_ID");
-  if (!creditPack) missing.push("STRIPE_CREDIT_PACK_PRICE_ID");
+  if (!monthly20) missing.push('STRIPE_MONTHLY_20_PRICE_ID')
+  if (!monthly50) missing.push('STRIPE_MONTHLY_50_PRICE_ID')
+  if (!creditPack) missing.push('STRIPE_CREDIT_PACK_PRICE_ID')
 
   if (missing.length > 0) {
-    logger.error("Missing Stripe price ID configuration", {missing});
-    throw new Error(`Missing required Stripe price IDs: ${missing.join(", ")}`);
+    logger.error('Missing Stripe price ID configuration', { missing })
+    throw new Error(`Missing required Stripe price IDs: ${missing.join(', ')}`)
   }
 
   return {
     monthly20: monthly20 as string,
     monthly50: monthly50 as string,
     creditPack: creditPack as string,
-  };
+  }
 }
 
 function getTierByPriceId(
   priceId: string,
-  priceIds: StripePriceIds
-): "monthly_20" | "monthly_50" | undefined {
-  const {monthly20, monthly50} = priceIds;
-  if (priceId === monthly20) return "monthly_20";
-  if (priceId === monthly50) return "monthly_50";
-  return undefined;
+  priceIds: StripePriceIds,
+): 'monthly_20' | 'monthly_50' | undefined {
+  const { monthly20, monthly50 } = priceIds
+  if (priceId === monthly20) return 'monthly_20'
+  if (priceId === monthly50) return 'monthly_50'
+  return undefined
 }
 
 function isCreditPackPriceId(priceId: string | undefined, priceIds: StripePriceIds): boolean {
-  if (!priceId) return false;
-  const {creditPack} = priceIds;
-  return priceId === creditPack;
+  if (!priceId) return false
+  const { creditPack } = priceIds
+  return priceId === creditPack
 }
 
 export function getInvoiceLineItemPriceId(item: Stripe.InvoiceLineItem): string | undefined {
-  const priceRef = item.pricing?.price_details?.price;
-  if (typeof priceRef === "string") {
-    return priceRef;
+  const priceRef = item.pricing?.price_details?.price
+  if (typeof priceRef === 'string') {
+    return priceRef
   }
-  return priceRef?.id;
+  return priceRef?.id
 }
 
 export function getCreditPackQuantityFromInvoice(
   invoice: Stripe.Invoice,
-  priceIds: StripePriceIds
+  priceIds: StripePriceIds,
 ): number {
-  let quantity = 0;
+  let quantity = 0
   for (const item of invoice.lines.data) {
-    const priceId = getInvoiceLineItemPriceId(item);
+    const priceId = getInvoiceLineItemPriceId(item)
     if (isCreditPackPriceId(priceId, priceIds)) {
-      quantity += item.quantity ?? 1;
+      quantity += item.quantity ?? 1
     }
   }
-  return quantity;
+  return quantity
 }
 
 function getStripeClient(): Stripe {
   if (stripeClientFactoryForTests) {
-    return stripeClientFactoryForTests();
+    return stripeClientFactoryForTests()
   }
-  const secretKey = validateAndNormalizeStripeSecretKey(process.env.STRIPE_SECRET_KEY);
+  const secretKey = validateAndNormalizeStripeSecretKey(process.env.STRIPE_SECRET_KEY)
 
-  return new Stripe(secretKey);
+  return new Stripe(secretKey)
 }
 
-let stripeClientFactoryForTests: (() => Stripe) | null = null;
+let stripeClientFactoryForTests: (() => Stripe) | null = null
 
 export function setStripeClientFactoryForTests(factory: (() => Stripe) | null): void {
-  stripeClientFactoryForTests = factory;
+  stripeClientFactoryForTests = factory
 }
 
-export function mapStripeSubscriptionStatus(status: Stripe.Subscription.Status):
-"active" | "cancelled" | "expired" {
+export function mapStripeSubscriptionStatus(
+  status: Stripe.Subscription.Status,
+): 'active' | 'cancelled' | 'expired' {
   switch (status) {
-  case "active":
-  case "trialing":
-  case "past_due":
-  case "unpaid":
-  case "incomplete":
-    return "active";
-  case "canceled":
-    return "cancelled";
-  case "incomplete_expired":
-  case "paused":
-    return "expired";
-  default:
-    logger.warn("customer.subscription.updated: unknown Stripe status", {status});
-    return "active";
+    case 'active':
+    case 'trialing':
+    case 'past_due':
+    case 'unpaid':
+    case 'incomplete':
+      return 'active'
+    case 'canceled':
+      return 'cancelled'
+    case 'incomplete_expired':
+    case 'paused':
+      return 'expired'
+    default:
+      logger.warn('customer.subscription.updated: unknown Stripe status', { status })
+      return 'active'
   }
 }
 
 // Fire a GA4 purchase event from Stripe data. Never throws (isolation) and never guesses revenue.
 async function emitStripePurchase(
   deps: StripeWebhookDeps,
-  params: {firebaseUid?: string; transactionId: string; valueMinorUnits: number; currency: string; items: Array<{item_id: string; item_name: string}>}
+  params: {
+    firebaseUid?: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+    items: Array<{ item_id: string; item_name: string }>
+  },
 ): Promise<void> {
   if (!params.firebaseUid) {
-    logger.warn("Stripe: missing firebaseUid, skipping GA4 purchase event", {transactionId: params.transactionId});
-    return;
+    logger.warn('Stripe: missing firebaseUid, skipping GA4 purchase event', {
+      transactionId: params.transactionId,
+    })
+    return
   }
   try {
     await deps.sendPurchaseEvent({
@@ -234,22 +303,32 @@ async function emitStripePurchase(
       transactionId: params.transactionId,
       valueMinorUnits: params.valueMinorUnits,
       currency: params.currency,
-      paymentProvider: "stripe",
+      paymentProvider: 'stripe',
       items: params.items,
-    });
+    })
   } catch (err) {
-    logger.error("Stripe: GA4 purchase emission failed (ignored)", {err, transactionId: params.transactionId});
+    logger.error('Stripe: GA4 purchase emission failed (ignored)', {
+      err,
+      transactionId: params.transactionId,
+    })
   }
 }
 
 // Fire a GA4 refund event from Stripe data. Never throws (isolation) and never guesses revenue.
 async function emitStripeRefund(
   deps: StripeWebhookDeps,
-  params: {firebaseUid?: string; transactionId: string; valueMinorUnits: number; currency: string}
+  params: {
+    firebaseUid?: string
+    transactionId: string
+    valueMinorUnits: number
+    currency: string
+  },
 ): Promise<void> {
   if (!params.firebaseUid) {
-    logger.warn("Stripe: missing firebaseUid, skipping GA4 refund event", {transactionId: params.transactionId});
-    return;
+    logger.warn('Stripe: missing firebaseUid, skipping GA4 refund event', {
+      transactionId: params.transactionId,
+    })
+    return
   }
   try {
     await deps.sendRefundEvent({
@@ -257,10 +336,13 @@ async function emitStripeRefund(
       transactionId: params.transactionId,
       valueMinorUnits: params.valueMinorUnits,
       currency: params.currency,
-      paymentProvider: "stripe",
-    });
+      paymentProvider: 'stripe',
+    })
   } catch (err) {
-    logger.error("Stripe: GA4 refund emission failed (ignored)", {err, transactionId: params.transactionId});
+    logger.error('Stripe: GA4 refund emission failed (ignored)', {
+      err,
+      transactionId: params.transactionId,
+    })
   }
 }
 
@@ -268,283 +350,292 @@ async function resolveUserForStripeCustomer(
   customer: Stripe.Customer | Stripe.DeletedCustomer,
   customerId: string,
   deps: StripeWebhookDeps,
-  context: string
+  context: string,
 ): Promise<UserLookup | null> {
   if (customer.deleted) {
-    logger.warn(`${context}: customer deleted; falling back to stored customer id`, {customerId});
-    return deps.findUserByStripeCustomerId(customerId);
+    logger.warn(`${context}: customer deleted; falling back to stored customer id`, { customerId })
+    return deps.findUserByStripeCustomerId(customerId)
   }
 
-  let user = await deps.findUserByStripeCustomerId(customerId);
+  let user = await deps.findUserByStripeCustomerId(customerId)
 
   if (!user) {
     if (customer.email) {
-      user = await deps.findUserByEmail(customer.email);
+      user = await deps.findUserByEmail(customer.email)
     }
 
     if (!user) {
-      const firebaseUid = typeof customer.metadata?.firebase_uid === "string" ? customer.metadata.firebase_uid : undefined;
+      const firebaseUid =
+        typeof customer.metadata?.firebase_uid === 'string'
+          ? customer.metadata.firebase_uid
+          : undefined
       if (firebaseUid) {
-        user = await deps.findUserByFirebaseUid(firebaseUid);
+        user = await deps.findUserByFirebaseUid(firebaseUid)
       }
     }
   }
 
-  return user;
+  return user
 }
 
 export const stripeWebhookHandler = async (
   req: StripeWebhookRequest,
   res: Response,
-  deps: StripeWebhookDeps = defaultDeps
+  deps: StripeWebhookDeps = defaultDeps,
 ) => {
-  if (req.method !== "POST") {
-    res.status(405).send("Method Not Allowed");
-    return;
+  if (req.method !== 'POST') {
+    res.status(405).send('Method Not Allowed')
+    return
   }
 
   // Trim to defend against stray whitespace/newlines in the Secret Manager
   // value (an incident where the stored secret had a trailing newline made
   // Stripe reject every event with a signature-verification error).
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim()
   if (!webhookSecret) {
-    logger.error("STRIPE_WEBHOOK_SECRET is not configured");
-    res.status(500).send("Webhook secret not configured");
-    return;
+    logger.error('STRIPE_WEBHOOK_SECRET is not configured')
+    res.status(500).send('Webhook secret not configured')
+    return
   }
 
-  const rawSig = req.headers["stripe-signature"];
-  if (typeof rawSig !== "string" || rawSig.trim().length === 0) {
-    logger.warn("Missing or invalid stripe-signature header", {
-      headerType: Array.isArray(rawSig) ? "array" : typeof rawSig,
-    });
-    res.status(400).send("Missing or invalid Stripe signature header");
-    return;
+  const rawSig = req.headers['stripe-signature']
+  if (typeof rawSig !== 'string' || rawSig.trim().length === 0) {
+    logger.warn('Missing or invalid stripe-signature header', {
+      headerType: Array.isArray(rawSig) ? 'array' : typeof rawSig,
+    })
+    res.status(400).send('Missing or invalid Stripe signature header')
+    return
   }
-  const sig = rawSig.trim();
+  const sig = rawSig.trim()
 
-  let stripe: Stripe;
+  let stripe: Stripe
   try {
-    stripe = getStripeClient();
+    stripe = getStripeClient()
   } catch (err) {
-    logger.error("STRIPE_SECRET_KEY is not configured", {err});
-    res.status(500).send("Stripe configuration error");
-    return;
+    logger.error('STRIPE_SECRET_KEY is not configured', { err })
+    res.status(500).send('Stripe configuration error')
+    return
   }
 
-  let event: Stripe.Event;
+  let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(
-      req.rawBody,
-      sig,
-      webhookSecret
-    );
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret)
   } catch (err) {
-    logger.warn("Stripe signature verification failed", {err});
-    res.status(400).send("Webhook signature verification failed");
-    return;
+    logger.warn('Stripe signature verification failed', { err })
+    res.status(400).send('Webhook signature verification failed')
+    return
   }
 
-  logger.info("Received Stripe event", {type: event.type, id: event.id});
+  logger.info('Received Stripe event', { type: event.type, id: event.id })
 
-  const isNewEvent = await deps.markEventProcessed(event.id);
+  const isNewEvent = await deps.markEventProcessed(event.id)
   if (!isNewEvent) {
-    logger.info("Stripe event already processed, skipping", {type: event.type, id: event.id});
-    res.status(200).json({received: true});
-    return;
+    logger.info('Stripe event already processed, skipping', { type: event.type, id: event.id })
+    res.status(200).json({ received: true })
+    return
   }
 
   try {
-    const priceIds = getRequiredStripePriceIds();
+    const priceIds = getRequiredStripePriceIds()
 
     switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      await handleCheckoutCompleted(stripe, session, priceIds, deps);
-      break;
-    }
-    case "customer.subscription.updated": {
-      const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionUpdated(sub, stripe, priceIds, deps);
-      break;
-    }
-    case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
-      await handleSubscriptionDeleted(sub, stripe, deps);
-      break;
-    }
-    case "invoice.payment_succeeded": {
-      const invoice = event.data.object as Stripe.Invoice;
-      await handleInvoicePaymentSucceeded(stripe, invoice, priceIds, deps);
-      break;
-    }
-    case "charge.refunded": {
-      const charge = event.data.object as Stripe.Charge;
-      await handleChargeRefunded(stripe, charge, priceIds, deps);
-      break;
-    }
-    default:
-      logger.info("Unhandled Stripe event type", {type: event.type});
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        await handleCheckoutCompleted(stripe, session, priceIds, deps)
+        break
+      }
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription
+        await handleSubscriptionUpdated(sub, stripe, priceIds, deps)
+        break
+      }
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object as Stripe.Subscription
+        await handleSubscriptionDeleted(sub, stripe, deps)
+        break
+      }
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice
+        await handleInvoicePaymentSucceeded(stripe, invoice, priceIds, deps)
+        break
+      }
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        await handleChargeRefunded(stripe, charge, priceIds, deps)
+        break
+      }
+      default:
+        logger.info('Unhandled Stripe event type', { type: event.type })
     }
 
-    await deps.completeEventProcessed(event.id);
-    res.status(200).json({received: true});
+    await deps.completeEventProcessed(event.id)
+    res.status(200).json({ received: true })
   } catch (err) {
     try {
-      await deps.unmarkEventProcessed(event.id);
+      await deps.unmarkEventProcessed(event.id)
     } catch (unmarkErr) {
-      logger.error("Failed to unmark Stripe event after processing error; expiring claim for retry", {
-        eventId: event.id,
-        err: unmarkErr,
-      });
+      logger.error(
+        'Failed to unmark Stripe event after processing error; expiring claim for retry',
+        {
+          eventId: event.id,
+          err: unmarkErr,
+        },
+      )
       try {
-        await deps.expireProcessingClaim(event.id);
+        await deps.expireProcessingClaim(event.id)
       } catch (expireErr) {
-        logger.error("Failed to expire Stripe event claim after unmark failure", {
+        logger.error('Failed to expire Stripe event claim after unmark failure', {
           eventId: event.id,
           err: expireErr,
-        });
+        })
       }
     }
-    logger.error("Error processing Stripe webhook", {err, eventType: event.type});
+    logger.error('Error processing Stripe webhook', { err, eventType: event.type })
     // Return a non-2xx status for unexpected processing failures so Stripe retries.
-    res.status(500).json({received: false, error: "Processing error logged"});
+    res.status(500).json({ received: false, error: 'Processing error logged' })
   }
-};
+}
 
 export const stripeWebhook = onRequest(
   {
-    region: "us-central1",
-    invoker: "public",
+    region: 'us-central1',
+    invoker: 'public',
     secrets: [
       ...CLOUD_SQL_SECRETS,
-      "STRIPE_SECRET_KEY",
-      "STRIPE_WEBHOOK_SECRET",
-      "GA4_MEASUREMENT_ID",
-      "GA4_MP_API_SECRET",
-    ]
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'GA4_MEASUREMENT_ID',
+      'GA4_MP_API_SECRET',
+    ],
   },
-  stripeWebhookHandler
-);
+  stripeWebhookHandler,
+)
 
 export async function handleCheckoutCompleted(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
 ): Promise<void> {
-  const customerEmail = session.customer_details?.email ?? session.customer_email;
+  const customerEmail = session.customer_details?.email ?? session.customer_email
 
   // Primary lookup: by email
-  let user = customerEmail
-    ? await deps.findUserByEmail(customerEmail)
-    : null;
+  let user = customerEmail ? await deps.findUserByEmail(customerEmail) : null
 
   // Fallback: resolve via Firebase UID set in client_reference_id
   if (!user && session.client_reference_id) {
-    user = await deps.findUserByFirebaseUid(session.client_reference_id);
+    user = await deps.findUserByFirebaseUid(session.client_reference_id)
   }
 
   if (!user) {
-    logger.warn("checkout.session.completed: Cloud SQL user not found", {
+    logger.warn('checkout.session.completed: Cloud SQL user not found', {
       customerEmail,
       clientReferenceId: session.client_reference_id,
-    });
-    return;
+    })
+    return
   }
 
   // Expand line items to get price IDs
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {limit: 10});
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 })
 
-  let totalCreditPackQty = 0;
-  let creditPackValueMinorUnits = 0;
+  let totalCreditPackQty = 0
+  let creditPackValueMinorUnits = 0
   for (const item of lineItems.data) {
-    const priceId = item.price?.id;
-    if (!priceId) continue;
+    const priceId = item.price?.id
+    if (!priceId) continue
 
-    const tier = getTierByPriceId(priceId, priceIds);
+    const tier = getTierByPriceId(priceId, priceIds)
     if (tier) {
       // Subscription product → upsert subscription row
-      const subscriptionId = getStripeId(session.subscription as StripeExpandableId);
-      const customerId = getStripeId(session.customer as StripeExpandableId);
+      const subscriptionId = getStripeId(session.subscription as StripeExpandableId)
+      const customerId = getStripeId(session.customer as StripeExpandableId)
       await deps.upsertSubscription({
         userId: user.id,
         planTier: tier,
-        planStatus: "active",
+        planStatus: 'active',
         stripeSubscriptionId: subscriptionId,
         stripeCustomerId: customerId,
-        subscriptionProvider: "stripe",
+        subscriptionProvider: 'stripe',
         cancelAtPeriodEnd: false,
-      });
+      })
 
       if (subscriptionId) {
-        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-        const stripeSubRuntime = stripeSub as unknown as StripeSubRuntime;
+        const stripeSub = await stripe.subscriptions.retrieve(subscriptionId)
+        const stripeSubRuntime = stripeSub as unknown as StripeSubRuntime
         if (stripeSubRuntime.deleted === true) {
-          logger.warn("checkout.session.completed: subscription already deleted", {subscriptionId});
+          logger.warn('checkout.session.completed: subscription already deleted', {
+            subscriptionId,
+          })
         } else {
           // current_period_end is present at runtime but removed from Stripe SDK v22 types.
-          const periodEnd = stripeSubRuntime.current_period_end;
+          const periodEnd = stripeSubRuntime.current_period_end
           if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
-            const cycleEnd = new Date(periodEnd * 1000);
-            const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-            const granted = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, cycleEnd, referenceId);
+            const cycleEnd = new Date(periodEnd * 1000)
+            const referenceId = `sub_${subscriptionId}_${periodEnd}`
+            const granted = await deps.renewSubscriptionCredits(
+              user.id,
+              SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+              cycleEnd,
+              referenceId,
+            )
             logger.info(
               granted
-                ? "checkout.session.completed: subscription credits granted"
-                : "checkout.session.completed: subscription credits already granted (idempotent)",
-              { subscriptionId }
-            );
+                ? 'checkout.session.completed: subscription credits granted'
+                : 'checkout.session.completed: subscription credits already granted (idempotent)',
+              { subscriptionId },
+            )
           } else {
-            logger.warn("checkout.session.completed: missing or invalid current_period_end", {subscriptionId});
+            logger.warn('checkout.session.completed: missing or invalid current_period_end', {
+              subscriptionId,
+            })
           }
         }
       }
 
-      logger.info("checkout.session.completed: subscription upserted", {
+      logger.info('checkout.session.completed: subscription upserted', {
         email: customerEmail,
         tier,
-      });
+      })
     } else if (isCreditPackPriceId(priceId, priceIds)) {
-      totalCreditPackQty += item.quantity ?? 1;
-      creditPackValueMinorUnits += item.amount_total ?? 0;
+      totalCreditPackQty += item.quantity ?? 1
+      creditPackValueMinorUnits += item.amount_total ?? 0
     }
   }
 
   if (totalCreditPackQty > 0) {
-    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
+    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS)
     await deps.addCredits(
       user.id,
       CREDIT_PACK_AMOUNT * totalCreditPackQty,
       expiresAt,
       'one_time',
-      session.id
-    );
-    logger.info("checkout.session.completed: credits added", {
+      session.id,
+    )
+    logger.info('checkout.session.completed: credits added', {
       email: customerEmail,
       credits: CREDIT_PACK_AMOUNT * totalCreditPackQty,
-    });
+    })
 
     if (user.firebaseUid) {
-      const currency = session.currency;
+      const currency = session.currency
 
       if (!currency) {
-        logger.warn("checkout.session.completed: missing currency, skipping GA4 purchase event", {
+        logger.warn('checkout.session.completed: missing currency, skipping GA4 purchase event', {
           sessionId: session.id,
-        });
+        })
       } else {
         await deps.sendPurchaseEvent({
           firebaseUid: user.firebaseUid,
           transactionId: session.id,
           valueMinorUnits: creditPackValueMinorUnits,
           currency,
-          paymentProvider: "stripe",
-        });
+          paymentProvider: 'stripe',
+        })
       }
     } else {
-      logger.warn("checkout.session.completed: missing firebaseUid, skipping GA4 purchase event", {
+      logger.warn('checkout.session.completed: missing firebaseUid, skipping GA4 purchase event', {
         sessionId: session.id,
-      });
+      })
     }
   }
 }
@@ -553,32 +644,40 @@ export async function handleSubscriptionUpdated(
   sub: Stripe.Subscription,
   stripe: Stripe,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
 ): Promise<void> {
-  const customerId = getStripeId(sub.customer as StripeExpandableId);
+  const customerId = getStripeId(sub.customer as StripeExpandableId)
   if (!customerId) {
-    logger.warn("customer.subscription.updated: missing customer id", {subId: sub.id});
-    return;
+    logger.warn('customer.subscription.updated: missing customer id', { subId: sub.id })
+    return
   }
   // Get price ID from the first subscription item
-  const priceId = sub.items.data[0]?.price?.id;
-  if (!priceId) return;
+  const priceId = sub.items.data[0]?.price?.id
+  if (!priceId) return
 
-  const tier = getTierByPriceId(priceId, priceIds);
+  const tier = getTierByPriceId(priceId, priceIds)
   if (!tier) {
-    logger.info("customer.subscription.updated: unknown price, skipping", {priceId});
-    return;
+    logger.info('customer.subscription.updated: unknown price, skipping', { priceId })
+    return
   }
 
-  const customer = await stripe.customers.retrieve(customerId);
-  const user = await resolveUserForStripeCustomer(customer, customerId, deps, "customer.subscription.updated");
+  const customer = await stripe.customers.retrieve(customerId)
+  const user = await resolveUserForStripeCustomer(
+    customer,
+    customerId,
+    deps,
+    'customer.subscription.updated',
+  )
 
   if (!user) {
-    logger.warn("customer.subscription.updated: unable to resolve user via email, metadata, or stored customer id", {customerId});
-    return;
+    logger.warn(
+      'customer.subscription.updated: unable to resolve user via email, metadata, or stored customer id',
+      { customerId },
+    )
+    return
   }
 
-  const planStatus = mapStripeSubscriptionStatus(sub.status);
+  const planStatus = mapStripeSubscriptionStatus(sub.status)
 
   await deps.upsertSubscription({
     userId: user.id,
@@ -586,32 +685,38 @@ export async function handleSubscriptionUpdated(
     planStatus,
     stripeSubscriptionId: sub.id,
     stripeCustomerId: customerId,
-    subscriptionProvider: "stripe",
-    cancelAtPeriodEnd: (sub as unknown as {cancel_at_period_end?: boolean}).cancel_at_period_end ?? false,
-  });
+    subscriptionProvider: 'stripe',
+    cancelAtPeriodEnd:
+      (sub as unknown as { cancel_at_period_end?: boolean }).cancel_at_period_end ?? false,
+  })
 
-  logger.info("customer.subscription.updated: subscription synced", {
+  logger.info('customer.subscription.updated: subscription synced', {
     userId: user.id,
     customerId,
     tier,
     planStatus,
-  });
+  })
 
   // Grant credits only for active renewals. The referenceId is keyed on
   // sub_id + period_end so invoice.payment_succeeded fallback stays idempotent.
   // current_period_end is present at runtime but removed from Stripe SDK v22 types.
   if (planStatus === 'active') {
-    const periodEnd = (sub as unknown as StripeSubRuntime).current_period_end;
+    const periodEnd = (sub as unknown as StripeSubRuntime).current_period_end
     if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
-      const cycleEnd = new Date(periodEnd * 1000);
-      const referenceId = `sub_${sub.id}_${periodEnd}`;
-      const renewed = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, cycleEnd, referenceId);
+      const cycleEnd = new Date(periodEnd * 1000)
+      const referenceId = `sub_${sub.id}_${periodEnd}`
+      const renewed = await deps.renewSubscriptionCredits(
+        user.id,
+        SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+        cycleEnd,
+        referenceId,
+      )
       logger.info(
         renewed
-          ? "customer.subscription.updated: subscription credits renewed"
-          : "customer.subscription.updated: subscription credits already granted (idempotent)",
-        { userId: user.id, customerId, tier }
-      );
+          ? 'customer.subscription.updated: subscription credits renewed'
+          : 'customer.subscription.updated: subscription credits already granted (idempotent)',
+        { userId: user.id, customerId, tier },
+      )
     }
   }
 }
@@ -619,67 +724,82 @@ export async function handleSubscriptionUpdated(
 export async function handleSubscriptionDeleted(
   sub: Stripe.Subscription,
   stripe: Stripe,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
 ): Promise<void> {
-  const customerId = getStripeId(sub.customer as StripeExpandableId);
+  const customerId = getStripeId(sub.customer as StripeExpandableId)
   if (!customerId) {
-    logger.warn("customer.subscription.deleted: missing customer id", {subId: sub.id});
-    return;
+    logger.warn('customer.subscription.deleted: missing customer id', { subId: sub.id })
+    return
   }
-  const customer = await stripe.customers.retrieve(customerId);
-  const user = await resolveUserForStripeCustomer(customer, customerId, deps, "customer.subscription.deleted");
+  const customer = await stripe.customers.retrieve(customerId)
+  const user = await resolveUserForStripeCustomer(
+    customer,
+    customerId,
+    deps,
+    'customer.subscription.deleted',
+  )
 
   if (!user) {
-    logger.warn("customer.subscription.deleted: unable to resolve user via email, metadata, or stored customer id", {subId: sub.id, customerId});
-    return;
+    logger.warn(
+      'customer.subscription.deleted: unable to resolve user via email, metadata, or stored customer id',
+      { subId: sub.id, customerId },
+    )
+    return
   }
 
   await deps.upsertSubscription({
     userId: user.id,
-    planTier: "free",
-    planStatus: "cancelled",
+    planTier: 'free',
+    planStatus: 'cancelled',
     stripeSubscriptionId: sub.id,
     stripeCustomerId: customerId,
     subscriptionProvider: null,
     cancelAtPeriodEnd: false,
-  });
+  })
 
-  logger.info("customer.subscription.deleted: subscription cancelled", {
+  logger.info('customer.subscription.deleted: subscription cancelled', {
     userId: user.id,
     customerId,
-  });
+  })
 }
 
 export async function handleInvoicePaymentSucceeded(
   stripe: Stripe,
   invoice: Stripe.Invoice,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
 ): Promise<void> {
-  const customerEmail = invoice.customer_email;
-  if (!customerEmail) return;
+  const customerEmail = invoice.customer_email
+  if (!customerEmail) return
 
-  const user = await deps.findUserByEmail(customerEmail);
-  if (!user) return;
+  const user = await deps.findUserByEmail(customerEmail)
+  if (!user) return
 
-  const subscriptionId = getStripeId(invoice.parent?.subscription_details?.subscription as StripeExpandableId);
+  const subscriptionId = getStripeId(
+    invoice.parent?.subscription_details?.subscription as StripeExpandableId,
+  )
   if (subscriptionId) {
     if (invoice.billing_reason === 'subscription_cycle') {
       // Retrieve the subscription directly for reliable period_end (invoice line order is not stable).
-      const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-      const stripeSubRuntime2 = stripeSub as unknown as StripeSubRuntime;
+      const stripeSub = await stripe.subscriptions.retrieve(subscriptionId)
+      const stripeSubRuntime2 = stripeSub as unknown as StripeSubRuntime
       if (stripeSubRuntime2.deleted !== true) {
-        const periodEnd = stripeSubRuntime2.current_period_end;
+        const periodEnd = stripeSubRuntime2.current_period_end
         if (typeof periodEnd === 'number' && Number.isFinite(periodEnd)) {
           // Use sub_${id}_${periodEnd} so this is idempotent with customer.subscription.updated.
-          const referenceId = `sub_${subscriptionId}_${periodEnd}`;
-          const renewed = await deps.renewSubscriptionCredits(user.id, SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT, new Date(periodEnd * 1000), referenceId);
+          const referenceId = `sub_${subscriptionId}_${periodEnd}`
+          const renewed = await deps.renewSubscriptionCredits(
+            user.id,
+            SUBSCRIPTION_RENEWAL_CREDIT_AMOUNT,
+            new Date(periodEnd * 1000),
+            referenceId,
+          )
           logger.info(
             renewed
               ? 'invoice.payment_succeeded: subscription credits renewed'
               : 'invoice.payment_succeeded: subscription credits already granted (idempotent)',
-            { email: customerEmail, invoiceId: invoice.id }
-          );
+            { email: customerEmail, invoiceId: invoice.id },
+          )
         }
       }
     }
@@ -687,51 +807,56 @@ export async function handleInvoicePaymentSucceeded(
     // B6.1: emit one GA4 purchase per subscription invoice (subscription_create or
     // subscription_cycle) keyed on the invoice, so checkout.session.completed stays
     // credit-pack-only and initial + renewal payments each fire exactly once.
-    if (invoice.billing_reason === 'subscription_create' || invoice.billing_reason === 'subscription_cycle') {
-      const priceId = invoice.lines.data.map(getInvoiceLineItemPriceId).find((id) => id !== undefined);
-      const tier = priceId ? getTierByPriceId(priceId, priceIds) : undefined;
-      const currency = invoice.currency;
+    if (
+      invoice.billing_reason === 'subscription_create' ||
+      invoice.billing_reason === 'subscription_cycle'
+    ) {
+      const priceId = invoice.lines.data
+        .map(getInvoiceLineItemPriceId)
+        .find((id) => id !== undefined)
+      const tier = priceId ? getTierByPriceId(priceId, priceIds) : undefined
+      const currency = invoice.currency
       if (tier && typeof invoice.amount_paid === 'number' && invoice.amount_paid > 0 && currency) {
         await emitStripePurchase(deps, {
           firebaseUid: user.firebaseUid,
           transactionId: invoice.id ?? `${subscriptionId}_${invoice.billing_reason}`,
           valueMinorUnits: invoice.amount_paid,
           currency,
-          items: [{item_id: tier, item_name: tier}],
-        });
+          items: [{ item_id: tier, item_name: tier }],
+        })
       } else {
         logger.warn('invoice.payment_succeeded: insufficient data for GA4 purchase, skipping', {
           invoiceId: invoice.id,
           subscriptionId,
-        });
+        })
       }
     }
-    return;
+    return
   }
 
   // Only handle non-subscription invoices (one-time PAYG credit pack purchases).
   // Aggregate across all matching line items before calling addCredits to avoid
   // hitting the idempotency unique constraint on a shared invoice.id referenceId.
-  let invoiceCreditPackQty = 0;
+  let invoiceCreditPackQty = 0
   for (const item of invoice.lines.data) {
-    const priceId = getInvoiceLineItemPriceId(item);
+    const priceId = getInvoiceLineItemPriceId(item)
     if (isCreditPackPriceId(priceId, priceIds)) {
-      invoiceCreditPackQty += item.quantity ?? 1;
+      invoiceCreditPackQty += item.quantity ?? 1
     }
   }
   if (invoiceCreditPackQty > 0) {
-    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS);
+    const expiresAt = new Date(Date.now() + CREDIT_PACK_EXPIRY_MS)
     await deps.addCredits(
       user.id,
       CREDIT_PACK_AMOUNT * invoiceCreditPackQty,
       expiresAt,
       'one_time',
-      invoice.id
-    );
+      invoice.id,
+    )
     logger.info('invoice.payment_succeeded: credits added', {
       email: customerEmail,
       credits: CREDIT_PACK_AMOUNT * invoiceCreditPackQty,
-    });
+    })
   }
 }
 
@@ -739,94 +864,92 @@ export async function handleChargeRefunded(
   stripe: Stripe,
   charge: Stripe.Charge,
   priceIds: StripePriceIds,
-  deps: StripeWebhookDeps
+  deps: StripeWebhookDeps,
 ): Promise<void> {
-  const customerEmail = charge.billing_details?.email;
+  const customerEmail = charge.billing_details?.email
   if (!customerEmail) {
-    logger.warn("charge.refunded: no customer email", {chargeId: charge.id});
-    return;
+    logger.warn('charge.refunded: no customer email', { chargeId: charge.id })
+    return
   }
 
-  const user = await deps.findUserByEmail(customerEmail);
-  if (!user) return;
+  const user = await deps.findUserByEmail(customerEmail)
+  if (!user) return
 
-  let creditPackQty = 0;
-  let isSubscriptionRefund = false;
-  type ChargeWithInvoice = {invoice?: string | {id: string}};
-  const invoiceRef = (charge as unknown as ChargeWithInvoice).invoice;
+  let creditPackQty = 0
+  let isSubscriptionRefund = false
+  type ChargeWithInvoice = { invoice?: string | { id: string } }
+  const invoiceRef = (charge as unknown as ChargeWithInvoice).invoice
 
   if (invoiceRef) {
-    const invoiceId = typeof invoiceRef === "string" ? invoiceRef : invoiceRef.id;
-    const invoice = await stripe.invoices.retrieve(invoiceId);
-    isSubscriptionRefund = !!invoice.parent?.subscription_details?.subscription;
-    creditPackQty = getCreditPackQuantityFromInvoice(invoice, priceIds);
+    const invoiceId = typeof invoiceRef === 'string' ? invoiceRef : invoiceRef.id
+    const invoice = await stripe.invoices.retrieve(invoiceId)
+    isSubscriptionRefund = !!invoice.parent?.subscription_details?.subscription
+    creditPackQty = getCreditPackQuantityFromInvoice(invoice, priceIds)
   }
 
   // Backward-compatible fallback for older charges that may have metadata set directly.
   if (creditPackQty === 0 && isCreditPackPriceId(charge.metadata?.price_id, priceIds)) {
-    creditPackQty = Number(charge.metadata?.quantity ?? 1);
+    creditPackQty = Number(charge.metadata?.quantity ?? 1)
   }
 
   if (creditPackQty > 0) {
-    const previouslyRefunded = await deps.getLastProcessedChargeRefundTotal(charge.id);
-    const deltaRefunded = charge.amount_refunded - previouslyRefunded;
+    const previouslyRefunded = await deps.getLastProcessedChargeRefundTotal(charge.id)
+    const deltaRefunded = charge.amount_refunded - previouslyRefunded
     if (deltaRefunded <= 0) {
-      logger.info("charge.refunded: no new refund amount to process", {
+      logger.info('charge.refunded: no new refund amount to process', {
         chargeId: charge.id,
         amountRefunded: charge.amount_refunded,
         previouslyRefunded,
-      });
-      return;
+      })
+      return
     }
 
-    const totalCredits = CREDIT_PACK_AMOUNT * creditPackQty;
-    const targetTotalDeduction = charge.amount > 0
-      ? Math.floor(totalCredits * (charge.amount_refunded / charge.amount))
-      : 0;
-    const previousTargetDeduction = charge.amount > 0
-      ? Math.floor(totalCredits * (previouslyRefunded / charge.amount))
-      : 0;
-    const creditsToDeduct = targetTotalDeduction - previousTargetDeduction;
+    const totalCredits = CREDIT_PACK_AMOUNT * creditPackQty
+    const targetTotalDeduction =
+      charge.amount > 0 ? Math.floor(totalCredits * (charge.amount_refunded / charge.amount)) : 0
+    const previousTargetDeduction =
+      charge.amount > 0 ? Math.floor(totalCredits * (previouslyRefunded / charge.amount)) : 0
+    const creditsToDeduct = targetTotalDeduction - previousTargetDeduction
     if (creditsToDeduct > 0) {
       await deps.adjustCredits(
         user.id,
         -creditsToDeduct,
-        "stripe_refund",
-        `${charge.id}_${charge.amount_refunded}`
-      );
-      logger.info("charge.refunded: credits deducted", {
+        'stripe_refund',
+        `${charge.id}_${charge.amount_refunded}`,
+      )
+      logger.info('charge.refunded: credits deducted', {
         chargeId: charge.id,
         credits: creditsToDeduct,
         amountRefunded: charge.amount_refunded,
-      });
+      })
     }
     await emitStripeRefund(deps, {
       firebaseUid: user.firebaseUid,
       transactionId: `${charge.id}_${charge.amount_refunded}`,
       valueMinorUnits: deltaRefunded,
       currency: charge.currency,
-    });
+    })
   } else if (isSubscriptionRefund) {
     // For subscription refunds, cancel the subscription
     await deps.upsertSubscription({
       userId: user.id,
-      planTier: "free",
-      planStatus: "cancelled",
+      planTier: 'free',
+      planStatus: 'cancelled',
       subscriptionProvider: null,
       cancelAtPeriodEnd: false,
-    });
-    logger.info("charge.refunded: subscription cancelled", {userId: user.id, chargeId: charge.id});
+    })
+    logger.info('charge.refunded: subscription cancelled', { userId: user.id, chargeId: charge.id })
     await emitStripeRefund(deps, {
       firebaseUid: user.firebaseUid,
       transactionId: charge.id,
       valueMinorUnits: charge.amount_refunded,
       currency: charge.currency,
-    });
+    })
   } else {
-    logger.warn("charge.refunded: unable to classify refund", {
+    logger.warn('charge.refunded: unable to classify refund', {
       email: customerEmail,
       chargeId: charge.id,
-      invoice: typeof invoiceRef === "string" ? invoiceRef : invoiceRef?.id,
-    });
+      invoice: typeof invoiceRef === 'string' ? invoiceRef : invoiceRef?.id,
+    })
   }
 }

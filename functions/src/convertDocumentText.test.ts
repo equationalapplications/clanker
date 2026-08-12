@@ -1,30 +1,38 @@
-import assert from 'node:assert/strict';
-import { describe, it, test } from 'node:test';
-import { HttpsError } from 'firebase-functions/v2/https';
-import { __setGenAIClientForTests } from './services/vertexText.js';
-import { defaultGenerateFromGeminiForTests } from './convertDocumentText.js';
+import assert from 'node:assert/strict'
+import { describe, it, test } from 'node:test'
+import { HttpsError } from 'firebase-functions/v2/https'
+import { __setGenAIClientForTests } from './services/vertexText.js'
+import { defaultGenerateFromGeminiForTests } from './convertDocumentText.js'
 
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = 'test'
 
-const { convertDocumentTextHandler, convertDocumentText } = await import('./convertDocumentText.js');
+const { convertDocumentTextHandler, convertDocumentText } = await import('./convertDocumentText.js')
 
 function makeRequest(data: unknown, uid = 'uid-1') {
   return {
     auth: { uid, token: { uid, email: 'test@example.com', name: 'Test User' } },
     data,
     rawRequest: {},
-  } as never;
+  } as never
 }
 
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const VALID_BASE64 = Buffer.from('hello world').toString('base64');
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const VALID_BASE64 = Buffer.from('hello world').toString('base64')
 
-function makeDeps(options: {
-  spendCreditsImpl?: (userId: string, amount: number) => Promise<import('./services/creditService.js').CreditSpendAllocation[] | null>;
-  refundCreditImpl?: (userId: string, allocations: import('./services/creditService.js').CreditSpendAllocation[]) => Promise<void>;
-  convertDocxImpl?: (buffer: Buffer) => Promise<string>;
-  generateFromGeminiImpl?: (mimeType: string, base64: string) => Promise<string>;
-} = {}) {
+function makeDeps(
+  options: {
+    spendCreditsImpl?: (
+      userId: string,
+      amount: number,
+    ) => Promise<import('./services/creditService.js').CreditSpendAllocation[] | null>
+    refundCreditImpl?: (
+      userId: string,
+      allocations: import('./services/creditService.js').CreditSpendAllocation[],
+    ) => Promise<void>
+    convertDocxImpl?: (buffer: Buffer) => Promise<string>
+    generateFromGeminiImpl?: (mimeType: string, base64: string) => Promise<string>
+  } = {},
+) {
   return {
     userRepository: {
       getOrCreateUserByFirebaseIdentity: async () => ({
@@ -40,21 +48,26 @@ function makeDeps(options: {
       }),
     },
     creditService: {
-      spendCredits: options.spendCreditsImpl ?? (async () => [{ transactionId: 'mock-tx-id', amount: 1 }]),
+      spendCredits:
+        options.spendCreditsImpl ?? (async () => [{ transactionId: 'mock-tx-id', amount: 1 }]),
       refundCredit: options.refundCreditImpl ?? (async () => {}),
     },
     convertDocx: options.convertDocxImpl ?? (async () => 'Converted docx text.'),
     generateFromGemini: options.generateFromGeminiImpl ?? (async () => 'Converted gemini text.'),
-  };
+  }
 }
 
 describe('convertDocumentTextHandler', () => {
   it('rejects unauthenticated requests', async () => {
     await assert.rejects(
-      () => convertDocumentTextHandler({ auth: null, data: {}, rawRequest: {} } as never, makeDeps() as never),
+      () =>
+        convertDocumentTextHandler(
+          { auth: null, data: {}, rawRequest: {} } as never,
+          makeDeps() as never,
+        ),
       (e: unknown) => e instanceof HttpsError && e.code === 'unauthenticated',
-    );
-  });
+    )
+  })
 
   it('rejects token UID mismatch', async () => {
     await assert.rejects(
@@ -68,8 +81,8 @@ describe('convertDocumentTextHandler', () => {
           makeDeps() as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'unauthenticated',
-    );
-  });
+    )
+  })
 
   it('accepts missing token email by falling back to empty string', async () => {
     const result = await convertDocumentTextHandler(
@@ -79,9 +92,9 @@ describe('convertDocumentTextHandler', () => {
         rawRequest: {},
       } as never,
       makeDeps() as never,
-    );
-    assert.ok(typeof result.text === 'string');
-  });
+    )
+    assert.ok(typeof result.text === 'string')
+  })
 
   it('rejects missing filename', async () => {
     await assert.rejects(
@@ -91,8 +104,8 @@ describe('convertDocumentTextHandler', () => {
           makeDeps() as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
-    );
-  });
+    )
+  })
 
   it('rejects unsupported mime type', async () => {
     await assert.rejects(
@@ -102,11 +115,11 @@ describe('convertDocumentTextHandler', () => {
           makeDeps() as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
-    );
-  });
+    )
+  })
 
   it('rejects contentBase64 exceeding size cap', async () => {
-    const oversize = 'A'.repeat(12_000_001);
+    const oversize = 'A'.repeat(12_000_001)
     await assert.rejects(
       () =>
         convertDocumentTextHandler(
@@ -114,8 +127,8 @@ describe('convertDocumentTextHandler', () => {
           makeDeps() as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
-    );
-  });
+    )
+  })
 
   it('rejects malformed base64', async () => {
     await assert.rejects(
@@ -125,28 +138,28 @@ describe('convertDocumentTextHandler', () => {
           makeDeps() as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
-    );
-  });
+    )
+  })
 
   it('does not charge credits when validation fails', async () => {
-    let spendCalled = false;
+    let spendCalled = false
     const deps = makeDeps({
       spendCreditsImpl: async () => {
-        spendCalled = true;
-        return [{ transactionId: 'tx', amount: 1 }];
+        spendCalled = true
+        return [{ transactionId: 'tx', amount: 1 }]
       },
-    });
+    })
     await assert.rejects(() =>
       convertDocumentTextHandler(
         makeRequest({ filename: 'f.csv', mimeType: 'text/csv', contentBase64: VALID_BASE64 }),
         deps as never,
       ),
-    );
-    assert.equal(spendCalled, false);
-  });
+    )
+    assert.equal(spendCalled, false)
+  })
 
   it('rejects when credits are insufficient', async () => {
-    const deps = makeDeps({ spendCreditsImpl: async () => null });
+    const deps = makeDeps({ spendCreditsImpl: async () => null })
     await assert.rejects(
       () =>
         convertDocumentTextHandler(
@@ -154,155 +167,173 @@ describe('convertDocumentTextHandler', () => {
           deps as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'failed-precondition',
-    );
-  });
+    )
+  })
 
   it('converts DOCX via mammoth and returns text', async () => {
-    const deps = makeDeps({ convertDocxImpl: async () => 'Extracted docx paragraph text.' });
+    const deps = makeDeps({ convertDocxImpl: async () => 'Extracted docx paragraph text.' })
     const result = await convertDocumentTextHandler(
       makeRequest({ filename: 'f.docx', mimeType: DOCX_MIME, contentBase64: VALID_BASE64 }),
       deps as never,
-    );
-    assert.equal(result.text, 'Extracted docx paragraph text.');
-    assert.equal(result.truncated, false);
-  });
+    )
+    assert.equal(result.text, 'Extracted docx paragraph text.')
+    assert.equal(result.truncated, false)
+  })
 
   it('accepts mime types with incidental whitespace and casing', async () => {
-    const deps = makeDeps({ generateFromGeminiImpl: async () => 'Normalized mime text.' });
+    const deps = makeDeps({ generateFromGeminiImpl: async () => 'Normalized mime text.' })
     const result = await convertDocumentTextHandler(
-      makeRequest({ filename: 'f.pdf', mimeType: ' Application/PDF ', contentBase64: VALID_BASE64 }),
+      makeRequest({
+        filename: 'f.pdf',
+        mimeType: ' Application/PDF ',
+        contentBase64: VALID_BASE64,
+      }),
       deps as never,
-    );
-    assert.equal(result.text, 'Normalized mime text.');
-  });
+    )
+    assert.equal(result.text, 'Normalized mime text.')
+  })
 
   it('converts PDF via Gemini and returns text', async () => {
-    let capturedMime = '';
+    let capturedMime = ''
     const deps = makeDeps({
       generateFromGeminiImpl: async (mimeType: string) => {
-        capturedMime = mimeType;
-        return '# Transcribed markdown';
+        capturedMime = mimeType
+        return '# Transcribed markdown'
       },
-    });
+    })
     const result = await convertDocumentTextHandler(
       makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
       deps as never,
-    );
-    assert.equal(result.text, '# Transcribed markdown');
-    assert.equal(capturedMime, 'application/pdf');
-  });
+    )
+    assert.equal(result.text, '# Transcribed markdown')
+    assert.equal(capturedMime, 'application/pdf')
+  })
 
   it('converts image via Gemini and returns text', async () => {
-    const deps = makeDeps({ generateFromGeminiImpl: async () => 'Transcribed image text.' });
+    const deps = makeDeps({ generateFromGeminiImpl: async () => 'Transcribed image text.' })
     const result = await convertDocumentTextHandler(
       makeRequest({ filename: 'f.png', mimeType: 'image/png', contentBase64: VALID_BASE64 }),
       deps as never,
-    );
-    assert.equal(result.text, 'Transcribed image text.');
-  });
+    )
+    assert.equal(result.text, 'Transcribed image text.')
+  })
 
   it('refunds credit when mammoth conversion throws', async () => {
-    let refunded = false;
+    let refunded = false
     const deps = makeDeps({
       convertDocxImpl: async () => {
-        throw new HttpsError('invalid-argument', 'Could not read DOCX file.');
+        throw new HttpsError('invalid-argument', 'Could not read DOCX file.')
       },
       refundCreditImpl: async () => {
-        refunded = true;
+        refunded = true
       },
-    });
+    })
     await assert.rejects(() =>
       convertDocumentTextHandler(
         makeRequest({ filename: 'f.docx', mimeType: DOCX_MIME, contentBase64: VALID_BASE64 }),
         deps as never,
       ),
-    );
-    assert.equal(refunded, true);
-  });
+    )
+    assert.equal(refunded, true)
+  })
 
   it('refunds credit when Gemini conversion throws', async () => {
-    let refunded = false;
+    let refunded = false
     const deps = makeDeps({
       generateFromGeminiImpl: async () => {
-        throw new Error('Vertex AI unavailable');
+        throw new Error('Vertex AI unavailable')
       },
       refundCreditImpl: async () => {
-        refunded = true;
+        refunded = true
       },
-    });
+    })
     await assert.rejects(
       () =>
         convertDocumentTextHandler(
-          makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
+          makeRequest({
+            filename: 'f.pdf',
+            mimeType: 'application/pdf',
+            contentBase64: VALID_BASE64,
+          }),
           deps as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'internal',
-    );
-    assert.equal(refunded, true);
-  });
+    )
+    assert.equal(refunded, true)
+  })
 
   it('refunds credit and rejects when conversion produces empty text', async () => {
-    let refunded = false;
+    let refunded = false
     const deps = makeDeps({
       generateFromGeminiImpl: async () => '   ',
       refundCreditImpl: async () => {
-        refunded = true;
+        refunded = true
       },
-    });
+    })
     await assert.rejects(
       () =>
         convertDocumentTextHandler(
-          makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
+          makeRequest({
+            filename: 'f.pdf',
+            mimeType: 'application/pdf',
+            contentBase64: VALID_BASE64,
+          }),
           deps as never,
         ),
       (e: unknown) => e instanceof HttpsError && e.code === 'internal',
-    );
-    assert.equal(refunded, true);
-  });
+    )
+    assert.equal(refunded, true)
+  })
 
   it('truncates output exceeding MAX_DOCUMENT_CHARS and sets truncated flag', async () => {
-    const longText = 'a'.repeat(200_001);
-    const deps = makeDeps({ generateFromGeminiImpl: async () => longText });
+    const longText = 'a'.repeat(200_001)
+    const deps = makeDeps({ generateFromGeminiImpl: async () => longText })
     const result = await convertDocumentTextHandler(
       makeRequest({ filename: 'f.pdf', mimeType: 'application/pdf', contentBase64: VALID_BASE64 }),
       deps as never,
-    );
-    assert.equal(result.text.length, 200_000);
-    assert.equal(result.truncated, true);
-  });
+    )
+    assert.equal(result.text.length, 200_000)
+    assert.equal(result.truncated, true)
+  })
 
   it('sanitizes filename without throwing', async () => {
     const result = await convertDocumentTextHandler(
-      makeRequest({ filename: '../../../etc/passwd.docx', mimeType: DOCX_MIME, contentBase64: VALID_BASE64 }),
+      makeRequest({
+        filename: '../../../etc/passwd.docx',
+        mimeType: DOCX_MIME,
+        contentBase64: VALID_BASE64,
+      }),
       makeDeps() as never,
-    );
-    assert.ok(result.text.length > 0);
-  });
-});
+    )
+    assert.ok(result.text.length > 0)
+  })
+})
 
 describe('convertDocumentText onCall config', () => {
   it('sets timeoutSeconds and memory high enough for slow Gemini conversions', () => {
-    const endpoint = (convertDocumentText as unknown as {
-      __endpoint: { timeoutSeconds: number; availableMemoryMb: number };
-    }).__endpoint;
-    assert.equal(endpoint.timeoutSeconds, 540);
-    assert.equal(endpoint.availableMemoryMb, 512);
-  });
-});
+    const endpoint = (
+      convertDocumentText as unknown as {
+        __endpoint: { timeoutSeconds: number; availableMemoryMb: number }
+      }
+    ).__endpoint
+    assert.equal(endpoint.timeoutSeconds, 540)
+    assert.equal(endpoint.availableMemoryMb, 512)
+  })
+})
 
-test("convert generateFromGemini: retries once on empty then returns markdown", async () => {
-  let call = 0;
+test('convert generateFromGemini: retries once on empty then returns markdown', async () => {
+  let call = 0
   __setGenAIClientForTests({
     models: {
       generateContent: async () => {
-        call += 1;
+        call += 1
         return call === 1
           ? { candidates: [] }
-          : { candidates: [{ content: { parts: [{ text: "# md" }] }, finishReason: "STOP" }] };
+          : { candidates: [{ content: { parts: [{ text: '# md' }] }, finishReason: 'STOP' }] }
       },
     },
-  } as never);
-  assert.equal(await defaultGenerateFromGeminiForTests("application/pdf", "AAAA"), "# md");
-  assert.equal(call, 2);
-  __setGenAIClientForTests(undefined);
-});
+  } as never)
+  assert.equal(await defaultGenerateFromGeminiForTests('application/pdf', 'AAAA'), '# md')
+  assert.equal(call, 2)
+  __setGenAIClientForTests(undefined)
+})

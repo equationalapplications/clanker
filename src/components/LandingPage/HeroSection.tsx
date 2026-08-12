@@ -29,21 +29,18 @@ export default function HeroSection() {
 
   useEffect(() => {
     floatY.value = withRepeat(
-      withSequence(
-        withTiming(-12, { duration: 2200 }),
-        withTiming(0, { duration: 2200 })
-      ),
+      withSequence(withTiming(-12, { duration: 2200 }), withTiming(0, { duration: 2200 })),
       -1,
-      true
+      true,
     )
     logoScale.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 800 }),
         withTiming(0.97, { duration: 1600 }),
-        withTiming(1, { duration: 800 })
+        withTiming(1, { duration: 800 }),
       ),
       -1,
-      true
+      true,
     )
   }, [floatY, logoScale])
 
@@ -56,12 +53,9 @@ export default function HeroSection() {
 
   useEffect(() => {
     glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.9, { duration: 1800 }),
-        withTiming(0.2, { duration: 2400 })
-      ),
+      withSequence(withTiming(0.9, { duration: 1800 }), withTiming(0.2, { duration: 2400 })),
       -1,
-      true
+      true,
     )
   }, [glowOpacity])
 
@@ -78,10 +72,10 @@ export default function HeroSection() {
         withTiming(-4, { duration: 45 }),
         withTiming(2, { duration: 40 }),
         withTiming(-2, { duration: 40 }),
-        withTiming(0, { duration: 55 })
+        withTiming(0, { duration: 55 }),
       ),
       -1,
-      false
+      false,
     )
   }, [shiverX])
 
@@ -105,7 +99,12 @@ export default function HeroSection() {
   }
 
   return (
-    <View style={[styles.hero, { minHeight: Math.min(height, 560), backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.hero,
+        { minHeight: Math.min(height, 560), backgroundColor: colors.background },
+      ]}
+    >
       {/* Top-right sign-in button — no glow, just subtle */}
       <View style={styles.topBar}>
         <Button
