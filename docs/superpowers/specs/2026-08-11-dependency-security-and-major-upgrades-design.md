@@ -163,6 +163,16 @@ So bumping ADK **forces** genai v2 in cloud-agent. There is no configuration whe
 
 **⚠️ Do not assume the ADK bump clears the sqlite3 alert chain.** The original draft claimed `@mikro-orm/sqlite`, `sqlite3`, `node-gyp`, `cacache`, and `make-fetch-happen` "resolve as a side effect." Verified against the registry, that is unlikely: both `@google/adk@1.2.0` and `@google/adk@1.6.0` declare the same five `@mikro-orm/*` drivers as **non-optional `peerDependencies` with no `peerDependenciesMeta`**, so npm auto-installs all of them — including `@mikro-orm/sqlite` and its `sqlite3` → `node-gyp` → `cacache` → `make-fetch-happen` chain — both before and after the bump. That residue is **Phase 4 `overrides` work**, not a Phase 1 freebie. Re-run `npm audit` after this step and record the actual delta rather than the expected one.
 
+**`functions/package.json` already carries a scoped override on this exact package**, verified 2026-08-12:
+
+```json
+"overrides": {
+  "@google/adk": { "js-yaml": "4.3.0" }
+}
+```
+
+Check whether the upgrade makes it removable; if so, remove it here rather than leaving it for Phase 4 (Phase 4 rule 1 — an override that is no longer needed is permanent maintenance cost for nothing). `functions/` also carries three other un-annotated overrides at the top level — `ws: 8.21.1`, `uuid: ^11.1.1`, `protobufjs: 7.6.5` — which belong in the same Phase 4 audit as root's `@babel/core`/`postcss` pair.
+
 Then, in this order:
 
 | Package                         | From                                                 | To                                                  | Notes                                                                                                                                                                                                             |
@@ -177,21 +187,26 @@ Then, in this order:
 
 **Express 5 leaves a second Express in the cloud-agent tree.** `@google/adk@1.6.0` depends on `express@^4.22.1`, so after the Phase 1 bump the tree carries both express 5 (direct) and express 4 (under ADK). This is tolerable — they are separate instances and ADK does not share a router with the app — but it has one hard consequence: **do not add an `overrides` entry forcing express 5 tree-wide in Phase 4.** That would hand ADK a major it was not built against.
 
-**⚠️ Express 5 lands on top of freshly-shipped security code.** The [CORS hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) is already implemented and deployed, and it is built directly on Express/Node request internals that Express 5 is entitled to move:
+#### Shared surface with the CORS hardening
 
-- `req.socket.encrypted` — `selfOrigin()` reads it to pick the `https`/`http` scheme. If it becomes undefined behind an Express 5 request wrapper, every upgrade silently derives an `http://` self-origin, the production mobile app's synthesized `https://` origin stops matching, and **every WebSocket connection 403s**.
-- `req.headers.origin` — the sole input to `isAllowedWsOrigin()`. Header casing or accessor changes break the allowlist match.
-- `server.on('upgrade')` — registered on the raw `http.Server`, not the Express app. Express 5 changing how the app attaches to the server can leave the handler unregistered, which fails **open**, not closed: upgrades bypass origin checking entirely.
+The [cloud-agent CORS Hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) spec is implemented and merged (`853ccbdd`). It landed security logic in `cloud-agent/src/index.ts` directly on the Express/Node request internals that this phase's `express` 4 → 5 bump is entitled to move. **These two specs are no longer file-independent.** Before merging the express bump, verify each of these, current as of 2026-08-12:
 
-Note the asymmetry: the first two failures are loud (everything breaks), the third is silent (the security control quietly disappears). Do not treat a green smoke test as evidence for the third.
+- **`req.socket.encrypted`** — `selfOrigin()` (`index.ts:204`) reads it to pick the `https`/`http` scheme. If it becomes undefined behind an Express 5 request wrapper, every upgrade silently derives an `http://` self-origin, the production mobile app's synthesized `https://` origin stops matching, and **every WebSocket connection 403s**.
+- **`req.headers.origin`** — the sole input to `isAllowedWsOrigin()`. Header casing or accessor changes break the allowlist match.
+- **`server.on('upgrade')`** in `attachWebSocketRoutes` (`index.ts:605`) — registered on the raw `http.Server`, not the Express app. Express 5 does not own that handler directly, but it does own the `http.Server` the handler is attached to; a change in how the app attaches to the server can leave the handler unregistered, which fails **open**, not closed — upgrades bypass origin checking entirely.
+- **`cors@2.8.6` against express 5.** The middleware is express-4-era. The hardening depends on `origin: false` meaning _omit `Access-Control-Allow-Origin`_, not _reject the request_ — non-browser callers must stay unaffected. Confirm that semantic survives the upgrade, and bump `cors`/`@types/cors` if express 5 requires it.
+- **`express-rate-limit@^8.5.2`** — confirm express 5 support.
 
-**Mandatory for this bump:** re-run the six WebSocket upgrade tests and the four CORS HTTP tests in `cloud-agent/src/index.test.ts` — including the case asserting a **403 for a non-allowlisted origin**, which is the one that detects a vanished handler — and confirm `cors` middleware behavior is unchanged. If Express 5 destabilizes any of them, **split it out of Phase 1 into its own PR** rather than debugging it alongside a `firebase-admin` major.
+Note the asymmetry among the first three: the first two failures are loud (everything breaks), the third is silent (the security control quietly disappears). Do not treat a green smoke test as evidence for the third.
+
+**Mandatory for this bump — re-run the full CORS/WebSocket regression net in `cloud-agent/src/index.test.ts`.** Counted 2026-08-12 (supersedes any earlier count in this document, which predates the current test file): **7 WebSocket upgrade tests** (no-Origin server-to-server, own http origin, own https origin behind a TLS-terminating proxy, rejected-when-unset, allowlisted, `chrome-extension://` allowlisted, non-allowlisted rejected) and **5 CORS HTTP tests** (`Access-Control-Allow-Origin` when set, `chrome-extension://` origin allowed, preflight on `/agent/run`, wildcard rejected, blocked when unset). The non-allowlisted-origin-rejected case in each set is the one that detects a vanished handler — it is the highest-signal test in the phase and must stay green, not merely "the suite passes." If Express 5 destabilizes any of them, **split it out of Phase 1 into its own PR** rather than debugging it alongside a `firebase-admin` major.
 
 **Deployment gate — non-negotiable.** **There is no live staging environment.** The `staging` branch has no deployed backend; a `cloud-agent` or `functions` deploy lands **directly in production**. Treat the deploy itself as the gate, not a rehearsal for one:
 
-1. Deploy, then verify against production immediately — `/health`, a chat turn, a Talk session, and a Stripe webhook delivery — before considering the phase done.
-2. Keep the previous Cloud Run revision ready and roll traffic back (`gcloud run services update-traffic`) on any failure rather than fixing forward.
-3. Verification is a **rollback gate**: the question is not "did it deploy" but "is production still correct, and can I revert within minutes if not".
+1. Deploy cloud-agent via `cloud-agent/scripts/deploy.sh`, which supplies a `CORS_ORIGIN` default (`deploy.sh:32`, `https://clanker-ai.com,https://clanker-prod.web.app,https://clanker-prod.firebaseapp.com`). **A deploy by any other path must set `CORS_ORIGIN` explicitly** — omitting it is exactly what caused the 2026-08-11 incident, and this phase redeploys the same service.
+2. Verify against production immediately — `/health`, a chat turn, a Talk session, and a Stripe webhook delivery, **plus the web client at `https://clanker-ai.com`** (chat turn + Talk session) since the web path is the one this surface breaks — before considering the phase done.
+3. **Rollback is asymmetric between the two deploys.** Cloud Run rolls back with `gcloud run services update-traffic` to the previous revision — fast, and does not involve promotion. **Firebase Functions has no traffic-split equivalent**; a bad `firebase-admin` major there is revert-and-redeploy, on a path that includes the Stripe webhook, which has already caused a customer-facing incident here. Weigh the two deploys separately rather than treating them as one gate.
+4. Verification is a **rollback gate**: the question is not "did it deploy" but "is production still correct, and can I revert within minutes if not".
 
 This is the same production surface (Cloud Run + Firebase Functions, Cloud SQL, Vertex AI, Stripe webhook) that has produced customer-facing incidents twice — the Stripe webhook misconfiguration and the CORS deploy that 403'd the web client. A `firebase-admin` major touching the Stripe webhook path deserves the same suspicion.
 
@@ -298,7 +313,19 @@ Whatever alerts survive Phases 0–3 get pinned to safe versions via `overrides`
 
 Rules for this phase:
 
-1. **Re-enumerate first, and audit the overrides that already exist.** Phases 0–3 will have resolved a large share of these. Overriding a package that no longer needs it adds permanent maintenance cost for nothing. Root already carries two un-annotated overrides — `@babel/core: ^7.29.7` and `postcss: 8.5.24` — which predate this effort and have no recorded rationale. Both need one under rule 4, and the `@babel/core` entry must have moved to `^8.x` in Phase 2 or the Babel bump did nothing.
+1. **Re-enumerate first, and audit the overrides that already exist.** Phases 0–3 will have resolved a large share of these. Overriding a package that no longer needs it adds permanent maintenance cost for nothing. Verified 2026-08-12, **six un-annotated overrides predate this effort and have no recorded rationale**:
+
+   | Workspace    | Override                          | Note                                                                                      |
+   | ------------ | --------------------------------- | ----------------------------------------------------------------------------------------- |
+   | root         | `@babel/core: ^7.29.7`            | must have moved to `^8.x` in Phase 2, or the Babel bump did nothing                       |
+   | root         | `postcss: 8.5.24`                 | live — currently overriding `expo@57 → @expo/metro-config@57.0.8`'s postcss dependency    |
+   | `functions/` | `@google/adk: { js-yaml: 4.3.0 }` | scoped to ADK specifically; check removability once Phase 1's ADK bump lands, per Phase 1 |
+   | `functions/` | `ws: 8.21.1`                      |                                                                                           |
+   | `functions/` | `uuid: ^11.1.1`                   |                                                                                           |
+   | `functions/` | `protobufjs: 7.6.5`               |                                                                                           |
+
+   All six need a rationale under rule 4.
+
 2. **Expect the `sqlite3` chain to still be here.** `@mikro-orm/sqlite`, `sqlite3`, `node-gyp`, `cacache`, and `make-fetch-happen` arrive as auto-installed non-optional peers of `@google/adk` and survive the Phase 1 bump (see Phase 1). Note that all five DB drivers (`mariadb`, `mssql`, `mysql`, `postgresql`, `sqlite`) get installed even though only one is used — check whether they can be pruned rather than overridden.
 3. **Do not force `express@5` tree-wide.** ADK depends on `express@^4.22.1`; a tree-wide override hands it an untested major. See Phase 1.
 4. **Every override carries an adjacent tracked-document rationale** naming the alert it addresses and the condition under which it can be removed. `package.json` is strict JSON and cannot carry comments, so the rationale lives in `docs/<workspace>/dependency-overrides.md` (or an equivalent tracked Markdown file colocated with the workspace) and the override's `package.json` entry carries a stable key that the document reads back. Un-annotated overrides become permanent by default.
@@ -386,3 +413,14 @@ Every version target in this document was re-verified against the npm registry a
 | **`functions/` test baseline** | not recorded (never run in CI)                                                                                                               | 462 tests, 462 pass — and now runs in CI, see below                                                                                                                           |
 | **CI (`staging-test.yml`)**    | `prettier --write` + `eslint --fix` before tests (writers, cannot fail); no typecheck anywhere; `functions/` never tested or linted; Node 22 | `format:check` + `lint:check` (gates); typecheck in all three workspaces; `functions/` install+lint+typecheck+test added; Node 24; `patch-package --error-on-fail`            |
 | **`@types/node`**              | `~24.x`, "not 26.x"                                                                                                                          | `~24.x` (head `24.13.3`), excluding both 25.x and 26.x                                                                                                                        |
+
+**Second pass (2026-08-12, later the same day).** An earlier docs-only revision of this spec existed on an orphaned local branch (`chore/dependency-security-and-major-upgrades`, commit `bc9e6ecc`) that was never pushed or opened as a PR. It predated the TypeScript 7 / Phase 0 / ADK-genai / expo-speech-recognition / CI corrections above, but it verified real content the first pass above had missed. That content is folded in here, with line numbers and test counts re-verified since the branch was cut:
+
+| Change                              | Was                                                                                                               | Now                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`functions/` overrides**          | Only root's two overrides audited                                                                                 | `functions/` has four more: a scoped `@google/adk: { js-yaml: 4.3.0 }` plus top-level `ws`, `uuid`, `protobufjs`. All six now listed in Phase 4                                                                                                                                                         |
+| **Express 5 / CORS shared surface** | General warning (`req.socket.encrypted`, `req.headers.origin`, `server.on('upgrade')`)                            | Same three points kept, plus `cors@2.8.6`'s express-4-era `origin: false` semantic and `express-rate-limit` support, both needing verification. Line refs corrected to the current file (`selfOrigin` at `index.ts:204`, `attachWebSocketRoutes` at `index.ts:605` — both had drifted since `bc9e6ecc`) |
+| **CORS/WS regression test count**   | "six WebSocket... four CORS HTTP" (this doc's first pass) / "six-case... two chrome-extension cases" (`bc9e6ecc`) | Recounted directly from `cloud-agent/src/index.test.ts`: **7 WebSocket tests, 5 HTTP tests** — neither prior figure was accurate                                                                                                                                                                        |
+| **Phase 1 deploy gate**             | Generic "deploy then verify"                                                                                      | `deploy.sh:32`'s actual `CORS_ORIGIN` default quoted; web client verification (`clanker-ai.com`) added explicitly; Cloud Run vs. Firebase Functions rollback asymmetry stated as its own gate item                                                                                                      |
+
+Not carried forward from `bc9e6ecc`: its Non-Goals link to `2026-08-11-gifted-chat-fork-migration-design.md` — that file was never created; the fork approach was rejected and the shipped spec is `2026-08-11-gifted-chat-removal-design.md`, which this document already links correctly.
