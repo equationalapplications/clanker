@@ -1,6 +1,6 @@
 // React Native Firebase – modular API (aligned with Firebase Web SDK)
 import {
-  FirebaseAuthTypes,
+  User,
   getAuth,
   onAuthStateChanged as onAuthStateChangedMod,
   signOut as signOutMod,
@@ -41,14 +41,14 @@ export const appCheckReady = initAppCheck().catch((err: unknown) => {
 const auth = getAuth(firebaseApp)
 
 // Mock user for local development sandbox
-let mockUser: FirebaseAuthTypes.User | null = null
+let mockUser: User | null = null
 
-const getMockUser = (): FirebaseAuthTypes.User =>
+const getMockUser = (): User =>
   ({
     uid: 'local_test_user_123',
     email: 'dev@localhost.com',
     getIdToken: async () => 'mock_token_123',
-  }) as unknown as FirebaseAuthTypes.User
+  }) as unknown as User
 
 const getCurrentUser = () => {
   if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
@@ -58,7 +58,7 @@ const getCurrentUser = () => {
   return auth.currentUser
 }
 
-const onAuthStateChanged = (callback: (user: FirebaseAuthTypes.User | null) => void) => {
+const onAuthStateChanged = (callback: (user: User | null) => void) => {
   if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {
     mockUser = getMockUser()
     callback(mockUser)
@@ -111,7 +111,7 @@ const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentT
 })
 const registerExpoPushTokenFn = httpsCallable(functionsInstance, 'registerExpoPushToken')
 
-export type FirebaseUser = FirebaseAuthTypes.User
+export type FirebaseUser = User
 
 export {
   firebaseApp,
