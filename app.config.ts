@@ -136,6 +136,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Allow Clanker to access your photo library to set a character avatar.',
+      // Microphone permission was previously supplied by the expo-speech-recognition
+      // config plugin (deleted in c695ab0e). @speechmatics/expo-two-way-audio, the
+      // current Talk-tab voice stack, ships no config plugin and hard-fatalErrors
+      // on iOS when NSMicrophoneUsageDescription is absent — see memory notes.
+      NSMicrophoneUsageDescription:
+        'Allow Clanker to access your microphone for voice conversations.',
     },
     associatedDomains: [`applinks:${characterShareHost}`],
     config: {
@@ -148,6 +154,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.equationalapplications.clanker',
     googleServicesFile: getGoogleServicesJson(),
+    // RECORD_AUDIO was previously supplied by the expo-speech-recognition
+    // config plugin (deleted in c695ab0e). @speechmatics/expo-two-way-audio,
+    // the current Talk-tab voice stack, requires this permission.
+    permissions: ['android.permission.RECORD_AUDIO'],
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundImage: './assets/adaptive-icon-background.png',
@@ -228,14 +238,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission: 'Allow Clanker to access your photo library to set a character avatar.',
         cameraPermission: 'Allow Clanker to access your camera to take a photo to send in chat.',
-      },
-    ],
-    [
-      'expo-speech-recognition',
-      {
-        microphonePermission: 'Allow Clanker to access your microphone for voice conversations.',
-        speechRecognitionPermission:
-          'Allow Clanker to transcribe your speech for voice conversations.',
       },
     ],
     [
