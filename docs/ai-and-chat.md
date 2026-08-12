@@ -98,6 +98,12 @@ cd functions
 npm run typecheck && npm run lint && npm run test && npm run deploy
 ```
 
+Always deploy via `npm run deploy`, not a bare `firebase` command. `functions/` pins
+`firebase-tools` as a devDependency so the CLI runs on the system Node (≥22.12). The standalone
+CLI binary embeds an older Node runtime that cannot `require()` ESM-only dependencies (e.g.
+`jose` v6, pulled in by `firebase-admin` 14 → `jwks-rsa` 4), which fails the "Loading and
+analyzing source code" step with `ERR_REQUIRE_ESM`.
+
 After deploy for new callable service `generatereply`, apply org-policy bypass tag and public invoker IAM.
 
 ---
