@@ -15,10 +15,10 @@ jest.mock('~/components/GroundingHtml', () => {
   const { Text } = require('react-native')
   return {
     __esModule: true,
-    GroundingHtml: ({ html }: { html: string }) => {
-      const stripped = html.replace(/<[^>]+>/g, '')
-      return ReactLib.createElement(Text, null, stripped)
-    },
+    // Plain passthrough: this test only exercises GroundingFooter's prop
+    // forwarding. Sanitization lives in the real GroundingHtml + the
+    // sanitizeGroundingHtmlForNative helper, both covered by their own tests.
+    GroundingHtml: ({ html }: { html: string }) => ReactLib.createElement(Text, null, html),
   }
 })
 
@@ -49,7 +49,7 @@ describe('GroundingFooter', () => {
       searchEntryPoint: { renderedContent: '<b>suggestion</b>' },
     }
     const { getByText } = render(<GroundingFooter metadata={meta} />)
-    expect(getByText('suggestion')).toBeTruthy()
+    expect(getByText('<b>suggestion</b>')).toBeTruthy()
   })
 
   it('returns null when there are no chunks and no renderedContent', () => {
