@@ -74,3 +74,4 @@ public/clanker-icon.png
 .codegraph/
 .github/instructions/codegraph-mcp.instructions.md
 .aider*
+.qwen/
