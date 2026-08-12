@@ -215,7 +215,7 @@ Quick workflow:
 2. **Add tests** for new functionality
 3. **Run all checks**:
    ```bash
-   npm run lint
+   npm run lint:check
    npm run typecheck
    npm test
    npm run test:functions   # if changing Cloud Functions

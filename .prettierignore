@@ -4,4 +4,5 @@ android
 .vscode
 ignite/ignite.json
 package.json
+CHANGELOG.md
 src/utilities/__tests__/fixtures/

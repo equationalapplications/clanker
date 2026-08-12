@@ -16,7 +16,6 @@ import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { reportError } from '~/utilities/reportError'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import type { SyncMessage } from '~/services/syncMessage'
-import type { GroundingMetadata } from '@google/genai'
 
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
 
