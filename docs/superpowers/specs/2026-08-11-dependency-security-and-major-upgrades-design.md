@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-11
 **Revised:** 2026-08-12 — every version target below re-verified against the npm registry and the three `package.json` files. See [Revision log](#revision-log-2026-08-12).
-**Status:** Implemented — Phases 0–4 in PRs #603, #604, #605, #606, #607. All four phases merged to `staging` (Phase 4 PR #607 merged 2026-08-12). Promotion PR (`staging` → `main`) is the user's gate after Phase 1 production deploy verifies. See [Implementation log](#implementation-log-2026-08-12).
+**Status:** Implemented — see [Implementation log](#implementation-log-2026-08-12).
 **Owner:** equationalapplications
 **Supersedes:** the deferred-majors backlog recorded after PR #596
 
@@ -427,7 +427,7 @@ Not carried forward from `bc9e6ecc`: its Non-Goals link to `2026-08-11-gifted-ch
 
 ## Implementation log (2026-08-12)
 
-Implementation followed the plan at [`docs/superpowers/plans/2026-08-12-dependency-security-and-major-upgrades.md`](../plans/2026-08-12-dependency-security-and-major-upgrades.md) as five sequential PRs into `staging`:
+Implementation followed the plan at `docs/superpowers/plans/2026-08-12-dependency-security-and-major-upgrades.md` (not committed to the repo — see the Phase 0 PR #603 body, which references the untracked plan file) as five sequential PRs into `staging`:
 
 | Phase                         | PR                                                                 | Branch                                 | Status           | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | ------------------------------------------------------------------ | -------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -439,4 +439,4 @@ Implementation followed the plan at [`docs/superpowers/plans/2026-08-12-dependen
 
 ### Promotion — staging → main
 
-Phases 0–4 are merged to `staging` (Phase 4 #607 merged 2026-08-12). The single promotion PR (`staging` → `main`) opens the OTA `runtimeVersion` fence once (30.0.0 → 31.0.0) — see [Rollout](#rollout). Backend majors (Phase 1) deployed straight to production when Phase 1 PR merged, and have been live for the duration of Phases 2–4 — that production soak is by design (Phase 1 is ordered early in the spec for exactly this reason).
+See [Rollout](#rollout). Promotion opens the OTA `runtimeVersion` fence once (30.0.0 → 31.0.0) after Phase 1's production soak is verified by the user.
