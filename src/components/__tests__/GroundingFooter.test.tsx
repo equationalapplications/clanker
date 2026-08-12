@@ -11,7 +11,9 @@ import type { GroundingMetadata } from '@google/genai'
 // may only reference hoisted variables (`require` is hoisted; ES imports are not).
 // This is the same pattern every other test mock in the repo uses.
 jest.mock('~/components/GroundingHtml', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- must be require(), see comment above
   const ReactLib = require('react')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- must be require(), see comment above
   const { Text } = require('react-native')
   return {
     __esModule: true,
