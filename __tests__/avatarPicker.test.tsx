@@ -2,16 +2,15 @@ import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Alert } from 'react-native'
 
-// The first `create()` in this file pays a one-off cost: rendering AvatarPicker
-// lazily pulls in FlatList/VirtualizedList and the rest of the RN view tree.
-// Locally that's ~600ms for the first test vs ~115ms for each one after it; on a
-// contended CI runner the same cold render can overrun jest's 5s default and
-// blow up the *first* test. That failure then cascades — a test that times out
-// mid-`act()` leaves react-test-renderer's act state broken, so every later
-// `create()` hands back an already-unmounted renderer ("Can't access .root on
-// unmounted test renderer"). Give the suite headroom so the cold render can't
-// trip the ceiling; the happy path still finishes in ~2s.
-jest.setTimeout(30_000)
+// Use fake timers across the whole file. The original suite relied on a real
+// 100ms `setTimeout` (committed in f2baebbf) inside `renderPicker`, plus a
+// 30s `jest.setTimeout` workaround for the first test's cold-render tax. The
+// workaround is fragile: any future Jest/RNTL bump that changes render or
+// timer behavior (jest 29->30, RNTL 13->14) can blow the budget again. Fake
+// timers give a deterministic, millisecond-cheap alternative to burning real
+// wall-clock time, and remove the cold-render cascade by making the suite's
+// timer-driven waits bounded.
+jest.useFakeTimers()
 
 // Auto-confirm the destructive delete flow: real Alert.alert invokes the
 // tapped button's onPress asynchronously, but tests drive onLongPress
@@ -133,20 +132,17 @@ async function renderPicker(props: Partial<React.ComponentProps<typeof AvatarPic
   })
   // Drive refresh's async chain (DB read → URI resolve → setItems) AND give
   // FlatList's `_updateCellsToRender` setTimeout (50ms `updateCellsBatchingPeriod`
-  // default in @react-native/virtualized-lists) time to fire and commit. A
-  // single `await Promise.resolve()` raced FlatList's timer on shared CI, and
-  // `waitFor`'s setInterval-backed poll was too slow under load — the first
-  // test in this file intermittently burned the 5s jest timeout. Burning a
-  // real-time 100ms timer under `act` is deterministic: it's well above the
-  // batching period and well below the per-test timeout.
+  // default in @react-native/virtualized-lists) time to fire and commit. Under
+  // fake timers, advancing the clock deterministically flushes both queues.
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    jest.advanceTimersByTime(100)
   })
   return tree
 }
 
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.clearAllTimers()
   mockGetImages.mockResolvedValue(rows)
   mockGetActive.mockResolvedValue(null)
 })
