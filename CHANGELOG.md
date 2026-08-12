@@ -1,3 +1,56 @@
+# [31.0.0](https://github.com/equationalapplications/clanker/compare/v30.33.1...v31.0.0) (2026-08-12)
+
+
+### Bug Fixes
+
+* **chat:** address code review findings on the chat rewrite ([3b02d2d](https://github.com/equationalapplications/clanker/commit/3b02d2da2ce08086520cd9c6412699452e9a9f5c))
+* **chat:** address the second round of code review findings ([3da1047](https://github.com/equationalapplications/clanker/commit/3da10479054f6a2d9dbc75e9d82053ab3d58e518)), closes [#599](https://github.com/equationalapplications/clanker/issues/599)
+* **chat:** copy picked documents into the app sandbox before reading ([85f05eb](https://github.com/equationalapplications/clanker/commit/85f05ebbe7db636dc2e3b82347854f13ad22fd67))
+* **chat:** drop redundant String() cast in MessageList keyExtractor ([eb28902](https://github.com/equationalapplications/clanker/commit/eb2890295e1e9d89a8a7d3f03011ec3d88d10fce)), closes [#599](https://github.com/equationalapplications/clanker/issues/599)
+* **chat:** keep the typed caption when a photo turn fails ([009531d](https://github.com/equationalapplications/clanker/commit/009531d9de198b9273aa6964e8983848de7cf1ec))
+* **chat:** make the send button a real pressable ([afe2f68](https://github.com/equationalapplications/clanker/commit/afe2f689c360017ff479889ad0d8afaa302e3479))
+* **chat:** pin composer textarea width to 100% on web ([a8701a1](https://github.com/equationalapplications/clanker/commit/a8701a1c30451b850dcc471720a685f36070e4c2))
+* **chat:** set concrete KeyboardAvoidingView behavior on Android ([64b4762](https://github.com/equationalapplications/clanker/commit/64b4762bf57a7f060ba049d4ce53ca175c6aca92))
+* **chat:** stop double-counting textarea padding in composer height clamp ([b078108](https://github.com/equationalapplications/clanker/commit/b0781081542240f2987cc8850ab962c24d8054c0)), closes [#599](https://github.com/equationalapplications/clanker/issues/599)
+* **chat:** trim composer margin and bubble padding ([8825c58](https://github.com/equationalapplications/clanker/commit/8825c58ed2e8193a305a199949e7d03e1f130154)), closes [#1](https://github.com/equationalapplications/clanker/issues/1) [#2](https://github.com/equationalapplications/clanker/issues/2)
+* **cloud-agent:** allow RN-synthesized Origin on WebSocket upgrade ([390fbc7](https://github.com/equationalapplications/clanker/commit/390fbc7b94197f77d4d00aebc5b1c378795d1770))
+* **cloud-agent:** default-deny CORS when CORS_ORIGIN is unset ([e3573b4](https://github.com/equationalapplications/clanker/commit/e3573b4b64f1aa0ac92d38207ae32aa0f1a85e4b))
+* **cloud-agent:** flush rejected websocket responses ([a3dddf8](https://github.com/equationalapplications/clanker/commit/a3dddf82c18eb6405740059a9727e4a9699d7834))
+* **cloud-agent:** preserve configured extension origins ([2f69bc0](https://github.com/equationalapplications/clanker/commit/2f69bc08591607d573c8dcf88a1ccc1037d3d968))
+* **cloud-agent:** recognize own origin behind TLS-terminating proxy ([47dc075](https://github.com/equationalapplications/clanker/commit/47dc075bd1b0d9b97b044a1f8eead40fb5d93af7))
+* **cloud-agent:** set CORS_ORIGIN on deploy so the web client survives hardening ([9de0091](https://github.com/equationalapplications/clanker/commit/9de00910d504dacb2776aa793daf77d2f26568ba))
+* **cloud-agent:** verify Origin on WebSocket upgrade ([29980b6](https://github.com/equationalapplications/clanker/commit/29980b66f125ce6c3d95c4d6155e3d92cff9a9a5))
+
+
+### chore
+
+* **release:** flag Expo 57 + Node 24 upgrade as breaking for OTA compatibility ([e9637b1](https://github.com/equationalapplications/clanker/commit/e9637b10bcf8464aa782f5e0fbfc3cb7e7677779)), closes [#595](https://github.com/equationalapplications/clanker/issues/595)
+
+
+### Features
+
+* **chat:** add ChatInputBar that owns input text state ([dc6ddb0](https://github.com/equationalapplications/clanker/commit/dc6ddb085a34b04b731fb911dd81ec532bce9ae1))
+* **chat:** add GroundingFooter component ([b7ad85c](https://github.com/equationalapplications/clanker/commit/b7ad85c390a5133f9ce8097b2bd7353206704313))
+* **chat:** add linkifyUrls pure function ([99ae97d](https://github.com/equationalapplications/clanker/commit/99ae97dc09fdd4243b714d0b59fa7b7dd215b48f))
+* **chat:** add locally-owned Message and ChatUser types ([a10d3ee](https://github.com/equationalapplications/clanker/commit/a10d3eeec1139d80291369613437ee43ef452ef2))
+* **chat:** add MessageBubble component ([adcf355](https://github.com/equationalapplications/clanker/commit/adcf35530a113c285aad2b7ef38341ed31e6ed4a))
+* **chat:** add MessageList with inverted FlatList ([aa17a3e](https://github.com/equationalapplications/clanker/commit/aa17a3e030410f79cee1ba7e37c78c370462dba2))
+* **chat:** add MessageRow with avatar positioning ([0bc519b](https://github.com/equationalapplications/clanker/commit/0bc519bd1243afeacc2b2b560e226c53f56cb0e9))
+* **chat:** add MessageText component with URL tap-through ([7b97cb3](https://github.com/equationalapplications/clanker/commit/7b97cb30e0944ad868255bf170c0b272322f2690))
+* **chat:** add SendButton with generating spinner state ([7235b14](https://github.com/equationalapplications/clanker/commit/7235b1423903409a740ba08c563e6e75299085e3))
+* **chat:** replace GiftedChat with MessageList + KeyboardAvoidingView ([e6d7cc4](https://github.com/equationalapplications/clanker/commit/e6d7cc4d2d7565460bc91aa1813a090e069d0fe6))
+* **chat:** unified ChatComposer with no .web variant ([7c3d177](https://github.com/equationalapplications/clanker/commit/7c3d17705d28626da11019878c2fd7ce68981bf8))
+
+
+### BREAKING CHANGES
+
+* **release:** Upgrade to Expo SDK 57, React Native 0.86.2, and Node 24
+runtime. Mobile clients must be on a native binary built against Expo
+SDK 57 / React Native 0.86 before loading the new JS bundle (OTA
+compatibility). `cloud-agent` and `functions` moved from Node 22 to
+Node 24 in `Dockerfile` and `firebase.json`. ~30 additional package
+major bumps remain deferred to a follow-up spec.
+
 ## [30.33.1](https://github.com/equationalapplications/clanker/compare/v30.33.0...v30.33.1) (2026-08-11)
 
 ### Bug Fixes
