@@ -1,5 +1,5 @@
 import type { Character } from '~/services/aiChatService'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 
 export interface CharacterPromptContext {
   character: Character
@@ -42,7 +42,7 @@ export class CharacterPromptBuilder {
   static readonly PHOTO_TURN_PLACEHOLDER = '[sent a photo]'
 
   static buildContentHistory(
-    messages: IMessage[],
+    messages: Message[],
     userId: string,
   ): { role: 'user' | 'model'; parts: { text: string }[] }[] {
     return [...messages]

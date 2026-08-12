@@ -1,6 +1,6 @@
 import { buildSystemInstruction, buildContentHistory } from '../CharacterPromptBuilder'
 import type { CharacterPromptContext } from '../CharacterPromptBuilder'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 
 const baseCharacter = {
   id: 'char-1',
@@ -68,7 +68,7 @@ describe('buildContentHistory', () => {
     text: string,
     senderId: string,
     createdAt: Date,
-  ): IMessage => ({
+  ): Message => ({
     _id: id,
     text,
     createdAt,

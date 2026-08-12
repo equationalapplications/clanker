@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react-native'
 import { useEdgeAgent } from '../useEdgeAgent'
 import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 
 const mockGenerateChatReply = jest.fn()
 jest.mock('~/services/chatReplyService', () => ({
@@ -52,7 +52,7 @@ const character = {
   context: '',
 }
 
-const priorMessages: IMessage[] = []
+const priorMessages: Message[] = []
 
 const usageFields = {
   remainingCredits: 42,

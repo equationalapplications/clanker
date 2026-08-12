@@ -3,7 +3,7 @@ import { Alert, AppState } from 'react-native'
 import { useMachine, useSelector } from '@xstate/react'
 import { router, type Href } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import type { GroundingMetadata } from '@google/genai'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -18,7 +18,7 @@ export interface UseLiveVoiceChatReturn {
   isSyncing: boolean
   syncPhase: LiveVoiceSyncPhase
   error: string | null
-  transcript: IMessage[]
+  transcript: Message[]
   activeTool: string | null
   groundingMetadata: GroundingMetadata | null
   remainingCredits: number

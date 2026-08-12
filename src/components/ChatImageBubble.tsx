@@ -12,10 +12,10 @@
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
 
-type PhotoMessage = IMessage & { imageId?: string }
+type PhotoMessage = Message & { imageId?: string }
 
 const THUMB_SIZE = 200
 

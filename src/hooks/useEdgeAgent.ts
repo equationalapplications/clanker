@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { getSchemasForEdge } from '~/services/clankerManifests'
 import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
@@ -18,7 +18,7 @@ export interface EdgeAgentSendResult {
 export interface UseEdgeAgentOptions {
   character: Character
   userId: string
-  priorMessages: IMessage[]
+  priorMessages: Message[]
   isCloudSynced: boolean
   wiki: Wiki | null
 }

@@ -23,7 +23,6 @@ graph LR
   liveVoiceMachine --> messageDatabase
   liveVoiceMachine --> characterDatabase
   liveVoiceMachine --> groundingMetadata
-  liveVoiceMachine --> aiChatService
   liveVoiceMachine --> characterWikiQueue
   liveVoiceMachine --> liveMemoryQuery
   termsMachine --> apiClient

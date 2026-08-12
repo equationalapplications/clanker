@@ -243,10 +243,6 @@ describe('useAIChat photo path', () => {
         _id: 'msg_1_abc',
         text: 'what is this?',
         imageId: PHOTO.imageId,
-        // gifted-chat's Bubble gates renderMessageImage on `image`; without
-        // this truthy value, ChatImageBubble never mounts and the photo never
-        // renders at runtime.
-        image: PHOTO.imageId,
       }),
     )
     // The base64 must never reach message_data — it would double the row size and

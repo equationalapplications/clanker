@@ -95,7 +95,6 @@
     "react-native": "0.86.2",
     "react-native-error-boundary": "^2.0.0",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-gifted-chat": "^2.8.1",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-paper": "^5.15.3",
     "react-native-purchases": "^10.4.1",

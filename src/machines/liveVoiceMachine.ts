@@ -1,6 +1,6 @@
 import { createMachine, assign, fromPromise, fromCallback, sendTo } from 'xstate'
 import { logEvent } from '~/services/analyticsService'
-import type { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import type { GroundingMetadata } from '@google/genai'
 import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -18,7 +18,6 @@ import { getCurrentUser } from '~/config/firebaseConfig'
 import { reportError } from '~/utilities/reportError'
 import { getCharacter } from '~/database/characterDatabase'
 import { parseGroundingMetadata } from '~/services/groundingMetadata'
-import type { GroundedIMessage } from '~/services/aiChatService'
 import { awaitPendingWikiWrites } from '~/services/characterWikiQueue'
 import { buildLiveChatHandoff } from '~/services/liveMemoryQuery'
 
@@ -83,11 +82,11 @@ async function importDumpWithBusyRetry(
 export type LiveVoiceSyncPhase = 'saving_observations' | 'syncing_cloud' | null
 
 function attachGroundingToTranscript(
-  transcript: IMessage[],
+  transcript: Message[],
   characterId: string,
   grounding: GroundingMetadata,
-): GroundedIMessage[] {
-  const next = [...transcript] as GroundedIMessage[]
+): Message[] {
+  const next = [...transcript] as Message[]
   let lastModelIdx = -1
   for (let i = next.length - 1; i >= 0; i--) {
     if (next[i]!.user._id === characterId) {
@@ -111,7 +110,7 @@ export interface LiveVoiceMachineContext {
   characterId: string
   cloudCharacterId: string | null
   userId: string
-  transcript: IMessage[]
+  transcript: Message[]
   activeTool: string | null
   groundingMetadata: GroundingMetadata | null
   remainingCredits: number
@@ -636,20 +635,20 @@ export const liveVoiceMachine = createMachine(
         async ({
           input,
         }: {
-          input: { characterId: string; userId: string; transcript: IMessage[] }
+          input: { characterId: string; userId: string; transcript: Message[] }
         }) => {
           const { characterId, userId, transcript } = input
           for (let i = 0; i < transcript.length; i++) {
             const msg = transcript[i]!
             const isAI = msg.user._id !== userId
             const createdAt = new Date(resolveCreatedAtMs({ createdAt: msg.createdAt }) + i)
-            const additionalData: Partial<GroundedIMessage> = {
+            const additionalData: Partial<Message> = {
               user: msg.user,
               createdAt,
             }
             try {
               if (isAI) {
-                const grounded = msg as GroundedIMessage
+                const grounded = msg as Message
                 if (grounded.groundingMetadata) {
                   additionalData.groundingMetadata = grounded.groundingMetadata
                 }

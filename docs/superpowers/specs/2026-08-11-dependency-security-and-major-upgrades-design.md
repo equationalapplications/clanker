@@ -16,6 +16,26 @@ Two dependency problems have converged into one effort:
 
 These are treated as one effort because they are the same work: most alerts live in transitive dependencies whose only clean resolution is upgrading the top-level package that pulls them in.
 
+### The OTA fence — why this effort promotes as one batch
+
+`app.config.ts:37-39` derives the OTA runtime version from the package major alone:
+
+```ts
+const breakingChangeVersion = pkg.version.split('.')[0]
+const runtimeVer = breakingChangeVersion + '.0.0'
+```
+
+An OTA update only reaches an installed binary whose `runtimeVersion` matches. So a **major** bump rolls `runtimeVersion` (30.0.0 → 31.0.0) and cuts every existing install off from further OTA updates until the user installs a new binary from the store. A minor or patch bump leaves the runtime version alone and reaches existing installs over the air.
+
+Two facts make this a live constraint rather than background trivia:
+
+1. **One rollover is already queued and unreleased.** `main` is at `30.33.1` (tag `v30.33.1`), so `runtimeVersion` is still `30.0.0`. The reclassifying `BREAKING CHANGE:` commit described above sits on `staging`, not `main`. The next promotion fires semantic-release, bumps to `31.0.0`, and rolls the runtime version once.
+2. **Phase 3 cannot ship over the air at all.** `@react-native-firebase/*`, `react-native-gesture-handler`, `react-native-webview`, and `expo-age-range` change native code. They require a new binary by construction, regardless of what semantic-release decides.
+
+Those two facts point the same direction. If Phase 3 promotes to `main` on its own release cycle *after* the queued rollover has already fired, it burns a **second** rollover (31 → 32) and forces users through a **second** store update for one dependency effort — with a population stranded on `31.0.0` in between, able to receive neither the 30-line nor the 32-line updates.
+
+**Therefore this effort promotes to `main` once, as a batch, with Phase 3 inside it.** The queued rollover is a fence that opens exactly once; every native change in this effort goes through it together or waits for the next one. See [Rollout](#rollout).
+
 ### The single most important constraint
 
 > **`npm audit fix` is banned in this repository. Its recommendations here are downgrades.**
@@ -72,7 +92,7 @@ The `@types/node` row is the sharpest: root types against Node 25, backends type
 
 ## Non-Goals
 
-- Migrating off `react-native-gifted-chat`. That has its own spec — see [2026-08-11 gifted-chat Migration](./2026-08-11-gifted-chat-fork-migration-design.md) — because it is API-surface work on the app's core screen, not a version bump.
+- Migrating off `react-native-gifted-chat`. That has its own spec — see [2026-08-11 gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) — because it is API-surface work on the app's core screen, not a version bump.
 - Resolving every alert to zero. Some transitive advisories have no non-downgrade fix; those are documented and accepted, not forced.
 - Moving backwards off Expo SDK 57 or Node 24. Both are the fixed baseline — see "Fixed platform baseline" above. This includes React Native, whose version is determined by the Expo SDK.
 - Addressing [issue #375](https://github.com/equationalapplications/clanker/issues/375) (librarian cost gating). Deferred; analysis recorded on the issue.
@@ -106,13 +126,29 @@ Then, in this order:
 |---|---|---|---|
 | `@google/genai` | `^1.50.1` (cloud-agent) | align with root's `^2.x` | Major SDK rewrite; highest breakage risk here. Verify ADK integration still functions — see the edge/cloud-agent split constraints |
 | `firebase-admin` | `^13.8.0` | `^14.x` | Both backends. `functions/` uses it heavily for Cloud SQL, Vertex AI, and the Stripe webhook |
-| `express` + `@types/express` | `^4.x` | `^5.x` | cloud-agent only. **Upgrade as a pair** — `@types/express@5` against `express@4` is a type/runtime mismatch. Middleware ecosystem may lag; verify `cors`, rate limiting, and the `server.on('upgrade')` path |
+| `express` + `@types/express` | `^4.x` | `^5.x` | cloud-agent only. **Upgrade as a pair** — `@types/express@5` against `express@4` is a type/runtime mismatch. **Shares a surface with the CORS hardening — see below.** |
 | `typescript` | `~6.0.3` / `^6.0.3` | `^7.x` | All three workspaces; do it in the same phase everywhere to avoid cross-workspace type skew |
 | `eslint` + `@eslint/js` | `^9.39.4` / `^9.17.0` | `^10.x` | `functions/` |
 | `@types/node` | `^22.19.17` | `~24.x` | **Not 26.x.** Runtime is Node 24 |
 | `@types/supertest` | `^6.0.2` | `^7.x` | Test-only |
 
-**Deployment gate — non-negotiable.** Deploy `cloud-agent` and `functions` to staging and verify before promoting to production. This is the same gate PR #596 used for the Node 24 change, and the same production surface (Cloud Run + Firebase Functions, Cloud SQL, Vertex AI, Stripe webhook). A `firebase-admin` major touching the Stripe webhook path is exactly the kind of change that has caused a customer-facing incident here before.
+**⚠️ Express 5 lands on top of freshly-shipped security code.** The [CORS hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) is already implemented and deployed, and it is built directly on Express/Node request internals that Express 5 is entitled to move:
+
+- `req.socket.encrypted` — `selfOrigin()` reads it to pick the `https`/`http` scheme. If it becomes undefined behind an Express 5 request wrapper, every upgrade silently derives an `http://` self-origin, the production mobile app's synthesized `https://` origin stops matching, and **every WebSocket connection 403s**.
+- `req.headers.origin` — the sole input to `isAllowedWsOrigin()`. Header casing or accessor changes break the allowlist match.
+- `server.on('upgrade')` — registered on the raw `http.Server`, not the Express app. Express 5 changing how the app attaches to the server can leave the handler unregistered, which fails **open**, not closed: upgrades bypass origin checking entirely.
+
+Note the asymmetry: the first two failures are loud (everything breaks), the third is silent (the security control quietly disappears). Do not treat a green smoke test as evidence for the third.
+
+**Mandatory for this bump:** re-run the six WebSocket upgrade tests and the four CORS HTTP tests in `cloud-agent/src/index.test.ts` — including the case asserting a **403 for a non-allowlisted origin**, which is the one that detects a vanished handler — and confirm `cors` middleware behavior is unchanged. If Express 5 destabilizes any of them, **split it out of Phase 1 into its own PR** rather than debugging it alongside a `firebase-admin` major.
+
+**Deployment gate — non-negotiable.** **There is no live staging environment.** The `staging` branch has no deployed backend; a `cloud-agent` or `functions` deploy lands **directly in production**. Treat the deploy itself as the gate, not a rehearsal for one:
+
+1. Deploy, then verify against production immediately — `/health`, a chat turn, a Talk session, and a Stripe webhook delivery — before considering the phase done.
+2. Keep the previous Cloud Run revision ready and roll traffic back (`gcloud run services update-traffic`) on any failure rather than fixing forward.
+3. Verification is a **rollback gate**: the question is not "did it deploy" but "is production still correct, and can I revert within minutes if not".
+
+This is the same production surface (Cloud Run + Firebase Functions, Cloud SQL, Vertex AI, Stripe webhook) that has produced customer-facing incidents twice — the Stripe webhook misconfiguration and the CORS deploy that 403'd the web client. A `firebase-admin` major touching the Stripe webhook path deserves the same suspicion.
 
 ### Phase 2 — root build and test tooling
 
@@ -179,19 +215,47 @@ Per phase, before the PR is opened:
 
 - `npm install` completes clean in each touched workspace
 - `npm run typecheck` clean
-- `npm test` green — root baseline is **150 suites / 1378 tests** (per PR #596); `cloud-agent/` baseline is **281 tests** (280 pass, 1 skipped)
+- `npm test` green — root baseline is **150 suites / 1378 tests** (per PR #596); `cloud-agent/` baseline is **288 tests (287 pass, 1 skipped)**
 - `npx expo install --fix` reports no changes (root phases)
 - `npm audit` re-run and the delta recorded in the PR body
-- Phase 1 additionally: staging deploy verified before production
+- Phase 1 additionally: production deploy verified as a rollback gate (see Phase 1)
 - Phase 3 additionally: iOS and Android native builds succeed locally
+
+The cloud-agent number was **measured on 2026-08-11**, not copied from a plan: the suite was run five times on this branch, and four runs returned 288/287/1 exactly. It supersedes the 281 figure, which predates the now-implemented CORS hardening.
+
+⚠️ **One known flake, so it is not mistaken for a regression.** The fifth run failed `schedulerTriggerHandler.test.js:74` — *"returns 422 when no active device"* — asserting `401 !== 422`, i.e. the request was rejected as unauthenticated before it could reach the no-active-device branch. It passed on the four other runs of the identical command. This is pre-existing and unrelated to any dependency bump. If it fires during this effort, re-run before investigating; if it starts failing consistently, that is a real signal and worth its own fix.
 
 Baselines shift as phases land. Each PR records its own post-change numbers so the next phase has an accurate starting point.
 
 ## Rollout
 
-Sequential. Each phase merges to `staging`, is verified, and reaches production before the next begins. Phases are individually revertable — that isolation is the entire reason for the split, and it is lost if two are in flight at once.
+**Sequential on `staging`, batched into a single promotion to `main`.** The two halves of that sentence do different jobs and neither can be dropped.
 
-Phase 1 is the only one that can cause a production incident on merge; Phase 3 is the only one that can break a release build. Both deserve their own release cycle rather than being batched.
+### Sequential into `staging`
+
+Each phase is its own PR to `staging`, merged and verified before the next begins. Phases stay individually revertable while they sit there — that isolation is the entire reason for the split, and it is lost if two are in flight at once. Verification per phase is local (`npm test`, `typecheck`, and for Phase 3 real iOS and Android builds), except for the backends.
+
+### The backends are the exception
+
+`cloud-agent` and `functions` deploys do **not** wait for promotion, because there is nowhere for them to wait — no staging environment exists. Phase 1 deploys straight to production when it merges to `staging`, gated as described in Phase 1. So by the time promotion happens, the backend majors have already been live and observed for however long the remaining phases took. That is a feature: it is the longest production soak available, and it is why Phase 1 is ordered early.
+
+### Batched into `main`
+
+Phases accumulate on `staging` and promote to `main` **once, together, after Phase 3**. The reason is the [OTA fence](#the-ota-fence--why-this-effort-promotes-as-one-batch): promotion fires semantic-release, the queued `BREAKING CHANGE:` bumps the major, and `runtimeVersion` rolls 30.0.0 → 31.0.0 — cutting every installed binary off from OTA until users update from the store.
+
+That rollover is already queued and unreleased. Phase 3's native changes need a new binary anyway. Promoting Phase 3 on a later, separate cycle would burn a second rollover and force users through a second store update for one dependency effort. **One fence, one crossing, one forced update.**
+
+Concretely, promotion is a single `staging` → `main` PR containing Phases 0–4, which produces one `31.0.0` release, one native build, and one store submission.
+
+### What this costs, and why it is still right
+
+Batching means the promotion PR is large and a post-promotion problem is harder to attribute than it would be after a single-phase release. Three things hold that risk down:
+
+- Every phase was already verified independently on `staging`, so this is a batch of *verified* changes, not a batch of unknowns.
+- The backend majors — the phase most likely to cause a production incident — have already been in production since Phase 1, and their rollback path (Cloud Run revision traffic-shift) does not involve promotion at all.
+- What actually lands *at* promotion is the client bundle and the native build, and the pre-promotion gate for those is a real iOS and Android build off `staging`, not a green `npm test`.
+
+The residual risk is a bad native build reaching the store. The mitigation is the same as for any release here: `staging` is buildable and verified before the promotion PR opens, and a bad binary is fixed by a follow-up release rather than a revert, because the store rollout cannot be un-shipped either way.
 
 ## Open Questions
 
@@ -201,6 +265,6 @@ Phase 1 is the only one that can cause a production incident on merge; Phase 3 i
 
 ## Related
 
-- [2026-08-11 cloud-agent CORS Hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) — parallel security work, no shared files
-- [2026-08-11 gifted-chat Migration](./2026-08-11-gifted-chat-fork-migration-design.md) — follows Phase 3
+- [2026-08-11 cloud-agent CORS Hardening](./2026-08-11-cloud-agent-cors-hardening-design.md) — already implemented and deployed. **Not independent of this effort:** Phase 1's Express 5 bump lands directly on the request internals that hardening is built from (`req.socket.encrypted`, `req.headers.origin`, `server.on('upgrade')`). See the Express 5 warning in Phase 1.
+- [2026-08-11 gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) — follows Phase 3
 - [CONTRIBUTING.md](../../../CONTRIBUTING.md) — PRs target `staging`, which is later promoted to `main`

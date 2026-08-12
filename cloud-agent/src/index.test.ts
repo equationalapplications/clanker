@@ -123,7 +123,11 @@ async function startWsTestServer(): Promise<{ port: number; close: () => Promise
 type UpgradeResult = { upgraded: true } | { upgraded: false; statusCode: number }
 
 /** Issues a raw WebSocket upgrade and reports only whether it was accepted. */
-async function attemptUpgrade(port: number, origin?: string): Promise<UpgradeResult> {
+async function attemptUpgrade(
+  port: number,
+  origin?: string,
+  forwardedProto?: 'http' | 'https',
+): Promise<UpgradeResult> {
   const headers: Record<string, string> = {
     Connection: 'Upgrade',
     Upgrade: 'websocket',
@@ -131,6 +135,9 @@ async function attemptUpgrade(port: number, origin?: string): Promise<UpgradeRes
     'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
   }
   if (origin !== undefined) headers.Origin = origin
+  // Simulates a TLS-terminating proxy hop (Cloud Run LB) by advertising the
+  // public scheme on the wire while leaving the local connection plain HTTP.
+  if (forwardedProto !== undefined) headers['X-Forwarded-Proto'] = forwardedProto
 
   return await new Promise<UpgradeResult>((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, path: '/agent/stream', headers })
@@ -627,6 +634,33 @@ test('WS upgrade with the cloud-agent\'s own origin succeeds (React Native clien
   } finally {
     await srv.close()
     if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test('WS upgrade with the cloud-agent\'s own https origin succeeds behind a TLS-terminating proxy (Cloud Run shape)', async () => {
+  // Cloud Run terminates TLS at the managed LB, so inside the container
+  // `req.socket.encrypted` is false even though the client connected via
+  // wss:// and synthesized `Origin: https://<host>`. The server must consult
+  // X-Forwarded-Proto to recognize its own https origin, otherwise native
+  // clients get a 403 on every /agent/stream and /agent/live upgrade.
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  let srv: Awaited<ReturnType<typeof startWsTestServer>> | undefined
+  try {
+    srv = await startWsTestServer()
+    const result = await attemptUpgrade(
+      srv.port,
+      `https://127.0.0.1:${srv.port}`,
+      'https',
+    )
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    try {
+      if (srv) await srv.close()
+    } finally {
+      if (orig === undefined) delete process.env.CORS_ORIGIN
+      else process.env.CORS_ORIGIN = orig
+    }
   }
 })
 

@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native'
-import { Composer } from 'react-native-gifted-chat'
-import type { ComposerProps, IMessage, SendProps } from 'react-native-gifted-chat'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { View, TextInput, StyleSheet, ActivityIndicator, Platform } from 'react-native'
 import { Button, Dialog, IconButton, Portal, Snackbar, Text, useTheme } from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import { File as ExpoFile } from 'expo-file-system'
@@ -20,58 +18,53 @@ import {
 
 export type DocumentUploadPhase = 'reading' | 'converting' | 'checking' | 'forgetting' | null
 
-type ChatComposerProps<TMessage extends IMessage = IMessage> = ComposerProps &
-  Pick<SendProps<TMessage>, 'onSend' | 'text'> & {
-    characterId?: string
-    userId?: string
-    onPhaseChange?: (phase: DocumentUploadPhase) => void
-    /** False when the character has no cloud agent — the photo option is disabled, never degraded. */
-    canSendPhoto?: boolean
-    /**
-     * A chat turn is in flight. Kept separate from `canSendPhoto` because the
-     * two disable for different reasons and the dialog explains each one;
-     * folding them together would tell a cloud-synced user their character
-     * cannot see photos.
-     */
-    isSending?: boolean
-    onSendPhoto?: (photo: PendingChatPhoto, caption: string) => void
-  }
+// Vertical padding inside the text input. Both web and native resolve to the
+// same value now — the split parent file is gone.
+export const COMPOSER_VERTICAL_PADDING = 8
+const LINE_HEIGHT = 22
+// No extra vertical margin is needed: the previous values (6+5 iOS, 0+3
+// Android, 6+4 default) compensated for `react-native-gifted-chat`'s
+// internal TextInput marginTop/marginBottom, which the new TextInput does
+// not have. Adding it here adds ~11px of empty space inside the composer
+// on iOS and mis-aligns it next to the Send button.
+export const MIN_INPUT_HEIGHT = LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2
+export const MAX_INPUT_HEIGHT = LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2
+
+export interface ChatComposerProps {
+  text: string
+  onChangeText: (text: string) => void
+  onSubmit: () => void
+  textInputProps?: Partial<React.ComponentProps<typeof TextInput>>
+  // Owning-component props
+  characterId: string
+  userId: string
+  onPhaseChange?: (phase: DocumentUploadPhase) => void
+  canSendPhoto?: boolean
+  isSending?: boolean
+  // Returns true on success so the composer can clear the typed caption
+  // only when the photo turn actually launched. On failure the caption
+  // stays in the input — the chatError region surfaces the reason and the
+  // user can retry without retyping.
+  onSendPhoto?: (photo: PendingChatPhoto, caption: string) => Promise<boolean>
+}
 
 async function readAsBase64(uri: string): Promise<string> {
   const file = new ExpoFile(uri)
   return file.base64()
 }
 
-// Vertical padding inside the text input. The Composer fixes the TextInput's
-// height to composerHeight, so this padding must be added back to the height
-// reported through onInputSizeChanged or the text gets clipped.
-export const COMPOSER_VERTICAL_PADDING = 8
-const LINE_HEIGHT = 22 // matches gifted-chat Composer's textInput lineHeight
-// gifted-chat's Composer.js bakes its own marginTop/marginBottom onto the
-// TextInput INSIDE the fixed `height: composerHeight` box (see
-// node_modules/react-native-gifted-chat/lib/Composer.js styles.textInput).
-// That margin eats into the usable text area on top of our own padding, so it
-// must be added to the height or the bottom line of text gets clipped.
-const COMPOSER_MARGIN_VERTICAL = Platform.select({ ios: 6 + 5, android: 0 + 3, default: 6 + 4 })
-// ~2.5 lines visible when idle, grows up to ~6 before scrolling internally.
-export const MIN_INPUT_HEIGHT =
-  LINE_HEIGHT * 2.5 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
-export const MAX_INPUT_HEIGHT =
-  LINE_HEIGHT * 6 + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL
-
-export default function ChatComposer<TMessage extends IMessage = IMessage>({
-  onSend,
+export default function ChatComposer({
   text,
+  onChangeText,
+  onSubmit,
   textInputProps,
   characterId,
   userId,
   onPhaseChange,
-  onInputSizeChanged,
   canSendPhoto = true,
   isSending = false,
   onSendPhoto,
-  ...props
-}: ChatComposerProps<TMessage>) {
+}: ChatComposerProps) {
   const { colors, roundness } = useTheme()
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -83,8 +76,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
   const activeRequestIdRef = useRef(0)
 
   const { prepareFromAsset, captureFromCamera, isPreparing, error: photoError, clearError: clearPhotoError } = useChatPhotoUpload()
-
-  const characterWiki = useCharacterWiki(characterId ?? '')
+  const characterWiki = useCharacterWiki(characterId)
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
   useEffect(() => {
@@ -93,28 +85,21 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     }
   }, [])
 
-  // Collapse the composer height back to its idle size once the user empties
-  // the input. Done in an effect rather than the render body because the
-  // render-body form schedules a state update during render, which React's
-  // concurrent renderer does not support.
+  // Collapse the composer height back to its idle size when the user empties
+  // the input. The clamp is the sole authority on the idle height — no
+  // measurement feedback loop, so web does not crash.
   useEffect(() => {
     if (!text && inputHeight !== MIN_INPUT_HEIGHT) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: collapse height when text empties
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional collapse
       setInputHeight(MIN_INPUT_HEIGHT)
     }
   }, [text, inputHeight])
 
-  // Surface photo upload errors as a toast. The hook holds the error as a plain
-  // string, so a second identical failure — a camera permission denied twice —
-  // would leave `photoError` unchanged and fire no effect. Clearing the hook's
-  // error after toasting makes every failure a transition, so the next one
-  // toasts again. The ref still guards the render that re-reads the same string
-  // before the clear lands.
   useEffect(() => {
     if (photoError === lastSeenPhotoErrorRef.current) return
     lastSeenPhotoErrorRef.current = photoError
     if (photoError) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: fire toast once per new photoError
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional toast
       setToastMessage(photoError)
       clearPhotoError()
     }
@@ -278,6 +263,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     if (!characterId || !userId) return
 
     const pickerResult = await DocumentPicker.getDocumentAsync({
+      // Copy into the app sandbox so expo-file-system can read the bytes
+      // unconditionally. Without the copy, iCloud Drive / external URIs
+      // fail at ExpoFile.text()/base64() because the path is outside the
+      // sandbox.
       copyToCacheDirectory: true,
       type: [...TEXT_MIME_TYPES, ...CONVERT_MIME_TYPES],
     })
@@ -288,10 +277,10 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       ?.trim()
       .toLowerCase()
 
-    // Images have been accepted here since before Phase 2, and they went to the
-    // wiki. A user who has been dropping screenshots in to build the character's
-    // memory must not find those screenshots silently becoming chat messages, so
-    // the branch is a question, not a redirect. Non-image picks are untouched.
+    // Same branch as before: a user who has been dropping screenshots in to
+    // build the character's memory must not find those screenshots silently
+    // becoming chat messages, so the question is asked. Non-image picks are
+    // untouched.
     if (mimeType?.startsWith('image/')) {
       setPendingImageAsset({
         uri: asset.uri,
@@ -305,19 +294,7 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
     await ingestDocument(asset)
   }, [characterId, userId, ingestDocument])
 
-  const handleNativeSubmitEditing = useCallback(
-    (event: { nativeEvent: { text: string } }) => {
-      const value = event.nativeEvent?.text
-      if (typeof value === 'string') {
-        const trimmed = value.trim()
-        if (trimmed && onSend) {
-          onSend({ text: trimmed } as Partial<TMessage>, true)
-        }
-      }
-    },
-    [onSend],
-  )
-
+  const isWeb = Platform.OS === 'web'
   const showPlusButton = Boolean(characterId) && Boolean(userId)
 
   return (
@@ -325,49 +302,30 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
       <View style={styles.row}>
         {showPlusButton && (
           (isIngesting || isPreparing || phase !== null) ? (
-            <View
-              style={styles.spinnerContainer}
-              accessible
-              accessibilityRole="progressbar"
-              // Two operations share this slot: a photo being prepared for
-              // chat (isPreparing), and a document being ingested into the
-              // character's memory. Reading the wrong label confuses assistive
-              // tech, so the label tracks the active operation.
-              accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'}
-              accessibilityState={{ busy: true }}
-            >
+            <View style={styles.spinnerContainer} accessible accessibilityRole="progressbar" accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'} accessibilityState={{ busy: true }}>
               <ActivityIndicator size={20} />
             </View>
           ) : (
             <View style={styles.attachmentRow}>
-              <IconButton
-                icon="plus"
-                size={20}
-                onPress={handlePlusPress}
-                style={styles.plusButton}
-                accessibilityLabel="Attach a photo or document"
-                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
-              />
-              {canSendPhoto && (
+              <IconButton icon="plus" size={20} onPress={handlePlusPress} style={styles.plusButton} accessibilityLabel="Attach a photo or document" accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory" />
+              {canSendPhoto && !isWeb && (
+                // The camera capture path opens expo-image-picker's native
+                // camera intent, which web cannot host. Suppress the button
+                // on web — the picker IconButton above still offers "Send in
+                // chat" via gallery selection.
                 <IconButton
                   icon="camera"
                   size={20}
-                  // The turn in flight owns the hook's streaming state; a second
-                  // photo would race it. `useAIChat.sendPhoto` guards the taps
-                  // that land before this disabled state renders.
                   disabled={isSending}
                   onPress={async () => {
-                    // Capturing a photo in order to file it into memory is not a
-                    // flow anyone asks for, so the camera goes straight to chat.
                     const photo = await captureFromCamera()
-                    if (photo) {
-                      onSendPhoto?.(photo, text ?? '')
-                      // Reset the composer: the caption has been bundled with
-                      // the photo and the user should not be able to send it
-                      // again as a follow-up text turn. `handleSend` ignores
-                      // empty-text messages, so this only clears the input.
-                      onSend?.({ text: '' } as Partial<TMessage>, true)
-                    }
+                    if (!photo) return
+                    // Only clear the typed caption when the photo turn
+                    // actually launched — if sendPhoto rejects (network,
+                    // credits, etc.) the user keeps their text and can
+                    // retry without retyping.
+                    const sent = await onSendPhoto?.(photo, text)
+                    if (sent) onChangeText('')
                   }}
                   style={styles.plusButton}
                   accessibilityLabel="Take a photo"
@@ -384,40 +342,50 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
           marginRight: 12,
           overflow: 'hidden',
         }]}>
-          <Composer
-            {...props}
-            text={text}
-            composerHeight={inputHeight}
-            onInputSizeChanged={(size) => {
+          <TextInput
+            value={text}
+            onChangeText={onChangeText}
+            onContentSizeChange={(event) => {
+              const contentHeight = event.nativeEvent.contentSize.height
               const height = Math.max(
                 MIN_INPUT_HEIGHT,
-                Math.min(
-                  MAX_INPUT_HEIGHT,
-                  size.height + COMPOSER_VERTICAL_PADDING * 2 + COMPOSER_MARGIN_VERTICAL,
-                ),
+                Math.min(MAX_INPUT_HEIGHT, contentHeight + COMPOSER_VERTICAL_PADDING * 2),
               )
-              setInputHeight(height)
-              // Keep GiftedChat's internal composerHeight in sync so the message
-              // list offset tracks the input's real size.
-              onInputSizeChanged?.({ ...size, height })
+              if (height !== inputHeight) {
+                setInputHeight(height)
+              }
             }}
-            textInputStyle={{
+            onSubmitEditing={onSubmit}
+            returnKeyType="send"
+            submitBehavior="submit"
+            // react-native-web 0.21.2 ignores `submitBehavior`, so plain
+            // Enter inserts a newline on web instead of firing
+            // `onSubmitEditing`. The native TextInput (Android 0.86.2)
+            // honours `submitBehavior="submit"` so this branch never fires
+            // there in practice; the platform check is defence-in-depth and
+            // also keeps the handler's intent obvious in the tree. Shift+Enter
+            // falls through and inserts a newline, matching the multiline
+            // TextInput contract.
+            onKeyPress={(event) => {
+              if (!isWeb) return
+              const { key, shiftKey } = event.nativeEvent as unknown as { key?: string; shiftKey?: boolean }
+              if (key === 'Enter' && !shiftKey) {
+                onSubmit()
+              }
+            }}
+            accessibilityLabel="Message input"
+            placeholder="Message"
+            placeholderTextColor={colors.onSurfaceVariant}
+            multiline
+            style={{
+              height: inputHeight,
               backgroundColor: 'transparent',
               paddingHorizontal: 12,
               paddingVertical: COMPOSER_VERTICAL_PADDING,
               textAlignVertical: 'center',
               color: colors.onSurfaceVariant,
             }}
-            textInputProps={{
-              ...textInputProps,
-              accessibilityLabel: 'Message input',
-              submitBehavior: 'submit',
-              returnKeyType: 'send',
-              onSubmitEditing: (event: any) => {
-                textInputProps?.onSubmitEditing?.(event)
-                handleNativeSubmitEditing(event)
-              },
-            }}
+            {...textInputProps}
           />
         </View>
       </View>
@@ -425,13 +393,9 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
         <Dialog visible={pendingImageAsset !== null} onDismiss={() => setPendingImageAsset(null)}>
           <Dialog.Title>Add this image</Dialog.Title>
           {!canSendPhoto ? (
-            <Dialog.Content>
-              <Text>Only cloud-synced characters can see photos in chat.</Text>
-            </Dialog.Content>
+            <Dialog.Content><Text>Only cloud-synced characters can see photos in chat.</Text></Dialog.Content>
           ) : isSending ? (
-            <Dialog.Content>
-              <Text>Wait for the current reply to finish before sending a photo.</Text>
-            </Dialog.Content>
+            <Dialog.Content><Text>Wait for the current reply to finish before sending a photo.</Text></Dialog.Content>
           ) : null}
           <Dialog.Actions>
             <Button
@@ -441,31 +405,24 @@ export default function ChatComposer<TMessage extends IMessage = IMessage>({
                 setPendingImageAsset(null)
                 if (!picked) return
                 try {
-                  const photo = await prepareFromAsset({
-                    uri: picked.uri,
-                    width: picked.width,
-                    height: picked.height,
-                  })
-                  onSendPhoto?.(photo, text ?? '')
-                  // See camera-button note: clear the caption so it cannot
-                  // be re-sent as a text turn. `handleSend` ignores empties.
-                  onSend?.({ text: '' } as Partial<TMessage>, true)
+                  const photo = await prepareFromAsset({ uri: picked.uri, width: picked.width, height: picked.height })
+                  // Only clear the typed caption when the photo turn
+                  // actually launched — on rejection the user keeps the
+                  // text and can retry without retyping.
+                  const sent = await onSendPhoto?.(photo, text)
+                  if (sent) onChangeText('')
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }
               }}
-            >
-              Send in chat
-            </Button>
+            >Send in chat</Button>
             <Button
               onPress={async () => {
                 const picked = pendingImageAsset
                 setPendingImageAsset(null)
                 if (picked) await ingestDocument(picked.asset)
               }}
-            >
-              Add to memory
-            </Button>
+            >Add to memory</Button>
           </Dialog.Actions>
         </Dialog>
         <Snackbar
@@ -497,9 +454,6 @@ const styles = StyleSheet.create({
   },
   composerWrapper: {
     flex: 1,
-    // Must be a row: gifted-chat's Composer puts flex: 1 on the TextInput, and
-    // in a column container that flexes its HEIGHT to zero-basis, overriding
-    // the explicit height: composerHeight and collapsing the input to one line.
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
