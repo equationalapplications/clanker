@@ -94,7 +94,10 @@ Note that `origin: false` omits the `Access-Control-Allow-Origin` header entirel
 Add a helper beside `corsOrigins()` that derives the server's own origin from the upgrade request, plus an `isAllowedWsOrigin` that accepts either no origin (server-to-server callers), the request's own origin (React Native synthesized origin and same-origin browsers), or an explicitly allowlisted origin:
 
 ```ts
-export function selfOrigin(req: { headers: { host?: string }; socket: { encrypted?: boolean } }): string | null {
+export function selfOrigin(req: {
+  headers: { host?: string }
+  socket: { encrypted?: boolean }
+}): string | null {
   const host = req.headers.host
   if (!host) return null
   const scheme = req.socket.encrypted ? 'https' : 'http'
@@ -137,15 +140,15 @@ server.on('upgrade', (req, socket, head) => {
 
 **Resulting behavior matrix:**
 
-| `Origin` header | `CORS_ORIGIN` | Outcome |
-|---|---|---|
-| absent | any | **allow** — server-to-server client |
-| matches the cloud-agent's own origin (host + scheme) | unset | **allow** — same-origin browser or React Native synthesized origin |
-| matches an allowlisted HTTP(S) origin | set | **allow** |
-| an explicitly configured `chrome-extension://<id>` | set | **allow** — preserved as a literal origin |
-| any other origin | unset | **reject 403** |
-| any other origin | set, but not in allowlist | **reject 403** |
-| any origin | `*` only | **reject 403** — wildcard already filtered to `false` |
+| `Origin` header                                      | `CORS_ORIGIN`             | Outcome                                                            |
+| ---------------------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| absent                                               | any                       | **allow** — server-to-server client                                |
+| matches the cloud-agent's own origin (host + scheme) | unset                     | **allow** — same-origin browser or React Native synthesized origin |
+| matches an allowlisted HTTP(S) origin                | set                       | **allow**                                                          |
+| an explicitly configured `chrome-extension://<id>`   | set                       | **allow** — preserved as a literal origin                          |
+| any other origin                                     | unset                     | **reject 403**                                                     |
+| any other origin                                     | set, but not in allowlist | **reject 403**                                                     |
+| any origin                                           | `*` only                  | **reject 403** — wildcard already filtered to `false`              |
 
 Sharing `corsOrigins()` is the point of the design: HTTP and WebSocket policy cannot drift apart, and a future allowlist entry applies to both automatically. The `self` short-circuit is the separate escape hatch for native clients, who cannot forge a synthesized origin to a different host.
 
@@ -154,7 +157,7 @@ Sharing `corsOrigins()` is the point of the design: HTTP and WebSocket policy ca
 Both look like bypasses. Neither is.
 
 - **No `Origin` header.** A hostile non-browser client can simply omit `Origin`. That is true and irrelevant. Origin checking exists to constrain **browsers**, which always send `Origin` on a WebSocket upgrade and cannot forge it from page JavaScript. A non-browser attacker was never constrained by the same-origin model in the first place; what stops them is the bearer token each upgrade handler verifies. Rejecting header-less upgrades would break every legitimate server-to-server caller while stopping no attacker.
-- **Matches the cloud-agent's own origin.** React Native 0.86.2 synthesizes the request's own origin as a hardware-default behavior — there is no application code that opts into it, and no application code that can override it without a per-platform native module. Same-origin browsers, by definition, also send the server's own origin. Neither caller can synthesize a *different* host: the constructed value is a function of the WS URL, which the attacker controls but only to point at their own malicious server (`wss://evil.example.com` does not get `Origin: https://api.clanker.example` from `getDefaultOrigin`). What stops the true cross-origin attack — a browser at `https://evil.example.com` opening `wss://api.clanker.example/agent/stream` — is that the browser sends `Origin: https://evil.example.com`, not `https://api.clanker.example`. The matcher therefore rejects the only case it actually needs to reject.
+- **Matches the cloud-agent's own origin.** React Native 0.86.2 synthesizes the request's own origin as a hardware-default behavior — there is no application code that opts into it, and no application code that can override it without a per-platform native module. Same-origin browsers, by definition, also send the server's own origin. Neither caller can synthesize a _different_ host: the constructed value is a function of the WS URL, which the attacker controls but only to point at their own malicious server (`wss://evil.example.com` does not get `Origin: https://api.clanker.example` from `getDefaultOrigin`). What stops the true cross-origin attack — a browser at `https://evil.example.com` opening `wss://api.clanker.example/agent/stream` — is that the browser sends `Origin: https://evil.example.com`, not `https://api.clanker.example`. The matcher therefore rejects the only case it actually needs to reject.
 
 ## Testing
 
@@ -174,7 +177,7 @@ The existing file imports `test` from `node:test` and `assert` from `node:assert
 
 `'health endpoint reflects origin when CORS_ORIGIN is not set'` (line 149) asserts the permissive behavior and inverts. Rename to `'health endpoint blocks all origins when CORS_ORIGIN is not set'` and assert `res.headers['access-control-allow-origin']` is `undefined`.
 
-Its existing cleanup is correct and needs no change: the test deletes `CORS_ORIGIN` at the start, so when the original value was `undefined` the correct end state is "deleted", which is what the `if (orig !== undefined)` restore produces. The three tests above it need an explicit `delete` branch only because they *set* a value; this one does not.
+Its existing cleanup is correct and needs no change: the test deletes `CORS_ORIGIN` at the start, so when the original value was `undefined` the correct end state is "deleted", which is what the `if (orig !== undefined)` restore produces. The three tests above it need an explicit `delete` branch only because they _set_ a value; this one does not.
 
 ### Unchanged (3)
 
@@ -195,7 +198,7 @@ An explicitly configured `chrome-extension://abcdefghijklmnop` origin receives t
 
 Two requirements govern how these are written:
 
-**Drive the real server, never a re-implementation.** `supertest` cannot perform WebSocket upgrades, so these need a real listener on an ephemeral port (`server.listen(0)`). Bind **the actual exported server factory from `index.ts`**, with its real `server.on('upgrade')` handler attached. Standing up a fresh `http.createServer()` in the test file and re-implementing the origin check inline would assert that a *copy* of the logic works while leaving the production handler completely unexercised — the tests would keep passing after a regression in the real code, which is worse than having no tests, because it reads as coverage.
+**Drive the real server, never a re-implementation.** `supertest` cannot perform WebSocket upgrades, so these need a real listener on an ephemeral port (`server.listen(0)`). Bind **the actual exported server factory from `index.ts`**, with its real `server.on('upgrade')` handler attached. Standing up a fresh `http.createServer()` in the test file and re-implementing the origin check inline would assert that a _copy_ of the logic works while leaving the production handler completely unexercised — the tests would keep passing after a regression in the real code, which is worse than having no tests, because it reads as coverage.
 
 **Use a raw `http.request`, not a `ws` client.** These five assertions only distinguish 403 from a successful upgrade, so issue a plain `http.request` with `Upgrade: websocket` and `Connection: Upgrade` headers and assert on the status: listen for the `upgrade` event for success cases and the `response` event for the 403 cases. Driving them through a `ws` client instead means the client computes and validates `Sec-WebSocket-Accept`, which races the assertion and makes the happy-path tests flaky for reasons unrelated to what they test.
 
@@ -215,7 +218,7 @@ Low risk for the native app and server-to-server callers: they send no `Origin`,
 4. If the web paths fail, roll traffic back to the previous Cloud Run revision (`gcloud run services update-traffic`) rather than waiting on a fix-forward.
 5. Confirm alert #26 auto-closes on the next CodeQL run against `main`.
 
-**Rollback:** shift Cloud Run traffic back to the previous revision, or revert the commit. There is no data migration and no coupling to the dependency work in the sibling spec. There *is* a config change — the `CORS_ORIGIN` env var — but it is additive and safe to leave set across a revert, since the pre-hardening `corsOrigins()` ignores the variable's absence rather than its presence.
+**Rollback:** shift Cloud Run traffic back to the previous revision, or revert the commit. There is no data migration and no coupling to the dependency work in the sibling spec. There _is_ a config change — the `CORS_ORIGIN` env var — but it is additive and safe to leave set across a revert, since the pre-hardening `corsOrigins()` ignores the variable's absence rather than its presence.
 
 **Required for this rollout:** `CORS_ORIGIN` **must** be set in Cloud Run to the production web-client origins. `cloud-agent/scripts/deploy.sh` now supplies them by default, so a deploy through that script is self-contained; a deploy by any other path must set the variable explicitly. The native app and server-to-server callers need no configuration — the native app's synthesized origin matches the cloud-agent's own HTTP(S) origin and is accepted by the upgrade guard. Local Expo web development is covered by `docker-compose.local.yml:24`. Before the Desktop Bridge is published for production, add the stable `chrome-extension://<id>` origin to the same list and verify both the HTTP and WebSocket paths; that addition remains deferred until the extension ID exists.
 

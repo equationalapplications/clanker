@@ -143,7 +143,9 @@ const { useAIChat } = require('~/hooks/useAIChat')
 
 type HookValue = ReturnType<typeof useAIChat>
 
-function renderUseAIChat(overrides: Partial<{ save_to_cloud: number; cloud_id: string | null }> = {}): HookValue {
+function renderUseAIChat(
+  overrides: Partial<{ save_to_cloud: number; cloud_id: string | null }> = {},
+): HookValue {
   let hookValue: HookValue | null = null
 
   function Probe() {
@@ -283,7 +285,10 @@ describe('useAIChat', () => {
       },
     ])
 
-    mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null, cloudSyncSucceeded: true })
+    mockSendMessageWithAIResponse.mockResolvedValue({
+      usageSnapshot: null,
+      cloudSyncSucceeded: true,
+    })
 
     const hook = renderUseAIChat()
 
@@ -302,9 +307,7 @@ describe('useAIChat', () => {
       'user-1',
       [],
       expect.objectContaining({
-        unsyncedHistory: [
-          expect.objectContaining({ id: 'msg-1', sender_user_id: 'user-1' }),
-        ],
+        unsyncedHistory: [expect.objectContaining({ id: 'msg-1', sender_user_id: 'user-1' })],
       }),
     )
 
@@ -363,7 +366,10 @@ describe('useAIChat', () => {
       escalationState: 'idle',
     })
 
-    mockSendMessageWithAIResponse.mockResolvedValue({ usageSnapshot: null, cloudSyncSucceeded: false })
+    mockSendMessageWithAIResponse.mockResolvedValue({
+      usageSnapshot: null,
+      cloudSyncSucceeded: false,
+    })
 
     const hook = renderUseAIChat({ save_to_cloud: 0 })
 
@@ -533,7 +539,13 @@ describe('useAIChat', () => {
 
     it('sends local tasks as unsyncedHistory', async () => {
       mockListTasks.mockResolvedValue([
-        { id: 't1', character_id: 'char-1', title: 'Buy milk', status: 'pending', created_at: 1000 },
+        {
+          id: 't1',
+          character_id: 'char-1',
+          title: 'Buy milk',
+          status: 'pending',
+          created_at: 1000,
+        },
       ])
       const hook = renderUseAIChat({ save_to_cloud: 1 })
 

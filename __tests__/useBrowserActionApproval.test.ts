@@ -13,7 +13,9 @@ jest.mock('expo-task-manager', () => ({
 }))
 
 jest.mock('@react-native-firebase/auth', () => ({
-  getAuth: jest.fn().mockReturnValue({ currentUser: { getIdToken: jest.fn().mockResolvedValue('id-tok') } }),
+  getAuth: jest
+    .fn()
+    .mockReturnValue({ currentUser: { getIdToken: jest.fn().mockResolvedValue('id-tok') } }),
 }))
 
 jest.mock('../shared/localCloudAgent', () => ({

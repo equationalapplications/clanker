@@ -12,24 +12,45 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
   const theme = useTheme()
 
   if (users.length === 0) {
-    return <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>No users matched the current filters.</Text>
+    return (
+      <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>
+        No users matched the current filters.
+      </Text>
+    )
   }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <DataTable>
         <DataTable.Header>
-          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Email</DataTable.Title>
-          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>User ID</DataTable.Title>
-          <DataTable.Title numeric textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Credits</DataTable.Title>
-          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Tier</DataTable.Title>
-          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Status</DataTable.Title>
-          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>Terms</DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>
+            Email
+          </DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>
+            User ID
+          </DataTable.Title>
+          <DataTable.Title
+            numeric
+            textStyle={[styles.headerText, { color: theme.colors.onSurface }]}
+          >
+            Credits
+          </DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>
+            Tier
+          </DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>
+            Status
+          </DataTable.Title>
+          <DataTable.Title textStyle={[styles.headerText, { color: theme.colors.onSurface }]}>
+            Terms
+          </DataTable.Title>
         </DataTable.Header>
 
         {users.map((user) => {
           const selected = user.userId === selectedUserId
-          const cellTextColor = selected ? theme.colors.onSecondaryContainer : theme.colors.onSurface
+          const cellTextColor = selected
+            ? theme.colors.onSecondaryContainer
+            : theme.colors.onSurface
           return (
             <DataTable.Row
               key={user.userId}
@@ -40,12 +61,24 @@ export function UsersTable({ users, selectedUserId, onSelectUser }: UsersTablePr
               ]}
               onPress={() => onSelectUser(user.userId)}
             >
-              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.email}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.userIdText, { color: cellTextColor }]}>{user.userId}</DataTable.Cell>
-              <DataTable.Cell numeric textStyle={[styles.cellText, { color: cellTextColor }]}>{user.currentCredits}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planTier}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.planStatus}</DataTable.Cell>
-              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>{user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}</DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>
+                {user.email}
+              </DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.userIdText, { color: cellTextColor }]}>
+                {user.userId}
+              </DataTable.Cell>
+              <DataTable.Cell numeric textStyle={[styles.cellText, { color: cellTextColor }]}>
+                {user.currentCredits}
+              </DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>
+                {user.planTier}
+              </DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>
+                {user.planStatus}
+              </DataTable.Cell>
+              <DataTable.Cell textStyle={[styles.cellText, { color: cellTextColor }]}>
+                {user.termsAcceptedAt ? 'Accepted' : 'Not accepted'}
+              </DataTable.Cell>
             </DataTable.Row>
           )
         })}

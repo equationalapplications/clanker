@@ -65,10 +65,7 @@ function GroundingHtmlWebView({ html, minHeight, containerStyle }: GroundingHtml
 
   return (
     <View
-      style={[
-        containerStyle,
-        { overflow: 'hidden', height, width: '100%', flex: 0, flexGrow: 0 },
-      ]}
+      style={[containerStyle, { overflow: 'hidden', height, width: '100%', flex: 0, flexGrow: 0 }]}
       collapsable={false}
     >
       <WebView

@@ -81,9 +81,7 @@ describe('sanitizeGroundingHtmlLinksRegex', () => {
 
   it('keeps href when the last duplicate is safe', () => {
     const html = '<a href="javascript:alert(1)" href="https://example.com">good</a>'
-    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe(
-      '<a href="https://example.com">good</a>',
-    )
+    expect(sanitizeGroundingHtmlLinksRegex(html)).toBe('<a href="https://example.com">good</a>')
   })
 
   it('removes src when the last duplicate is unsafe', () => {
@@ -106,8 +104,7 @@ describe('sanitizeGroundingHtmlLinksRegex', () => {
 
 describe('sanitizeGroundingHtmlForNative', () => {
   it('strips executable markup and unsafe links together', () => {
-    const html =
-      '<a href="javascript:alert(1)" onclick="alert(2)">x</a><script>alert(3)</script>'
+    const html = '<a href="javascript:alert(1)" onclick="alert(2)">x</a><script>alert(3)</script>'
     expect(sanitizeGroundingHtmlForNative(html)).toBe('<a>x</a>')
   })
 

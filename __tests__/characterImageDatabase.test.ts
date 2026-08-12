@@ -421,4 +421,3 @@ describe('characterImageDatabase against the real schema', () => {
     })
   })
 })
-

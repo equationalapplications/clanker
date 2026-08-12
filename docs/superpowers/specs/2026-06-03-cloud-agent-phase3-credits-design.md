@@ -60,16 +60,16 @@ Expo catch (402):
 
 ## 3. Files
 
-| Action | Path | Change |
-|--------|------|--------|
-| **Create** | `cloud-agent/src/services/creditService.ts` | Three raw SQL functions |
-| **Modify** | `cloud-agent/src/index.ts` | Wrap `runAgentFn` with spend/refund, return `usageSnapshot` |
-| **Modify** | `cloud-agent/src/index.test.ts` | Tests for 402, spend/refund, usageSnapshot |
-| **Create** | `cloud-agent/src/services/creditService.test.ts` | Unit tests for creditService |
-| **Modify** | `src/services/cloudAgentService.ts` | Handle 402, parse `usageSnapshot`, update `CloudAgentResult` type |
-| **Modify** | `src/hooks/useAIChat.ts` | Send `USAGE_SNAPSHOT_RECEIVED` from cloud agent response and on 402 |
-| **Modify** | `__tests__/cloudAgentService.test.ts` | Tests for 402 throw and usageSnapshot parsing |
-| **Modify** | `__tests__/useAIChat.test.tsx` | Tests for USAGE_SNAPSHOT_RECEIVED dispatch and 402 self-heal |
+| Action     | Path                                             | Change                                                              |
+| ---------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| **Create** | `cloud-agent/src/services/creditService.ts`      | Three raw SQL functions                                             |
+| **Modify** | `cloud-agent/src/index.ts`                       | Wrap `runAgentFn` with spend/refund, return `usageSnapshot`         |
+| **Modify** | `cloud-agent/src/index.test.ts`                  | Tests for 402, spend/refund, usageSnapshot                          |
+| **Create** | `cloud-agent/src/services/creditService.test.ts` | Unit tests for creditService                                        |
+| **Modify** | `src/services/cloudAgentService.ts`              | Handle 402, parse `usageSnapshot`, update `CloudAgentResult` type   |
+| **Modify** | `src/hooks/useAIChat.ts`                         | Send `USAGE_SNAPSHOT_RECEIVED` from cloud agent response and on 402 |
+| **Modify** | `__tests__/cloudAgentService.test.ts`            | Tests for 402 throw and usageSnapshot parsing                       |
+| **Modify** | `__tests__/useAIChat.test.tsx`                   | Tests for USAGE_SNAPSHOT_RECEIVED dispatch and 402 self-heal        |
 
 ---
 
@@ -149,7 +149,7 @@ try {
     res.status(402).json({ error: 'Insufficient credits' })
     return
   }
-  throw err  // real DB error → existing 500 handler
+  throw err // real DB error → existing 500 handler
 }
 
 // 2. EXECUTE
@@ -163,7 +163,7 @@ try {
     // Log + swallow — don't mask the original ADK error
     console.error(`[CRITICAL] refundCredit failed for user ${userId} txId ${txId}`, refundErr)
   }
-  throw adkErr  // → existing 500 handler
+  throw adkErr // → existing 500 handler
 }
 
 // 3. GET BALANCE (graceful degrade)
@@ -184,13 +184,13 @@ res.json({
 
 **Error handling decisions:**
 
-| Failure point | Behavior | Reason |
-|---|---|---|
-| `spendCredit` → `INSUFFICIENT_CREDITS` | 402, halt | User has no credits |
-| `spendCredit` → DB error | rethrow → 500 | Real infra failure |
-| `runAgentFn` throws | refund then rethrow → 500 | User paid; must restore credit |
-| `refundCredit` throws | log + swallow, rethrow ADK error | Don't mask root cause; credit manually recoverable via admin |
-| `getBalance` throws | log + swallow, `usageSnapshot: null` | User already got their reply; client uses cached balance |
+| Failure point                          | Behavior                             | Reason                                                       |
+| -------------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+| `spendCredit` → `INSUFFICIENT_CREDITS` | 402, halt                            | User has no credits                                          |
+| `spendCredit` → DB error               | rethrow → 500                        | Real infra failure                                           |
+| `runAgentFn` throws                    | refund then rethrow → 500            | User paid; must restore credit                               |
+| `refundCredit` throws                  | log + swallow, rethrow ADK error     | Don't mask root cause; credit manually recoverable via admin |
+| `getBalance` throws                    | log + swallow, `usageSnapshot: null` | User already got their reply; client uses cached balance     |
 
 ---
 
@@ -202,7 +202,7 @@ res.json({
 export interface CloudAgentResult {
   reply: string
   toolCalls: string[]
-  usageSnapshot: { remainingCredits: number } | null  // added
+  usageSnapshot: { remainingCredits: number } | null // added
 }
 ```
 
@@ -215,14 +215,19 @@ if (response.status === 402) {
 if (!response.ok) {
   throw new Error(`Cloud Agent responded with ${response.status}`)
 }
-const data = await response.json() as { reply?: string; toolCalls?: string[]; usageSnapshot?: { remainingCredits?: number } | null }
+const data = (await response.json()) as {
+  reply?: string
+  toolCalls?: string[]
+  usageSnapshot?: { remainingCredits?: number } | null
+}
 // ...existing reply validation...
 return {
   reply: data.reply,
   toolCalls: data.toolCalls ?? [],
-  usageSnapshot: typeof data.usageSnapshot?.remainingCredits === 'number'
-    ? { remainingCredits: data.usageSnapshot.remainingCredits }
-    : null,
+  usageSnapshot:
+    typeof data.usageSnapshot?.remainingCredits === 'number'
+      ? { remainingCredits: data.usageSnapshot.remainingCredits }
+      : null,
 }
 ```
 
@@ -238,8 +243,8 @@ if (agentResult.usageSnapshot) {
     type: 'USAGE_SNAPSHOT_RECEIVED',
     source: 'cloudAgent',
     remainingCredits: agentResult.usageSnapshot.remainingCredits,
-    planTier: null,      // preserve existing value in auth machine
-    planStatus: null,    // preserve existing value
+    planTier: null, // preserve existing value in auth machine
+    planStatus: null, // preserve existing value
     verifiedAt: new Date().toISOString(),
   })
 }
@@ -310,13 +315,13 @@ throw err
 
 ## 10. Acceptance Criteria
 
-| Scenario | Expected |
-|---|---|
-| User has ≥ 1 credit, cloud agent call succeeds | Credit deducted; `usageSnapshot.remainingCredits` returned; auth machine updated; header badge ticks down |
-| User has 0 credits, hits `/agent/run` directly | 402 `{ error: 'Insufficient credits' }` |
-| Frontend: user has stale credits > 0, backend returns 402 | Auth machine forced to `remainingCredits: 0`; ChatView gates future sends |
-| ADK / Vertex AI error mid-run | `refundCredit` called; 500 returned; credit restored |
-| `getBalance` fails after successful ADK run | 500 NOT returned; `usageSnapshot: null` returned; user receives reply |
-| Two simultaneous requests with 1 credit remaining | `SELECT FOR UPDATE` serializes; first succeeds, second gets 402 |
-| Expired credits only | `spendCredit` throws `INSUFFICIENT_CREDITS`; 402 returned |
-| Free signup credits (expires_at = NULL) | Spent last (NULLS LAST ordering); correctly deducted |
+| Scenario                                                  | Expected                                                                                                  |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| User has ≥ 1 credit, cloud agent call succeeds            | Credit deducted; `usageSnapshot.remainingCredits` returned; auth machine updated; header badge ticks down |
+| User has 0 credits, hits `/agent/run` directly            | 402 `{ error: 'Insufficient credits' }`                                                                   |
+| Frontend: user has stale credits > 0, backend returns 402 | Auth machine forced to `remainingCredits: 0`; ChatView gates future sends                                 |
+| ADK / Vertex AI error mid-run                             | `refundCredit` called; 500 returned; credit restored                                                      |
+| `getBalance` fails after successful ADK run               | 500 NOT returned; `usageSnapshot: null` returned; user receives reply                                     |
+| Two simultaneous requests with 1 credit remaining         | `SELECT FOR UPDATE` serializes; first succeeds, second gets 402                                           |
+| Expired credits only                                      | `spendCredit` throws `INSUFFICIENT_CREDITS`; 402 returned                                                 |
+| Free signup credits (expires_at = NULL)                   | Spent last (NULLS LAST ordering); correctly deducted                                                      |

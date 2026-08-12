@@ -25,9 +25,7 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
     'pending_cloud_id',
     'active_image_id',
   ],
-  character_images: [
-    'message_id',
-  ],
+  character_images: ['message_id'],
   // wiki_entries removed — table no longer exists on fresh installs (package owns llm_wiki_* tables)
 }
 
@@ -42,8 +40,7 @@ export const LATEST_SCHEMA_REQUIRED_COLUMNS: Record<string, string[]> = {
  * A migration is skipped when ANY of its guards is satisfied.
  */
 export type MigrationSkipGuard =
-  | { table: string; column: string }
-  | { table: string; skipIfTableMissing: true }
+  { table: string; column: string } | { table: string; skipIfTableMissing: true }
 
 export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   2: [{ table: 'characters', column: 'deleted_at' }],
@@ -57,8 +54,14 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   12: [{ table: 'characters', column: 'memory_checkpoint' }],
   // wiki_entries may not exist on legacy DBs that never had the wiki feature;
   // skip column/index migrations when the table is absent (migration 17 drops it anyway).
-  13: [{ table: 'wiki_entries', column: 'source_hash' }, { table: 'wiki_entries', skipIfTableMissing: true }],
-  14: [{ table: 'wiki_entries', column: 'source_ref' }, { table: 'wiki_entries', skipIfTableMissing: true }],
+  13: [
+    { table: 'wiki_entries', column: 'source_hash' },
+    { table: 'wiki_entries', skipIfTableMissing: true },
+  ],
+  14: [
+    { table: 'wiki_entries', column: 'source_ref' },
+    { table: 'wiki_entries', skipIfTableMissing: true },
+  ],
   15: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   16: [{ table: 'wiki_entries', skipIfTableMissing: true }],
   18: [{ table: 'messages', column: 'synced_at' }],
@@ -198,7 +201,7 @@ DROP TABLE IF EXISTS wiki_entries;
 DROP TABLE IF EXISTS agent_tasks;
 DROP TABLE IF EXISTS memory_events;
 DROP TABLE IF EXISTS derived_synonyms`.trim(),
-  18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`,  // NULL = unsynced, Unix timestamp = synced
+  18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`, // NULL = unsynced, Unix timestamp = synced
   19: `CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY NOT NULL,
   character_id TEXT NOT NULL,

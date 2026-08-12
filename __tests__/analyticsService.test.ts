@@ -67,7 +67,9 @@ describe('analyticsService (native)', () => {
 
   it('logEvent forwards name and params to RNFB logEvent', () => {
     logEvent('character_created', { platform: 'ios' })
-    expect(rnfbLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'character_created', { platform: 'ios' })
+    expect(rnfbLogEvent).toHaveBeenCalledWith(mockAnalyticsInstance, 'character_created', {
+      platform: 'ios',
+    })
   })
 
   it('logEvent works with no params', () => {

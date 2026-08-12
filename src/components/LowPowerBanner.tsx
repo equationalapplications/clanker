@@ -33,10 +33,7 @@ export function LowPowerBanner() {
 
   if (band === 'red') {
     return (
-      <Banner
-        visible
-        actions={[{ label: 'Recharge', onPress: navigateToSubscribe }]}
-      >
+      <Banner visible actions={[{ label: 'Recharge', onPress: navigateToSubscribe }]}>
         Low Power — recharge to keep chatting.
       </Banner>
     )

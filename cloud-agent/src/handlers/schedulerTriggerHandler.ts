@@ -208,7 +208,11 @@ export function createSchedulerTriggerHandler(
 
     if (!isDuplicateRun) {
       try {
-        await fs.createSession(uid, activeSessionId, { status: 'pending', trigger: 'scheduler', voiceInstanceId: INSTANCE_ID })
+        await fs.createSession(uid, activeSessionId, {
+          status: 'pending',
+          trigger: 'scheduler',
+          voiceInstanceId: INSTANCE_ID,
+        })
         await fs.writeTask(uid, activeSessionId, activeTaskId, taskIntent)
       } catch (err) {
         console.error('[scheduler-trigger] setup error:', err)
@@ -222,7 +226,11 @@ export function createSchedulerTriggerHandler(
             })
           }
         }
-        try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
+        try {
+          await fs.closeSession(uid, activeSessionId, 'aborted')
+        } catch {
+          /* ignore */
+        }
         res.status(500).json({ error: 'Internal server error' })
         return
       }
@@ -232,7 +240,10 @@ export function createSchedulerTriggerHandler(
         try {
           await fcm.wakeExtension(device.fcmToken, activeSessionId, activeTaskId)
         } catch (err) {
-          console.warn('[scheduler-trigger] FCM wake failed, extension will poll:', err instanceof Error ? err.message : err)
+          console.warn(
+            '[scheduler-trigger] FCM wake failed, extension will poll:',
+            err instanceof Error ? err.message : err,
+          )
         }
       }
     }
@@ -244,26 +255,36 @@ export function createSchedulerTriggerHandler(
       let abortedOffline = false
       try {
         abortedOffline = await fs.abortPendingTaskIfOffline(uid, activeSessionId, activeTaskId, {
-          taskId: activeTaskId, status: 'failed', data: {}, activeUrl: '',
+          taskId: activeTaskId,
+          status: 'failed',
+          data: {},
+          activeUrl: '',
           error: {
             code: 'EXTENSION_OFFLINE',
             message: 'Browser extension did not connect',
             failedAction: action as never,
           },
         })
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       if (!abortedOffline) {
         try {
           await fs.writeTaskResult(uid, activeSessionId, activeTaskId, {
-            taskId: activeTaskId, status: 'failed', data: {}, activeUrl: '',
+            taskId: activeTaskId,
+            status: 'failed',
+            data: {},
+            activeUrl: '',
             error: {
               code: 'EXECUTION_TIMEOUT',
               message: 'Scheduler task timed out',
               failedAction: action as never,
             },
           })
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       if (!isDuplicateRun && abortedOffline && allocations) {
@@ -277,16 +298,27 @@ export function createSchedulerTriggerHandler(
         }
       }
 
-      try { await fs.closeSession(uid, activeSessionId, 'aborted') } catch { /* ignore */ }
-      res.status(504).json({ error: 'Task timed out', sessionId: activeSessionId, taskId: activeTaskId })
+      try {
+        await fs.closeSession(uid, activeSessionId, 'aborted')
+      } catch {
+        /* ignore */
+      }
+      res
+        .status(504)
+        .json({ error: 'Task timed out', sessionId: activeSessionId, taskId: activeTaskId })
       return
     }
 
-    try { await fs.closeSession(uid, activeSessionId, 'closed') } catch { /* ignore */ }
+    try {
+      await fs.closeSession(uid, activeSessionId, 'closed')
+    } catch {
+      /* ignore */
+    }
 
-    const pushBody = task.status === 'complete'
-      ? notificationBody
-      : `Browser task failed (${task.error?.code ?? 'unknown'}). Tap to check.`
+    const pushBody =
+      task.status === 'complete'
+        ? notificationBody
+        : `Browser task failed (${task.error?.code ?? 'unknown'}). Tap to check.`
 
     if (!isDuplicateRun) {
       try {

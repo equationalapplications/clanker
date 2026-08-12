@@ -152,7 +152,8 @@ export function UserActionPanel({
           />
           {!renewalDateIsValid ? (
             <Text style={styles.errorText}>
-              Use UTC ISO format ending in Z, for example 2026-05-01T00:00:00Z or 2026-05-01T00:00:00.000Z.
+              Use UTC ISO format ending in Z, for example 2026-05-01T00:00:00Z or
+              2026-05-01T00:00:00.000Z.
             </Text>
           ) : null}
           <Button
@@ -173,10 +174,18 @@ export function UserActionPanel({
 
         <View style={styles.section}>
           <Text variant="titleMedium">Compliance + Destructive Actions</Text>
-          <Button mode="outlined" onPress={() => onClearTerms({ userId: user.userId })} disabled={isBusy}>
+          <Button
+            mode="outlined"
+            onPress={() => onClearTerms({ userId: user.userId })}
+            disabled={isBusy}
+          >
             Clear Terms Acceptance
           </Button>
-          <Button mode="outlined" onPress={() => onResetUserState({ userId: user.userId })} disabled={isBusy}>
+          <Button
+            mode="outlined"
+            onPress={() => onResetUserState({ userId: user.userId })}
+            disabled={isBusy}
+          >
             Reset User State
           </Button>
           <Button

@@ -12,18 +12,18 @@ Age verification is a pre-flight check before the existing `ACCEPT_TERMS` XState
 
 ## Files Changed
 
-| File | Action |
-|------|--------|
-| `src/hooks/useAgeVerification.ts` | New — platform branching, native API calls, fallback state |
-| `src/hooks/__tests__/useAgeVerification.test.ts` | New — unit tests for hook branching and fallback behavior |
-| `src/components/ManualDobPicker.tsx` | New — DOB input UI for web and native error fallback |
-| `src/components/__tests__/ManualDobPicker.test.tsx` | New — unit tests for DOB picker validation and age boundaries |
-| `app/(drawer)/accept-terms.tsx` | Modified — wire hook, conditional render, DOB-path error alerts |
-| `src/components/AcceptTerms.tsx` | Modified — remove "I am over 18 years of age and" from checkbox text |
-| `__tests__/acceptTermsScreen.test.tsx` | Modified — mocks and coverage for DOB fallback branch |
-| `app.config.ts` | Modified — iOS entitlements for age-range support |
-| `package.json` / `package-lock.json` | Modified — add `expo-age-range`, dependency bumps |
-| `docs/superpowers/plans/2026-06-17-age-restriction.md` | New — implementation plan |
+| File                                                   | Action                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `src/hooks/useAgeVerification.ts`                      | New — platform branching, native API calls, fallback state           |
+| `src/hooks/__tests__/useAgeVerification.test.ts`       | New — unit tests for hook branching and fallback behavior            |
+| `src/components/ManualDobPicker.tsx`                   | New — DOB input UI for web and native error fallback                 |
+| `src/components/__tests__/ManualDobPicker.test.tsx`    | New — unit tests for DOB picker validation and age boundaries        |
+| `app/(drawer)/accept-terms.tsx`                        | Modified — wire hook, conditional render, DOB-path error alerts      |
+| `src/components/AcceptTerms.tsx`                       | Modified — remove "I am over 18 years of age and" from checkbox text |
+| `__tests__/acceptTermsScreen.test.tsx`                 | Modified — mocks and coverage for DOB fallback branch                |
+| `app.config.ts`                                        | Modified — iOS entitlements for age-range support                    |
+| `package.json` / `package-lock.json`                   | Modified — add `expo-age-range`, dependency bumps                    |
+| `docs/superpowers/plans/2026-06-17-age-restriction.md` | New — implementation plan                                            |
 
 ## Platform Verification Flow
 
@@ -54,6 +54,7 @@ ManualDobPicker
 ```
 
 **Silent-pass platforms (confirmed from source):**
+
 - **Web** (`AgeRange.web.js`): hardcodes `return { lowerBound: 18 }` — intercepted by our web check before any API call.
 - **iOS < 26** (`AgeRange.js` comment): returns `lowerBound: 18` silently. Hook must check `parseInt(String(Platform.Version), 10) < 26` and route to `ManualDobPicker` before calling the API. Note: "iOS 26" is NOT a typo — Apple switched to year-based versioning at WWDC 2025; iOS 26 is the Fall 2025 release. `parseInt("17.5") = 17`, `parseInt("26.1") = 26` — the check works correctly. Do NOT replace 26 with 16 or 17.
 - **Android**: uses `AgeSignalsManager.checkAgeSignals()` with `addOnFailureListener` — **rejects the promise (throws) on error**. No silent pass. Existing `throws → ManualDobPicker` path is sufficient; no Android version check needed.
@@ -63,6 +64,7 @@ ManualDobPicker
 **Location:** `src/hooks/useAgeVerification.ts`
 
 **Props:**
+
 ```ts
 interface UseAgeVerificationProps {
   onVerified: () => void
@@ -71,6 +73,7 @@ interface UseAgeVerificationProps {
 ```
 
 **Returns:**
+
 ```ts
 {
   verifyAge: () => Promise<void>   // call on accept tap
@@ -81,6 +84,7 @@ interface UseAgeVerificationProps {
 ```
 
 **Behavior:**
+
 - Sets `isVerifying = true` at start; resets before calling `onVerified`/`onRejected` or switching to DOB picker
 - Web or iOS < 26: sets `showDobPicker = true` immediately, no native call
 - iOS >= 26: checks `isEligibleForAgeFeaturesAsync()` first; if `false`, calls `onVerified()` directly
@@ -92,6 +96,7 @@ interface UseAgeVerificationProps {
 **Location:** `src/components/ManualDobPicker.tsx`
 
 **Props:**
+
 ```ts
 interface ManualDobPickerProps {
   onComplete: (isAdult: boolean) => void
@@ -117,30 +122,34 @@ if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
 ## Screen: `accept-terms.tsx`
 
 **Conditional render:**
+
 - `showDobPicker === false` → renders `<AcceptTerms>` with `accepting={accepting || isVerifying}`
 - `showDobPicker === true` → renders `<ManualDobPicker onComplete={handleDobResult} />`
 
 **Callbacks:**
+
 - `handleVerifiedAdult` → `termsService.send({ type: 'ACCEPT_TERMS', isUpdate })`
 - `handleRejectedMinor` → `authService.send({ type: 'SIGN_OUT' })`
 
 ## Component: `AcceptTerms.tsx`
 
 Checkbox text changes from:
+
 > "I am over 18 years of age and I have read and accept the Terms and Conditions and Privacy Policy."
 
 To:
+
 > "I have read and accept the Terms and Conditions and Privacy Policy."
 
 Age is now enforced by the hook, not self-attested in the UI.
 
 ## Rejection & Error UX
 
-| Scenario | Behavior |
-|----------|----------|
-| Minor detected (native or DOB) | `Alert("Age Restriction", "This app is for users 18 and older.")` then `SIGN_OUT` |
-| Native API throws | Silently swap to `ManualDobPicker`, no error shown |
-| Terms API error (existing) | `Alert` in `AcceptTerms.tsx` when on terms screen; same alert in `accept-terms.tsx` when `showDobPicker` is active |
+| Scenario                       | Behavior                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Minor detected (native or DOB) | `Alert("Age Restriction", "This app is for users 18 and older.")` then `SIGN_OUT`                                  |
+| Native API throws              | Silently swap to `ManualDobPicker`, no error shown                                                                 |
+| Terms API error (existing)     | `Alert` in `AcceptTerms.tsx` when on terms screen; same alert in `accept-terms.tsx` when `showDobPicker` is active |
 
 ## Out of Scope
 

@@ -79,6 +79,7 @@ const audioCtx = new AudioContext({ sampleRate: 16000 })
 Created lazily inside `startRecording()` — browsers require a user gesture before `AudioContext` can be created. Closed in `stopRecording()` and on hook unmount.
 
 If the browser ignores the `sampleRate: 16000` hint (rare on modern desktop browsers), the hook currently **fails** with an error and stops the mic stream, since Gemini Live expects 16 kHz PCM input. (A future improvement would be resampling rather than failing.)
+
 ### Worklet Processor (inlined as Blob)
 
 The processor accumulates incoming `Float32Array` frames into a buffer sized from the context's actual sample rate (`Math.round(sampleRate * 0.02)` = 20ms), then converts and posts:
@@ -114,9 +115,11 @@ registerProcessor('pcm-capture-processor', PcmCaptureProcessor)
 ```
 
 **Note on btoa encoding:** The main thread encodes received chunks as:
+
 ```typescript
 btoa(String.fromCharCode(...new Uint8Array(buffer)))
 ```
+
 The spread operator pushes arguments onto the JS call stack. At 20ms chunks (640 bytes = 320 samples × 2 bytes), this is well within browser limits (~65,535 args). If chunk size is ever increased significantly (e.g., 1s = 32,000 bytes), replace with a `for` loop to avoid `Maximum call stack size exceeded`.
 
 ### getUserMedia
@@ -128,7 +131,7 @@ await navigator.mediaDevices.getUserMedia({
     echoCancellation: true,
     noiseSuppression: true,
     // No sampleRate constraint — AudioContext handles rate
-  }
+  },
 })
 ```
 
@@ -137,7 +140,7 @@ On denial, set `recordingState = 'error'` and `error = 'Microphone permission re
 ### Cleanup on stopRecording / unmount
 
 ```typescript
-stream.getTracks().forEach(t => t.stop())
+stream.getTracks().forEach((t) => t.stop())
 workletNode.disconnect()
 sourceNode.disconnect()
 await audioCtx.close()
@@ -152,7 +155,7 @@ await audioCtx.close()
 ### Gapless Scheduling
 
 ```typescript
-let nextStartTime = 0  // seconds in AudioContext timeline
+let nextStartTime = 0 // seconds in AudioContext timeline
 
 async function playChunk(base64PCM: string): Promise<void> {
   // 1. Decode base64 → ArrayBuffer
@@ -202,8 +205,12 @@ async function playChunk(base64PCM: string): Promise<void> {
 
 ```typescript
 function clearPlaybackQueue(): void {
-  scheduledNodes.forEach(node => {
-    try { node.stop() } catch { /* defensive — node may have already ended */ }
+  scheduledNodes.forEach((node) => {
+    try {
+      node.stop()
+    } catch {
+      /* defensive — node may have already ended */
+    }
   })
   scheduledNodes.clear()
   nextStartTime = 0
@@ -217,17 +224,17 @@ The try/catch is defensive. In modern browsers, calling `.stop()` on an already-
 
 ## 5. State Transitions
 
-| Action | `recordingState` | `playbackState` |
-|---|---|---|
-| Hook mounts | `idle` | `idle` |
-| `startRecording()` starts | `idle` | — |
-| Permission denied | `error` | — |
-| AudioWorklet ready | `recording` | — |
-| `stopRecording()` | `idle` | — |
-| `playChunk()` called | — | `playing` |
-| Queue drains | — | `idle` |
-| `clearPlaybackQueue()` | — | `idle` |
-| Hook unmounts | cleanup | cleanup |
+| Action                    | `recordingState` | `playbackState` |
+| ------------------------- | ---------------- | --------------- |
+| Hook mounts               | `idle`           | `idle`          |
+| `startRecording()` starts | `idle`           | —               |
+| Permission denied         | `error`          | —               |
+| AudioWorklet ready        | `recording`      | —               |
+| `stopRecording()`         | `idle`           | —               |
+| `playChunk()` called      | —                | `playing`       |
+| Queue drains              | —                | `idle`          |
+| `clearPlaybackQueue()`    | —                | `idle`          |
+| Hook unmounts             | cleanup          | cleanup         |
 
 `playbackState = 'buffering'` is not used on web — `AudioBufferSourceNode` scheduling is synchronous, so there is no observable buffering phase.
 
@@ -235,14 +242,14 @@ The try/catch is defensive. In modern browsers, calling `.stop()` on an already-
 
 ## 6. Error Handling
 
-| Scenario | Behavior |
-|---|---|
-| `getUserMedia` permission denied | `recordingState = 'error'`, `error = 'Microphone permission required.'` |
-| `getUserMedia` unavailable (non-HTTPS) | `recordingState = 'error'`, `error = 'Microphone access requires a secure connection (HTTPS).'` |
-| `AudioContext` construction fails | `recordingState = 'error'`, propagate error message |
+| Scenario                                       | Behavior                                                                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `getUserMedia` permission denied               | `recordingState = 'error'`, `error = 'Microphone permission required.'`                                            |
+| `getUserMedia` unavailable (non-HTTPS)         | `recordingState = 'error'`, `error = 'Microphone access requires a secure connection (HTTPS).'`                    |
+| `AudioContext` construction fails              | `recordingState = 'error'`, propagate error message                                                                |
 | `audioWorklet.addModule()` fails (old browser) | `recordingState = 'error'`, `error = 'Browser does not support AudioWorklet. Use Chrome, Firefox, or Safari 15+.'` |
-| Malformed base64 in `playChunk` | `console.warn`, skip chunk — 20ms drop sounds like a faint pop, far better than crashing the session |
-| Hook unmounts mid-call | cleanup: stop all tracks, close AudioContext, stop all scheduled nodes |
+| Malformed base64 in `playChunk`                | `console.warn`, skip chunk — 20ms drop sounds like a faint pop, far better than crashing the session               |
+| Hook unmounts mid-call                         | cleanup: stop all tracks, close AudioContext, stop all scheduled nodes                                             |
 
 ---
 
@@ -255,6 +262,7 @@ The Web Audio API has no implementation in Node.js/jsdom. Tests mock the constru
 **Setup:** Mock `window.AudioContext`, `navigator.mediaDevices.getUserMedia`, and `AudioWorkletNode` before each test.
 
 **Input tests:**
+
 - `startRecording()` creates AudioContext at 16kHz
 - `startRecording()` calls `getUserMedia` with `channelCount: 1` and `echoCancellation: true`
 - `startRecording()` loads worklet via Blob URL
@@ -264,6 +272,7 @@ The Web Audio API has no implementation in Node.js/jsdom. Tests mock the constru
 - `stopRecording()` calls `track.stop()` and closes AudioContext
 
 **Output tests:**
+
 - `playChunk()` creates `AudioBuffer` at 24kHz
 - `playChunk()` calls `node.start(nextStartTime)` — first chunk at `audioCtx.currentTime`
 - Second `playChunk()` schedules at `firstStartTime + firstDuration` (gapless)
@@ -275,12 +284,12 @@ The Web Audio API has no implementation in Node.js/jsdom. Tests mock the constru
 
 ## 8. Files Changed
 
-| File | Change |
-|---|---|
-| `src/hooks/useLiveAudioIO.web.ts` | Replace stub with full Web Audio API implementation |
-| `src/hooks/__tests__/useLiveAudioIO.web.test.ts` | Unit tests for capture, playback, errors, cleanup |
-| `docs/superpowers/specs/2026-06-26-web-voice-design.md` | Phase 3 spec (this document) |
-| `docs/superpowers/plans/2026-06-26-web-voice.md` | Phase 3 implementation plan |
+| File                                                    | Change                                              |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| `src/hooks/useLiveAudioIO.web.ts`                       | Replace stub with full Web Audio API implementation |
+| `src/hooks/__tests__/useLiveAudioIO.web.test.ts`        | Unit tests for capture, playback, errors, cleanup   |
+| `docs/superpowers/specs/2026-06-26-web-voice-design.md` | Phase 3 spec (this document)                        |
+| `docs/superpowers/plans/2026-06-26-web-voice.md`        | Phase 3 implementation plan                         |
 
 No other runtime/product code changes.
 

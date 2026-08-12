@@ -17,7 +17,8 @@ describe('detectOkfProfile', () => {
 
 describe('markdownToPlainSnippet', () => {
   it('strips markdown syntax so a slice cannot break rendering', () => {
-    const md = '# Title\n\nThis is **bold**, a [link](https://x.example), `code`, and _emphasis_.\n\n- item one\n- item two'
+    const md =
+      '# Title\n\nThis is **bold**, a [link](https://x.example), `code`, and _emphasis_.\n\n- item one\n- item two'
     const snippet = markdownToPlainSnippet(md)
     expect(snippet).toBe('Title This is bold, a link, code, and emphasis. item one item two')
     expect(snippet).not.toMatch(/[*_[\]#`]/)

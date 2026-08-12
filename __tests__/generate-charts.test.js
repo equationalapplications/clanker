@@ -9,7 +9,12 @@ describe('queryFileEdges', () => {
     ]
     let capturedParam
     const mockDb = {
-      prepare: () => ({ all: (param) => { capturedParam = param; return mockRows } }),
+      prepare: () => ({
+        all: (param) => {
+          capturedParam = param
+          return mockRows
+        },
+      }),
     }
     const result = queryFileEdges(mockDb, 'services')
     expect(capturedParam).toBe('src/services/%')
@@ -19,9 +24,7 @@ describe('queryFileEdges', () => {
   })
 
   it('excludes self-referential edges', () => {
-    const mockRows = [
-      { src_path: 'src/hooks/useChat.ts', tgt_path: 'src/hooks/useChat.ts' },
-    ]
+    const mockRows = [{ src_path: 'src/hooks/useChat.ts', tgt_path: 'src/hooks/useChat.ts' }]
     const mockDb = {
       prepare: () => ({ all: () => mockRows }),
     }

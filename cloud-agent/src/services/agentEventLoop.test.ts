@@ -3,7 +3,12 @@ import test from 'node:test'
 import type { Event as AdkEvent } from '@google/adk'
 import type { CreditSpendAllocation } from './creditService.js'
 
-const { consumeAgentEvents, assertAgentTurnCredits, AgentInsufficientCreditsError, DEGRADED_FALLBACK_REPLY } = await import('./agentEventLoop.js')
+const {
+  consumeAgentEvents,
+  assertAgentTurnCredits,
+  AgentInsufficientCreditsError,
+  DEGRADED_FALLBACK_REPLY,
+} = await import('./agentEventLoop.js')
 
 function fakeEvent(overrides: Partial<AdkEvent> = {}): AdkEvent {
   return {
@@ -43,12 +48,18 @@ test('assertAgentTurnCredits throws when balance is below one loop iteration cos
 })
 
 test('assertAgentTurnCredits passes when balance covers one loop iteration cost (100)', async () => {
-  await assert.doesNotReject(() => assertAgentTurnCredits('user-1', { getBalance: async () => 100 }))
+  await assert.doesNotReject(() =>
+    assertAgentTurnCredits('user-1', { getBalance: async () => 100 }),
+  )
 })
 
 test('assertAgentTurnCredits passes when getBalance throws (graceful degrade)', async () => {
   await assert.doesNotReject(() =>
-    assertAgentTurnCredits('user-1', { getBalance: async () => { throw new Error('db down') } }),
+    assertAgentTurnCredits('user-1', {
+      getBalance: async () => {
+        throw new Error('db down')
+      },
+    }),
   )
 })
 
@@ -149,10 +160,12 @@ test('consumeAgentEvents refunds only the credits spent this turn on a genuine A
       return true
     },
   )
-  assert.deepEqual(refunded, [[
-    { transactionId: 'tx-1', amount: 1 },
-    { transactionId: 'tx-2', amount: 1 },
-  ]])
+  assert.deepEqual(refunded, [
+    [
+      { transactionId: 'tx-1', amount: 1 },
+      { transactionId: 'tx-2', amount: 1 },
+    ],
+  ])
 })
 
 test('consumeAgentEvents throws when the loop completes normally with an empty final reply', async () => {

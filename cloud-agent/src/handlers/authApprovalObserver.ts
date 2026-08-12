@@ -19,16 +19,13 @@ export interface AuthApprovalObserverDeps {
   onResolved?: () => void
 }
 
-async function notifyMobile(
-  deps: AuthApprovalObserverDeps,
-  summary: string,
-): Promise<void> {
+async function notifyMobile(deps: AuthApprovalObserverDeps, summary: string): Promise<void> {
   if (!deps.fcmDispatcher || !deps.getExpoPushToken) return
   const expoPushToken = await deps.getExpoPushToken(deps.firebaseUid)
   if (!expoPushToken) return
-  await deps.fcmDispatcher.sendTaskComplete(expoPushToken, deps.sessionId, deps.taskId, summary).catch(
-    (err) => console.error('sendTaskComplete failed:', err),
-  )
+  await deps.fcmDispatcher
+    .sendTaskComplete(expoPushToken, deps.sessionId, deps.taskId, summary)
+    .catch((err) => console.error('sendTaskComplete failed:', err))
 }
 
 /** Self-cleaning auth-doc observer — lifetime is independent of the browser WebSocket. */
@@ -45,7 +42,10 @@ export function startAuthApprovalObserver(deps: AuthApprovalObserverDeps): void 
 
   const abortTask = async (code: BridgeErrorCode, message: string): Promise<void> => {
     await deps.fs.writeTaskResult(deps.firebaseUid, deps.sessionId, deps.taskId, {
-      taskId: deps.taskId, status: 'aborted', data: {}, activeUrl: '',
+      taskId: deps.taskId,
+      status: 'aborted',
+      data: {},
+      activeUrl: '',
       error: { code, message, failedAction: deps.intent.action as never },
     })
     await notifyMobile(deps, message)
@@ -86,10 +86,18 @@ export function startAuthApprovalObserver(deps: AuthApprovalObserverDeps): void 
 
         if (deps.fcmDispatcher && deps.deviceFcmToken) {
           try {
-            await deps.fcmDispatcher.wakeExtension(deps.deviceFcmToken, deps.sessionId, deps.taskId, true)
+            await deps.fcmDispatcher.wakeExtension(
+              deps.deviceFcmToken,
+              deps.sessionId,
+              deps.taskId,
+              true,
+            )
           } catch (err) {
             console.error('FCM resume wake failed:', err)
-            await abortTask('EXECUTION_ERROR', 'Failed to wake the extension after approval. The action was not completed.')
+            await abortTask(
+              'EXECUTION_ERROR',
+              'Failed to wake the extension after approval. The action was not completed.',
+            )
             return
           }
         }

@@ -327,9 +327,9 @@ export async function enforceLocalCap(characterId: string): Promise<void> {
   if (excess <= 0) return
 
   const active = await getActiveCharacterImage(characterId)
-  const candidates = (
-    await getEvictionCandidates(characterId, active?.id ?? null, excess)
-  ).filter((candidate) => candidate.storage_kind !== 'cloud')
+  const candidates = (await getEvictionCandidates(characterId, active?.id ?? null, excess)).filter(
+    (candidate) => candidate.storage_kind !== 'cloud',
+  )
 
   for (const candidate of candidates) {
     await removeImageBytesThenRow(candidate)

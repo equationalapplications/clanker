@@ -42,8 +42,13 @@ const mockCharacter = {
 const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
-  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [
+    { transactionId: 'mock-txid', amount: 1 },
+  ],
+  refundCredit: async (
+    _userId: string,
+    _allocations: { transactionId: string; amount: number }[],
+  ): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 42,
 }
 
@@ -62,9 +67,10 @@ function createTestWsServer(handlerOptions: Parameters<typeof handleWsUpgrade>[2
   return {
     server,
     port: 0,
-    close: () => new Promise((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()))
-    }),
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()))
+      }),
   }
 }
 
@@ -89,20 +95,23 @@ async function runAgentRunFrame(options: {
   // Replace the runner so the handler doesn't reach Vertex AI and we can
   // observe the newMessage it would have sent. The mock yields one final event
   // so consumeAgentEvents settles cleanly and the socket closes.
-  ;(InMemoryRunner.prototype as unknown as { runAsync: (params: { newMessage: Content }) => AsyncGenerator<unknown, void, undefined> }).runAsync =
-    function runAsyncMock(params: { newMessage: Content }) {
-      options.onNewMessage?.(params.newMessage)
-      return (async function* () {
-        yield {
-          id: 'mock-event-1',
-          invocationId: 'mock-invocation-1',
-          author: 'mock-agent',
-          actions: { stateDelta: {}, artifactDelta: {} },
-          timestamp: Date.now(),
-          content: { role: 'model', parts: [{ text: 'mock reply' }] },
-        }
-      })()
+  ;(
+    InMemoryRunner.prototype as unknown as {
+      runAsync: (params: { newMessage: Content }) => AsyncGenerator<unknown, void, undefined>
     }
+  ).runAsync = function runAsyncMock(params: { newMessage: Content }) {
+    options.onNewMessage?.(params.newMessage)
+    return (async function* () {
+      yield {
+        id: 'mock-event-1',
+        invocationId: 'mock-invocation-1',
+        author: 'mock-agent',
+        actions: { stateDelta: {}, artifactDelta: {} },
+        timestamp: Date.now(),
+        content: { role: 'model', parts: [{ text: 'mock reply' }] },
+      }
+    })()
+  }
 
   const { server, close } = createTestWsServer({
     db,
@@ -140,7 +149,8 @@ async function runAgentRunFrame(options: {
       ws.on('error', reject)
     })
   } finally {
-    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync = originalRunAsync
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
+      originalRunAsync
     await close()
   }
 }
@@ -162,11 +172,13 @@ test('accepts valid auth token and streams agent reply', async () => {
 
     ws.on('open', () => {
       ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
-      ws.send(JSON.stringify({
-        type: 'agent_run',
-        message: 'hello',
-        characterId: CHAR_UUID,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'agent_run',
+          message: 'hello',
+          characterId: CHAR_UUID,
+        }),
+      )
     })
 
     ws.on('message', (data) => {
@@ -214,11 +226,13 @@ test('streams grounding_metadata before usage_snapshot when mock grounding is pr
 
     ws.on('open', () => {
       ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
-      ws.send(JSON.stringify({
-        type: 'agent_run',
-        message: 'hello',
-        characterId: CHAR_UUID,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'agent_run',
+          message: 'hello',
+          characterId: CHAR_UUID,
+        }),
+      )
     })
 
     ws.on('message', (data) => {
@@ -255,7 +269,9 @@ test('rejects invalid token with 4001 close code', async () => {
   const db = makeMockDb()
   const { server, close } = createTestWsServer({
     db,
-    verifyToken: async () => { throw new Error('Invalid token') },
+    verifyToken: async () => {
+      throw new Error('Invalid token')
+    },
   })
   const port = await listen(server)
 
@@ -318,11 +334,13 @@ test('returns INSUFFICIENT_CREDITS error when balance is zero before agent start
 
     ws.on('open', () => {
       ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
-      ws.send(JSON.stringify({
-        type: 'agent_run',
-        message: 'hello',
-        characterId: CHAR_UUID,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'agent_run',
+          message: 'hello',
+          characterId: CHAR_UUID,
+        }),
+      )
     })
 
     ws.on('message', (data) => {
@@ -359,10 +377,7 @@ test('WS agent_run forwards an attachment as a leading inlineData part', async (
 
   assert.deepEqual(captured[0], {
     role: 'user',
-    parts: [
-      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
-      { text: 'what is this?' },
-    ],
+    parts: [{ inlineData: { mimeType: 'image/webp', data: 'AAAA' } }, { text: 'what is this?' }],
   })
 })
 

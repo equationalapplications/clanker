@@ -48,7 +48,7 @@ transitions and no cross-component sharing; `react-native-paper`'s `Menu`
 already owns show/hide. A machine here would add ceremony over a boolean
 with zero behavioral benefit.
 
-(See "Future work" — the pre-existing import/sync orchestration logic *is*
+(See "Future work" — the pre-existing import/sync orchestration logic _is_
 a reasonable machine candidate, but that is a separate refactor and out of
 scope for this overflow fix.)
 

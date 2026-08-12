@@ -1,32 +1,32 @@
-import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import admin from "firebase-admin";
-import type {DecodedIdToken} from "firebase-admin/auth";
-import { userRepository } from "./services/userRepository.js";
-import { subscriptionService } from "./services/subscriptionService.js";
-import { creditService } from "./services/creditService.js";
-import { CLOUD_SQL_SECRETS } from "./cloudSqlSecrets.js";
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import admin from 'firebase-admin'
+import type { DecodedIdToken } from 'firebase-admin/auth'
+import { userRepository } from './services/userRepository.js'
+import { subscriptionService } from './services/subscriptionService.js'
+import { creditService } from './services/creditService.js'
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 
 // Initialize the Admin SDK if not already initialized
 if (!admin.apps?.length) {
-    admin.initializeApp();
+  admin.initializeApp()
 }
 
 function toErrorMessage(error: unknown): string {
-    if (error instanceof Error && typeof error.message === "string") {
-        return error.message;
-    }
+  if (error instanceof Error && typeof error.message === 'string') {
+    return error.message
+  }
 
-    return String(error);
+  return String(error)
 }
 
 function isIdentityConflictError(error: unknown): boolean {
-    return toErrorMessage(error).toLowerCase().includes("different firebase uid");
+  return toErrorMessage(error).toLowerCase().includes('different firebase uid')
 }
 
 function isCloudSqlConfigError(error: unknown): boolean {
-    const normalized = toErrorMessage(error).toLowerCase();
-    return /missing required cloud sql environment variables?/.test(normalized);
+  const normalized = toErrorMessage(error).toLowerCase()
+  return /missing required cloud sql environment variables?/.test(normalized)
 }
 
 /**
@@ -39,169 +39,165 @@ function isCloudSqlConfigError(error: unknown): boolean {
  * 4. Returns the user snapshot + subscription data
  */
 const handler = async (
-    request: CallableRequest,
-    deps = { userRepository, subscriptionService, creditService }
+  request: CallableRequest,
+  deps = { userRepository, subscriptionService, creditService },
 ) => {
-    if (!request.auth) {
-        logger.error("Unauthenticated request");
-        throw new HttpsError(
-            "unauthenticated",
-            "Authentication required."
-        );
-    }
+  if (!request.auth) {
+    logger.error('Unauthenticated request')
+    throw new HttpsError('unauthenticated', 'Authentication required.')
+  }
 
-    const uid = request.auth.uid;
-    const decoded = request.auth.token as DecodedIdToken | undefined;
+  const uid = request.auth.uid
+  const decoded = request.auth.token as DecodedIdToken | undefined
 
-    if (!decoded || decoded.uid !== uid) {
-        logger.error("Context token missing or UID mismatch", {
-            contextUid: uid,
-            tokenUid: decoded?.uid,
-        });
-        throw new HttpsError(
-            "unauthenticated",
-            "Invalid or missing Firebase authentication token."
-        );
-    }
+  if (!decoded || decoded.uid !== uid) {
+    logger.error('Context token missing or UID mismatch', {
+      contextUid: uid,
+      tokenUid: decoded?.uid,
+    })
+    throw new HttpsError('unauthenticated', 'Invalid or missing Firebase authentication token.')
+  }
 
-    const normalizedEmail = decoded.email?.trim().toLowerCase();
-    if (!normalizedEmail) {
-        logger.error("No email in Firebase token");
-        throw new HttpsError(
-            "failed-precondition",
-            "Firebase user email is required."
-        );
-    }
+  const normalizedEmail = decoded.email?.trim().toLowerCase()
+  if (!normalizedEmail) {
+    logger.error('No email in Firebase token')
+    throw new HttpsError('failed-precondition', 'Firebase user email is required.')
+  }
 
+  try {
+    // 1. Get or create user
+    const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
+      firebaseUid: uid,
+      email: normalizedEmail,
+      displayName: decoded.name || null,
+      avatarUrl: decoded.picture || null,
+    })
+
+    // 2. Get or create subscription and ensure onboarding credit_transactions exist
+    const subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id)
+
+    // 3. Sync currentCredits from creditTransactions (source of truth) so the
+    // returned value always matches what spendCredits will see. This prevents
+    // stale subscriptions.currentCredits (e.g. from adminSetUserCredits before
+    // it was fixed) from reporting incorrect balances to the client.
+    // Fall back to the cached value if the ledger read fails (e.g. transient DB blip)
+    // so a momentary hiccup does not block the user from authenticating entirely.
+    let syncedCredits: number
     try {
-        // 1. Get or create user
-        const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
-            firebaseUid: uid,
-            email: normalizedEmail,
-            displayName: decoded.name || null,
-            avatarUrl: decoded.picture || null,
-        });
-
-        // 2. Get or create subscription and ensure onboarding credit_transactions exist
-        const subscription = await deps.subscriptionService.getOrCreateDefaultSubscription(user.id);
-
-        // 3. Sync currentCredits from creditTransactions (source of truth) so the
-        // returned value always matches what spendCredits will see. This prevents
-        // stale subscriptions.currentCredits (e.g. from adminSetUserCredits before
-        // it was fixed) from reporting incorrect balances to the client.
-        // Fall back to the cached value if the ledger read fails (e.g. transient DB blip)
-        // so a momentary hiccup does not block the user from authenticating entirely.
-        let syncedCredits: number;
-        try {
-            syncedCredits = await deps.creditService.getCredits(user.id);
-        } catch (creditsError) {
-            logger.warn("creditService.getCredits failed, falling back to subscription cache", { userId: user.id, creditsError });
-            syncedCredits = subscription.currentCredits ?? 0;
-        }
-
-        // Sum of granted credits over currently "live" rows, used by the client to
-        // compute a fill percentage for the power meter UI. On failure we return 0,
-        // which the client (usePowerBalance) treats as "unknown/loading" since a
-        // genuinely empty grant total is impossible for a user with balance > 0.
-        let grantedTotal = 0;
-        try {
-            grantedTotal = await deps.creditService.getGrantedTotal(user.id);
-        } catch (grantedError) {
-            logger.warn("creditService.getGrantedTotal failed, meter will show loading state", { userId: user.id, grantedError });
-        }
-
-        logger.info("Token exchange/bootstrap successful", {
-            email: normalizedEmail,
-            userId: user.id,
-        });
-
-        // Convert Date objects to ISO strings before returning.
-        // Firebase callable encode() treats Date as a plain object and
-        // serialises it to {} via Object.entries (which is empty for Date).
-        const toISO = (v: unknown): string | null => {
-            if (v === null || v === undefined) {
-                return null;
-            }
-
-            if (v instanceof Date) {
-                return v.toISOString();
-            }
-
-            if (typeof v === "string") {
-                return v;
-            }
-
-            throw new Error("Invalid timestamp value in exchangeToken response payload.");
-        };
-
-        const toRequiredISO = (v: unknown, field: string): string => {
-            const iso = toISO(v);
-            if (!iso) {
-                throw new Error(`Missing required timestamp field in exchangeToken response payload: ${field}`);
-            }
-
-            return iso;
-        };
-
-        return {
-            user: {
-                id: user.id,
-                firebaseUid: user.firebaseUid,
-                email: user.email,
-                displayName: user.displayName,
-                avatarUrl: user.avatarUrl,
-                isProfilePublic: user.isProfilePublic,
-                defaultCharacterId: user.defaultCharacterId,
-                createdAt: toRequiredISO(user.createdAt, "user.createdAt"),
-                updatedAt: toRequiredISO(user.updatedAt, "user.updatedAt"),
-            },
-            subscription: {
-                planTier: subscription.planTier,
-                planStatus: subscription.planStatus,
-                currentCredits: syncedCredits,
-                grantedTotal,
-                termsVersion: subscription.termsVersion,
-                termsAcceptedAt: toISO(subscription.termsAcceptedAt),
-                nextExpiryDate: toISO(subscription.nextExpiryDate),
-                cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
-                subscriptionProvider: subscription.subscriptionProvider ?? null,
-            },
-        };
-    } catch (err: unknown) {
-        logger.error("Token exchange failed", { err, email: normalizedEmail });
-        if (err instanceof HttpsError) {
-            throw err;
-        }
-
-        if (isCloudSqlConfigError(err)) {
-            throw new HttpsError(
-                "failed-precondition",
-                "Server configuration is incomplete."
-            );
-        }
-
-        if (isIdentityConflictError(err)) {
-            throw new HttpsError(
-                "failed-precondition",
-                "User identity is already linked to another account."
-            );
-        }
-
-        throw new HttpsError("internal", "Failed to bootstrap user.");
+      syncedCredits = await deps.creditService.getCredits(user.id)
+    } catch (creditsError) {
+      logger.warn('creditService.getCredits failed, falling back to subscription cache', {
+        userId: user.id,
+        creditsError,
+      })
+      syncedCredits = subscription.currentCredits ?? 0
     }
-};
 
-export const exchangeTokenHandler = handler;
+    // Sum of granted credits over currently "live" rows, used by the client to
+    // compute a fill percentage for the power meter UI. On failure we return 0,
+    // which the client (usePowerBalance) treats as "unknown/loading" since a
+    // genuinely empty grant total is impossible for a user with balance > 0.
+    let grantedTotal = 0
+    try {
+      grantedTotal = await deps.creditService.getGrantedTotal(user.id)
+    } catch (grantedError) {
+      logger.warn('creditService.getGrantedTotal failed, meter will show loading state', {
+        userId: user.id,
+        grantedError,
+      })
+    }
+
+    logger.info('Token exchange/bootstrap successful', {
+      email: normalizedEmail,
+      userId: user.id,
+    })
+
+    // Convert Date objects to ISO strings before returning.
+    // Firebase callable encode() treats Date as a plain object and
+    // serialises it to {} via Object.entries (which is empty for Date).
+    const toISO = (v: unknown): string | null => {
+      if (v === null || v === undefined) {
+        return null
+      }
+
+      if (v instanceof Date) {
+        return v.toISOString()
+      }
+
+      if (typeof v === 'string') {
+        return v
+      }
+
+      throw new Error('Invalid timestamp value in exchangeToken response payload.')
+    }
+
+    const toRequiredISO = (v: unknown, field: string): string => {
+      const iso = toISO(v)
+      if (!iso) {
+        throw new Error(
+          `Missing required timestamp field in exchangeToken response payload: ${field}`,
+        )
+      }
+
+      return iso
+    }
+
+    return {
+      user: {
+        id: user.id,
+        firebaseUid: user.firebaseUid,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        isProfilePublic: user.isProfilePublic,
+        defaultCharacterId: user.defaultCharacterId,
+        createdAt: toRequiredISO(user.createdAt, 'user.createdAt'),
+        updatedAt: toRequiredISO(user.updatedAt, 'user.updatedAt'),
+      },
+      subscription: {
+        planTier: subscription.planTier,
+        planStatus: subscription.planStatus,
+        currentCredits: syncedCredits,
+        grantedTotal,
+        termsVersion: subscription.termsVersion,
+        termsAcceptedAt: toISO(subscription.termsAcceptedAt),
+        nextExpiryDate: toISO(subscription.nextExpiryDate),
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
+        subscriptionProvider: subscription.subscriptionProvider ?? null,
+      },
+    }
+  } catch (err: unknown) {
+    logger.error('Token exchange failed', { err, email: normalizedEmail })
+    if (err instanceof HttpsError) {
+      throw err
+    }
+
+    if (isCloudSqlConfigError(err)) {
+      throw new HttpsError('failed-precondition', 'Server configuration is incomplete.')
+    }
+
+    if (isIdentityConflictError(err)) {
+      throw new HttpsError(
+        'failed-precondition',
+        'User identity is already linked to another account.',
+      )
+    }
+
+    throw new HttpsError('internal', 'Failed to bootstrap user.')
+  }
+}
+
+export const exchangeTokenHandler = handler
 
 // 2nd Gen callable function
 export const exchangeToken = onCall(
-    {
-        region: "us-central1",
-        enforceAppCheck: true,
-        invoker: "public",
-        secrets: [...CLOUD_SQL_SECRETS],
-    },
-    (request) => {
-        return handler(request);
-    }
-);
+  {
+    region: 'us-central1',
+    enforceAppCheck: true,
+    invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
+  },
+  (request) => {
+    return handler(request)
+  },
+)

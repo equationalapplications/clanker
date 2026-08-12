@@ -126,8 +126,7 @@ jest.mock('~/services/characterImageService', () => ({
 }))
 
 jest.mock('~/database/characterImageDatabase', () => ({
-  findCharacterImageByMessageId: (...args: unknown[]) =>
-    mockFindCharacterImageByMessageId(...args),
+  findCharacterImageByMessageId: (...args: unknown[]) => mockFindCharacterImageByMessageId(...args),
 }))
 
 jest.mock('~/services/imageModelBytes', () => ({

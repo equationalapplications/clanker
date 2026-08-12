@@ -39,13 +39,13 @@ new sign-ups.
 
 ## Decisions
 
-| # | Topic | Decision |
-|---|-------|----------|
-| 1 | Default `save_to_cloud` for new sign-up character | `true` |
-| 2 | Default `is_public` | stays `false` — cloud sync ≠ public sharing |
-| 3 | Dev-sandbox default character path | untouched — already forces `save_to_cloud=1` (`src/auth/ensureDevSandboxCharacter.ts`) |
-| 4 | Existing users' characters | untouched — this only changes the insert for characters created after this ships |
-| 5 | Dead `createNewCharacter` (`characterService.ts:138-182`) | delete, along with its now-unused `loadDefaultAvatarBase64` import — confirmed no callers |
+| #   | Topic                                                     | Decision                                                                                  |
+| --- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | Default `save_to_cloud` for new sign-up character         | `true`                                                                                    |
+| 2   | Default `is_public`                                       | stays `false` — cloud sync ≠ public sharing                                               |
+| 3   | Dev-sandbox default character path                        | untouched — already forces `save_to_cloud=1` (`src/auth/ensureDevSandboxCharacter.ts`)    |
+| 4   | Existing users' characters                                | untouched — this only changes the insert for characters created after this ships          |
+| 5   | Dead `createNewCharacter` (`characterService.ts:138-182`) | delete, along with its now-unused `loadDefaultAvatarBase64` import — confirmed no callers |
 
 ---
 

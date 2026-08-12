@@ -33,7 +33,7 @@ both tool-calling surfaces in the codebase:
   camelCase field `googleSearch`. These do not match structurally — a small
   adapter is required, not a direct pass-through.
 - `@google/genai` supports Vertex AI mode (`{ vertexai: true, project,
-  location }`), the same ADC-based auth `generateReply.ts` already uses — no
+location }`), the same ADC-based auth `generateReply.ts` already uses — no
   new credentials needed for the SDK swap.
 - `@google/adk` (cloud-agent, `^1.1.0`) already ships a ready-made
   `GOOGLE_SEARCH` built-in tool singleton — no adapter needed on that surface.
@@ -49,6 +49,7 @@ both tool-calling surfaces in the codebase:
 ## Scope
 
 **In scope:**
+
 - Google Search grounding on both `generateReply.ts` and `cloud-agent`'s ADK
   agent.
 - Migrating `functions/src/generateReply.ts` off `@google-cloud/vertexai` onto
@@ -65,6 +66,7 @@ both tool-calling surfaces in the codebase:
   (`ChatView.tsx`), incl. a new `react-native-webview` dependency.
 
 **Explicitly out of scope:**
+
 - OKF export (`formatOkfBundle`, `@equationalapplications/core-okf`) — separate
   future spec.
 - `@equationalapplications/expo-llm-wiki` version bump — unrelated to this
@@ -104,9 +106,9 @@ both tool-calling surfaces in the codebase:
   field):
   ```ts
   function toGenAITool(entry: GeminiToolEntry): Tool {
-    if ('google_search' in entry) return { googleSearch: {} };
-    if ('functionDeclarations' in entry) return { functionDeclarations: entry.functionDeclarations };
-    throw new Error('Unsupported tool entry');
+    if ('google_search' in entry) return { googleSearch: {} }
+    if ('functionDeclarations' in entry) return { functionDeclarations: entry.functionDeclarations }
+    throw new Error('Unsupported tool entry')
   }
   ```
 - Pass the mapped tools into
@@ -136,7 +138,7 @@ both tool-calling surfaces in the codebase:
 - `ChatView.tsx`: wire `renderCustomView` + `isCustomViewBottom={true}` on
   `GiftedChat`, gated on `currentMessage.groundingMetadata` being present.
   - Citation chips: a tappable list built from `groundingChunks[].web.{uri,
-    title}`, opened via `Linking.openURL`.
+title}`, opened via `Linking.openURL`.
   - **ToS-required Search Suggestions widget**: Google's grounding terms
     require displaying `searchEntryPoint.renderedContent` (raw HTML) unmodified
     when grounding is used. There is no HTML/WebView renderer currently in the

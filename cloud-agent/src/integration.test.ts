@@ -51,20 +51,30 @@ const mockVerify = async (token: string): Promise<{ uid: string }> => {
   throw new Error('invalid')
 }
 
-const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => ({
+const mockRunAgent = async (
+  _params: RunAgentParams,
+): Promise<{ reply: string; toolCalls: string[] }> => ({
   reply: 'Test reply from agent',
   toolCalls: [],
 })
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
-  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [
+    { transactionId: 'mock-txid', amount: 1 },
+  ],
+  refundCredit: async (
+    _userId: string,
+    _allocations: { transactionId: string; amount: number }[],
+  ): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 1000,
 }
 
 const { createApp, attachWebSocketRoutes } = await import('./index.js')
 
-function startServer(app: ReturnType<typeof createApp>, wsOptions?: { mockStreamReply?: string }): Promise<{
+function startServer(
+  app: ReturnType<typeof createApp>,
+  wsOptions?: { mockStreamReply?: string },
+): Promise<{
   server: Server
   port: number
   close: () => Promise<void>
@@ -97,7 +107,12 @@ function startServer(app: ReturnType<typeof createApp>, wsOptions?: { mockStream
 
 test('HTTP /agent/run returns reply', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -108,7 +123,12 @@ test('HTTP /agent/run returns reply', async () => {
 
 test('WebSocket /agent/stream returns reply via streaming', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   const { port, close } = await startServer(app, { mockStreamReply: 'Test reply from agent' })
 
   await new Promise<void>((resolve, reject) => {
@@ -118,11 +138,13 @@ test('WebSocket /agent/stream returns reply via streaming', async () => {
 
     ws.on('open', () => {
       ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
-      ws.send(JSON.stringify({
-        type: 'agent_run',
-        message: 'Hello',
-        characterId: CHAR_UUID,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'agent_run',
+          message: 'Hello',
+          characterId: CHAR_UUID,
+        }),
+      )
     })
 
     ws.on('message', (data) => {

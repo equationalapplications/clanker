@@ -19,23 +19,17 @@ const baseMessage: Message = {
   user: baseUser,
 }
 
-const renderWithProvider = (ui: React.ReactElement) =>
-  render(<PaperProvider>{ui}</PaperProvider>)
+const renderWithProvider = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>)
 
 describe('MessageBubble', () => {
   it('renders the text', () => {
-    const { getByText } = renderWithProvider(
-      <MessageBubble message={baseMessage} isOwn={true} />,
-    )
+    const { getByText } = renderWithProvider(<MessageBubble message={baseMessage} isOwn={true} />)
     expect(getByText('hello')).toBeTruthy()
   })
 
   it('renders ChatImageBubble when imageId is set, with no `image` field required', () => {
     const { UNSAFE_getByType } = renderWithProvider(
-      <MessageBubble
-        message={{ ...baseMessage, imageId: 'img-1' }}
-        isOwn={true}
-      />,
+      <MessageBubble message={{ ...baseMessage, imageId: 'img-1' }} isOwn={true} />,
     )
     expect(UNSAFE_getByType(ChatImageBubble)).toBeTruthy()
   })
@@ -53,9 +47,7 @@ describe('MessageBubble', () => {
         message={{
           ...baseMessage,
           groundingMetadata: {
-            groundingChunks: [
-              { web: { uri: 'https://example.com', title: 'Example' } },
-            ],
+            groundingChunks: [{ web: { uri: 'https://example.com', title: 'Example' } }],
           },
         }}
         isOwn={false}

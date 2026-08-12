@@ -10,7 +10,10 @@ export function readDom(doc: Document, selector: string): string {
   return el.innerHTML
 }
 
-export function summarizeVisibleText(doc: Document, filter: 'no_nav' | 'no_ads' | 'all' = 'all'): string {
+export function summarizeVisibleText(
+  doc: Document,
+  filter: 'no_nav' | 'no_ads' | 'all' = 'all',
+): string {
   const drop = new Set<string>()
   if (filter === 'no_nav') ['nav', 'header', 'footer', 'aside'].forEach((t) => drop.add(t))
   if (filter === 'no_ads') ['aside', '[role=banner]'].forEach((t) => drop.add(t))

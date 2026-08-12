@@ -23,7 +23,8 @@ describe('createTask', () => {
     const id = await createTask('char-1', 'Buy milk')
     expect(typeof id).toBe('string')
     expect(
-      id.startsWith('task_') || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+      id.startsWith('task_') ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
     ).toBe(true)
     expect(mockDb.runAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO tasks'),

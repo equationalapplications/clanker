@@ -8,7 +8,9 @@ test('embedText: returns number array from mock provider', async () => {
 
 test('isRetryable: matches 429 error message', async () => {
   // Test the exported helper indirectly via re-export
-  const { isRetryable } = (await import('./embeddings.js')) as { isRetryable: (e: unknown) => boolean }
+  const { isRetryable } = (await import('./embeddings.js')) as {
+    isRetryable: (e: unknown) => boolean
+  }
   assert.equal(isRetryable(new Error('HTTP 429 rate limit exceeded')), true)
   assert.equal(isRetryable(new Error('quota exceeded')), true)
   assert.equal(isRetryable(new Error('503 service unavailable')), true)

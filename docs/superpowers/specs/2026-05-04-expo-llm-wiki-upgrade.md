@@ -12,7 +12,7 @@
 
 Clanker integrates `@equationalapplications/expo-llm-wiki` v2.4.0 for local wiki memory. The package now provides comprehensive React hooks (`useMemoryRead`, `useWikiWrite`, `useWikiMaintenance`, etc.) that offer better lifecycle management, centralized error/loading state, and context integration compared to direct service-layer `wiki.*()` method calls.
 
-This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *everywhere* (except service-layer setup code), improving long-term maintainability and consistency.
+This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks _everywhere_ (except service-layer setup code), improving long-term maintainability and consistency.
 
 ## Goals
 
@@ -52,12 +52,12 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
   - `createWiki(db, { llmProvider: ..., config: ... })`
   - `wiki.setup()` startup
   - Export `getWiki()` singleton for hook access
-  
+
 ### UI layer (hooks required)
 
 - `src/services/aiChatService.ts`
   - **Refactored:** No longer reads or writes wiki directly. Accepts `memoryBlock?: string` (pre-formatted by caller) and `onWriteObservation?` callback (supplied by caller) via the options argument.
-  
+
 - `src/hooks/useAIChat.ts` (React context — hooks used here)
   - Pre-turn: calls `wiki.read(characterId, userMessage.text)` via `useWiki()`, formats result with `formatContext()`, passes `memoryBlock` to `sendMessageWithAIResponse`.
   - Post-turn: passes `onWriteObservation` callback backed by `useWikiWrite()` to `sendMessageWithAIResponse` for fire-and-forget observation writes.
@@ -65,14 +65,14 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 - `src/components/ChatView.tsx` (or caller)
   - Memory reading is done in `useAIChat.ts` (via `useWiki()` + `wiki.read()`), not in `ChatView` directly.
   - `ChatView` uses `useWiki()` for entity-status polling (ingesting/librarian indicators).
-  
+
 - `src/services/characterSyncService.ts` (background sync)
   - **Currently:** `wiki.exportDump([char.id])` + `wiki.importDump(...)` + `wiki.runPrune(...)` → Extract sync logic into a custom hook or refactor to use `useWikiExport()` + `useWikiMaintenance()` when called from a React context. For non-React background intervals, raw methods acceptable.
-  
+
 - `app/(drawer)/(tabs)/characters/[id]/edit.tsx` (manual cloud sync button)
   - **Currently:** `exportWiki([id])` + `wikiSync({ dump: ... })` + `wiki.importDump(...)` + `wiki.runPrune(...)` → Refactor to use `useWikiExport()`, `useWikiMaintenance()` for centralized error/loading state.
   - Button press handler calls `exportWiki()` hook → `wikiSync()` → `importDump()` + `runPrune()` via maintenance hook.
-  
+
 - `src/components/ChatComposer.tsx`
   - Keep `useWikiIngest()`, `useWikiHasChanged()`, `useWikiForget()` (already hooks).
   - No changes needed.
@@ -83,6 +83,7 @@ This upgrade bumps to v2.5.0 and refactors all wiki access to use React hooks *e
 ### Hook availability check
 
 **Always available in components under `WikiProvider`:**
+
 - `useWiki()` — access wiki instance directly (used in `useAIChat.ts` for `wiki.read()` pre-turn and in `ChatView` for entity-status polling)
 - `useWikiWrite()` — fire-and-forget or awaited memory writes (used in `useAIChat.ts` for post-turn observation writes)
 - `useWikiMaintenance()` — `runLibrarian()`, `runHeal()`, `runPrune()` with shared loading/error state
@@ -109,24 +110,29 @@ Note: `useMemoryRead()` is available from the package but not used in this imple
 - **Escape hatch:** `useWiki()` available if a hook genuinely can't express the pattern needed, but prefer specialized hooks.
 
 **Phase 1: Verify compatibility**
+
 - Update package version.
 - Run `npm install` and `npm run typecheck`.
 - Confirm no import or API signature breakage.
 
 **Phase 2: Move memory reads into hooks**
+
 - Moved `getWiki()?.read(...)` from `aiChatService.ts` into `useAIChat.ts`.
 - `useAIChat.ts` calls `wiki.read(characterId, userMessage.text)` via `useWiki()`, wraps in try/catch, formats with `formatContext()`, and passes `memoryBlock` string to the service.
 
 **Phase 3: Move memory writes into hooks**
+
 - Moved `wiki.write()` post-turn call from `aiChatService.ts` into `useAIChat.ts`.
 - `useAIChat.ts` passes an `onWriteObservation` callback backed by `useWikiWrite()` to the service; the service invokes it fire-and-forget (wrapped in try/catch) without needing to import wiki hooks.
 
 **Phase 4: Refactor sync operations**
+
 - Extract `characterSyncService.ts` sync logic into a custom hook if called from React (or leave raw if background-only).
 - Edit screen cloud sync button: use `useWikiExport()` + `useWikiMaintenance()` with loading/error UI feedback.
 - Ensure `runPrune()` completes before declaring sync "done."
 
 **Phase 5: Test and verify**
+
 - Run `npm test -- wikiService characterSyncWiki aiChatService chatComposer --runInBand`.
 - Verify chat memory reads display correctly.
 - Verify cloud sync completes without errors.

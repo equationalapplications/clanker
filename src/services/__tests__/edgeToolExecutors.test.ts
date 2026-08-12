@@ -1,6 +1,12 @@
 import { edgeToolExecutors, createEdgeToolExecutors } from '../edgeToolExecutors'
 import { readFromWiki, writeToWiki } from '../wikiService'
-import { createTask, listTasks, updateTask, completeTask, deleteTask } from '../../database/taskDatabase'
+import {
+  createTask,
+  listTasks,
+  updateTask,
+  completeTask,
+  deleteTask,
+} from '../../database/taskDatabase'
 import type { LocalTask } from '../../database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 
@@ -119,7 +125,13 @@ describe('createEdgeToolExecutors — create_task / list_tasks', () => {
 
   it('list_tasks returns JSON with open tasks', async () => {
     const tasks: LocalTask[] = [
-      { id: 'task_1', character_id: 'char-1', title: 'Buy milk', status: 'pending', created_at: 1000 },
+      {
+        id: 'task_1',
+        character_id: 'char-1',
+        title: 'Buy milk',
+        status: 'pending',
+        created_at: 1000,
+      },
     ]
     mockListTasks.mockResolvedValue(tasks)
     const execs = createEdgeToolExecutors('char-1', null)

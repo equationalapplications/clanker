@@ -11,9 +11,15 @@ const SRC = join(import.meta.dirname, '..', '..', '..', 'src')
 const httpHandler = readFileSync(join(SRC, 'index.ts'), 'utf8')
 const wsHandler = readFileSync(join(SRC, 'handlers', 'wsAgentHandler.ts'), 'utf8')
 
-for (const [name, source] of [['http', httpHandler], ['ws', wsHandler]] as const) {
+for (const [name, source] of [
+  ['http', httpHandler],
+  ['ws', wsHandler],
+] as const) {
   test(`${name} handler imports the shared agent-run schema`, () => {
-    assert.match(source, /import \{[^}]*agentRunSchema[^}]*\} from '.*shared\/cloudAgentProtocol\.js'/)
+    assert.match(
+      source,
+      /import \{[^}]*agentRunSchema[^}]*\} from '.*shared\/cloudAgentProtocol\.js'/,
+    )
   })
 
   test(`${name} handler declares no agent-run schema of its own`, () => {

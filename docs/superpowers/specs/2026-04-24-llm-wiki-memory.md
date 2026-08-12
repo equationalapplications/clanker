@@ -150,10 +150,10 @@ All match existing template: `onCall({ region: 'us-central1', enforceAppCheck: t
 Auth check (mirror `generateReply.ts` handler):
 
 ```ts
-if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
-const decoded = request.auth.token as DecodedIdToken;
+if (!request.auth) throw new HttpsError('unauthenticated', 'Authentication required.')
+const decoded = request.auth.token as DecodedIdToken
 if (!decoded || decoded.uid !== request.auth.uid)
-  throw new HttpsError("unauthenticated", "Invalid Firebase authentication token.");
+  throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.')
 ```
 
 User resolution: `await userRepository.getOrCreateUserByFirebaseIdentity({ firebaseUid, email, displayName, avatarUrl })` (same as `generateReply.ts`). The Cloud SQL `users.id` UUID is what scopes wiki rows in the cloud mirror, not the Firebase UID.
@@ -210,7 +210,11 @@ New `src/services/memoryService.ts` matching [src/services/chatReplyService.ts](
 const memoryReadFn = httpsCallable(functionsInstance, 'memoryRead')
 // await appCheckReady before calling, same as chatReplyService
 export async function fetchMemoryBundle(characterId: string, query: string): Promise<MemoryBundle>
-export async function triggerMemoryWrite(character: Character, userId: string, chunk: string): Promise<void>
+export async function triggerMemoryWrite(
+  character: Character,
+  userId: string,
+  chunk: string,
+): Promise<void>
 export async function forgetMemory(characterId: string, target: ForgetTarget): Promise<void>
 ```
 
@@ -257,23 +261,27 @@ FTS5 `MATCH` chokes on raw user messages (punctuation, bare boolean operators, p
 Async function `buildFtsQuery(rawMessage: string, characterId: string): Promise<string | null>`. Three layers, each cheap. The function is async because Layer 3 uses a dynamic `import('compromise')` for lazy loading; callers in `memoryService.ts` must `await` it:
 
 **Layer 1 — Sanitize** (~0ms):
+
 - lowercase → strip non-alphanumeric (keep whitespace) → split → drop tokens `len < 3` → drop ~60-word English stopword Set → slice top 15
 
 **Layer 2 — Synonym expand** (~0ms):
+
 - Static base map (`src/database/synonymMapBase.ts`): ~150 hand-curated entries across health, relationships, work, emotions, goals domains. Pre-seeded for day-1 recall before any wiki entries exist.
 - Derived map: read `derived_synonyms` rows for `characterId`, merge with base. Cached at module level, invalidated on `memoryWrite` completion.
 - Each surviving Layer 1 token expanded with synonyms; full list deduped after expand.
 
 **Layer 3 — `compromise.js` NLP** (~30-60ms, lazy init):
+
 - `import nlp from 'compromise'` — lazy-loaded on first call, module-level cached instance.
 - Run on **original** message (compromise needs sentence structure, not sanitized tokens).
 - Extract: `.nouns().toSingular().out('array')`, `.verbs().toInfinitive().out('array')`, `.adjectives().out('array')`.
 - Lemmatized forms ("running" → "run", "marriages" → "marriage") added to token list, deduped against Layer 1+2.
 
 **Merge → FTS5 query**:
+
 - Final dedup, slice top 20.
 - Each token wrapped: `"token"*` (quoted prefix-match, escape-safe).
-- Join with ` OR `.
+- Join with `OR`.
 - Empty result → return `null` → caller skips FTS5, returns recency-only bundle (most-recently-accessed entries via `last_accessed_at DESC`).
 
 Works identically on iOS, Android, Web (compromise.js is pure JS, no native module).
@@ -329,6 +337,7 @@ healing    [fromPromise: triggerMemoryHeal callable; heal_checkpoint already adv
 **Context**: `{ characterId, userId, chunk, messageCount, memoryCheckpoint, healCheckpoint, isPremium, isOnline, localIsEmpty, shouldWrite, shouldHeal }`.
 
 **Trigger conditions** (resolved in `checking`):
+
 - `isPremium`: `usage.hasUnlimited`. Resolved client-side via same plan source as `useCurrentPlan`; server re-validates on each callable (defense-in-depth). Cloud-sync is **not** a gate — local-only premium characters get the full LLM librarian.
 - `isOnline`: `onlineManager.isOnline()` from TanStack Query. If false, machine returns to `idle` **without advancing any checkpoint**. The `wikiHealMachine` WRITE event is re-sent via the `networkManager` `onReconnect` callback when connectivity returns (same callback that triggers `syncAllToCloud`).
 - `localIsEmpty`: `wikiDatabase.countEntries(characterId) === 0`. Only checked for cloud-synced premium characters to gate the one-time bootstrap pull.
@@ -389,6 +398,7 @@ v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelli
 ## Files Touched
 
 **New**:
+
 - [src/database/wikiDatabase.ts](/src/database/wikiDatabase.ts)
 - [src/database/agentTaskDatabase.ts](/src/database/agentTaskDatabase.ts)
 - [src/database/memoryEventDatabase.ts](/src/database/memoryEventDatabase.ts)
@@ -402,6 +412,7 @@ v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelli
 - `functions/src/memoryFunctions.test.ts` (compiled to `functions/lib/memoryFunctions.test.js`, run via `node --test`)
 
 **Modified**:
+
 - [src/database/schema.ts](/src/database/schema.ts) — bump `SCHEMA_VERSION` → 11; add `MIGRATIONS[11]` (3 wiki tables + FTS5 + triggers + `derived_synonyms` + `characters` ALTERs for `heal_checkpoint`/`memory_checkpoint`); add new tables to `CREATE_TABLES`; extend `LATEST_SCHEMA_REQUIRED_COLUMNS`; add `MIGRATION_SKIP_GUARDS[11]`
 - [functions/src/db/schema.ts](/functions/src/db/schema.ts) — add Drizzle tables for cloud mirror with `tsvector` column + GIN index; FK to `characters.id`/`users.id`; no `summary_checkpoint`/`heal_checkpoint` columns server-side
 - `functions/drizzle/000X_wiki_memory.sql` — generated by `npm run db:generate`, applied via `npm run migrate`
@@ -416,10 +427,10 @@ v2 will revisit on-device inference using `callstackincubator/ai` (Apple Intelli
 
 Match existing patterns:
 
-- **Client unit** (Jest, [__tests__/voiceChatService.test.ts](/__tests__/voiceChatService.test.ts) style): mock callables via `jest.mock('~/services/memoryService', ...)`; assert fire-and-forget dedup
+- **Client unit** (Jest, [**tests**/voiceChatService.test.ts](/__tests__/voiceChatService.test.ts) style): mock callables via `jest.mock('~/services/memoryService', ...)`; assert fire-and-forget dedup
 - **DB unit** (Jest, in-memory SQLite via the `__mocks__/firebase.ts`-adjacent mocks): open DB, run migrations 1→11, verify FTS5 query results, soft-delete behavior, `derived_synonyms` upsert from tag co-occurrence
 - **Query builder** (Jest, `__tests__/ftsQueryBuilder.test.ts`): pure-function tests covering Layer 1 sanitize edge cases (punctuation-only, single-char, all-stopword input → `null`), Layer 2 base+derived synonym merge, Layer 3 compromise.js lemmatization, final FTS5 escaping
-- **State machine** (Jest, [__tests__/termsMachine.test.ts](/__tests__/termsMachine.test.ts) / [__tests__/characterMachine.test.ts](/__tests__/characterMachine.test.ts) style): assert state transitions for `shouldWrite=true|false`, `shouldHeal=true|false`, `isPremium=false` short-circuits to `idle`, local-only premium character proceeds to `writing` state (no cloud-sync gate), dedup on duplicate `WRITE` events, fail-soft on actor errors, checkpoints advanced before invocation and not rolled back on error
+- **State machine** (Jest, [**tests**/termsMachine.test.ts](/__tests__/termsMachine.test.ts) / [**tests**/characterMachine.test.ts](/__tests__/characterMachine.test.ts) style): assert state transitions for `shouldWrite=true|false`, `shouldHeal=true|false`, `isPremium=false` short-circuits to `idle`, local-only premium character proceeds to `writing` state (no cloud-sync gate), dedup on duplicate `WRITE` events, fail-soft on actor errors, checkpoints advanced before invocation and not rolled back on error
 - **Backend handler** (Node `node:test`, [functions/src/generateReply.test.ts](/functions/src/generateReply.test.ts) / [functions/src/characterFunctions.test.ts](/functions/src/characterFunctions.test.ts) style): build mock `deps`, call handler directly, mock auth via `buildAuth()` pattern; cover `memoryHeal` contradiction/stale/orphan/missing branches. Run via `cd functions && npm run build && node --test lib/memoryFunctions.test.js` per `/memories/repo/clanker-functions-notes.md`
 - Coverage targets: librarian merge dedup, conflict downgrade, user-stated overwrite, prune threshold trigger, fail-soft on `memoryRead` error, heal trigger at 20-message delta, premium plan gate on cloud NLP path
 

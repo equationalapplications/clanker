@@ -21,7 +21,8 @@ async function initAppCheck() {
           debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
         },
         apple: {
-          provider: process.env.NODE_ENV !== 'production' ? 'debug' : 'appAttestWithDeviceCheckFallback',
+          provider:
+            process.env.NODE_ENV !== 'production' ? 'debug' : 'appAttestWithDeviceCheckFallback',
           debugToken: process.env.EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN,
         },
       },
@@ -42,11 +43,12 @@ const auth = getAuth(firebaseApp)
 // Mock user for local development sandbox
 let mockUser: FirebaseAuthTypes.User | null = null
 
-const getMockUser = (): FirebaseAuthTypes.User => ({
-  uid: 'local_test_user_123',
-  email: 'dev@localhost.com',
-  getIdToken: async () => 'mock_token_123',
-} as unknown as FirebaseAuthTypes.User)
+const getMockUser = (): FirebaseAuthTypes.User =>
+  ({
+    uid: 'local_test_user_123',
+    email: 'dev@localhost.com',
+    getIdToken: async () => 'mock_token_123',
+  }) as unknown as FirebaseAuthTypes.User
 
 const getCurrentUser = () => {
   if (process.env.NODE_ENV !== 'production' && process.env.EXPO_PUBLIC_USE_MOCK_AUTH === 'true') {

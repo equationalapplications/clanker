@@ -101,12 +101,8 @@
           "name": "characters_user_id_users_id_fk",
           "tableFrom": "characters",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -182,12 +178,8 @@
           "name": "credit_transactions_user_id_users_id_fk",
           "tableFrom": "credit_transactions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -318,12 +310,8 @@
           "name": "messages_character_id_characters_id_fk",
           "tableFrom": "messages",
           "tableTo": "characters",
-          "columnsFrom": [
-            "character_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["character_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -331,12 +319,8 @@
           "name": "messages_sender_user_id_users_id_fk",
           "tableFrom": "messages",
           "tableTo": "users",
-          "columnsFrom": [
-            "sender_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sender_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -442,12 +426,8 @@
           "name": "subscriptions_user_id_users_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -457,9 +437,7 @@
         "subscriptions_user_id_unique": {
           "name": "subscriptions_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -545,16 +523,12 @@
         "users_firebase_uid_unique": {
           "name": "users_firebase_uid_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "firebase_uid"
-          ]
+          "columns": ["firebase_uid"]
         },
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -566,21 +540,12 @@
     "public.plan_status": {
       "name": "plan_status",
       "schema": "public",
-      "values": [
-        "active",
-        "cancelled",
-        "expired"
-      ]
+      "values": ["active", "cancelled", "expired"]
     },
     "public.plan_tier": {
       "name": "plan_tier",
       "schema": "public",
-      "values": [
-        "free",
-        "monthly_20",
-        "monthly_50",
-        "payg"
-      ]
+      "values": ["free", "monthly_20", "monthly_50", "payg"]
     }
   },
   "schemas": {},

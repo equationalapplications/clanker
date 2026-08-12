@@ -9,7 +9,12 @@ jest.mock('../src/database/index', () => ({
   })),
 }))
 
-import { batchInsertCharacters, createCharacter, updateCharacter, type LocalCharacter } from '../src/database/characterDatabase'
+import {
+  batchInsertCharacters,
+  createCharacter,
+  updateCharacter,
+  type LocalCharacter,
+} from '../src/database/characterDatabase'
 
 describe('batchInsertCharacters', () => {
   beforeEach(() => {

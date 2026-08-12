@@ -1,9 +1,22 @@
-import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, bigint, check, index, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
-import { DEFAULT_VOICE } from '../constants/voiceDefaults.js';
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  integer,
+  boolean,
+  jsonb,
+  bigint,
+  check,
+  index,
+  uniqueIndex,
+  primaryKey,
+} from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { DEFAULT_VOICE } from '../constants/voiceDefaults.js'
 
-export const TRANSACTION_TYPES = ['signup', 'subscription', 'one_time', 'legacy'] as const;
-export type TransactionType = typeof TRANSACTION_TYPES[number];
+export const TRANSACTION_TYPES = ['signup', 'subscription', 'one_time', 'legacy'] as const
+export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
 // NOTE: The legacy table exports (wikiEntries → wiki_entries, agentTasks, memoryEvents) are kept
 // unchanged so that memoryFunctions.ts continues to compile. They will be removed alongside
@@ -20,297 +33,491 @@ export const users = pgTable('users', {
   defaultCharacterId: uuid('default_character_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+})
 
 // NOTE: The DB trigger handle_new_user() inserts into this table directly.
 // Phase 2 of credits-redesign updates subscriptionService.getOrCreateDefaultSubscription
 // to also insert a credit_transactions row for the 5,000-Power signup grant.
 // The Postgres trigger is now also responsible for seeding the authoritative
 // 5,000-Power signup grant row in credit_transactions with transaction_type='signup'.
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').unique().notNull().references(() => users.id, { onDelete: 'cascade' }),
-  planTier: text('plan_tier').notNull().default('free'),
-  planStatus: text('plan_status').notNull().default('active'),
-  currentCredits: integer('current_credits').notNull().default(0),
-  termsVersion: text('terms_version'),
-  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
-  stripeSubscriptionId: text('stripe_subscription_id'),
-  stripeCustomerId: text('stripe_customer_id'),
-  billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
-  billingCycleEnd: timestamp('billing_cycle_end', { withTimezone: true }),
-  nextExpiryDate: timestamp('next_expiry_date', { withTimezone: true }).default(sql`NULL`),
-  documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
-  documentsIngestedDate: text('documents_ingested_date'),
-  subscriptionProvider: text('subscription_provider'),
-  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  planTierCheck: check('plan_tier_check', sql`${table.planTier} IN ('free', 'monthly_20', 'monthly_50', 'payg')`),
-  planStatusCheck: check('plan_status_check', sql`${table.planStatus} IN ('active', 'cancelled', 'expired')`),
-  subscriptionProviderCheck: check('subscription_provider_check', sql`${table.subscriptionProvider} IN ('stripe', 'revenuecat')`),
-  stripeCustomerIdUnique: uniqueIndex('subscriptions_stripe_customer_id_unique')
-    .on(table.stripeCustomerId)
-    .where(sql`${table.stripeCustomerId} IS NOT NULL`),
-}));
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .unique()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    planTier: text('plan_tier').notNull().default('free'),
+    planStatus: text('plan_status').notNull().default('active'),
+    currentCredits: integer('current_credits').notNull().default(0),
+    termsVersion: text('terms_version'),
+    termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    stripeCustomerId: text('stripe_customer_id'),
+    billingCycleStart: timestamp('billing_cycle_start', { withTimezone: true }),
+    billingCycleEnd: timestamp('billing_cycle_end', { withTimezone: true }),
+    nextExpiryDate: timestamp('next_expiry_date', { withTimezone: true }).default(sql`NULL`),
+    documentsIngestedCount: integer('documents_ingested_count').notNull().default(0),
+    documentsIngestedDate: text('documents_ingested_date'),
+    subscriptionProvider: text('subscription_provider'),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    planTierCheck: check(
+      'plan_tier_check',
+      sql`${table.planTier} IN ('free', 'monthly_20', 'monthly_50', 'payg')`,
+    ),
+    planStatusCheck: check(
+      'plan_status_check',
+      sql`${table.planStatus} IN ('active', 'cancelled', 'expired')`,
+    ),
+    subscriptionProviderCheck: check(
+      'subscription_provider_check',
+      sql`${table.subscriptionProvider} IN ('stripe', 'revenuecat')`,
+    ),
+    stripeCustomerIdUnique: uniqueIndex('subscriptions_stripe_customer_id_unique')
+      .on(table.stripeCustomerId)
+      .where(sql`${table.stripeCustomerId} IS NOT NULL`),
+  }),
+)
 
-export const processedStripeEvents = pgTable('processed_stripe_events', {
-  eventId: text('event_id').primaryKey(),
-  status: text('status').notNull().default('processing'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  statusCheck: check('processed_stripe_events_status_check', sql`${table.status} IN ('processing', 'completed')`),
-}));
+export const processedStripeEvents = pgTable(
+  'processed_stripe_events',
+  {
+    eventId: text('event_id').primaryKey(),
+    status: text('status').notNull().default('processing'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusCheck: check(
+      'processed_stripe_events_status_check',
+      sql`${table.status} IN ('processing', 'completed')`,
+    ),
+  }),
+)
 
-export const creditTransactions = pgTable('credit_transactions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  delta: integer('delta').notNull(),
-  reason: text('reason').notNull(),
-  referenceId: text('reference_id'),
-  initialAmount: integer('initial_amount').notNull(),
-  remainingBalance: integer('remaining_balance').notNull(),
-  transactionType: text('transaction_type').notNull(),
-  expiresAt: timestamp('expires_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
-  idempotencyIdx: uniqueIndex('credit_transactions_idempotency_idx')
-    .on(table.userId, table.reason, table.referenceId)
-    .where(sql`${table.referenceId} IS NOT NULL`),
-  transactionTypeCheck: check(
-    'credit_transactions_transaction_type_check',
-    sql`${table.transactionType} IN ('signup', 'subscription', 'one_time', 'legacy')`
-  ),
-}));
+export const creditTransactions = pgTable(
+  'credit_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    delta: integer('delta').notNull(),
+    reason: text('reason').notNull(),
+    referenceId: text('reference_id'),
+    initialAmount: integer('initial_amount').notNull(),
+    remainingBalance: integer('remaining_balance').notNull(),
+    transactionType: text('transaction_type').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
+    idempotencyIdx: uniqueIndex('credit_transactions_idempotency_idx')
+      .on(table.userId, table.reason, table.referenceId)
+      .where(sql`${table.referenceId} IS NOT NULL`),
+    transactionTypeCheck: check(
+      'credit_transactions_transaction_type_check',
+      sql`${table.transactionType} IN ('signup', 'subscription', 'one_time', 'legacy')`,
+    ),
+  }),
+)
 
-export const characters = pgTable('characters', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  avatar: text('avatar'),
-  appearance: text('appearance'),
-  traits: text('traits'),
-  emotions: text('emotions'),
-  context: text('context'),
-  voice: text('voice').notNull().default(DEFAULT_VOICE),
-  isPublic: boolean('is_public').notNull().default(false),
-  saveToCloud: boolean('save_to_cloud').notNull().default(false),
-  activeImageId: uuid('active_image_id'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  userIdIdx: index('characters_user_id_idx').on(table.userId),
-}));
+export const characters = pgTable(
+  'characters',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    avatar: text('avatar'),
+    appearance: text('appearance'),
+    traits: text('traits'),
+    emotions: text('emotions'),
+    context: text('context'),
+    voice: text('voice').notNull().default(DEFAULT_VOICE),
+    isPublic: boolean('is_public').notNull().default(false),
+    saveToCloud: boolean('save_to_cloud').notNull().default(false),
+    activeImageId: uuid('active_image_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index('characters_user_id_idx').on(table.userId),
+  }),
+)
 
-export const characterImages = pgTable('character_images', {
-  id: uuid('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  storagePath: text('storage_path').notNull(),
-  thumbPath: text('thumb_path'),
-  mimeType: text('mime_type').notNull().default('image/webp'),
-  source: text('source').notNull(),
-  /** Client-minted message id this photo arrived on; null for avatars. Not an FK — see 0023. */
-  messageId: text('message_id'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  // Tombstone: retained 30 days so other devices can reconcile a deletion they
-  // were offline for. Absence is ambiguous; an explicit deleted_at is not.
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
-}, (table) => ({
-  characterIdIdx: index('character_images_character_id_idx').on(table.characterId, table.createdAt.desc()),
-  userIdIdx: index('character_images_user_id_idx').on(table.userId),
-}));
+export const characterImages = pgTable(
+  'character_images',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    storagePath: text('storage_path').notNull(),
+    thumbPath: text('thumb_path'),
+    mimeType: text('mime_type').notNull().default('image/webp'),
+    source: text('source').notNull(),
+    /** Client-minted message id this photo arrived on; null for avatars. Not an FK — see 0023. */
+    messageId: text('message_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // Tombstone: retained 30 days so other devices can reconcile a deletion they
+    // were offline for. Absence is ambiguous; an explicit deleted_at is not.
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    characterIdIdx: index('character_images_character_id_idx').on(
+      table.characterId,
+      table.createdAt.desc(),
+    ),
+    userIdIdx: index('character_images_user_id_idx').on(table.userId),
+  }),
+)
 
-export const messages = pgTable('messages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  senderUserId: uuid('sender_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  messageId: text('message_id').notNull(),
-  text: text('text').notNull(),
-  senderName: text('sender_name'),
-  senderAvatar: text('sender_avatar'),
-  messageData: jsonb('message_data').notNull().default({}),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-}, (table) => ({
-  characterIdIdx: index('messages_character_id_idx').on(table.characterId),
-  senderUserIdIdx: index('messages_sender_user_id_idx').on(table.senderUserId),
-  characterIdCreatedAtIdx: index('messages_character_id_created_at_idx').on(table.characterId, table.createdAt.desc()),
-  messageIdUniqueIdx: uniqueIndex('messages_message_id_unique_idx').on(table.messageId),
-}));
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    senderUserId: uuid('sender_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    messageId: text('message_id').notNull(),
+    text: text('text').notNull(),
+    senderName: text('sender_name'),
+    senderAvatar: text('sender_avatar'),
+    messageData: jsonb('message_data').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    characterIdIdx: index('messages_character_id_idx').on(table.characterId),
+    senderUserIdIdx: index('messages_sender_user_id_idx').on(table.senderUserId),
+    characterIdCreatedAtIdx: index('messages_character_id_created_at_idx').on(
+      table.characterId,
+      table.createdAt.desc(),
+    ),
+    messageIdUniqueIdx: uniqueIndex('messages_message_id_unique_idx').on(table.messageId),
+  }),
+)
 
 // Legacy tables — used by memoryFunctions.ts; kept until old callables are retired.
-export const wikiEntries = pgTable('wiki_entries', {
-  id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  body: text('body').notNull(),
-  tags: jsonb('tags').notNull().default([]),
-  confidence: text('confidence').notNull().default('inferred'),
-  sourceType: text('source_type').notNull().default('agent_inferred'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
-  accessCount: integer('access_count').notNull().default(0),
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
-  sourceHash: text('source_hash'),
-  sourceRef: text('source_ref'),
-}, (table) => ({
-  characterUserIdx: index('wiki_entries_character_user_idx').on(table.characterId, table.userId),
-  characterDeletedIdx: index('wiki_entries_character_deleted_idx').on(table.characterId, table.deletedAt),
-  updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
-  sourceHashIdx: index('wiki_entries_source_hash_idx').on(table.characterId, table.sourceHash).where(sql`${table.sourceHash} IS NOT NULL`),
-  sourceRefIdx: index('wiki_entries_source_ref_idx').on(table.characterId, table.sourceRef).where(sql`${table.sourceRef} IS NOT NULL`),
-  confidenceCheck: check('wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
-  sourceTypeCheck: check('wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
-}));
+export const wikiEntries = pgTable(
+  'wiki_entries',
+  {
+    id: text('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    tags: jsonb('tags').notNull().default([]),
+    confidence: text('confidence').notNull().default('inferred'),
+    sourceType: text('source_type').notNull().default('agent_inferred'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
+    accessCount: integer('access_count').notNull().default(0),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    sourceHash: text('source_hash'),
+    sourceRef: text('source_ref'),
+  },
+  (table) => ({
+    characterUserIdx: index('wiki_entries_character_user_idx').on(table.characterId, table.userId),
+    characterDeletedIdx: index('wiki_entries_character_deleted_idx').on(
+      table.characterId,
+      table.deletedAt,
+    ),
+    updatedAtIdx: index('wiki_entries_updated_at_idx').on(table.updatedAt.desc()),
+    sourceHashIdx: index('wiki_entries_source_hash_idx')
+      .on(table.characterId, table.sourceHash)
+      .where(sql`${table.sourceHash} IS NOT NULL`),
+    sourceRefIdx: index('wiki_entries_source_ref_idx')
+      .on(table.characterId, table.sourceRef)
+      .where(sql`${table.sourceRef} IS NOT NULL`),
+    confidenceCheck: check(
+      'wiki_entries_confidence_check',
+      sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`,
+    ),
+    sourceTypeCheck: check(
+      'wiki_entries_source_type_check',
+      sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`,
+    ),
+  }),
+)
 
-export const agentTasks = pgTable('agent_tasks', {
-  id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  description: text('description').notNull(),
-  status: text('status').notNull().default('pending'),
-  priority: integer('priority').notNull().default(0),
-  dueContext: text('due_context'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-  resolutionNote: text('resolution_note'),
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
-}, (table) => ({
-  characterStatusIdx: index('agent_tasks_character_status_idx').on(table.characterId, table.userId, table.status),
-  priorityIdx: index('agent_tasks_priority_idx').on(table.priority.desc()),
-  statusCheck: check('agent_tasks_status_check', sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`),
-}));
+export const agentTasks = pgTable(
+  'agent_tasks',
+  {
+    id: text('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    description: text('description').notNull(),
+    status: text('status').notNull().default('pending'),
+    priority: integer('priority').notNull().default(0),
+    dueContext: text('due_context'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionNote: text('resolution_note'),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    characterStatusIdx: index('agent_tasks_character_status_idx').on(
+      table.characterId,
+      table.userId,
+      table.status,
+    ),
+    priorityIdx: index('agent_tasks_priority_idx').on(table.priority.desc()),
+    statusCheck: check(
+      'agent_tasks_status_check',
+      sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`,
+    ),
+  }),
+)
 
-export const memoryEvents = pgTable('memory_events', {
-  id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  eventType: text('event_type').notNull(),
-  summary: text('summary').notNull(),
-  relatedEntryId: text('related_entry_id').references(() => wikiEntries.id, { onDelete: 'set null' }),
-  relatedTaskId: text('related_task_id').references(() => agentTasks.id, { onDelete: 'set null' }),
-  sourceRef: text('source_ref'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  characterCreatedIdx: index('memory_events_character_created_idx').on(table.characterId, table.userId, table.createdAt.desc()),
-  eventTypeCheck: check('memory_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
-}));
+export const memoryEvents = pgTable(
+  'memory_events',
+  {
+    id: text('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(),
+    summary: text('summary').notNull(),
+    relatedEntryId: text('related_entry_id').references(() => wikiEntries.id, {
+      onDelete: 'set null',
+    }),
+    relatedTaskId: text('related_task_id').references(() => agentTasks.id, {
+      onDelete: 'set null',
+    }),
+    sourceRef: text('source_ref'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    characterCreatedIdx: index('memory_events_character_created_idx').on(
+      table.characterId,
+      table.userId,
+      table.createdAt.desc(),
+    ),
+    eventTypeCheck: check(
+      'memory_events_event_type_check',
+      sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`,
+    ),
+  }),
+)
 
 // New LWW wiki tables — used by wikiSync callable.
-export const llmWikiEntries = pgTable('llm_wiki_entries', {
-  id: text('id').notNull(),
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  body: text('body').notNull(),
-  tags: jsonb('tags').notNull().default([]),
-  confidence: text('confidence').notNull().default('inferred'),
-  sourceRef: text('source_ref'),
-  sourceHash: text('source_hash'),
-  sourceType: text('source_type').notNull().default('agent_inferred'),
-  lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),
-  accessCount: integer('access_count').notNull().default(0),
-  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-  deletedAt: bigint('deleted_at', { mode: 'number' }),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.id, table.userId] }),
-  entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
-  updatedAtIdx: index('llm_wiki_entries_updated_at_idx').on(table.updatedAt),
-  confidenceCheck: check('llm_wiki_entries_confidence_check', sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`),
-  sourceTypeCheck: check('llm_wiki_entries_source_type_check', sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`),
-}));
+export const llmWikiEntries = pgTable(
+  'llm_wiki_entries',
+  {
+    id: text('id').notNull(),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    tags: jsonb('tags').notNull().default([]),
+    confidence: text('confidence').notNull().default('inferred'),
+    sourceRef: text('source_ref'),
+    sourceHash: text('source_hash'),
+    sourceType: text('source_type').notNull().default('agent_inferred'),
+    lastAccessedAt: bigint('last_accessed_at', { mode: 'number' }),
+    accessCount: integer('access_count').notNull().default(0),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.userId] }),
+    entityUserIdx: index('llm_wiki_entries_entity_user_idx').on(table.entityId, table.userId),
+    updatedAtIdx: index('llm_wiki_entries_updated_at_idx').on(table.updatedAt),
+    confidenceCheck: check(
+      'llm_wiki_entries_confidence_check',
+      sql`${table.confidence} IN ('certain', 'inferred', 'tentative')`,
+    ),
+    sourceTypeCheck: check(
+      'llm_wiki_entries_source_type_check',
+      sql`${table.sourceType} IN ('user_stated', 'agent_inferred', 'user_confirmed', 'user_document')`,
+    ),
+  }),
+)
 
-export const llmWikiTasks = pgTable('llm_wiki_tasks', {
-  id: text('id').notNull(),
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  description: text('description').notNull(),
-  status: text('status').notNull().default('pending'),
-  priority: integer('priority').notNull().default(0),
-  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-  resolvedAt: bigint('resolved_at', { mode: 'number' }),
-  deletedAt: bigint('deleted_at', { mode: 'number' }),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.id, table.userId] }),
-  entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(table.entityId, table.userId, table.status),
-  statusCheck: check('llm_wiki_tasks_status_check', sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`),
-}));
+export const llmWikiTasks = pgTable(
+  'llm_wiki_tasks',
+  {
+    id: text('id').notNull(),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    description: text('description').notNull(),
+    status: text('status').notNull().default('pending'),
+    priority: integer('priority').notNull().default(0),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    resolvedAt: bigint('resolved_at', { mode: 'number' }),
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.userId] }),
+    entityStatusIdx: index('llm_wiki_tasks_entity_status_idx').on(
+      table.entityId,
+      table.userId,
+      table.status,
+    ),
+    statusCheck: check(
+      'llm_wiki_tasks_status_check',
+      sql`${table.status} IN ('pending', 'in_progress', 'done', 'abandoned')`,
+    ),
+  }),
+)
 
-export const llmWikiEvents = pgTable('llm_wiki_events', {
-  id: text('id').notNull(),
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  eventType: text('event_type').notNull(),
-  summary: text('summary').notNull(),
-  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.id, table.userId] }),
-  entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(table.entityId, table.userId, table.createdAt),
-  eventTypeCheck: check('llm_wiki_events_event_type_check', sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`),
-}));
+export const llmWikiEvents = pgTable(
+  'llm_wiki_events',
+  {
+    id: text('id').notNull(),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(),
+    summary: text('summary').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.userId] }),
+    entityCreatedIdx: index('llm_wiki_events_entity_created_idx').on(
+      table.entityId,
+      table.userId,
+      table.createdAt,
+    ),
+    eventTypeCheck: check(
+      'llm_wiki_events_event_type_check',
+      sql`${table.eventType} IN ('observation', 'decision', 'action', 'outcome')`,
+    ),
+  }),
+)
 
-export const llmWikiEdges = pgTable('llm_wiki_edges', {
-  id: text('id').notNull(),
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  sourceId: text('source_id').notNull(),
-  targetId: text('target_id').notNull(),
-  edgeType: text('edge_type').notNull(),
-  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.id, table.userId] }),
-  entityUserIdx: index('llm_wiki_edges_entity_user_idx').on(table.entityId, table.userId),
-  sourceIdx: index('llm_wiki_edges_source_idx').on(table.sourceId, table.userId),
-  targetIdx: index('llm_wiki_edges_target_idx').on(table.targetId, table.userId),
-}));
+export const llmWikiEdges = pgTable(
+  'llm_wiki_edges',
+  {
+    id: text('id').notNull(),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id').notNull(),
+    targetId: text('target_id').notNull(),
+    edgeType: text('edge_type').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.userId] }),
+    entityUserIdx: index('llm_wiki_edges_entity_user_idx').on(table.entityId, table.userId),
+    sourceIdx: index('llm_wiki_edges_source_idx').on(table.sourceId, table.userId),
+    targetIdx: index('llm_wiki_edges_target_idx').on(table.targetId, table.userId),
+  }),
+)
 
-export const llmWikiOntology = pgTable('llm_wiki_ontology', {
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  mode: text('mode').notNull().default('off'),
-  manifest: jsonb('manifest'),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.entityId, table.userId] }),
-  modeCheck: check('llm_wiki_ontology_mode_check', sql`${table.mode} IN ('strict', 'emergent', 'off')`),
-}));
+export const llmWikiOntology = pgTable(
+  'llm_wiki_ontology',
+  {
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    mode: text('mode').notNull().default('off'),
+    manifest: jsonb('manifest'),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.entityId, table.userId] }),
+    modeCheck: check(
+      'llm_wiki_ontology_mode_check',
+      sql`${table.mode} IN ('strict', 'emergent', 'off')`,
+    ),
+  }),
+)
 
 // Cloud Agent tasks — cloud-persisted version of the local SQLite tasks table.
 // user_id added (absent in SQLite) to satisfy the security WHERE-clause filter.
-export const tasks = pgTable('tasks', {
-  id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  status: text('status').notNull().default('open'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  characterUserIdx: index('tasks_character_user_idx').on(table.characterId, table.userId),
-  statusCheck: check('tasks_status_check', sql`${table.status} IN ('open', 'done', 'abandoned')`),
-}));
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: text('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    characterUserIdx: index('tasks_character_user_idx').on(table.characterId, table.userId),
+    statusCheck: check('tasks_status_check', sql`${table.status} IN ('open', 'done', 'abandoned')`),
+  }),
+)
 
 export const organizations = pgTable('organizations', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+})
 
-export const organizationMembers = pgTable('organization_members', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  role: text('role').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  orgUserUniqueIdx: uniqueIndex('organization_members_org_user_unique_idx').on(table.organizationId, table.userId),
-  userIdIdx: index('organization_members_user_id_idx').on(table.userId),
-}));
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgUserUniqueIdx: uniqueIndex('organization_members_org_user_unique_idx').on(
+      table.organizationId,
+      table.userId,
+    ),
+    userIdIdx: index('organization_members_user_id_idx').on(table.userId),
+  }),
+)

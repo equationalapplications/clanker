@@ -56,7 +56,7 @@ test('spendCredit does not update subscriptions when spend fails', async () => {
   const db = {
     execute: async (_query: unknown) => {
       executeCalls++
-      return { rows: [] }  // always returns empty (insufficient)
+      return { rows: [] } // always returns empty (insufficient)
     },
     transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
       const tx = {
@@ -86,7 +86,12 @@ test('spendCredit spans multiple rows when amount exceeds the first row balance'
     { rows: [] },
     { rows: [{ user_id: 'user-1' }] },
     { rows: [{ total: '7' }] },
-    { rows: [{ id: 'tx-1', remaining_balance: '3' }, { id: 'tx-2', remaining_balance: '4' }] },
+    {
+      rows: [
+        { id: 'tx-1', remaining_balance: '3' },
+        { id: 'tx-2', remaining_balance: '4' },
+      ],
+    },
     { rows: [] },
     { rows: [] },
     { rows: [] },
@@ -101,7 +106,11 @@ test('spendCredit spans multiple rows when amount exceeds the first row balance'
 
 test('spendCredit throws INSUFFICIENT_CREDITS when net balance across all rows is short', async () => {
   // Call 1: INSERT subscriptions, Call 2: SELECT FOR UPDATE, Call 3: SELECT SUM -> '3' (< 5)
-  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [{ total: '3' }] }])
+  const db = makeExecuteDb([
+    { rows: [] },
+    { rows: [{ user_id: 'user-1' }] },
+    { rows: [{ total: '3' }] },
+  ])
   const cs = createCreditService(db)
   await assert.rejects(
     () => cs.spendCredit('user-1', 5),
@@ -131,9 +140,16 @@ test('spendCredit defaults amount to 100 when not passed', async () => {
 test('refundCredit resolves without throwing', async () => {
   // Call 1: INSERT subscriptions, Call 2: SELECT FOR UPDATE subscriptions
   // Call 3: UPDATE credit_transactions RETURNING id, Call 4: UPDATE subscriptions cache
-  const db = makeExecuteDb([{ rows: [] }, { rows: [{ user_id: 'user-1' }] }, { rows: [{ id: 'tx-abc' }] }, { rows: [] }])
+  const db = makeExecuteDb([
+    { rows: [] },
+    { rows: [{ user_id: 'user-1' }] },
+    { rows: [{ id: 'tx-abc' }] },
+    { rows: [] },
+  ])
   const cs = createCreditService(db)
-  await assert.doesNotReject(() => cs.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }]))
+  await assert.doesNotReject(() =>
+    cs.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }]),
+  )
 })
 
 test('refundCredit restores every row in a multi-row allocation atomically', async () => {
@@ -160,9 +176,17 @@ test('refundCredit restores every row in a multi-row allocation atomically', asy
 test('refundCredit is a no-op for an empty allocation array', async () => {
   let executeCalls = 0
   const db = {
-    execute: async () => { executeCalls++; return { rows: [] } },
+    execute: async () => {
+      executeCalls++
+      return { rows: [] }
+    },
     transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) =>
-      callback({ execute: async () => { executeCalls++; return { rows: [] } } } as unknown as DrizzleClient),
+      callback({
+        execute: async () => {
+          executeCalls++
+          return { rows: [] }
+        },
+      } as unknown as DrizzleClient),
   } as unknown as DrizzleClient
   const cs = createCreditService(db)
   await cs.refundCredit('user-1', [])
@@ -172,10 +196,16 @@ test('refundCredit is a no-op for an empty allocation array', async () => {
 test('refundCredit makes correct number of execute calls', async () => {
   let executeCalls = 0
   const db = {
-    execute: async (_query: unknown) => { executeCalls++; return { rows: [] } },
+    execute: async (_query: unknown) => {
+      executeCalls++
+      return { rows: [] }
+    },
     transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
       const tx = {
-        execute: async (_query: unknown) => { executeCalls++; return { rows: [] } },
+        execute: async (_query: unknown) => {
+          executeCalls++
+          return { rows: [] }
+        },
       }
       return await callback(tx as unknown as DrizzleClient)
     },
@@ -190,8 +220,10 @@ test('refundCredit makes correct number of execute calls', async () => {
   //   - UPDATE subscriptions cache (either 4 or 5 depending on above)
   // The implementation may add a compensation row if the original expired,
   // so we accept 4 (happy path) or 5 (with compensation).
-  assert.ok(executeCalls === 4 || executeCalls === 5,
-    `expected 4 or 5 execute calls, got ${executeCalls}`)
+  assert.ok(
+    executeCalls === 4 || executeCalls === 5,
+    `expected 4 or 5 execute calls, got ${executeCalls}`,
+  )
 })
 
 // ── getBalance ────────────────────────────────────────────────────────────────

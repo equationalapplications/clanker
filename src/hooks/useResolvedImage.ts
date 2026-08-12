@@ -26,12 +26,18 @@ export function useResolvedImage(
   // move on before the effect below has a chance to catch up, render derives
   // null instead of the stale previous URI — no synchronous setState needed
   // in the effect just to clear it between renders.
-  const [resolvedFor, setResolvedFor] = useState<{ imageId: string; variant: ImageVariantName } | null>(null)
+  const [resolvedFor, setResolvedFor] = useState<{
+    imageId: string
+    variant: ImageVariantName
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    if (!imageId) return () => { cancelled = true }
+    if (!imageId)
+      return () => {
+        cancelled = true
+      }
 
     void (async () => {
       try {
@@ -55,7 +61,9 @@ export function useResolvedImage(
       }
     })()
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [imageId, variant])
 
   if (!imageId) return { uri: null, isResolved: false }

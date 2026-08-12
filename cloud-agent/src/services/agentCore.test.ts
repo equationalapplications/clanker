@@ -7,14 +7,7 @@ const mockDb = {} as unknown as DrizzleClient
 const mockEmbed = async (_text: string): Promise<number[]> => new Array(1536).fill(0)
 
 test('buildAgent returns an agent with expected name and instruction', () => {
-  const agent = buildAgent(
-    mockDb,
-    'user-123',
-    'char-456',
-    'Test instruction',
-    'UTC',
-    mockEmbed,
-  )
+  const agent = buildAgent(mockDb, 'user-123', 'char-456', 'Test instruction', 'UTC', mockEmbed)
   assert.equal(agent.name, 'clanker-cloud-agent')
   assert.equal(agent.instruction, 'Test instruction')
 })

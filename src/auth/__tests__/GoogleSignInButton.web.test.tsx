@@ -14,7 +14,15 @@ jest.mock('../googleSignin.web', () => ({
 jest.mock('react-native-paper', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, TouchableOpacity } = require('react-native')
-  const Button = ({ children, disabled, onPress }: { children: React.ReactNode; disabled?: boolean; onPress?: () => void }) => (
+  const Button = ({
+    children,
+    disabled,
+    onPress,
+  }: {
+    children: React.ReactNode
+    disabled?: boolean
+    onPress?: () => void
+  }) => (
     <TouchableOpacity onPress={onPress} disabled={disabled} testID="provider-button">
       <Text>{children}</Text>
     </TouchableOpacity>

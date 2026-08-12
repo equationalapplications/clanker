@@ -146,7 +146,10 @@ jest.mock('react-native-paper', () => {
       },
     ),
     Text: ({ children }: any) => React.createElement(RNText, null, children),
-    useTheme: () => ({ colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' }, roundness: 4 }),
+    useTheme: () => ({
+      colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' },
+      roundness: 4,
+    }),
   }
 })
 
@@ -165,7 +168,9 @@ describe('ChatComposer', () => {
     mockBase64.mockReset()
     mockConvertDocumentText.mockReset()
     mockFetch.mockReset()
-    mockConvertDocumentText.mockResolvedValue({ data: { text: 'converted text', truncated: false } })
+    mockConvertDocumentText.mockResolvedValue({
+      data: { text: 'converted text', truncated: false },
+    })
     mockUseCharacterWikiResult.status = { ingesting: false, librarian: false, heal: false }
     mockUseCharacterWikiResult.isBusy = false
     mockUseCharacterWikiResult.isIngesting = false
@@ -282,67 +287,67 @@ describe('ChatComposer', () => {
     expect(onSubmit).toHaveBeenCalled()
     expect(onSend).not.toHaveBeenCalled()
   })
-    it('submits on native when submit editing fires', () => {
-        const onSend = jest.fn()
-        const ChatComposer = require('~/components/ChatComposer').default
-        let tree!: ReturnType<typeof create>
+  it('submits on native when submit editing fires', () => {
+    const onSend = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    let tree!: ReturnType<typeof create>
 
-        act(() => {
-            tree = create(
-              <ChatComposer
-                text="  hi native  "
-                onChangeText={jest.fn()}
-                onSubmit={onSend}
-                characterId="char-1"
-                userId="user-1"
-              />,
-            )
-        })
-
-        const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
-
-        expect(composer.props.submitBehavior).toBe('submit')
-        expect(composer.props.returnKeyType).toBe('send')
-
-        act(() => {
-            composer.props.onSubmitEditing()
-        })
-
-        expect(onSend).toHaveBeenCalled()
+    act(() => {
+      tree = create(
+        <ChatComposer
+          text="  hi native  "
+          onChangeText={jest.fn()}
+          onSubmit={onSend}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
     })
 
-    it('does not send on native submit when text is whitespace-only', () => {
-        // Same as the web whitespace case above: ChatComposer no longer trims.
-        // ChatInputBar does the trim-and-skip-empty gate. Verify the
-        // wrapper's contract: it fires onSubmitEditing; the parent decides.
-        const onSend = jest.fn()
-        const ChatComposer = require('~/components/ChatComposer').default
-        const onSubmit = jest.fn((trimmed: string) => {
-          if (trimmed) onSend({ text: trimmed }, true)
-        })
-        let tree!: ReturnType<typeof create>
+    const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
 
-        act(() => {
-            tree = create(
-              <ChatComposer
-                text="   "
-                onChangeText={jest.fn()}
-                onSubmit={onSubmit}
-                characterId="char-1"
-                userId="user-1"
-              />,
-            )
-        })
+    expect(composer.props.submitBehavior).toBe('submit')
+    expect(composer.props.returnKeyType).toBe('send')
 
-        const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
-
-        act(() => {
-            composer.props.onSubmitEditing()
-        })
-
-        expect(onSubmit).toHaveBeenCalled()
-        expect(onSend).not.toHaveBeenCalled()
+    act(() => {
+      composer.props.onSubmitEditing()
     })
+
+    expect(onSend).toHaveBeenCalled()
+  })
+
+  it('does not send on native submit when text is whitespace-only', () => {
+    // Same as the web whitespace case above: ChatComposer no longer trims.
+    // ChatInputBar does the trim-and-skip-empty gate. Verify the
+    // wrapper's contract: it fires onSubmitEditing; the parent decides.
+    const onSend = jest.fn()
+    const ChatComposer = require('~/components/ChatComposer').default
+    const onSubmit = jest.fn((trimmed: string) => {
+      if (trimmed) onSend({ text: trimmed }, true)
+    })
+    let tree!: ReturnType<typeof create>
+
+    act(() => {
+      tree = create(
+        <ChatComposer
+          text="   "
+          onChangeText={jest.fn()}
+          onSubmit={onSubmit}
+          characterId="char-1"
+          userId="user-1"
+        />,
+      )
+    })
+
+    const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+
+    act(() => {
+      composer.props.onSubmitEditing()
+    })
+
+    expect(onSubmit).toHaveBeenCalled()
+    expect(onSend).not.toHaveBeenCalled()
+  })
 
   it('sets accessibilityLabel on input for native', () => {
     const ChatComposer = require('~/components/ChatComposer').default
@@ -363,7 +368,6 @@ describe('ChatComposer', () => {
     const composer = tree.root.findByProps({ accessibilityLabel: 'Message input' })
     expect(composer.props.accessibilityLabel).toBe('Message input')
   })
-
 
   it('sets accessibilityLabel on input for web', () => {
     const ChatComposer = require('~/components/ChatComposer').default
@@ -415,7 +419,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
         />,
@@ -435,7 +440,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
         />,
@@ -454,11 +460,19 @@ describe('ChatComposer', () => {
 
     act(() => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
-    const spinner = tree.root.findAll((n: any) => n.props?.accessibilityLabel === 'Adding document to memory')
+    const spinner = tree.root.findAll(
+      (n: any) => n.props?.accessibilityLabel === 'Adding document to memory',
+    )
     expect(spinner.length).toBeGreaterThan(0)
     const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
     expect(plusButton.length).toBe(0)
@@ -471,11 +485,19 @@ describe('ChatComposer', () => {
 
     act(() => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
-    const spinner = tree.root.findAll((n: any) => n.props?.accessibilityLabel === 'Adding document to memory')
+    const spinner = tree.root.findAll(
+      (n: any) => n.props?.accessibilityLabel === 'Adding document to memory',
+    )
     expect(spinner.length).toBeGreaterThan(0)
     const plusButton = tree.root.findAll((n: any) => n.props?.__iconButtonMock === true)
     expect(plusButton.length).toBe(0)
@@ -496,7 +518,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -526,14 +554,22 @@ describe('ChatComposer', () => {
     })
     mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash456')
-    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+    mockConvertDocumentText.mockResolvedValue({
+      data: { text: 'transcribed pdf text', truncated: false },
+    })
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -566,14 +602,22 @@ describe('ChatComposer', () => {
     })
     mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash456')
-    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+    mockConvertDocumentText.mockResolvedValue({
+      data: { text: 'transcribed pdf text', truncated: false },
+    })
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -608,14 +652,22 @@ describe('ChatComposer', () => {
     // the old web-specific fetch + FileReader path is gone.
     mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash789')
-    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+    mockConvertDocumentText.mockResolvedValue({
+      data: { text: 'transcribed pdf text', truncated: false },
+    })
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -649,14 +701,22 @@ describe('ChatComposer', () => {
     // counterpart above for the same flow.
     mockBase64.mockResolvedValue('base64-bytes')
     Crypto.digestStringAsync.mockResolvedValue('hash789')
-    mockConvertDocumentText.mockResolvedValue({ data: { text: 'transcribed pdf text', truncated: false } })
+    mockConvertDocumentText.mockResolvedValue({
+      data: { text: 'transcribed pdf text', truncated: false },
+    })
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -686,14 +746,23 @@ describe('ChatComposer', () => {
       assets: [{ uri: 'file://doc.pdf', name: 'doc.pdf', mimeType: 'application/pdf' }],
     })
     mockBase64.mockResolvedValue('base64-bytes')
-    mockConvertDocumentText.mockRejectedValue({ code: 'functions/failed-precondition', message: 'Insufficient credits to convert document.' })
+    mockConvertDocumentText.mockRejectedValue({
+      code: 'functions/failed-precondition',
+      message: 'Insufficient credits to convert document.',
+    })
 
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -723,7 +792,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -767,7 +842,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -827,7 +903,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -870,7 +947,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -906,7 +984,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -942,7 +1021,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -979,7 +1059,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1015,7 +1096,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1037,7 +1119,9 @@ describe('ChatComposer', () => {
     const DocumentPicker = require('expo-document-picker')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ uri: 'file://big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 }],
+      assets: [
+        { uri: 'file://big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 },
+      ],
     })
 
     const onPhaseChange = jest.fn()
@@ -1048,7 +1132,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1080,7 +1165,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1089,9 +1180,7 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
-    expect(mockIngest).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceRef: 'small.txt' }),
-    )
+    expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'small.txt' }))
   })
 
   it('ignores a superseded request when a second pick starts before the first resolves (native)', async () => {
@@ -1112,7 +1201,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1124,9 +1219,7 @@ describe('ChatComposer', () => {
     })
 
     expect(mockIngest).toHaveBeenCalledTimes(1)
-    expect(mockIngest).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceRef: 'second.txt' }),
-    )
+    expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'second.txt' }))
     expect(capturedSnackbarProps.children).not.toBe('"first.txt" is already up to date.')
   })
 
@@ -1139,9 +1232,10 @@ describe('ChatComposer', () => {
     mockText.mockResolvedValue('hello world')
     let resolveForget: () => void = () => {}
     mockForget.mockImplementation(
-      () => new Promise<void>((resolve) => {
-        resolveForget = resolve
-      }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveForget = resolve
+        }),
     )
 
     const ChatComposer = require('~/components/ChatComposer').default
@@ -1149,7 +1243,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1186,7 +1286,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1236,7 +1342,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1297,7 +1404,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1341,7 +1449,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1377,7 +1486,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1413,7 +1523,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1450,7 +1561,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1486,7 +1598,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1508,7 +1621,9 @@ describe('ChatComposer', () => {
     const DocumentPicker = require('expo-document-picker')
     DocumentPicker.getDocumentAsync.mockResolvedValue({
       canceled: false,
-      assets: [{ uri: 'blob:big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 }],
+      assets: [
+        { uri: 'blob:big.pdf', name: 'big.pdf', mimeType: 'application/pdf', size: 9_000_001 },
+      ],
     })
 
     const onPhaseChange = jest.fn()
@@ -1519,7 +1634,8 @@ describe('ChatComposer', () => {
       tree = create(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onPhaseChange={onPhaseChange}
@@ -1551,7 +1667,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1560,9 +1682,7 @@ describe('ChatComposer', () => {
       await plusButton.props.onPress()
     })
 
-    expect(mockIngest).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceRef: 'small.txt' }),
-    )
+    expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'small.txt' }))
   })
 
   it('ignores a superseded request when a second pick starts before the first resolves (web)', async () => {
@@ -1583,7 +1703,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1595,9 +1721,7 @@ describe('ChatComposer', () => {
     })
 
     expect(mockIngest).toHaveBeenCalledTimes(1)
-    expect(mockIngest).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceRef: 'second.txt' }),
-    )
+    expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'second.txt' }))
   })
 
   it('ignores an in-flight request after the component unmounts (web)', async () => {
@@ -1609,9 +1733,10 @@ describe('ChatComposer', () => {
     mockText.mockResolvedValue('hello world')
     let resolveForget: () => void = () => {}
     mockForget.mockImplementation(
-      () => new Promise<void>((resolve) => {
-        resolveForget = resolve
-      }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveForget = resolve
+        }),
     )
 
     const ChatComposer = require('~/components/ChatComposer').default
@@ -1619,7 +1744,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1656,7 +1787,13 @@ describe('ChatComposer', () => {
 
     await act(async () => {
       tree = create(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
     })
 
@@ -1684,12 +1821,20 @@ describe('ChatComposer', () => {
       const DocumentPicker = require('expo-document-picker')
       DocumentPicker.getDocumentAsync.mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+        assets: [
+          { uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 },
+        ],
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
       const { getByLabelText, findByText } = render(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
 
       fireEvent.press(getByLabelText('Attach a photo or document'))
@@ -1703,13 +1848,21 @@ describe('ChatComposer', () => {
       const DocumentPicker = require('expo-document-picker')
       DocumentPicker.getDocumentAsync.mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///notes.txt', name: 'notes.txt', mimeType: 'text/plain', size: 100 }],
+        assets: [
+          { uri: 'file:///notes.txt', name: 'notes.txt', mimeType: 'text/plain', size: 100 },
+        ],
       })
       mockText.mockResolvedValue('hello world')
 
       const ChatComposer = require('~/components/ChatComposer').default
       const { getByLabelText, queryByText } = render(
-        <ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} characterId="char-1" userId="user-1" />,
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+        />,
       )
 
       await act(async () => {
@@ -1724,14 +1877,17 @@ describe('ChatComposer', () => {
       const DocumentPicker = require('expo-document-picker')
       DocumentPicker.getDocumentAsync.mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+        assets: [
+          { uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 },
+        ],
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
       const { getByLabelText, findByText, queryByText } = render(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           canSendPhoto={false}
@@ -1756,7 +1912,9 @@ describe('ChatComposer', () => {
       const DocumentPicker = require('expo-document-picker')
       DocumentPicker.getDocumentAsync.mockResolvedValue({
         canceled: false,
-        assets: [{ uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 }],
+        assets: [
+          { uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 1000 },
+        ],
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
@@ -1764,7 +1922,8 @@ describe('ChatComposer', () => {
       const { getByLabelText, findByText, queryByText } = render(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           canSendPhoto
@@ -1800,7 +1959,10 @@ describe('ChatComposer', () => {
         uri: 'file:///snap.jpg',
         width: 1200,
         height: 900,
-        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
         attachment: { mimeType: 'image/jpeg', data: 'M' },
       })
 
@@ -1809,7 +1971,8 @@ describe('ChatComposer', () => {
       const { getByLabelText } = render(
         <ChatComposer
           text=""
-          onChangeText={jest.fn()} onSubmit={jest.fn()}
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onSendPhoto={onSendPhoto}
@@ -1836,7 +1999,10 @@ describe('ChatComposer', () => {
         uri: 'file:///snap.jpg',
         width: 1200,
         height: 900,
-        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
         attachment: { mimeType: 'image/jpeg', data: 'M' },
       })
 
@@ -1846,7 +2012,8 @@ describe('ChatComposer', () => {
       const { getByLabelText } = render(
         <ChatComposer
           text="my caption"
-          onChangeText={onChangeText} onSubmit={jest.fn()}
+          onChangeText={onChangeText}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onSendPhoto={onSendPhoto}
@@ -1868,7 +2035,10 @@ describe('ChatComposer', () => {
         uri: 'file:///snap.jpg',
         width: 1200,
         height: 900,
-        variants: { master: { base64: 'M', mimeType: 'image/jpeg' }, thumb: { base64: 'T', mimeType: 'image/jpeg' } },
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
         attachment: { mimeType: 'image/jpeg', data: 'M' },
       })
 
@@ -1878,7 +2048,8 @@ describe('ChatComposer', () => {
       const { getByLabelText } = render(
         <ChatComposer
           text="my caption"
-          onChangeText={onChangeText} onSubmit={jest.fn()}
+          onChangeText={onChangeText}
+          onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
           onSendPhoto={onSendPhoto}
@@ -1890,9 +2061,7 @@ describe('ChatComposer', () => {
       })
 
       await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
-      await waitFor(() =>
-        expect(onChangeText).toHaveBeenCalledWith(''),
-      )
+      await waitFor(() => expect(onChangeText).toHaveBeenCalledWith(''))
     })
   })
 })

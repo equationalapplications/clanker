@@ -155,7 +155,7 @@ export function mountGroundingShadowContent(host: HTMLElement, html: string): Sh
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' })
   shadow.innerHTML = formatGroundingShadowHtml(html)
 
-  if (!shadow.querySelector('style[data-grounding-host-layout="true"]')) { 
+  if (!shadow.querySelector('style[data-grounding-host-layout="true"]')) {
     const layoutStyle = document.createElement('style')
     layoutStyle.setAttribute('data-grounding-host-layout', 'true')
     layoutStyle.textContent = GROUNDING_SHADOW_HOST_CSS
@@ -202,13 +202,7 @@ export function measureShadowContentWidth(shadow: ShadowRoot, host: HTMLElement)
   for (const child of Array.from(shadow.children)) {
     if (child instanceof HTMLElement && child.tagName !== 'STYLE') {
       const rect = child.getBoundingClientRect()
-      max = Math.max(
-        max,
-        child.scrollWidth,
-        child.offsetWidth,
-        rect.width,
-        rect.right - hostLeft,
-      )
+      max = Math.max(max, child.scrollWidth, child.offsetWidth, rect.width, rect.right - hostLeft)
     }
   }
 
@@ -245,7 +239,9 @@ export function measureShadowLayout(host: HTMLElement, shadow: ShadowRoot): Grou
 }
 
 /** Map trackpad / mouse wheel motion to horizontal scroll delta. */
-export function getHorizontalWheelDelta(event: Pick<WheelEvent, 'deltaX' | 'deltaY' | 'shiftKey'>): number {
+export function getHorizontalWheelDelta(
+  event: Pick<WheelEvent, 'deltaX' | 'deltaY' | 'shiftKey'>,
+): number {
   if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
     return event.deltaX
   }

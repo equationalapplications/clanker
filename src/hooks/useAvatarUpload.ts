@@ -34,12 +34,16 @@ async function centreCropToSquare(uri: string, width: number, height: number) {
   const { format } = getEncodeTarget()
   const cropped = await manipulateAsync(
     uri,
-    [{ crop: {
-      originX: Math.floor((width - side) / 2),
-      originY: Math.floor((height - side) / 2),
-      width: side,
-      height: side,
-    } }],
+    [
+      {
+        crop: {
+          originX: Math.floor((width - side) / 2),
+          originY: Math.floor((height - side) / 2),
+          width: side,
+          height: side,
+        },
+      },
+    ],
     { format, compress: 1 },
   )
   return { uri: cropped.uri, width: cropped.width ?? side, height: cropped.height ?? side }
@@ -95,9 +99,10 @@ export function useAvatarUpload({
         throw new Error('Image too small. Minimum size is 200×200 pixels.')
       }
 
-      const square = Platform.OS === 'web'
-        ? await centreCropToSquare(sourceUri, width, height)
-        : { uri: sourceUri, width, height }
+      const square =
+        Platform.OS === 'web'
+          ? await centreCropToSquare(sourceUri, width, height)
+          : { uri: sourceUri, width, height }
 
       const row = await saveCharacterImage({
         characterId,

@@ -13,7 +13,7 @@ jest.mock('expo-router', () => ({
         const React = require('react')
         return React.createElement('View', {})
       },
-    }
+    },
   ),
   router: { push: jest.fn() },
   useFocusEffect: jest.fn(),
@@ -85,9 +85,22 @@ jest.mock('react-native', () => {
     Platform: { OS: 'android' },
     View: ({ children, style, accessibilityRole, accessibilityLiveRegion }: any) =>
       React.createElement('View', { style, accessibilityRole, accessibilityLiveRegion }, children),
-    Pressable: ({ children, onPress, disabled, style, accessibilityRole, accessibilityLabel, accessibilityState }: any) =>
-      React.createElement('Pressable', { onPress, disabled, style, accessibilityRole, accessibilityLabel, accessibilityState }, children),
-    ActivityIndicator: ({ size, style }: any) => React.createElement('ActivityIndicator', { size, style }),
+    Pressable: ({
+      children,
+      onPress,
+      disabled,
+      style,
+      accessibilityRole,
+      accessibilityLabel,
+      accessibilityState,
+    }: any) =>
+      React.createElement(
+        'Pressable',
+        { onPress, disabled, style, accessibilityRole, accessibilityLabel, accessibilityState },
+        children,
+      ),
+    ActivityIndicator: ({ size, style }: any) =>
+      React.createElement('ActivityIndicator', { size, style }),
   }
 })
 
@@ -129,7 +142,9 @@ import TalkTabScreen from '../app/(drawer)/(tabs)/talk/index'
 describe('Talk screen status region', () => {
   it('statusWrap View has accessibilityLiveRegion "polite"', () => {
     let tree: any
-    act(() => { tree = create(<TalkTabScreen />) })
+    act(() => {
+      tree = create(<TalkTabScreen />)
+    })
 
     const allViews = tree.root.findAll((node: any) => node.type === 'View')
     const liveRegionView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')

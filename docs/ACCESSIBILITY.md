@@ -4,26 +4,26 @@ This document defines the accessibility conventions used in Clanker for both web
 
 ## Props Reference
 
-| Prop | Purpose | When to use |
-|------|---------|-------------|
-| `accessible={true}` | Makes element discoverable by assistive technologies | Non-interactive elements that need to be announced (images, status regions) |
-| `accessibilityLabel` | The text announced by screen readers | Every accessible element that isn't purely decorative |
-| `accessibilityHint` | Additional context about what will happen | Only when the action isn't obvious from the label alone |
-| `accessibilityRole` | Semantic role of the element | All interactive elements and meaningful non-interactive elements |
-| `accessibilityState` | Current state (busy, disabled, checked, expanded) | Interactive elements with stateful behavior |
-| `accessibilityValue` | Current value for range-based components | Progress bars, sliders |
-| `accessibilityLiveRegion` | Android: announce content changes | Dynamic status text (Android only — `"polite"` or `"assertive"`) |
+| Prop                      | Purpose                                              | When to use                                                                 |
+| ------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| `accessible={true}`       | Makes element discoverable by assistive technologies | Non-interactive elements that need to be announced (images, status regions) |
+| `accessibilityLabel`      | The text announced by screen readers                 | Every accessible element that isn't purely decorative                       |
+| `accessibilityHint`       | Additional context about what will happen            | Only when the action isn't obvious from the label alone                     |
+| `accessibilityRole`       | Semantic role of the element                         | All interactive elements and meaningful non-interactive elements            |
+| `accessibilityState`      | Current state (busy, disabled, checked, expanded)    | Interactive elements with stateful behavior                                 |
+| `accessibilityValue`      | Current value for range-based components             | Progress bars, sliders                                                      |
+| `accessibilityLiveRegion` | Android: announce content changes                    | Dynamic status text (Android only — `"polite"` or `"assertive"`)            |
 
 ## Role Conventions
 
-| Role | Used for |
-|------|----------|
-| `"button"` | Pressable, TouchableOpacity, tappable elements |
-| `"image"` | Images, avatars, icons that carry meaning |
-| `"link"` | Navigation to another screen or URL |
-| `"progressbar"` | Loading spinners, progress indicators |
-| `"header"` | Section headings |
-| `"status"` | Web/ARIA status regions only. On native, use `accessibilityLiveRegion` for dynamic announcements. |
+| Role            | Used for                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| `"button"`      | Pressable, TouchableOpacity, tappable elements                                                    |
+| `"image"`       | Images, avatars, icons that carry meaning                                                         |
+| `"link"`        | Navigation to another screen or URL                                                               |
+| `"progressbar"` | Loading spinners, progress indicators                                                             |
+| `"header"`      | Section headings                                                                                  |
+| `"status"`      | Web/ARIA status regions only. On native, use `accessibilityLiveRegion` for dynamic announcements. |
 
 ## Label Conventions
 
@@ -47,7 +47,7 @@ For dynamic status text that should be announced when it changes (e.g., voice ch
 
 ```tsx
 <View
-  accessibilityLiveRegion="polite"  // Android TalkBack
+  accessibilityLiveRegion="polite" // Android TalkBack
 >
   <Text>{statusText}</Text>
 </View>
@@ -63,6 +63,7 @@ The landing page renders a web-only skip link as the first focusable element usi
 ## Testing
 
 Every accessible component should have a test asserting:
+
 1. `accessibilityLabel` value (or dynamic behavior)
 2. `accessibilityRole` value
 3. Any `accessibilityState` or `accessibilityHint` that's part of the contract

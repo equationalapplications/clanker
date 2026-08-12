@@ -56,10 +56,7 @@ function isWebPushConfigured(): boolean {
   return Boolean(getNotificationConfig()?.vapidPublicKey)
 }
 
-async function registerWebPushToken(
-  projectId: string,
-  applicationId: string,
-): Promise<void> {
+async function registerWebPushToken(projectId: string, applicationId: string): Promise<void> {
   const devicePushToken = await Notifications.getDevicePushTokenAsync()
   if (devicePushToken.type !== 'web') {
     throw new Error(`Expected web device push token, got ${devicePushToken.type}`)
@@ -80,9 +77,10 @@ export function useRegisterExpoPushToken({ enabled, projectId }: Options): void 
     void (async () => {
       try {
         const { status: existing } = await Notifications.getPermissionsAsync()
-        const { status } = existing === 'granted'
-          ? { status: 'granted' as const }
-          : await Notifications.requestPermissionsAsync()
+        const { status } =
+          existing === 'granted'
+            ? { status: 'granted' as const }
+            : await Notifications.requestPermissionsAsync()
         if (status !== 'granted') return
 
         if (!getCurrentUser()) return

@@ -18,6 +18,7 @@ explicitly request on this device."
 Feasible: yes.
 
 Hard parts:
+
 1. Policy-safe scope definition (single purpose + limited permissions).
 2. Safety controls for remote commands (confirmations, allowlist, audit).
 3. MV3 compliance (no remote code execution, all logic shipped in package).
@@ -31,23 +32,28 @@ then mint Firebase ID token and call existing/extended callable APIs.
 ## Policy Constraints (MV3 + CWS)
 
 1. No remote code execution.
+
 - No eval/new Function on server-fed code.
 - No remote JS/Wasm/CSS as executable logic.
 - Server may send data/config/intent, extension executes local bundled logic only.
 
 2. Single purpose must be narrow.
+
 - Avoid "general remote browser control" positioning.
 - Keep purpose: Clanker-assistant actions user requested.
 
 3. Limited permissions.
+
 - Request minimum host permissions + APIs needed now.
 - No future-proof broad permissions.
 
 4. Data use limited to purpose.
+
 - Collected page data must serve active user-requested task only.
 - No ad/data-broker use. No hidden background scraping.
 
 5. Transparent user disclosures.
+
 - Clear pre-install and in-product disclosure: what collected, when, why, where sent.
 
 ---
@@ -58,6 +64,7 @@ then mint Firebase ID token and call existing/extended callable APIs.
 
 Phone app sends high-level task intents via backend queue.
 Extension receives task, executes from fixed local action catalog:
+
 - open_tab(url)
 - focus_tab(host)
 - extract(selector|preset)
@@ -68,11 +75,13 @@ Extension receives task, executes from fixed local action catalog:
 No remote script injection from server. Server sends data only.
 
 Pros:
+
 - Best MV3 policy posture.
 - Reviewable deterministic behavior.
 - Easier safety gates and tests.
 
 Cons:
+
 - Slower feature velocity vs arbitrary code runner.
 - Needs robust selector strategy.
 
@@ -81,9 +90,11 @@ Cons:
 Server sends command lists interpreted by extension runtime.
 
 Pros:
+
 - Flexible fast iteration.
 
 Cons:
+
 - High MV3 rejection risk (looks like remote logic execution).
 - Hard to prove full functionality in submitted code.
 
@@ -92,10 +103,12 @@ Cons:
 Extension proposes steps, user approves each step manually.
 
 Pros:
+
 - Lowest abuse risk.
 - Strong policy optics.
 
 Cons:
+
 - Lower automation value.
 - Worse UX for long tasks.
 
@@ -108,20 +121,24 @@ Recommendation: Approach A + optional step-up confirmations from C.
 ### Components
 
 1. Mobile app (existing Clanker chat UI)
+
 - User issues task in chat.
 - Backend normalizes to approved action plan.
 
 2. Cloud coordinator (Functions)
+
 - Authenticated task queue per user/device pair.
 - Policy checks, rate limits, action schema validation.
 - Stores task/audit state.
 
 3. Chrome extension (MV3)
+
 - service_worker: polling/subscription, command dispatch.
 - content scripts: DOM read/write with strict action handlers.
 - side panel/popup: sign-in, pairing status, approvals, logs.
 
 4. Device pairing
+
 - User pairs phone account with desktop extension once.
 - Pair token/device key stored securely in extension storage.
 
@@ -167,25 +184,31 @@ Use same Firebase project and user identity.
 ## Privacy + Safety Guardrails
 
 1. Explicit consent boundary
+
 - Extension executes only for user-initiated tasks from Clanker chat.
 - Optional global toggle: "Pause remote actions".
 
 2. Host allowlisting
+
 - Start with user-approved host list.
 - Block execution on non-approved hosts.
 
 3. Sensitive action confirmation
+
 - Require per-step confirm for submit/payment/delete/account changes.
 
 4. Data minimization
+
 - Return only fields needed for requested outcome.
 - Redact secrets by default (passwords, card fields, OTP fields).
 
 5. Full audit trail
+
 - Log task id, action type, host, timestamp, user confirm events.
 - Show logs in extension UI.
 
 6. Fail-closed behavior
+
 - Unknown action => reject.
 - Selector mismatch => safe stop + ask user.
 
@@ -194,6 +217,7 @@ Use same Firebase project and user identity.
 ## Permission Strategy (initial)
 
 Prefer minimal:
+
 - activeTab
 - scripting
 - storage
@@ -201,6 +225,7 @@ Prefer minimal:
 - sidePanel (or action/popup if side panel not used)
 
 Host permissions:
+
 - Start optional per-site grants from user action.
 - Avoid broad <all_urls> at launch if possible.
 
@@ -219,6 +244,7 @@ Host permissions:
 ## MVP Scope
 
 Include:
+
 1. Pairing phone app <-> one desktop extension.
 2. Read page text + extract structured fields on approved hosts.
 3. Fill non-sensitive forms + click non-destructive buttons.
@@ -226,6 +252,7 @@ Include:
 5. End-to-end chat status updates.
 
 Exclude (v1):
+
 1. Arbitrary script/code execution.
 2. Background scraping without active task.
 3. Multi-desktop orchestration.
@@ -236,15 +263,19 @@ Exclude (v1):
 ## Risks
 
 1. Store rejection for "too broad" purpose.
+
 - Mitigation: tight scope, explicit allowlist, narrow listing language.
 
 2. Selector brittleness on dynamic sites.
+
 - Mitigation: site adapters + retry strategy + human confirm fallback.
 
 3. Security concerns from remote command channel.
+
 - Mitigation: signed task payloads, nonce/replay protection, strict schema validation.
 
 4. User trust risk.
+
 - Mitigation: transparency dashboard + explicit approvals + easy kill switch.
 
 ---
@@ -252,20 +283,24 @@ Exclude (v1):
 ## Test Strategy
 
 1. Unit
+
 - Action schema validator
 - Host allowlist matcher
 - Sensitive action classifier
 
 2. Integration
+
 - Firebase auth in extension UI
 - Pairing + task pull + result push
 
 3. E2E
+
 - Phone request -> desktop execution -> phone completion
 - Sensitive step confirm + reject flows
 - Permission denied and revoked scenarios
 
 4. Policy preflight checklist
+
 - No remote executable code paths
 - Permission justification for each API
 - Privacy disclosures match runtime behavior
@@ -275,15 +310,19 @@ Exclude (v1):
 ## Open Questions
 
 1. Proactive autonomy level:
+
 - Always require step confirmation, or only for sensitive classes?
 
 2. Host scope:
+
 - User-defined hosts only, or prebuilt adapters for known services?
 
 3. Desktop offline behavior:
+
 - Queue TTL and retry semantics when extension/browser closed?
 
 4. Human review:
+
 - Need optional "preview action plan" before first step?
 
 ---
@@ -291,6 +330,7 @@ Exclude (v1):
 ## Suggested Next Step
 
 After design approval, create implementation plan in phases:
+
 1. Auth + pairing foundation.
 2. Task DSL + local executor.
 3. Safety/compliance UX.

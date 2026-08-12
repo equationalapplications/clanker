@@ -91,12 +91,17 @@ export async function traverseGraphCte(
     return { nodes: [mapEntryRowToFact(anchorResult.rows[0], entityId)], edges: [] }
   }
 
-  const edgeTypeFilter = edgeTypes && edgeTypes.length > 0
-    ? sql`AND e.edge_type IN (${sql.join(edgeTypes.map((t) => sql`${t}`), sql`, `)})`
-    : sql``
+  const edgeTypeFilter =
+    edgeTypes && edgeTypes.length > 0
+      ? sql`AND e.edge_type IN (${sql.join(
+          edgeTypes.map((t) => sql`${t}`),
+          sql`, `,
+        )})`
+      : sql``
 
-  const outboundBranch = direction !== 'inbound'
-    ? sql`
+  const outboundBranch =
+    direction !== 'inbound'
+      ? sql`
       UNION ALL
       SELECT next.id, next.title, next.body, next.tags, next.confidence, next.source_type, next.source_ref,
              next.source_hash, next.last_accessed_at, next.access_count, next.created_at, next.updated_at,
@@ -110,10 +115,11 @@ export async function traverseGraphCte(
         AND (CASE next.confidence WHEN 'certain' THEN 2 WHEN 'inferred' THEN 1 ELSE 0 END) >= ${minConfidenceRank}
         ${edgeTypeFilter}
     `
-    : sql``
+      : sql``
 
-  const inboundBranch = direction !== 'outbound'
-    ? sql`
+  const inboundBranch =
+    direction !== 'outbound'
+      ? sql`
       UNION ALL
       SELECT next.id, next.title, next.body, next.tags, next.confidence, next.source_type, next.source_ref,
              next.source_hash, next.last_accessed_at, next.access_count, next.created_at, next.updated_at,
@@ -127,7 +133,7 @@ export async function traverseGraphCte(
         AND (CASE next.confidence WHEN 'certain' THEN 2 WHEN 'inferred' THEN 1 ELSE 0 END) >= ${minConfidenceRank}
         ${edgeTypeFilter}
     `
-    : sql``
+      : sql``
 
   const nodeResult = await db.execute<EntryRow & { depth: number }>(sql`
     WITH RECURSIVE traversal AS (
@@ -157,16 +163,26 @@ export async function traverseGraphCte(
   const nodes = nodeResult.rows.map((row) => mapEntryRowToFact(row, entityId))
   const nodeIds = nodes.map((n) => n.id)
 
-  const edgeFetchTypeFilter = edgeTypes && edgeTypes.length > 0
-    ? sql` AND edge_type IN (${sql.join(edgeTypes.map((t) => sql`${t}`), sql`, `)})`
-    : sql``
+  const edgeFetchTypeFilter =
+    edgeTypes && edgeTypes.length > 0
+      ? sql` AND edge_type IN (${sql.join(
+          edgeTypes.map((t) => sql`${t}`),
+          sql`, `,
+        )})`
+      : sql``
 
   const edgeResult = await db.execute<EdgeRow>(sql`
     SELECT id, source_id, target_id, edge_type, created_at
     FROM llm_wiki_edges
     WHERE entity_id = ${entityId}::uuid AND user_id = ${userId}::uuid
-      AND source_id IN (${sql.join(nodeIds.map((id) => sql`${id}`), sql`, `)})
-      AND target_id IN (${sql.join(nodeIds.map((id) => sql`${id}`), sql`, `)})
+      AND source_id IN (${sql.join(
+        nodeIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
+      AND target_id IN (${sql.join(
+        nodeIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
       ${edgeFetchTypeFilter}
   `)
 

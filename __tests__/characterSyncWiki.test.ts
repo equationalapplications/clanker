@@ -9,8 +9,19 @@ const mockRunOntologyBackfill = jest.fn()
 const mockGetOntologyManifest = jest.fn()
 const mockSetOntologyManifest = jest.fn()
 
-function makeBackfillResult(overrides: Partial<OntologyBackfillResult> = {}): OntologyBackfillResult {
-  return { scanned: 0, typed: 0, failedValidation: 0, edgesAdded: 0, remaining: 0, deferred: 0, skipped: 0, ...overrides }
+function makeBackfillResult(
+  overrides: Partial<OntologyBackfillResult> = {},
+): OntologyBackfillResult {
+  return {
+    scanned: 0,
+    typed: 0,
+    failedValidation: 0,
+    edgesAdded: 0,
+    remaining: 0,
+    deferred: 0,
+    skipped: 0,
+    ...overrides,
+  }
 }
 
 function makeMockWiki(overrides: Record<string, unknown> = {}) {
@@ -180,7 +191,10 @@ describe('syncWikiForCloud orchestration path', () => {
     expect(wikiArg).toBe(mockGetWiki.mock.results[0].value)
     expect(concurrencyArg).toBe(2)
     expect(itemsArg).toHaveLength(2)
-    expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([LOCAL_ID, secondLocalId])
+    expect(itemsArg.map((item: { entityId: string }) => item.entityId)).toEqual([
+      LOCAL_ID,
+      secondLocalId,
+    ])
   })
 
   it('remaps local->cloud and cloud->local within runRemoteSync callback', async () => {
@@ -200,7 +214,9 @@ describe('syncWikiForCloud orchestration path', () => {
 
     const remapped = await runRemoteSync({
       generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
+      entities: {
+        [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] },
+      },
     })
 
     const syncArg = mockWikiSyncFn.mock.calls[0][0]
@@ -221,8 +237,19 @@ describe('syncWikiForCloud orchestration path', () => {
           generatedAt: 1001,
           entities: {
             [CLOUD_ID]: {
-              facts: [], tasks: [], events: [],
-              edges: [{ id: 're1', entity_id: CLOUD_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 5 }],
+              facts: [],
+              tasks: [],
+              events: [],
+              edges: [
+                {
+                  id: 're1',
+                  entity_id: CLOUD_ID,
+                  source_id: 'a',
+                  target_id: 'b',
+                  edge_type: 'knows',
+                  created_at: 5,
+                },
+              ],
             },
           },
         },
@@ -233,18 +260,43 @@ describe('syncWikiForCloud orchestration path', () => {
       generatedAt: 1000,
       entities: {
         [LOCAL_ID]: {
-          facts: [], tasks: [], events: [],
-          edges: [{ id: 'le1', entity_id: LOCAL_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 4 }],
+          facts: [],
+          tasks: [],
+          events: [],
+          edges: [
+            {
+              id: 'le1',
+              entity_id: LOCAL_ID,
+              source_id: 'a',
+              target_id: 'b',
+              edge_type: 'knows',
+              created_at: 4,
+            },
+          ],
         },
       },
     })
 
     const syncArg = mockWikiSyncFn.mock.calls[mockWikiSyncFn.mock.calls.length - 1][0]
     expect(syncArg.dump.entities[CLOUD_ID].edges).toEqual([
-      { id: 'le1', entity_id: CLOUD_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 4 },
+      {
+        id: 'le1',
+        entity_id: CLOUD_ID,
+        source_id: 'a',
+        target_id: 'b',
+        edge_type: 'knows',
+        created_at: 4,
+      },
     ])
     expect(remapped.entities[LOCAL_ID].edges).toEqual([
-      { id: 're1', entity_id: LOCAL_ID, source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 5 },
+      {
+        id: 're1',
+        entity_id: LOCAL_ID,
+        source_id: 'a',
+        target_id: 'b',
+        edge_type: 'knows',
+        created_at: 5,
+      },
     ])
   })
 
@@ -253,22 +305,33 @@ describe('syncWikiForCloud orchestration path', () => {
       mode: 'emergent' as const,
       manifest: {
         node_types: [{ type: 'person', description: 'A person' }],
-        edge_types: [{ type: 'knows', source_type: 'person', target_type: 'person', description: 'Knows' }],
+        edge_types: [
+          { type: 'knows', source_type: 'person', target_type: 'person', description: 'Knows' },
+        ],
       },
     }
     const remoteOntology = {
       mode: 'strict' as const,
       manifest: {
         node_types: [{ type: 'place', description: 'A place' }],
-        edge_types: [{ type: 'located_in', source_type: 'person', target_type: 'place', description: 'Located in' }],
+        edge_types: [
+          {
+            type: 'located_in',
+            source_type: 'person',
+            target_type: 'place',
+            description: 'Located in',
+          },
+        ],
       },
     }
     const mockGetOntologyManifest = jest.fn().mockResolvedValue(localOntology)
     const mockSetOntologyManifest = jest.fn().mockResolvedValue(undefined)
-    mockGetWiki.mockReturnValue(makeMockWiki({
-      getOntologyManifest: mockGetOntologyManifest,
-      setOntologyManifest: mockSetOntologyManifest,
-    }))
+    mockGetWiki.mockReturnValue(
+      makeMockWiki({
+        getOntologyManifest: mockGetOntologyManifest,
+        setOntologyManifest: mockSetOntologyManifest,
+      }),
+    )
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([makeCloudChar()])
     await syncAllToCloud('user-1')
 
@@ -280,7 +343,10 @@ describe('syncWikiForCloud orchestration path', () => {
           generatedAt: 1001,
           entities: {
             [CLOUD_ID]: {
-              facts: [], tasks: [], events: [], edges: [],
+              facts: [],
+              tasks: [],
+              events: [],
+              edges: [],
               ontology: remoteOntology,
             },
           },
@@ -297,7 +363,9 @@ describe('syncWikiForCloud orchestration path', () => {
 
     const syncArg = mockWikiSyncFn.mock.calls[mockWikiSyncFn.mock.calls.length - 1][0]
     expect(syncArg.dump.entities[CLOUD_ID].ontology).toEqual(localOntology)
-    expect(mockSetOntologyManifest).toHaveBeenCalledWith(LOCAL_ID, remoteOntology.manifest, { mode: 'strict' })
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(LOCAL_ID, remoteOntology.manifest, {
+      mode: 'strict',
+    })
   })
 
   it('continues fail-soft when orchestrator sync throws', async () => {
@@ -305,10 +373,7 @@ describe('syncWikiForCloud orchestration path', () => {
     mockSyncAll.mockRejectedValue(new Error('network error'))
 
     await syncAllToCloud('user-1')
-    expect(reportError).toHaveBeenCalledWith(
-      expect.any(Error),
-      'wiki:sync:batch',
-    )
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:sync:batch')
   })
 
   it('short-circuits when syncAll throws WikiBusyError', async () => {
@@ -335,10 +400,14 @@ describe('syncWikiForCloud orchestration path', () => {
     const secondRunRemoteSync = itemsArg[1].runRemoteSync as (dump: any) => Promise<any>
 
     mockWikiSyncFn.mockRejectedValueOnce(new Error('first character sync failed'))
-    await expect(firstRunRemoteSync({
-      generatedAt: 1000,
-      entities: { [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] } },
-    })).rejects.toThrow('first character sync failed')
+    await expect(
+      firstRunRemoteSync({
+        generatedAt: 1000,
+        entities: {
+          [LOCAL_ID]: { facts: [{ id: 'f1', entity_id: LOCAL_ID }], tasks: [], events: [] },
+        },
+      }),
+    ).rejects.toThrow('first character sync failed')
 
     // Error reporting now happens in the wiki machine's recordError action, not in runRemoteSync
 
@@ -352,7 +421,9 @@ describe('syncWikiForCloud orchestration path', () => {
     })
     const secondResult = await secondRunRemoteSync({
       generatedAt: 1001,
-      entities: { [secondLocalId]: { facts: [{ id: 'f2', entity_id: secondLocalId }], tasks: [], events: [] } },
+      entities: {
+        [secondLocalId]: { facts: [{ id: 'f2', entity_id: secondLocalId }], tasks: [], events: [] },
+      },
     })
 
     expect(secondResult.entities[secondLocalId].facts).toEqual([{ id: 'rf2' }])
@@ -571,11 +642,9 @@ describe('ontology manifest seeding', () => {
     await syncAllToCloud('user-1')
 
     expect(mockSetOntologyManifest).toHaveBeenCalledTimes(1)
-    expect(mockSetOntologyManifest).toHaveBeenCalledWith(
-      LOCAL_ID,
-      schemaOrgWarmAgentManifest,
-      { mode: 'strict' },
-    )
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(LOCAL_ID, schemaOrgWarmAgentManifest, {
+      mode: 'strict',
+    })
     // Seed must land before backfill so the batch types facts against the manifest.
     expect(mockSetOntologyManifest.mock.invocationCallOrder[0]).toBeLessThan(
       mockRunOntologyBackfill.mock.invocationCallOrder[0],
@@ -603,10 +672,7 @@ describe('ontology manifest seeding', () => {
     await expect(syncAllToCloud('user-1')).resolves.toBeUndefined()
 
     expect(reportError).toHaveBeenCalledTimes(1)
-    expect(reportError).toHaveBeenCalledWith(
-      expect.any(Error),
-      `wiki:${LOCAL_ID}:ontology:seed`,
-    )
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), `wiki:${LOCAL_ID}:ontology:seed`)
     expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
   })
 
@@ -650,11 +716,9 @@ describe('ontology manifest seeding', () => {
 
     // Single write: the cloud restore. The seed saw the restored manifest and skipped.
     expect(mockSetOntologyManifest).toHaveBeenCalledTimes(1)
-    expect(mockSetOntologyManifest).toHaveBeenCalledWith(
-      LOCAL_ID,
-      cloudOntology.manifest,
-      { mode: 'strict' },
-    )
+    expect(mockSetOntologyManifest).toHaveBeenCalledWith(LOCAL_ID, cloudOntology.manifest, {
+      mode: 'strict',
+    })
     expect(stored[LOCAL_ID]).toEqual(cloudOntology)
     expect(mockRunOntologyBackfill).toHaveBeenCalledWith(LOCAL_ID)
     expect(reportError).not.toHaveBeenCalled()

@@ -4,7 +4,14 @@ import assert from 'node:assert/strict'
 
 const { createDesktopBridge } = await import('./desktopBridge.js')
 
-function fakeWs() { return { closed: false, close() { this.closed = true } } }
+function fakeWs() {
+  return {
+    closed: false,
+    close() {
+      this.closed = true
+    },
+  }
+}
 
 test('register returns increasing generations and get returns latest', () => {
   const bridge = createDesktopBridge()

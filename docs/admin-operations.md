@@ -31,13 +31,13 @@ The dashboard is split into three reusable pieces:
 
 All mutations are confirmation-gated:
 
-| Action | Requirements |
-|---|---|
-| Credits update | Confirmation + reason |
-| Subscription update | Confirmation + reason |
-| Clear terms | Confirmation + reason |
-| Reset user | Confirmation + reason + typed `RESET` |
-| Delete user | Confirmation + reason + typed `DELETE` |
+| Action              | Requirements                           |
+| ------------------- | -------------------------------------- |
+| Credits update      | Confirmation + reason                  |
+| Subscription update | Confirmation + reason                  |
+| Clear terms         | Confirmation + reason                  |
+| Reset user          | Confirmation + reason + typed `RESET`  |
+| Delete user         | Confirmation + reason + typed `DELETE` |
 
 Submit remains disabled until all validation requirements are satisfied.
 
@@ -78,6 +78,7 @@ All other callers receive `permission-denied`.
 ### `adminListUsers`
 
 **Input:**
+
 - `page` (optional number)
 - `pageSize` (optional number)
 - `search` (optional string)
@@ -87,6 +88,7 @@ All other callers receive `permission-denied`.
 **Validation:** `page`/`pageSize` must be finite. Invalid filter values return `invalid-argument`.
 
 **Output:**
+
 - `success`, `users[]` (user id/email/created/subscription/terms fields), `page`, `pageSize`, `totalCount`, `hasMore`
 
 **Search behavior:** `search` applied against Cloud SQL user fields (`email`, `displayName`, `firebaseUid`). `planTier`/`planStatus` are page-scoped filters after subscription hydration.
@@ -112,6 +114,7 @@ All other callers receive `permission-denied`.
 **Input:** `userId` (required), `reason` (required), `requestId` (required)
 
 **Action set:**
+
 - Deletes user-generated app data (`clanker_messages`, `clanker_characters`)
 - Resets subscription row to free/active
 - Resets credits to 50
@@ -122,6 +125,7 @@ All other callers receive `permission-denied`.
 **Input:** `userId` (required), `reason` (required), `requestId` (required)
 
 **Action set:**
+
 - Deletes app data rows
 - Deletes subscription rows
 - Deletes Firebase auth user
@@ -132,6 +136,7 @@ All other callers receive `permission-denied`.
 ## Audit Logging
 
 Each mutating function emits structured `admin_audit_event` logs using `logger.info` with:
+
 - Actor uid/email
 - Target user id
 - Action
@@ -146,6 +151,7 @@ Each mutating function emits structured `admin_audit_event` logs using `logger.i
 ## Secrets & Config
 
 Admin callables require:
+
 - Firebase Admin access to delete Firebase Auth users
 - Cloud SQL via shared database connector: `CLOUD_SQL_CONNECTION_NAME`, `CLOUD_SQL_DB_USER`, `CLOUD_SQL_DB_PASS`, `CLOUD_SQL_DB_NAME`
 - Optional: `ADMIN_ALLOWLIST_EMAILS`, `ADMIN_ALLOWLIST_UIDS`
@@ -159,15 +165,18 @@ Admin callables require:
 Use `scripts/set-admin-claim.js` from the repo root.
 
 **Prerequisites:**
+
 - `GOOGLE_APPLICATION_CREDENTIALS` env var pointing to a service account key with **Firebase Auth Admin** role, OR
 - Default application credentials (`gcloud auth application-default login`)
 
 **Grant:**
+
 ```bash
 cd functions && NODE_PATH=./node_modules node ../scripts/set-admin-claim.js user@example.com
 ```
 
 **Revoke:**
+
 ```bash
 cd functions && NODE_PATH=./node_modules node ../scripts/set-admin-claim.js user@example.com --revoke
 ```

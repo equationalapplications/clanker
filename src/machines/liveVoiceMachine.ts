@@ -71,9 +71,7 @@ async function importDumpWithBusyRetry(
       }
 
       const delayMs = Math.max(0, Math.min(retryDelayMs, remainingMs))
-      console.warn(
-        `[liveVoiceMachine] importDump busy (${e.message}), retrying in ${delayMs}ms`,
-      )
+      console.warn(`[liveVoiceMachine] importDump busy (${e.message}), retrying in ${delayMs}ms`)
       await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
   }
@@ -328,7 +326,11 @@ export const liveVoiceMachine = createMachine(
                     if (event.type !== 'GROUNDING_METADATA') return context.transcript
                     const parsed = parseGroundingMetadata(event.groundingMetadata)
                     if (!parsed) return context.transcript
-                    return attachGroundingToTranscript(context.transcript, context.characterId, parsed)
+                    return attachGroundingToTranscript(
+                      context.transcript,
+                      context.characterId,
+                      parsed,
+                    )
                   },
                 }),
               },
@@ -397,7 +399,11 @@ export const liveVoiceMachine = createMachine(
           START_CALL: {
             target: 'syncing_memory',
             actions: [
-              assign({ socketError: () => null, retryCount: () => 0, cloudCharacterId: () => null }),
+              assign({
+                socketError: () => null,
+                retryCount: () => 0,
+                cloudCharacterId: () => null,
+              }),
               () => logEvent('voice_session_started'),
             ],
           },
@@ -497,7 +503,12 @@ export const liveVoiceMachine = createMachine(
           if (!wiki) throw new Error('Wiki not initialized')
 
           const localDump = await wiki.exportDump([input.characterId])
-          const localBundle = localDump.entities[input.characterId] ?? { facts: [], tasks: [], events: [], edges: [] }
+          const localBundle = localDump.entities[input.characterId] ?? {
+            facts: [],
+            tasks: [],
+            events: [],
+            edges: [],
+          }
 
           const cloudDump: WikiSyncDump = {
             generatedAt: localDump.generatedAt,
@@ -516,7 +527,12 @@ export const liveVoiceMachine = createMachine(
           const result = await wikiSync({ dump: cloudDump })
           const remoteDump = result.data.remoteDump
           if (remoteDump && Object.keys(remoteDump.entities ?? {}).length > 0) {
-            const cloudBundle = remoteDump.entities[cloudId] ?? { facts: [], tasks: [], events: [], edges: [] }
+            const cloudBundle = remoteDump.entities[cloudId] ?? {
+              facts: [],
+              tasks: [],
+              events: [],
+              edges: [],
+            }
             const mappedDump = {
               generatedAt: remoteDump.generatedAt,
               entities: {
@@ -524,9 +540,18 @@ export const liveVoiceMachine = createMachine(
                   facts: mapFactSourceTypesFromCloud(
                     (cloudBundle.facts ?? []).map((f) => ({ ...f, entity_id: input.characterId })),
                   ),
-                  tasks: (cloudBundle.tasks ?? []).map((t) => ({ ...t, entity_id: input.characterId })),
-                  events: (cloudBundle.events ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
-                  edges: (cloudBundle.edges ?? []).map((e) => ({ ...e, entity_id: input.characterId })),
+                  tasks: (cloudBundle.tasks ?? []).map((t) => ({
+                    ...t,
+                    entity_id: input.characterId,
+                  })),
+                  events: (cloudBundle.events ?? []).map((e) => ({
+                    ...e,
+                    entity_id: input.characterId,
+                  })),
+                  edges: (cloudBundle.edges ?? []).map((e) => ({
+                    ...e,
+                    entity_id: input.characterId,
+                  })),
                 },
               },
             }
@@ -541,95 +566,101 @@ export const liveVoiceMachine = createMachine(
         },
       ),
 
-      websocketActor: fromCallback<LiveVoiceEvent, { characterId: string; memoryQuery: string; recentChatContext: string }>(
-        ({ sendBack, receive, input }) => {
-          let ws: WebSocket | null = null
-          let cleanedUp = false
+      websocketActor: fromCallback<
+        LiveVoiceEvent,
+        { characterId: string; memoryQuery: string; recentChatContext: string }
+      >(({ sendBack, receive, input }) => {
+        let ws: WebSocket | null = null
+        let cleanedUp = false
 
-          const cleanup = () => {
-            cleanedUp = true
-            if (ws?.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'end_session' }))
-            }
-            ws?.close()
-            ws = null
+        const cleanup = () => {
+          cleanedUp = true
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'end_session' }))
           }
+          ws?.close()
+          ws = null
+        }
 
-          const user = getCurrentUser()
-          if (!user) {
-            sendBack({ type: 'SOCKET_ERROR', message: 'No authenticated user' })
-            return
-          }
-          user
-            .getIdToken()
-            .then((token) => {
-              if (cleanedUp) return
-              try {
-                const url = getLiveWsUrl()
-                const socket = new WebSocket(url)
-                ws = socket
+        const user = getCurrentUser()
+        if (!user) {
+          sendBack({ type: 'SOCKET_ERROR', message: 'No authenticated user' })
+          return
+        }
+        user
+          .getIdToken()
+          .then((token) => {
+            if (cleanedUp) return
+            try {
+              const url = getLiveWsUrl()
+              const socket = new WebSocket(url)
+              ws = socket
 
-                socket.onopen = () => {
-                  if (cleanedUp || ws !== socket) return
-                  socket.send(
-                    JSON.stringify({
-                      type: 'auth',
-                      token,
-                      characterId: resolveCloudAgentCharacterId(input.characterId),
-                      ...(input.memoryQuery ? { memoryQuery: input.memoryQuery } : {}),
-                      ...(input.recentChatContext ? { recentChatContext: input.recentChatContext } : {}),
-                    }),
-                  )
-                  sendBack({ type: 'SOCKET_OPENED' })
-                }
-
-                socket.onmessage = (event) => {
-                  if (cleanedUp || ws !== socket) return
-                  try {
-                    const msg = JSON.parse(event.data as string) as { type: string } & Record<string, unknown>
-                    const xstateType =
-                      msg.type === 'error' ? 'SOCKET_ERROR' : msg.type.toUpperCase()
-                    sendBack({ ...msg, type: xstateType } as LiveVoiceEvent)
-                  } catch {
-                    // ignore malformed messages
-                  }
-                }
-
-                socket.onerror = () => {
-                  if (cleanedUp || ws !== socket) return
-                  sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
-                }
-
-                socket.onclose = () => {
-                  if (cleanedUp || ws !== socket) return
-                  sendBack({ type: 'SOCKET_CLOSED' })
-                }
-              } catch (setupErr: unknown) {
-                reportError(setupErr, 'websocketActor: WebSocket setup')
-                if (!cleanedUp)
-                  sendBack({
-                    type: 'SOCKET_ERROR',
-                    message: setupErr instanceof Error ? setupErr.message : 'WebSocket setup failed',
-                  })
+              socket.onopen = () => {
+                if (cleanedUp || ws !== socket) return
+                socket.send(
+                  JSON.stringify({
+                    type: 'auth',
+                    token,
+                    characterId: resolveCloudAgentCharacterId(input.characterId),
+                    ...(input.memoryQuery ? { memoryQuery: input.memoryQuery } : {}),
+                    ...(input.recentChatContext
+                      ? { recentChatContext: input.recentChatContext }
+                      : {}),
+                  }),
+                )
+                sendBack({ type: 'SOCKET_OPENED' })
               }
-            })
-            .catch((authErr: unknown) => {
-              reportError(authErr, 'websocketActor: getIdToken')
-              if (!cleanedUp) sendBack({ type: 'SOCKET_ERROR', message: 'Failed to retrieve auth token' })
-            })
 
-          receive((event) => {
-            if (!ws || ws.readyState !== WebSocket.OPEN) return
-            if (event.type === 'AUDIO_INPUT') {
-              ws.send(JSON.stringify({ type: 'audio_input', data: event.data }))
-            } else if (event.type === 'SEND_END_SESSION') {
-              ws.send(JSON.stringify({ type: 'end_session' }))
+              socket.onmessage = (event) => {
+                if (cleanedUp || ws !== socket) return
+                try {
+                  const msg = JSON.parse(event.data as string) as { type: string } & Record<
+                    string,
+                    unknown
+                  >
+                  const xstateType = msg.type === 'error' ? 'SOCKET_ERROR' : msg.type.toUpperCase()
+                  sendBack({ ...msg, type: xstateType } as LiveVoiceEvent)
+                } catch {
+                  // ignore malformed messages
+                }
+              }
+
+              socket.onerror = () => {
+                if (cleanedUp || ws !== socket) return
+                sendBack({ type: 'SOCKET_ERROR', message: 'WebSocket connection error' })
+              }
+
+              socket.onclose = () => {
+                if (cleanedUp || ws !== socket) return
+                sendBack({ type: 'SOCKET_CLOSED' })
+              }
+            } catch (setupErr: unknown) {
+              reportError(setupErr, 'websocketActor: WebSocket setup')
+              if (!cleanedUp)
+                sendBack({
+                  type: 'SOCKET_ERROR',
+                  message: setupErr instanceof Error ? setupErr.message : 'WebSocket setup failed',
+                })
             }
           })
+          .catch((authErr: unknown) => {
+            reportError(authErr, 'websocketActor: getIdToken')
+            if (!cleanedUp)
+              sendBack({ type: 'SOCKET_ERROR', message: 'Failed to retrieve auth token' })
+          })
 
-          return cleanup
-        },
-      ),
+        receive((event) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) return
+          if (event.type === 'AUDIO_INPUT') {
+            ws.send(JSON.stringify({ type: 'audio_input', data: event.data }))
+          } else if (event.type === 'SEND_END_SESSION') {
+            ws.send(JSON.stringify({ type: 'end_session' }))
+          }
+        })
+
+        return cleanup
+      }),
 
       saveTranscriptActor: fromPromise(
         async ({

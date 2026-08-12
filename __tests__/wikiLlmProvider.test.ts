@@ -11,7 +11,9 @@ import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { wikiLlm, generateEmbedding } from '~/services/apiClient'
 import { createWikiLlmProvider } from '~/services/wikiLlmProvider'
 
-const mockIsDevSandboxEnabled = isDevSandboxEnabled as jest.MockedFunction<typeof isDevSandboxEnabled>
+const mockIsDevSandboxEnabled = isDevSandboxEnabled as jest.MockedFunction<
+  typeof isDevSandboxEnabled
+>
 const mockWikiLlm = wikiLlm as jest.MockedFunction<typeof wikiLlm>
 const mockGenerateEmbedding = generateEmbedding as jest.MockedFunction<typeof generateEmbedding>
 

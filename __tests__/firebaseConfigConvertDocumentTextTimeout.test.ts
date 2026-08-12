@@ -50,11 +50,9 @@ describe('convertDocumentText callable timeout', () => {
       require('~/config/firebaseConfig.web')
     })
 
-    expect(capturedHttpsCallable).toHaveBeenCalledWith(
-      expect.anything(),
-      'convertDocumentText',
-      { timeout: 545_000 },
-    )
+    expect(capturedHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'convertDocumentText', {
+      timeout: 545_000,
+    })
   })
 
   it('passes a 545s timeout on native', () => {
@@ -71,11 +69,9 @@ describe('convertDocumentText callable timeout', () => {
       require('~/config/firebaseConfig')
     })
 
-    expect(capturedHttpsCallable).toHaveBeenCalledWith(
-      expect.anything(),
-      'convertDocumentText',
-      { timeout: 545_000 },
-    )
+    expect(capturedHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'convertDocumentText', {
+      timeout: 545_000,
+    })
   })
 })
 
@@ -104,11 +100,9 @@ describe('wikiLlm callable timeout', () => {
       require('~/config/firebaseConfig.web')
     })
 
-    expect(capturedHttpsCallable).toHaveBeenCalledWith(
-      expect.anything(),
-      'wikiLlm',
-      { timeout: 545_000 },
-    )
+    expect(capturedHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'wikiLlm', {
+      timeout: 545_000,
+    })
   })
 
   it('passes a 545s timeout on native', () => {
@@ -125,10 +119,8 @@ describe('wikiLlm callable timeout', () => {
       require('~/config/firebaseConfig')
     })
 
-    expect(capturedHttpsCallable).toHaveBeenCalledWith(
-      expect.anything(),
-      'wikiLlm',
-      { timeout: 545_000 },
-    )
+    expect(capturedHttpsCallable).toHaveBeenCalledWith(expect.anything(), 'wikiLlm', {
+      timeout: 545_000,
+    })
   })
 })

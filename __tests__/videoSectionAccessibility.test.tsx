@@ -45,7 +45,8 @@ describe('VideoSection accessibility', () => {
     })
 
     const heading = tree.root.find(
-      (node: any) => node.props.accessibilityRole === 'header' && node.props.children === VIDEO.heading,
+      (node: any) =>
+        node.props.accessibilityRole === 'header' && node.props.children === VIDEO.heading,
     )
     expect(heading).toBeTruthy()
   })

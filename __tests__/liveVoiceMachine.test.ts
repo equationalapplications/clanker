@@ -8,7 +8,9 @@ jest.mock('~/services/apiClient', () => ({
   wikiSync: jest.fn(),
 }))
 jest.mock('~/database/messageDatabase', () => {
-  const actual = jest.requireActual<typeof import('~/database/messageDatabase')>('~/database/messageDatabase')
+  const actual = jest.requireActual<typeof import('~/database/messageDatabase')>(
+    '~/database/messageDatabase',
+  )
   return {
     ...actual,
     saveAIMessage: jest.fn(),
@@ -384,7 +386,9 @@ describe('liveVoiceMachine', () => {
     } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
-    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+    }
     saveAIMessage.mockResolvedValue(undefined)
 
     const actor = spawn({ initialCredits: 1 })
@@ -455,7 +459,9 @@ describe('liveVoiceMachine', () => {
     } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
-    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+    }
     saveAIMessage.mockResolvedValue(undefined)
 
     const googleHtml = '<div>Suggestions</div>'
@@ -559,7 +565,9 @@ describe('liveVoiceMachine', () => {
     } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
-    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+    }
     saveAIMessage.mockResolvedValue(undefined)
 
     const actor = spawn()
@@ -596,7 +604,9 @@ describe('liveVoiceMachine', () => {
     } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
-    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+    }
     saveAIMessage.mockResolvedValue(undefined)
 
     const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'
@@ -607,7 +617,9 @@ describe('liveVoiceMachine', () => {
       type: 'GROUNDING_METADATA',
       groundingMetadata: { searchEntryPoint: { renderedContent: googleHtml } },
     })
-    expect(actor.getSnapshot().context.groundingMetadata?.searchEntryPoint?.renderedContent).toBe(googleHtml)
+    expect(actor.getSnapshot().context.groundingMetadata?.searchEntryPoint?.renderedContent).toBe(
+      googleHtml,
+    )
 
     actor.send({ type: 'END_CALL' })
     await waitFor(actor, (s) => s.matches('idle'), WAIT)
@@ -672,7 +684,9 @@ describe('liveVoiceMachine', () => {
     } as never)
     jest.mocked(getCurrentUser).mockReturnValue(makeUserMock() as never)
 
-    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as { saveAIMessage: jest.Mock }
+    const { saveAIMessage } = jest.requireMock('~/database/messageDatabase') as {
+      saveAIMessage: jest.Mock
+    }
     saveAIMessage.mockRejectedValue(new Error('save failed'))
 
     const googleHtml = '<style>.gs-chip{color:#1a73e8}</style><div>Suggestions</div>'

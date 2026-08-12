@@ -1,46 +1,44 @@
-import { eq, sql } from 'drizzle-orm';
-import { getDb } from '../db/cloudSql.js';
-import { subscriptions, creditTransactions } from '../db/schema.js';
-import { createCreditService } from './creditService.js';
-import { SIGNUP_CREDIT_AMOUNT } from '../constants/credits.js';
+import { eq, sql } from 'drizzle-orm'
+import { getDb } from '../db/cloudSql.js'
+import { subscriptions, creditTransactions } from '../db/schema.js'
+import { createCreditService } from './creditService.js'
+import { SIGNUP_CREDIT_AMOUNT } from '../constants/credits.js'
 
-const SIGNUP_CREDIT_REFERENCE_ID = 'signup';
+const SIGNUP_CREDIT_REFERENCE_ID = 'signup'
 
 export interface UpsertSubscriptionParams {
-  userId: string;
-  planTier: 'free' | 'monthly_20' | 'monthly_50' | 'payg';
-  planStatus: 'active' | 'cancelled' | 'expired';
-  currentCredits?: number;
-  stripeSubscriptionId?: string | null;
-  stripeCustomerId?: string | null;
-  billingCycleStart?: Date | null;
-  billingCycleEnd?: Date | null;
-  subscriptionProvider?: 'stripe' | 'revenuecat' | null;
-  cancelAtPeriodEnd?: boolean;
+  userId: string
+  planTier: 'free' | 'monthly_20' | 'monthly_50' | 'payg'
+  planStatus: 'active' | 'cancelled' | 'expired'
+  currentCredits?: number
+  stripeSubscriptionId?: string | null
+  stripeCustomerId?: string | null
+  billingCycleStart?: Date | null
+  billingCycleEnd?: Date | null
+  subscriptionProvider?: 'stripe' | 'revenuecat' | null
+  cancelAtPeriodEnd?: boolean
 }
 
 interface SubscriptionServiceDeps {
-  getDb: typeof getDb;
-  creditService?: ReturnType<typeof createCreditService>;
+  getDb: typeof getDb
+  creditService?: ReturnType<typeof createCreditService>
 }
 
-export const createSubscriptionService = (
-  deps: SubscriptionServiceDeps = { getDb },
-) => {
+export const createSubscriptionService = (deps: SubscriptionServiceDeps = { getDb }) => {
   const service = {
     async getSubscription(userId: string) {
-      const db = await deps.getDb();
+      const db = await deps.getDb()
       const result = await db
         .select()
         .from(subscriptions)
         .where(eq(subscriptions.userId, userId))
-        .limit(1);
-      return result[0] || null;
+        .limit(1)
+      return result[0] || null
     },
 
     async getOrCreateDefaultSubscription(userId: string) {
-      const db = await deps.getDb();
-      const creditService = deps.creditService ?? createCreditService({ getDb: deps.getDb });
+      const db = await deps.getDb()
+      const creditService = deps.creditService ?? createCreditService({ getDb: deps.getDb })
 
       await db
         .insert(subscriptions)
@@ -51,29 +49,37 @@ export const createSubscriptionService = (
           currentCredits: 0,
         })
         .onConflictDoNothing({ target: subscriptions.userId })
-        .returning();
+        .returning()
 
-      const subscription = await service.getSubscription(userId);
+      const subscription = await service.getSubscription(userId)
       if (!subscription) {
-        throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`);
+        throw new Error(`Failed to load subscription after default bootstrap for user: ${userId}`)
       }
 
-      const hasAnyCreditRow = (await db
-        .select()
-        .from(creditTransactions)
-        .where(eq(creditTransactions.userId, userId))
-        .limit(1))
-        .length > 0;
+      const hasAnyCreditRow =
+        (
+          await db
+            .select()
+            .from(creditTransactions)
+            .where(eq(creditTransactions.userId, userId))
+            .limit(1)
+        ).length > 0
 
       if (!hasAnyCreditRow) {
-        await creditService.addCredits(userId, SIGNUP_CREDIT_AMOUNT, null, 'signup', SIGNUP_CREDIT_REFERENCE_ID);
+        await creditService.addCredits(
+          userId,
+          SIGNUP_CREDIT_AMOUNT,
+          null,
+          'signup',
+          SIGNUP_CREDIT_REFERENCE_ID,
+        )
       }
 
-      return await service.getSubscription(userId) ?? subscription;
+      return (await service.getSubscription(userId)) ?? subscription
     },
 
     async upsertSubscription(params: UpsertSubscriptionParams) {
-      const db = await deps.getDb();
+      const db = await deps.getDb()
       const [upserted] = await db
         .insert(subscriptions)
         .values({
@@ -94,32 +100,50 @@ export const createSubscriptionService = (
             planTier: params.planTier,
             planStatus: params.planStatus,
             currentCredits: params.currentCredits ?? sql`${subscriptions.currentCredits}`,
-            stripeSubscriptionId: params.stripeSubscriptionId !== undefined ? params.stripeSubscriptionId : sql`${subscriptions.stripeSubscriptionId}`,
-            stripeCustomerId: params.stripeCustomerId !== undefined ? params.stripeCustomerId : sql`${subscriptions.stripeCustomerId}`,
-            billingCycleStart: params.billingCycleStart !== undefined ? params.billingCycleStart : sql`${subscriptions.billingCycleStart}`,
-            billingCycleEnd: params.billingCycleEnd !== undefined ? params.billingCycleEnd : sql`${subscriptions.billingCycleEnd}`,
-            subscriptionProvider: params.subscriptionProvider !== undefined ? params.subscriptionProvider : sql`${subscriptions.subscriptionProvider}`,
-            cancelAtPeriodEnd: params.cancelAtPeriodEnd !== undefined ? params.cancelAtPeriodEnd : sql`${subscriptions.cancelAtPeriodEnd}`,
+            stripeSubscriptionId:
+              params.stripeSubscriptionId !== undefined
+                ? params.stripeSubscriptionId
+                : sql`${subscriptions.stripeSubscriptionId}`,
+            stripeCustomerId:
+              params.stripeCustomerId !== undefined
+                ? params.stripeCustomerId
+                : sql`${subscriptions.stripeCustomerId}`,
+            billingCycleStart:
+              params.billingCycleStart !== undefined
+                ? params.billingCycleStart
+                : sql`${subscriptions.billingCycleStart}`,
+            billingCycleEnd:
+              params.billingCycleEnd !== undefined
+                ? params.billingCycleEnd
+                : sql`${subscriptions.billingCycleEnd}`,
+            subscriptionProvider:
+              params.subscriptionProvider !== undefined
+                ? params.subscriptionProvider
+                : sql`${subscriptions.subscriptionProvider}`,
+            cancelAtPeriodEnd:
+              params.cancelAtPeriodEnd !== undefined
+                ? params.cancelAtPeriodEnd
+                : sql`${subscriptions.cancelAtPeriodEnd}`,
             updatedAt: new Date(),
-          }
+          },
         })
-        .returning();
-      return upserted;
+        .returning()
+      return upserted
     },
 
     async findUserIdByStripeCustomerId(stripeCustomerId: string): Promise<string | null> {
-      const db = await deps.getDb();
+      const db = await deps.getDb()
       const result = await db
         .select({ userId: subscriptions.userId })
         .from(subscriptions)
         .where(eq(subscriptions.stripeCustomerId, stripeCustomerId))
-        .limit(1);
-      return result[0]?.userId ?? null;
+        .limit(1)
+      return result[0]?.userId ?? null
     },
 
     async acceptTerms(userId: string, version: string, acceptedAt: Date) {
-      const db = await deps.getDb();
-      await service.getOrCreateDefaultSubscription(userId);
+      const db = await deps.getDb()
+      await service.getOrCreateDefaultSubscription(userId)
 
       await db
         .update(subscriptions)
@@ -128,11 +152,11 @@ export const createSubscriptionService = (
           termsAcceptedAt: acceptedAt,
           updatedAt: new Date(),
         })
-        .where(eq(subscriptions.userId, userId));
+        .where(eq(subscriptions.userId, userId))
     },
-  };
+  }
 
-  return service;
-};
+  return service
+}
 
-export const subscriptionService = createSubscriptionService();
+export const subscriptionService = createSubscriptionService()

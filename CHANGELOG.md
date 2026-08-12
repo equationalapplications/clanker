@@ -1,2821 +1,2587 @@
 ## [30.33.1](https://github.com/equationalapplications/clanker/compare/v30.33.0...v30.33.1) (2026-08-11)
 
-
 ### Bug Fixes
 
-* **chat:** add explicit iOS/Android camera permission string ([03144b3](https://github.com/equationalapplications/clanker/commit/03144b38412b8f74a0da6978d198d3300563afaa))
-* **chat:** forward collapse height to upstream so GiftedChat stays in sync ([06a150b](https://github.com/equationalapplications/clanker/commit/06a150b529e27484c724976b3d9c2c31390bf1fa)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
-* **chat:** stop empty composer from entering an infinite resize loop on web ([3f4dadb](https://github.com/equationalapplications/clanker/commit/3f4dadb4d1e9cea7e67186d674c88b286a6988a9)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
-* **database:** stop message_id index from breaking every returning web user ([aac9b8d](https://github.com/equationalapplications/clanker/commit/aac9b8d12e5d1fad961e77015086bd4af8edacfd))
-* **deps:** address Copilot review feedback on Expo/Node 24 PR ([c4b5af7](https://github.com/equationalapplications/clanker/commit/c4b5af7da1e4fa8d0f612ab0dcf3acf1d4f44b0f))
-* **deps:** align cloud-agent and functions to root core-llm-tools 4.17.3 ([0320b1c](https://github.com/equationalapplications/clanker/commit/0320b1c7b90f648d0206ca68bb1a5b44ebbd93ff))
-* **review:** address CodeRabbit review on PR [#596](https://github.com/equationalapplications/clanker/issues/596) ([b4ee7c7](https://github.com/equationalapplications/clanker/commit/b4ee7c7be4557751924381c06863bde2772a17fd))
+- **chat:** add explicit iOS/Android camera permission string ([03144b3](https://github.com/equationalapplications/clanker/commit/03144b38412b8f74a0da6978d198d3300563afaa))
+- **chat:** forward collapse height to upstream so GiftedChat stays in sync ([06a150b](https://github.com/equationalapplications/clanker/commit/06a150b529e27484c724976b3d9c2c31390bf1fa)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
+- **chat:** stop empty composer from entering an infinite resize loop on web ([3f4dadb](https://github.com/equationalapplications/clanker/commit/3f4dadb4d1e9cea7e67186d674c88b286a6988a9)), closes [#185](https://github.com/equationalapplications/clanker/issues/185)
+- **database:** stop message_id index from breaking every returning web user ([aac9b8d](https://github.com/equationalapplications/clanker/commit/aac9b8d12e5d1fad961e77015086bd4af8edacfd))
+- **deps:** address Copilot review feedback on Expo/Node 24 PR ([c4b5af7](https://github.com/equationalapplications/clanker/commit/c4b5af7da1e4fa8d0f612ab0dcf3acf1d4f44b0f))
+- **deps:** align cloud-agent and functions to root core-llm-tools 4.17.3 ([0320b1c](https://github.com/equationalapplications/clanker/commit/0320b1c7b90f648d0206ca68bb1a5b44ebbd93ff))
+- **review:** address CodeRabbit review on PR [#596](https://github.com/equationalapplications/clanker/issues/596) ([b4ee7c7](https://github.com/equationalapplications/clanker/commit/b4ee7c7be4557751924381c06863bde2772a17fd))
 
 # [30.33.0](https://github.com/equationalapplications/clanker/compare/v30.32.3...v30.33.0) (2026-08-10)
 
-
 ### Bug Fixes
 
-* **avatar:** address CodeRabbit review on Phase 2 ([3402b82](https://github.com/equationalapplications/clanker/commit/3402b826a87cbbed85d84e1d2a17a26dcd62cd3a))
-* **chat:** photo bubble gate, composer state, scoping, dimensions ([3a36f65](https://github.com/equationalapplications/clanker/commit/3a36f655650e6e177500fa31c86644dbc5401ed8)), closes [#591](https://github.com/equationalapplications/clanker/issues/591)
-* **chat:** render character bubbles from CharacterAvatar ([818afb5](https://github.com/equationalapplications/clanker/commit/818afb520149d8d3bb9509394a50f2c0095e9fe5))
-* **chat:** resolve lint regressions from Phase 2 plan ([4ae0c05](https://github.com/equationalapplications/clanker/commit/4ae0c052ebe7638bc3cc96cd84d9bdb577efd39d))
-* **chat:** share one turn mutex between sendMessage and sendPhoto ([f9070cc](https://github.com/equationalapplications/clanker/commit/f9070cc8f774d35439629d517848ca9e62e88f88))
-* **images:** keep cloud-saved chat photos pending so the sweeper registers them ([665e90b](https://github.com/equationalapplications/clanker/commit/665e90b6ba5a67f3f3b6e48560eddbfe2f26f033))
-* **phase-2:** address CodeRabbit review feedback on PR [#591](https://github.com/equationalapplications/clanker/issues/591) ([2fdbba5](https://github.com/equationalapplications/clanker/commit/2fdbba5fc8e53e5d67fd8e9e0f38deec5cf5377a))
-* **phase-2:** address Copilot + CodeRabbit review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([437c85e](https://github.com/equationalapplications/clanker/commit/437c85ef4afbf53b5ed2368eac55b388288c9ce0))
-* **phase-2:** address Copilot review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([703c91f](https://github.com/equationalapplications/clanker/commit/703c91f320e2b3107b16e7f7c1728fb100fbc818))
-
+- **avatar:** address CodeRabbit review on Phase 2 ([3402b82](https://github.com/equationalapplications/clanker/commit/3402b826a87cbbed85d84e1d2a17a26dcd62cd3a))
+- **chat:** photo bubble gate, composer state, scoping, dimensions ([3a36f65](https://github.com/equationalapplications/clanker/commit/3a36f655650e6e177500fa31c86644dbc5401ed8)), closes [#591](https://github.com/equationalapplications/clanker/issues/591)
+- **chat:** render character bubbles from CharacterAvatar ([818afb5](https://github.com/equationalapplications/clanker/commit/818afb520149d8d3bb9509394a50f2c0095e9fe5))
+- **chat:** resolve lint regressions from Phase 2 plan ([4ae0c05](https://github.com/equationalapplications/clanker/commit/4ae0c052ebe7638bc3cc96cd84d9bdb577efd39d))
+- **chat:** share one turn mutex between sendMessage and sendPhoto ([f9070cc](https://github.com/equationalapplications/clanker/commit/f9070cc8f774d35439629d517848ca9e62e88f88))
+- **images:** keep cloud-saved chat photos pending so the sweeper registers them ([665e90b](https://github.com/equationalapplications/clanker/commit/665e90b6ba5a67f3f3b6e48560eddbfe2f26f033))
+- **phase-2:** address CodeRabbit review feedback on PR [#591](https://github.com/equationalapplications/clanker/issues/591) ([2fdbba5](https://github.com/equationalapplications/clanker/commit/2fdbba5fc8e53e5d67fd8e9e0f38deec5cf5377a))
+- **phase-2:** address Copilot + CodeRabbit review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([437c85e](https://github.com/equationalapplications/clanker/commit/437c85ef4afbf53b5ed2368eac55b388288c9ce0))
+- **phase-2:** address Copilot review feedback on PR [#592](https://github.com/equationalapplications/clanker/issues/592) ([703c91f](https://github.com/equationalapplications/clanker/commit/703c91f320e2b3107b16e7f7c1728fb100fbc818))
 
 ### Features
 
-* **avatar:** make CharacterAvatar image-role and lock its contract ([1915eeb](https://github.com/equationalapplications/clanker/commit/1915eeb8fbc186f6bb7f3dab604fc706cfbbc4d9))
-* **chat:** branch image picks between sending and memory ingestion ([52dce31](https://github.com/equationalapplications/clanker/commit/52dce31f23b1505271031414c21e56269a26ae73))
-* **chat:** keep captionless photo turns coherent in history ([d29908c](https://github.com/equationalapplications/clanker/commit/d29908c8b3398593e8f7ddd6fef1d5bec8dcfe3b))
-* **chat:** prepare picked and captured photos for sending ([85acf85](https://github.com/equationalapplications/clanker/commit/85acf85c6e1dd532e95cf0c23089c2fa48dab7bf))
-* **chat:** render chat photos in bubbles with tap-to-view ([52c8116](https://github.com/equationalapplications/clanker/commit/52c8116c048ad4478c1b2cabd707ddd27053ccd1))
-* **chat:** send photos to the cloud agent and commit them to the gallery ([4d629bb](https://github.com/equationalapplications/clanker/commit/4d629bb2c84909a7dd9c6fabf5bfca43d084c87b))
-* **cloud-agent-client:** send image attachments on both transports ([d9a2d5e](https://github.com/equationalapplications/clanker/commit/d9a2d5e280b0ed8bed9dcd4512e7c558ec37a414))
-* **cloud-agent:** single newMessage construction with inline attachments ([223e818](https://github.com/equationalapplications/clanker/commit/223e8185c5462aab2a9fe26ee950f4d1a21c7870))
-* **db:** link character images to the chat message they arrived on ([d918a95](https://github.com/equationalapplications/clanker/commit/d918a950efbb502888466784a3ef45eebbc7fb68))
-* **functions:** carry message_id and the chat source on character images ([1f40d72](https://github.com/equationalapplications/clanker/commit/1f40d72cad6629fbe1a8b13cfa2157f02f9023a7))
-* **images:** chat photos save as gallery rows without claiming the avatar ([83abab6](https://github.com/equationalapplications/clanker/commit/83abab668754c2b9e225a941c45885d725cd8f11))
-* **images:** resolve a saved image back to model-ready base64 ([3a51def](https://github.com/equationalapplications/clanker/commit/3a51defcbeb5b0d1ea45a85ecdf06ea1a26265b8))
-* **shared:** add dependency-free cloud-agent attachment constants ([b27c0ae](https://github.com/equationalapplications/clanker/commit/b27c0aebe38e27b2876ceb7b8b68fe71d46c5f86))
-* **shared:** single agent-run wire schema with attachments ([624234c](https://github.com/equationalapplications/clanker/commit/624234c73611afdd963b314295075b7196d5c771))
-* **sync:** carry chat photo message linkage across devices ([c2ce715](https://github.com/equationalapplications/clanker/commit/c2ce71551be1c184cac0ec372b4f2b4073912228))
+- **avatar:** make CharacterAvatar image-role and lock its contract ([1915eeb](https://github.com/equationalapplications/clanker/commit/1915eeb8fbc186f6bb7f3dab604fc706cfbbc4d9))
+- **chat:** branch image picks between sending and memory ingestion ([52dce31](https://github.com/equationalapplications/clanker/commit/52dce31f23b1505271031414c21e56269a26ae73))
+- **chat:** keep captionless photo turns coherent in history ([d29908c](https://github.com/equationalapplications/clanker/commit/d29908c8b3398593e8f7ddd6fef1d5bec8dcfe3b))
+- **chat:** prepare picked and captured photos for sending ([85acf85](https://github.com/equationalapplications/clanker/commit/85acf85c6e1dd532e95cf0c23089c2fa48dab7bf))
+- **chat:** render chat photos in bubbles with tap-to-view ([52c8116](https://github.com/equationalapplications/clanker/commit/52c8116c048ad4478c1b2cabd707ddd27053ccd1))
+- **chat:** send photos to the cloud agent and commit them to the gallery ([4d629bb](https://github.com/equationalapplications/clanker/commit/4d629bb2c84909a7dd9c6fabf5bfca43d084c87b))
+- **cloud-agent-client:** send image attachments on both transports ([d9a2d5e](https://github.com/equationalapplications/clanker/commit/d9a2d5e280b0ed8bed9dcd4512e7c558ec37a414))
+- **cloud-agent:** single newMessage construction with inline attachments ([223e818](https://github.com/equationalapplications/clanker/commit/223e8185c5462aab2a9fe26ee950f4d1a21c7870))
+- **db:** link character images to the chat message they arrived on ([d918a95](https://github.com/equationalapplications/clanker/commit/d918a950efbb502888466784a3ef45eebbc7fb68))
+- **functions:** carry message_id and the chat source on character images ([1f40d72](https://github.com/equationalapplications/clanker/commit/1f40d72cad6629fbe1a8b13cfa2157f02f9023a7))
+- **images:** chat photos save as gallery rows without claiming the avatar ([83abab6](https://github.com/equationalapplications/clanker/commit/83abab668754c2b9e225a941c45885d725cd8f11))
+- **images:** resolve a saved image back to model-ready base64 ([3a51def](https://github.com/equationalapplications/clanker/commit/3a51defcbeb5b0d1ea45a85ecdf06ea1a26265b8))
+- **shared:** add dependency-free cloud-agent attachment constants ([b27c0ae](https://github.com/equationalapplications/clanker/commit/b27c0aebe38e27b2876ceb7b8b68fe71d46c5f86))
+- **shared:** single agent-run wire schema with attachments ([624234c](https://github.com/equationalapplications/clanker/commit/624234c73611afdd963b314295075b7196d5c771))
+- **sync:** carry chat photo message linkage across devices ([c2ce715](https://github.com/equationalapplications/clanker/commit/c2ce71551be1c184cac0ec372b4f2b4073912228))
 
 ## [30.32.3](https://github.com/equationalapplications/clanker/compare/v30.32.2...v30.32.3) (2026-08-10)
 
-
 ### Bug Fixes
 
-* **avatar:** fall through to the bundled default instead of initials ([696e699](https://github.com/equationalapplications/clanker/commit/696e699dc49378cf10e2ba2c7a6ca397e6b68157))
-* **avatar:** reload the character machine after changing the active image ([be47dc1](https://github.com/equationalapplications/clanker/commit/be47dc1c2e75fd89521b32bf190784996416ef7d))
-* **chat:** render avatars from active_image_id, not the legacy column ([c0b9788](https://github.com/equationalapplications/clanker/commit/c0b97880ccc1373664f40d65e77ca0b32d11591d))
-* **talk:** render avatars from active_image_id, not the legacy column ([b805b86](https://github.com/equationalapplications/clanker/commit/b805b8676dd6eb25291a41a55f02ff5aa85b66c2))
+- **avatar:** fall through to the bundled default instead of initials ([696e699](https://github.com/equationalapplications/clanker/commit/696e699dc49378cf10e2ba2c7a6ca397e6b68157))
+- **avatar:** reload the character machine after changing the active image ([be47dc1](https://github.com/equationalapplications/clanker/commit/be47dc1c2e75fd89521b32bf190784996416ef7d))
+- **chat:** render avatars from active_image_id, not the legacy column ([c0b9788](https://github.com/equationalapplications/clanker/commit/c0b97880ccc1373664f40d65e77ca0b32d11591d))
+- **talk:** render avatars from active_image_id, not the legacy column ([b805b86](https://github.com/equationalapplications/clanker/commit/b805b8676dd6eb25291a41a55f02ff5aa85b66c2))
 
 ## [30.32.2](https://github.com/equationalapplications/clanker/compare/v30.32.1...v30.32.2) (2026-08-01)
 
-
 ### Bug Fixes
 
-* **deps:** resolve dependabot alerts fixable within existing semver ranges ([6b3b3df](https://github.com/equationalapplications/clanker/commit/6b3b3dffb4f27651370e2dcedbd3a410bd0e7c21))
+- **deps:** resolve dependabot alerts fixable within existing semver ranges ([6b3b3df](https://github.com/equationalapplications/clanker/commit/6b3b3dffb4f27651370e2dcedbd3a410bd0e7c21))
 
 ## [30.32.1](https://github.com/equationalapplications/clanker/compare/v30.32.0...v30.32.1) (2026-08-01)
 
-
 ### Bug Fixes
 
-* **db:** dedupe MIGRATIONS input, serialize concurrent applies, fix stale comment ([6df9c17](https://github.com/equationalapplications/clanker/commit/6df9c17b7aee8e41a41e6f2b49cf559734b1d9f0)), closes [#584](https://github.com/equationalapplications/clanker/issues/584)
-* **db:** require prerequisite to be scheduled before target in batch ([19e7ec2](https://github.com/equationalapplications/clanker/commit/19e7ec26388e5c1025b0b32699a3ddd7f2596214))
-* **db:** track applied migrations in production and guard apply order ([3c4ba56](https://github.com/equationalapplications/clanker/commit/3c4ba5610a43e4f3cf090ec6a9d22eeff3e32692))
-* **deps:** resolve @hono/node-server to 2.0.12 in both lockfiles ([d83e8bb](https://github.com/equationalapplications/clanker/commit/d83e8bbcf61bee33b1690719955c0902a4414593))
+- **db:** dedupe MIGRATIONS input, serialize concurrent applies, fix stale comment ([6df9c17](https://github.com/equationalapplications/clanker/commit/6df9c17b7aee8e41a41e6f2b49cf559734b1d9f0)), closes [#584](https://github.com/equationalapplications/clanker/issues/584)
+- **db:** require prerequisite to be scheduled before target in batch ([19e7ec2](https://github.com/equationalapplications/clanker/commit/19e7ec26388e5c1025b0b32699a3ddd7f2596214))
+- **db:** track applied migrations in production and guard apply order ([3c4ba56](https://github.com/equationalapplications/clanker/commit/3c4ba5610a43e4f3cf090ec6a9d22eeff3e32692))
+- **deps:** resolve @hono/node-server to 2.0.12 in both lockfiles ([d83e8bb](https://github.com/equationalapplications/clanker/commit/d83e8bbcf61bee33b1690719955c0902a4414593))
 
 # [30.32.0](https://github.com/equationalapplications/clanker/compare/v30.31.0...v30.32.0) (2026-07-29)
 
-
 ### Bug Fixes
 
-* address CodeRabbit review findings for PR [#581](https://github.com/equationalapplications/clanker/issues/581) ([f83ff62](https://github.com/equationalapplications/clanker/commit/f83ff6288e17f5a64e0d5c60bd73eb0414d513fd))
-* **db:** register 0022_character_images.sql in dev migration order and applied-migrations log ([53de82c](https://github.com/equationalapplications/clanker/commit/53de82c1fb10cb0fb77704d11f3d00eada56ae3b))
-* **db:** stop setActiveImageId bumping updated_at ([faec059](https://github.com/equationalapplications/clanker/commit/faec0599f16f0db01992ddbbedf52a4e2d89c624))
-* **functions:** don't let a listImages failure break getPublicCharacter ([b5da1b8](https://github.com/equationalapplications/clanker/commit/b5da1b88a85643356598d35a39ae193fb8f72962))
-* **functions:** order deletion cascades so a partial failure orphans bytes, not references ([026858e](https://github.com/equationalapplications/clanker/commit/026858ec579620cb3cb931748f87846f36b77083))
-* **functions:** reject activeImageId that isn't one of the character's own images ([97a5689](https://github.com/equationalapplications/clanker/commit/97a5689470342ec043a5db49058792a9f225daad))
-* **images:** address code-review findings on the image pipeline refactor ([207dbe8](https://github.com/equationalapplications/clanker/commit/207dbe8e1cd6f598be803370fdcb131e7d7c354c))
-* **images:** address CodeRabbit review on the image pipeline refactor ([d75bff8](https://github.com/equationalapplications/clanker/commit/d75bff88d9e8ebbb173b613dee12b105d4ecd9c9))
-* **images:** clean up orphaned bytes when saving an image fails ([d8f724f](https://github.com/equationalapplications/clanker/commit/d8f724feab3488769c8a2d3517c97ff03c27246a))
-* **images:** construct master file handle inside the cleanup try ([e456098](https://github.com/equationalapplications/clanker/commit/e456098e88b6fc6eb315a18cbf69fdc4a04d7a5f))
-* **images:** fix cloud-delete tombstone gap and wire up thumbnail backfill ([d840a37](https://github.com/equationalapplications/clanker/commit/d840a37221248c72899c5ac2dfe218f1b78dcd92))
-* **images:** implement additional image pipeline refactor improvements ([4c1815b](https://github.com/equationalapplications/clanker/commit/4c1815b091d8d714713f04234976d1798e541400))
-* **images:** read back active image id after delete instead of re-deriving ([57c5997](https://github.com/equationalapplications/clanker/commit/57c5997da74f83e053db58403a0ee0c56d76a97c)), closes [#580](https://github.com/equationalapplications/clanker/issues/580)
-* **images:** reserve the image row before uploading cloud bytes ([0a2ccec](https://github.com/equationalapplications/clanker/commit/0a2ccec291e53195740fdebf24576ae10dd50158))
-* **images:** retry cloud registration, clean partial uploads, keep rollback copy ([ffb1a0f](https://github.com/equationalapplications/clanker/commit/ffb1a0f7ee8442a37914b8e169e2a9c86fce982c))
-* **images:** write image bytes with base64 encoding ([9156335](https://github.com/equationalapplications/clanker/commit/91563354072adfe7f88c6fcffaa6cc6492eec6ed))
-* **lint:** clear lint errors on image-pipeline components (Task 24 verification) ([5ecae4e](https://github.com/equationalapplications/clanker/commit/5ecae4e25c57ebc0515fd8cf9d380c5236454386))
-* **machine:** reset pendingUnsyncId on a failed UPDATE ([e1890b0](https://github.com/equationalapplications/clanker/commit/e1890b06b0de232425dc8093898e114eef173738))
-* replace avatar error effect with derived state pattern ([23da018](https://github.com/equationalapplications/clanker/commit/23da01887f14bc525eb6f5c168158419cdd12d70))
-* **sync:** persist cloud image refs before deleting local bytes ([ffa9421](https://github.com/equationalapplications/clanker/commit/ffa94216bf48fae8d2d903009789c5ce773d4d12))
-* **sync:** reconcile images on restore even when the character row isn't newer ([b0bad52](https://github.com/equationalapplications/clanker/commit/b0bad524d2e588ddeb3c517e7b693a6575af8d7c))
-
+- address CodeRabbit review findings for PR [#581](https://github.com/equationalapplications/clanker/issues/581) ([f83ff62](https://github.com/equationalapplications/clanker/commit/f83ff6288e17f5a64e0d5c60bd73eb0414d513fd))
+- **db:** register 0022_character_images.sql in dev migration order and applied-migrations log ([53de82c](https://github.com/equationalapplications/clanker/commit/53de82c1fb10cb0fb77704d11f3d00eada56ae3b))
+- **db:** stop setActiveImageId bumping updated_at ([faec059](https://github.com/equationalapplications/clanker/commit/faec0599f16f0db01992ddbbedf52a4e2d89c624))
+- **functions:** don't let a listImages failure break getPublicCharacter ([b5da1b8](https://github.com/equationalapplications/clanker/commit/b5da1b88a85643356598d35a39ae193fb8f72962))
+- **functions:** order deletion cascades so a partial failure orphans bytes, not references ([026858e](https://github.com/equationalapplications/clanker/commit/026858ec579620cb3cb931748f87846f36b77083))
+- **functions:** reject activeImageId that isn't one of the character's own images ([97a5689](https://github.com/equationalapplications/clanker/commit/97a5689470342ec043a5db49058792a9f225daad))
+- **images:** address code-review findings on the image pipeline refactor ([207dbe8](https://github.com/equationalapplications/clanker/commit/207dbe8e1cd6f598be803370fdcb131e7d7c354c))
+- **images:** address CodeRabbit review on the image pipeline refactor ([d75bff8](https://github.com/equationalapplications/clanker/commit/d75bff88d9e8ebbb173b613dee12b105d4ecd9c9))
+- **images:** clean up orphaned bytes when saving an image fails ([d8f724f](https://github.com/equationalapplications/clanker/commit/d8f724feab3488769c8a2d3517c97ff03c27246a))
+- **images:** construct master file handle inside the cleanup try ([e456098](https://github.com/equationalapplications/clanker/commit/e456098e88b6fc6eb315a18cbf69fdc4a04d7a5f))
+- **images:** fix cloud-delete tombstone gap and wire up thumbnail backfill ([d840a37](https://github.com/equationalapplications/clanker/commit/d840a37221248c72899c5ac2dfe218f1b78dcd92))
+- **images:** implement additional image pipeline refactor improvements ([4c1815b](https://github.com/equationalapplications/clanker/commit/4c1815b091d8d714713f04234976d1798e541400))
+- **images:** read back active image id after delete instead of re-deriving ([57c5997](https://github.com/equationalapplications/clanker/commit/57c5997da74f83e053db58403a0ee0c56d76a97c)), closes [#580](https://github.com/equationalapplications/clanker/issues/580)
+- **images:** reserve the image row before uploading cloud bytes ([0a2ccec](https://github.com/equationalapplications/clanker/commit/0a2ccec291e53195740fdebf24576ae10dd50158))
+- **images:** retry cloud registration, clean partial uploads, keep rollback copy ([ffb1a0f](https://github.com/equationalapplications/clanker/commit/ffb1a0f7ee8442a37914b8e169e2a9c86fce982c))
+- **images:** write image bytes with base64 encoding ([9156335](https://github.com/equationalapplications/clanker/commit/91563354072adfe7f88c6fcffaa6cc6492eec6ed))
+- **lint:** clear lint errors on image-pipeline components (Task 24 verification) ([5ecae4e](https://github.com/equationalapplications/clanker/commit/5ecae4e25c57ebc0515fd8cf9d380c5236454386))
+- **machine:** reset pendingUnsyncId on a failed UPDATE ([e1890b0](https://github.com/equationalapplications/clanker/commit/e1890b06b0de232425dc8093898e114eef173738))
+- replace avatar error effect with derived state pattern ([23da018](https://github.com/equationalapplications/clanker/commit/23da01887f14bc525eb6f5c168158419cdd12d70))
+- **sync:** persist cloud image refs before deleting local bytes ([ffa9421](https://github.com/equationalapplications/clanker/commit/ffa94216bf48fae8d2d903009789c5ce773d4d12))
+- **sync:** reconcile images on restore even when the character row isn't newer ([b0bad52](https://github.com/equationalapplications/clanker/commit/b0bad524d2e588ddeb3c517e7b693a6575af8d7c))
 
 ### Features
 
-* **avatar:** bundle a borderless default avatar and stop copying it per character ([81dfc08](https://github.com/equationalapplications/clanker/commit/81dfc08a79d650025a3791ecf5e851ca89cd585f))
-* **db:** add character_images table and active_image_id (migrations 22, 23) ([9767a2c](https://github.com/equationalapplications/clanker/commit/9767a2c0b13bb050ff1e4b9781d664c1bc226048))
-* **db:** add characterImageDatabase CRUD layer ([8141e24](https://github.com/equationalapplications/clanker/commit/8141e24d4b9920d866ca9d0238fcd2baad9b45b1))
-* **db:** add cloud character_images table and active_image_id ([c984066](https://github.com/equationalapplications/clanker/commit/c984066b9ac2aeb1778092e0f55554e3d676a75c))
-* **functions:** add cloud image service with server-authoritative cap ([07efa8f](https://github.com/equationalapplications/clanker/commit/07efa8f4565afa47db9bee27e0f301baf3a111c4))
-* **functions:** add syncCharacterImages callable and images on character snapshot ([01a556d](https://github.com/equationalapplications/clanker/commit/01a556dd1f92929cb5f97b1c03c2e4d804bad899))
-* **functions:** prefix-delete storage objects on character and user deletion ([673d97a](https://github.com/equationalapplications/clanker/commit/673d97a243880b8669550f0fa2dd972f888c8ae0))
-* **functions:** return a signed avatar URL from getPublicCharacter ([1d8e696](https://github.com/equationalapplications/clanker/commit/1d8e69654885909877964e3e5c7b78836d00819a))
-* **images:** add avatar picker modal with gallery, activate and delete ([6fec850](https://github.com/equationalapplications/clanker/commit/6fec85047af83c6fcabeb7e52dfd743705dd29b8))
-* **images:** add canvas WebP encoding probe with JPEG fallback ([970e7b6](https://github.com/equationalapplications/clanker/commit/970e7b629e9e9cfae6fed916fd49bfda49c65cfa))
-* **images:** add characterImageService with FIFO cap and deletion cascade ([f8444f5](https://github.com/equationalapplications/clanker/commit/f8444f500136297b8f196ffab3bdcc8187b959f2))
-* **images:** add platform-split localImageStore resolver seam ([7687e83](https://github.com/equationalapplications/clanker/commit/7687e8338c5d684893b7a16bb780aa0ca2dabb59))
-* **images:** derive 1024 master and 256 thumb variants ([3a3364d](https://github.com/equationalapplications/clanker/commit/3a3364d860129bd2e576168fbd9f18ae366dfe59))
-* **images:** migrate legacy avatar_data into the image gallery ([5d59155](https://github.com/equationalapplications/clanker/commit/5d591553d51107baba991073a74bc9ff9345e289))
-* **images:** re-store imported avatars under the importer's own account ([6459fa4](https://github.com/equationalapplications/clanker/commit/6459fa4bf047a80ed2dab8dda2ab8818977a9ab7))
-* **images:** resolve avatars through useResolvedImage instead of avatar_data ([23b104a](https://github.com/equationalapplications/clanker/commit/23b104a6f5d063820c7b758afbd4ca624c454770))
-* **images:** square uploads and route generate/upload through the gallery ([2d66fa7](https://github.com/equationalapplications/clanker/commit/2d66fa71d2d19a0aa66d649cc448f2abe513c4d0))
-* **images:** upload cloud-mode avatars to Firebase Storage ([b471e88](https://github.com/equationalapplications/clanker/commit/b471e88e499cf4153d03acfb1852cdb3a8d71a6a))
-* **storage:** add platform-split Firebase Storage service ([d48b378](https://github.com/equationalapplications/clanker/commit/d48b3784d0738e4b4300d5a8ea257631fc4eae19))
-* **storage:** add uid-scoped Firebase Storage rules and native storage dep ([9503f96](https://github.com/equationalapplications/clanker/commit/9503f960fd9d7a17c1f833aedaf2e10b849f78e4))
-* **sync:** download cloud images before clearing the cloud link on privacy toggle ([048f955](https://github.com/equationalapplications/clanker/commit/048f9553dc3ca433ca34b26258e1c0e967c5542b))
-* **sync:** reconcile character images by tombstone and stop dropping avatars on restore ([6f41c37](https://github.com/equationalapplications/clanker/commit/6f41c37a47b8df8f89cb1271c478777bd27dccc3))
-* **sync:** sweep pending image uploads and deletions after character sync ([10a39b3](https://github.com/equationalapplications/clanker/commit/10a39b3b02da40d2942c70294eb0b9f815c97a19))
+- **avatar:** bundle a borderless default avatar and stop copying it per character ([81dfc08](https://github.com/equationalapplications/clanker/commit/81dfc08a79d650025a3791ecf5e851ca89cd585f))
+- **db:** add character_images table and active_image_id (migrations 22, 23) ([9767a2c](https://github.com/equationalapplications/clanker/commit/9767a2c0b13bb050ff1e4b9781d664c1bc226048))
+- **db:** add characterImageDatabase CRUD layer ([8141e24](https://github.com/equationalapplications/clanker/commit/8141e24d4b9920d866ca9d0238fcd2baad9b45b1))
+- **db:** add cloud character_images table and active_image_id ([c984066](https://github.com/equationalapplications/clanker/commit/c984066b9ac2aeb1778092e0f55554e3d676a75c))
+- **functions:** add cloud image service with server-authoritative cap ([07efa8f](https://github.com/equationalapplications/clanker/commit/07efa8f4565afa47db9bee27e0f301baf3a111c4))
+- **functions:** add syncCharacterImages callable and images on character snapshot ([01a556d](https://github.com/equationalapplications/clanker/commit/01a556dd1f92929cb5f97b1c03c2e4d804bad899))
+- **functions:** prefix-delete storage objects on character and user deletion ([673d97a](https://github.com/equationalapplications/clanker/commit/673d97a243880b8669550f0fa2dd972f888c8ae0))
+- **functions:** return a signed avatar URL from getPublicCharacter ([1d8e696](https://github.com/equationalapplications/clanker/commit/1d8e69654885909877964e3e5c7b78836d00819a))
+- **images:** add avatar picker modal with gallery, activate and delete ([6fec850](https://github.com/equationalapplications/clanker/commit/6fec85047af83c6fcabeb7e52dfd743705dd29b8))
+- **images:** add canvas WebP encoding probe with JPEG fallback ([970e7b6](https://github.com/equationalapplications/clanker/commit/970e7b629e9e9cfae6fed916fd49bfda49c65cfa))
+- **images:** add characterImageService with FIFO cap and deletion cascade ([f8444f5](https://github.com/equationalapplications/clanker/commit/f8444f500136297b8f196ffab3bdcc8187b959f2))
+- **images:** add platform-split localImageStore resolver seam ([7687e83](https://github.com/equationalapplications/clanker/commit/7687e8338c5d684893b7a16bb780aa0ca2dabb59))
+- **images:** derive 1024 master and 256 thumb variants ([3a3364d](https://github.com/equationalapplications/clanker/commit/3a3364d860129bd2e576168fbd9f18ae366dfe59))
+- **images:** migrate legacy avatar_data into the image gallery ([5d59155](https://github.com/equationalapplications/clanker/commit/5d591553d51107baba991073a74bc9ff9345e289))
+- **images:** re-store imported avatars under the importer's own account ([6459fa4](https://github.com/equationalapplications/clanker/commit/6459fa4bf047a80ed2dab8dda2ab8818977a9ab7))
+- **images:** resolve avatars through useResolvedImage instead of avatar_data ([23b104a](https://github.com/equationalapplications/clanker/commit/23b104a6f5d063820c7b758afbd4ca624c454770))
+- **images:** square uploads and route generate/upload through the gallery ([2d66fa7](https://github.com/equationalapplications/clanker/commit/2d66fa71d2d19a0aa66d649cc448f2abe513c4d0))
+- **images:** upload cloud-mode avatars to Firebase Storage ([b471e88](https://github.com/equationalapplications/clanker/commit/b471e88e499cf4153d03acfb1852cdb3a8d71a6a))
+- **storage:** add platform-split Firebase Storage service ([d48b378](https://github.com/equationalapplications/clanker/commit/d48b3784d0738e4b4300d5a8ea257631fc4eae19))
+- **storage:** add uid-scoped Firebase Storage rules and native storage dep ([9503f96](https://github.com/equationalapplications/clanker/commit/9503f960fd9d7a17c1f833aedaf2e10b849f78e4))
+- **sync:** download cloud images before clearing the cloud link on privacy toggle ([048f955](https://github.com/equationalapplications/clanker/commit/048f9553dc3ca433ca34b26258e1c0e967c5542b))
+- **sync:** reconcile character images by tombstone and stop dropping avatars on restore ([6f41c37](https://github.com/equationalapplications/clanker/commit/6f41c37a47b8df8f89cb1271c478777bd27dccc3))
+- **sync:** sweep pending image uploads and deletions after character sync ([10a39b3](https://github.com/equationalapplications/clanker/commit/10a39b3b02da40d2942c70294eb0b9f815c97a19))
 
 # [30.31.0](https://github.com/equationalapplications/clanker/compare/v30.30.0...v30.31.0) (2026-07-26)
 
-
 ### Bug Fixes
 
-* **seo:** align og:title/twitter:title with page <title> per spec §3 ([f89c562](https://github.com/equationalapplications/clanker/commit/f89c5623964cdd9404d4bf6910ca6e6b3ef73781))
-* **test:** resolve CodeQL double-unescape and PR 577 review feedback ([7b7dce9](https://github.com/equationalapplications/clanker/commit/7b7dce96c74639a1d42e02624df8593967210943))
-
+- **seo:** align og:title/twitter:title with page <title> per spec §3 ([f89c562](https://github.com/equationalapplications/clanker/commit/f89c5623964cdd9404d4bf6910ca6e6b3ef73781))
+- **test:** resolve CodeQL double-unescape and PR 577 review feedback ([7b7dce9](https://github.com/equationalapplications/clanker/commit/7b7dce96c74639a1d42e02624df8593967210943))
 
 ### Features
 
-* **privacy:** add business-transfer clause for acquisition scenarios ([3ed05bb](https://github.com/equationalapplications/clanker/commit/3ed05bbc0356a2e49ef4ac924caa4cd281f6574e))
-* **seo:** rebrand /advanced-memory to Clanker AI ([bd82341](https://github.com/equationalapplications/clanker/commit/bd82341b4226b54388d5e0c5d26176b9850529ad))
-* **seo:** rebrand /memory-export-with-okf to Clanker AI ([136d53d](https://github.com/equationalapplications/clanker/commit/136d53d1fe5fa17ac40807fc3d2223fb946a4a1d))
-* **seo:** rebrand /open-source to Clanker AI and fix title collision ([56f689c](https://github.com/equationalapplications/clanker/commit/56f689c8fdce12bca193a1f5e9a545273182466c))
-* **seo:** rebrand /privacy-mode to Clanker AI ([3988981](https://github.com/equationalapplications/clanker/commit/39889814b835c62f7319878663407c6c332a17f0))
-* **seo:** rebrand /real-time-voice to Clanker AI ([7de80da](https://github.com/equationalapplications/clanker/commit/7de80da1496e4ebc62659ddbd7cb705376c38597))
-* **seo:** rebrand /support to Clanker AI and fix title collision ([1095bdb](https://github.com/equationalapplications/clanker/commit/1095bdbb444bddc63a7acf484b1f31103254ba8b))
-* **seo:** rebrand /welcome to Clanker AI with assistant-first positioning ([0c99671](https://github.com/equationalapplications/clanker/commit/0c996719c9840fddeb92d2fc23df4c551aa0ea6d))
+- **privacy:** add business-transfer clause for acquisition scenarios ([3ed05bb](https://github.com/equationalapplications/clanker/commit/3ed05bbc0356a2e49ef4ac924caa4cd281f6574e))
+- **seo:** rebrand /advanced-memory to Clanker AI ([bd82341](https://github.com/equationalapplications/clanker/commit/bd82341b4226b54388d5e0c5d26176b9850529ad))
+- **seo:** rebrand /memory-export-with-okf to Clanker AI ([136d53d](https://github.com/equationalapplications/clanker/commit/136d53d1fe5fa17ac40807fc3d2223fb946a4a1d))
+- **seo:** rebrand /open-source to Clanker AI and fix title collision ([56f689c](https://github.com/equationalapplications/clanker/commit/56f689c8fdce12bca193a1f5e9a545273182466c))
+- **seo:** rebrand /privacy-mode to Clanker AI ([3988981](https://github.com/equationalapplications/clanker/commit/39889814b835c62f7319878663407c6c332a17f0))
+- **seo:** rebrand /real-time-voice to Clanker AI ([7de80da](https://github.com/equationalapplications/clanker/commit/7de80da1496e4ebc62659ddbd7cb705376c38597))
+- **seo:** rebrand /support to Clanker AI and fix title collision ([1095bdb](https://github.com/equationalapplications/clanker/commit/1095bdbb444bddc63a7acf484b1f31103254ba8b))
+- **seo:** rebrand /welcome to Clanker AI with assistant-first positioning ([0c99671](https://github.com/equationalapplications/clanker/commit/0c996719c9840fddeb92d2fc23df4c551aa0ea6d))
 
 # [30.30.0](https://github.com/equationalapplications/clanker/compare/v30.29.1...v30.30.0) (2026-07-24)
 
-
 ### Bug Fixes
 
-* **billing:** add subscriptionProvider to remaining SubscriptionSnapshot test fixtures ([f96e488](https://github.com/equationalapplications/clanker/commit/f96e4889df82bb72f496be76806d486180cbac79))
-* **billing:** address PR 572 Copilot review round 2 ([7f0c593](https://github.com/equationalapplications/clanker/commit/7f0c593877bfa7b8c6383f8c5b81ed5b33539e67))
-* **billing:** address PR 572 review feedback ([201a84b](https://github.com/equationalapplications/clanker/commit/201a84be5955a66be86e10c721b81ae298b710c1))
-* **billing:** address PR 573 review feedback ([923ed1a](https://github.com/equationalapplications/clanker/commit/923ed1a5b2d3d7ff5b023b44b90e01b032589f61))
-* **billing:** reconcile double-subscribe message, add resubscribe test, fix B2 doc ([3ea065c](https://github.com/equationalapplications/clanker/commit/3ea065cba1e2e225550d61ba9299fdf957c2fd10))
-* **rc-webhook:** actually thread transferred_from/to through to the TRANSFER log ([42bbbe9](https://github.com/equationalapplications/clanker/commit/42bbbe98a9d39ecfb4e91b0baa46b19b7f9bff73))
-* **rc-webhook:** gate GA4 purchase emission on recognized products; dedupe refund emission ([4f1107a](https://github.com/equationalapplications/clanker/commit/4f1107abd4c0c854069c02d5d74a3bbe2fa38c8a))
-* **rc-webhook:** handle CUSTOMER_SUPPORT refunds — downgrade + clawback ([9d2fa5f](https://github.com/equationalapplications/clanker/commit/9d2fa5f6ad540eb23a97a627a11e51e6661a3afd))
-* **rc-webhook:** ignore SANDBOX events so they never grant production credits ([3d7a5be](https://github.com/equationalapplications/clanker/commit/3d7a5be781616d100b545d403ba22dc913c033cf))
-* **rc-webhook:** product-guard CANCELLATION/EXPIRATION; deduct pack refunds ([fe74667](https://github.com/equationalapplications/clanker/commit/fe74667b95137637c1ebeb1bb2f2274ab1cd3d74))
-
+- **billing:** add subscriptionProvider to remaining SubscriptionSnapshot test fixtures ([f96e488](https://github.com/equationalapplications/clanker/commit/f96e4889df82bb72f496be76806d486180cbac79))
+- **billing:** address PR 572 Copilot review round 2 ([7f0c593](https://github.com/equationalapplications/clanker/commit/7f0c593877bfa7b8c6383f8c5b81ed5b33539e67))
+- **billing:** address PR 572 review feedback ([201a84b](https://github.com/equationalapplications/clanker/commit/201a84be5955a66be86e10c721b81ae298b710c1))
+- **billing:** address PR 573 review feedback ([923ed1a](https://github.com/equationalapplications/clanker/commit/923ed1a5b2d3d7ff5b023b44b90e01b032589f61))
+- **billing:** reconcile double-subscribe message, add resubscribe test, fix B2 doc ([3ea065c](https://github.com/equationalapplications/clanker/commit/3ea065cba1e2e225550d61ba9299fdf957c2fd10))
+- **rc-webhook:** actually thread transferred_from/to through to the TRANSFER log ([42bbbe9](https://github.com/equationalapplications/clanker/commit/42bbbe98a9d39ecfb4e91b0baa46b19b7f9bff73))
+- **rc-webhook:** gate GA4 purchase emission on recognized products; dedupe refund emission ([4f1107a](https://github.com/equationalapplications/clanker/commit/4f1107abd4c0c854069c02d5d74a3bbe2fa38c8a))
+- **rc-webhook:** handle CUSTOMER_SUPPORT refunds — downgrade + clawback ([9d2fa5f](https://github.com/equationalapplications/clanker/commit/9d2fa5f6ad540eb23a97a627a11e51e6661a3afd))
+- **rc-webhook:** ignore SANDBOX events so they never grant production credits ([3d7a5be](https://github.com/equationalapplications/clanker/commit/3d7a5be781616d100b545d403ba22dc913c033cf))
+- **rc-webhook:** product-guard CANCELLATION/EXPIRATION; deduct pack refunds ([fe74667](https://github.com/equationalapplications/clanker/commit/fe74667b95137637c1ebeb1bb2f2274ab1cd3d74))
 
 ### Features
 
-* **analytics:** canonical BigQuery views v_purchases + v_user_journey ([20d8227](https://github.com/equationalapplications/clanker/commit/20d8227079dc6701fc5fdd31153041f76c24275a))
-* **billing:** client double-subscribe gate via bootstrap subscriptionProvider ([e1c9e80](https://github.com/equationalapplications/clanker/commit/e1c9e80477f55a21bc998ad96bac217228a3ad62))
-* **billing:** map invalid-argument purchase failures to a refresh message ([a0167e1](https://github.com/equationalapplications/clanker/commit/a0167e138c97c141c5cf5ef9af10cae90d83d87e))
-* **ga4:** generalize purchase event (decimal value, provider tag, refund event) ([162c649](https://github.com/equationalapplications/clanker/commit/162c6495ae2bfaa865fcbec770b1de94f2c45249))
-* **rc-webhook:** emit GA4 purchase/refund events tagged revenuecat ([0da5322](https://github.com/equationalapplications/clanker/commit/0da5322ef9b951b76dc17f0ac337434babdf3693))
-* **rc-webhook:** extend parseRevenueCatEvent with revenue + refund fields ([e245174](https://github.com/equationalapplications/clanker/commit/e245174983fe8f58b5ded3298ca38d4078347baf))
-* **rc-webhook:** handle UNCANCELLATION, BILLING_ISSUE, TRANSFER ([9d29c2c](https://github.com/equationalapplications/clanker/commit/9d29c2c1ec6acc1ce39f72bde5862c263aa40585))
-* **stripe-webhook:** add GA4 parity for subscription purchases and refunds ([18cff7b](https://github.com/equationalapplications/clanker/commit/18cff7b2243aab239980f432858b6e44ca9dd0ed))
-* **stripe-webhook:** tag GA4 purchase events with paymentProvider=stripe ([b685536](https://github.com/equationalapplications/clanker/commit/b68553606bba0a87a39034e4b935c29689c7ebc6))
+- **analytics:** canonical BigQuery views v_purchases + v_user_journey ([20d8227](https://github.com/equationalapplications/clanker/commit/20d8227079dc6701fc5fdd31153041f76c24275a))
+- **billing:** client double-subscribe gate via bootstrap subscriptionProvider ([e1c9e80](https://github.com/equationalapplications/clanker/commit/e1c9e80477f55a21bc998ad96bac217228a3ad62))
+- **billing:** map invalid-argument purchase failures to a refresh message ([a0167e1](https://github.com/equationalapplications/clanker/commit/a0167e138c97c141c5cf5ef9af10cae90d83d87e))
+- **ga4:** generalize purchase event (decimal value, provider tag, refund event) ([162c649](https://github.com/equationalapplications/clanker/commit/162c6495ae2bfaa865fcbec770b1de94f2c45249))
+- **rc-webhook:** emit GA4 purchase/refund events tagged revenuecat ([0da5322](https://github.com/equationalapplications/clanker/commit/0da5322ef9b951b76dc17f0ac337434babdf3693))
+- **rc-webhook:** extend parseRevenueCatEvent with revenue + refund fields ([e245174](https://github.com/equationalapplications/clanker/commit/e245174983fe8f58b5ded3298ca38d4078347baf))
+- **rc-webhook:** handle UNCANCELLATION, BILLING_ISSUE, TRANSFER ([9d29c2c](https://github.com/equationalapplications/clanker/commit/9d29c2c1ec6acc1ce39f72bde5862c263aa40585))
+- **stripe-webhook:** add GA4 parity for subscription purchases and refunds ([18cff7b](https://github.com/equationalapplications/clanker/commit/18cff7b2243aab239980f432858b6e44ca9dd0ed))
+- **stripe-webhook:** tag GA4 purchase events with paymentProvider=stripe ([b685536](https://github.com/equationalapplications/clanker/commit/b68553606bba0a87a39034e4b935c29689c7ebc6))
 
 ## [30.29.1](https://github.com/equationalapplications/clanker/compare/v30.29.0...v30.29.1) (2026-07-20)
 
-
 ### Bug Fixes
 
-* **ios:** remove UIBackgroundModes audio from Info.plist ([311ec5a](https://github.com/equationalapplications/clanker/commit/311ec5afab3d81b63239d230c08b37f0c9d3eea2))
+- **ios:** remove UIBackgroundModes audio from Info.plist ([311ec5a](https://github.com/equationalapplications/clanker/commit/311ec5afab3d81b63239d230c08b37f0c9d3eea2))
 
 # [30.29.0](https://github.com/equationalapplications/clanker/compare/v30.28.1...v30.29.0) (2026-07-20)
 
-
 ### Bug Fixes
 
-* **db:** align handle_new_user signup guard with idempotency index ([83884a3](https://github.com/equationalapplications/clanker/commit/83884a3b92020f449823a4b9e87c9ee08d266101))
-* **db:** handle_new_user trigger still granted 50 credits, not 5000 ([d256ea5](https://github.com/equationalapplications/clanker/commit/d256ea5cbc2ef7f4f0136fdbafddc0fd67746fb6))
-* **functions,docs:** use pack subtotal for GA4 event; redact handoff PII ([f215407](https://github.com/equationalapplications/clanker/commit/f21540772859579794dd7f9f5a1663a9730c3dfb))
-* **functions:** convert GA4 purchase value using currency exponent ([d25af48](https://github.com/equationalapplications/clanker/commit/d25af488aedbb2805420db71f0f2eee35da953b6))
-* **functions:** treat UGX as two-decimal currency for GA4 events ([fce8648](https://github.com/equationalapplications/clanker/commit/fce8648aff6b8b0bbb9b6c35e12a2119b485c065))
-* **stripe:** trim whitespace from webhook secret and signature ([268e5cc](https://github.com/equationalapplications/clanker/commit/268e5cc38bd18e1cc8eea3e82f2f6aee4c0935c1))
-
+- **db:** align handle_new_user signup guard with idempotency index ([83884a3](https://github.com/equationalapplications/clanker/commit/83884a3b92020f449823a4b9e87c9ee08d266101))
+- **db:** handle_new_user trigger still granted 50 credits, not 5000 ([d256ea5](https://github.com/equationalapplications/clanker/commit/d256ea5cbc2ef7f4f0136fdbafddc0fd67746fb6))
+- **functions,docs:** use pack subtotal for GA4 event; redact handoff PII ([f215407](https://github.com/equationalapplications/clanker/commit/f21540772859579794dd7f9f5a1663a9730c3dfb))
+- **functions:** convert GA4 purchase value using currency exponent ([d25af48](https://github.com/equationalapplications/clanker/commit/d25af488aedbb2805420db71f0f2eee35da953b6))
+- **functions:** treat UGX as two-decimal currency for GA4 events ([fce8648](https://github.com/equationalapplications/clanker/commit/fce8648aff6b8b0bbb9b6c35e12a2119b485c065))
+- **stripe:** trim whitespace from webhook secret and signature ([268e5cc](https://github.com/equationalapplications/clanker/commit/268e5cc38bd18e1cc8eea3e82f2f6aee4c0935c1))
 
 ### Features
 
-* **functions:** add GA4 Measurement Protocol purchase event service ([c3d8bfb](https://github.com/equationalapplications/clanker/commit/c3d8bfba06115367f4e3569f89d604534dcb5e59))
-* **functions:** carry firebaseUid through stripeWebhook user lookups ([2ca980b](https://github.com/equationalapplications/clanker/commit/2ca980b0acfd777dcedfd7ddefbd92c86c2158e2))
-* **functions:** fire GA4 purchase event on credit-pack checkout completion ([2a1db7f](https://github.com/equationalapplications/clanker/commit/2a1db7f987991b9343308635b2f40201871e0cc8))
+- **functions:** add GA4 Measurement Protocol purchase event service ([c3d8bfb](https://github.com/equationalapplications/clanker/commit/c3d8bfba06115367f4e3569f89d604534dcb5e59))
+- **functions:** carry firebaseUid through stripeWebhook user lookups ([2ca980b](https://github.com/equationalapplications/clanker/commit/2ca980b0acfd777dcedfd7ddefbd92c86c2158e2))
+- **functions:** fire GA4 purchase event on credit-pack checkout completion ([2a1db7f](https://github.com/equationalapplications/clanker/commit/2a1db7f987991b9343308635b2f40201871e0cc8))
 
 ## [30.28.1](https://github.com/equationalapplications/clanker/compare/v30.28.0...v30.28.1) (2026-07-15)
 
-
 ### Bug Fixes
 
-* **characters:** drop credit cost helper from Save to Cloud toggle ([fa852ad](https://github.com/equationalapplications/clanker/commit/fa852ad0f25489fbb6338a488b932db6231f8cbc))
-* **deeplinks:** add Play App Signing key fingerprint to assetlinks.json ([8bcd271](https://github.com/equationalapplications/clanker/commit/8bcd27149a95c423113b3efe904b4933884bec4c))
-* **deeplinks:** derive native app-link host from share-origin override ([a28db41](https://github.com/equationalapplications/clanker/commit/a28db41f2908413691644866d89447a5f94bc46d))
-* **deeplinks:** drop www.clanker-ai.com as an app-link host ([c62f7ea](https://github.com/equationalapplications/clanker/commit/c62f7ea9f7091a66bdcd08581949201703e53994))
-* **functions:** retry empty Vertex responses on RECITATION ([2d42797](https://github.com/equationalapplications/clanker/commit/2d42797f20e515cd92991334c633e552dcc47b37))
+- **characters:** drop credit cost helper from Save to Cloud toggle ([fa852ad](https://github.com/equationalapplications/clanker/commit/fa852ad0f25489fbb6338a488b932db6231f8cbc))
+- **deeplinks:** add Play App Signing key fingerprint to assetlinks.json ([8bcd271](https://github.com/equationalapplications/clanker/commit/8bcd27149a95c423113b3efe904b4933884bec4c))
+- **deeplinks:** derive native app-link host from share-origin override ([a28db41](https://github.com/equationalapplications/clanker/commit/a28db41f2908413691644866d89447a5f94bc46d))
+- **deeplinks:** drop www.clanker-ai.com as an app-link host ([c62f7ea](https://github.com/equationalapplications/clanker/commit/c62f7ea9f7091a66bdcd08581949201703e53994))
+- **functions:** retry empty Vertex responses on RECITATION ([2d42797](https://github.com/equationalapplications/clanker/commit/2d42797f20e515cd92991334c633e552dcc47b37))
 
 # [30.28.0](https://github.com/equationalapplications/clanker/compare/v30.27.0...v30.28.0) (2026-07-14)
 
-
 ### Features
 
-* seed schema.org ontology manifest for cloud characters during sync ([3547b03](https://github.com/equationalapplications/clanker/commit/3547b037ffb1233318762d7dd4f2b349e887309d))
+- seed schema.org ontology manifest for cloud characters during sync ([3547b03](https://github.com/equationalapplications/clanker/commit/3547b037ffb1233318762d7dd4f2b349e887309d))
 
 # [30.27.0](https://github.com/equationalapplications/clanker/compare/v30.26.1...v30.27.0) (2026-07-14)
 
-
 ### Bug Fixes
 
-* **chat:** survive cloud-agent cold start on WebSocket connect ([85bdb75](https://github.com/equationalapplications/clanker/commit/85bdb75f3338bbfe557511cd56fb6a0d68a00f1b))
-* **functions:** declare Cloud SQL secrets on summarizeText ([67a5d3a](https://github.com/equationalapplications/clanker/commit/67a5d3a8e6cc9a6b9c94ca0d6e93477be9020d28))
-* rename WS connect-timeout timer to avoid auth-timeout confusion ([84e9e8a](https://github.com/equationalapplications/clanker/commit/84e9e8af3c6a1dbf095716ec6fcbc8af53c73617))
-
+- **chat:** survive cloud-agent cold start on WebSocket connect ([85bdb75](https://github.com/equationalapplications/clanker/commit/85bdb75f3338bbfe557511cd56fb6a0d68a00f1b))
+- **functions:** declare Cloud SQL secrets on summarizeText ([67a5d3a](https://github.com/equationalapplications/clanker/commit/67a5d3a8e6cc9a6b9c94ca0d6e93477be9020d28))
+- rename WS connect-timeout timer to avoid auth-timeout confusion ([84e9e8a](https://github.com/equationalapplications/clanker/commit/84e9e8af3c6a1dbf095716ec6fcbc8af53c73617))
 
 ### Features
 
-* run ontology backfill per cloud character after wiki sync ([f9430d3](https://github.com/equationalapplications/clanker/commit/f9430d30d77963ede2c0c0cf880f0a1ad9ad7a6d))
+- run ontology backfill per cloud character after wiki sync ([f9430d3](https://github.com/equationalapplications/clanker/commit/f9430d30d77963ede2c0c0cf880f0a1ad9ad7a6d))
 
 ## [30.26.1](https://github.com/equationalapplications/clanker/compare/v30.26.0...v30.26.1) (2026-07-09)
 
-
 ### Bug Fixes
 
-* **functions:** add promptFeedback to empty-response logging, test empty candidates ([2f2096c](https://github.com/equationalapplications/clanker/commit/2f2096cc6512df32008997c48c479433d76a6ea5))
+- **functions:** add promptFeedback to empty-response logging, test empty candidates ([2f2096c](https://github.com/equationalapplications/clanker/commit/2f2096cc6512df32008997c48c479433d76a6ea5))
 
 # [30.26.0](https://github.com/equationalapplications/clanker/compare/v30.25.0...v30.26.0) (2026-07-09)
 
-
 ### Bug Fixes
 
-* address CodeRabbit review on PR [#554](https://github.com/equationalapplications/clanker/issues/554) ([ce35cb7](https://github.com/equationalapplications/clanker/commit/ce35cb7381027f657a402f3572f4e15e3576bf81))
-* **functions:** convertDocumentText uses shared vertexText retry helper ([46001e5](https://github.com/equationalapplications/clanker/commit/46001e5c2b3e7169227fe7d6bf6e20fcc594a709))
-* **functions:** memory generateContent throws on empty (latent bug) + budget 1024 ([2d7dd99](https://github.com/equationalapplications/clanker/commit/2d7dd9978591bb601d3e97414b3f2f3701a9dd28))
-* **functions:** summarizeText uses shared vertexText retry helper ([3ebebe4](https://github.com/equationalapplications/clanker/commit/3ebebe45239074ff511c85e00e45b807dee854a7))
-* **functions:** wikiLlm uses shared retry, drops degenerate responseSchema, budget 1024 ([bd96842](https://github.com/equationalapplications/clanker/commit/bd96842aee00ff3c9895d5a4672efe045fd5626d))
-* **wiki:** adopt expo-llm-wiki 4.20 transaction serialization ([9a1371f](https://github.com/equationalapplications/clanker/commit/9a1371f2d8ce419049856ebff87c75b728fa10f0))
-* **wiki:** drop getOrSpawn fire-and-forget bootstrap, harden syncAll dedup ([b955fb2](https://github.com/equationalapplications/clanker/commit/b955fb20402892f22cc9cd8018349912220dd5f4))
-* **wiki:** order ontology bootstrap through actor bootstrapping state ([4093469](https://github.com/equationalapplications/clanker/commit/40934690582381c706db5d3f4bf975c05355342a))
-
+- address CodeRabbit review on PR [#554](https://github.com/equationalapplications/clanker/issues/554) ([ce35cb7](https://github.com/equationalapplications/clanker/commit/ce35cb7381027f657a402f3572f4e15e3576bf81))
+- **functions:** convertDocumentText uses shared vertexText retry helper ([46001e5](https://github.com/equationalapplications/clanker/commit/46001e5c2b3e7169227fe7d6bf6e20fcc594a709))
+- **functions:** memory generateContent throws on empty (latent bug) + budget 1024 ([2d7dd99](https://github.com/equationalapplications/clanker/commit/2d7dd9978591bb601d3e97414b3f2f3701a9dd28))
+- **functions:** summarizeText uses shared vertexText retry helper ([3ebebe4](https://github.com/equationalapplications/clanker/commit/3ebebe45239074ff511c85e00e45b807dee854a7))
+- **functions:** wikiLlm uses shared retry, drops degenerate responseSchema, budget 1024 ([bd96842](https://github.com/equationalapplications/clanker/commit/bd96842aee00ff3c9895d5a4672efe045fd5626d))
+- **wiki:** adopt expo-llm-wiki 4.20 transaction serialization ([9a1371f](https://github.com/equationalapplications/clanker/commit/9a1371f2d8ce419049856ebff87c75b728fa10f0))
+- **wiki:** drop getOrSpawn fire-and-forget bootstrap, harden syncAll dedup ([b955fb2](https://github.com/equationalapplications/clanker/commit/b955fb20402892f22cc9cd8018349912220dd5f4))
+- **wiki:** order ontology bootstrap through actor bootstrapping state ([4093469](https://github.com/equationalapplications/clanker/commit/40934690582381c706db5d3f4bf975c05355342a))
 
 ### Features
 
-* **functions:** shared vertexText helper with empty-response retry+logging ([1d6050e](https://github.com/equationalapplications/clanker/commit/1d6050e8b195270b434d8ced5725826465419dc8))
+- **functions:** shared vertexText helper with empty-response retry+logging ([1d6050e](https://github.com/equationalapplications/clanker/commit/1d6050e8b195270b434d8ced5725826465419dc8))
 
 # [30.25.0](https://github.com/equationalapplications/clanker/compare/v30.24.0...v30.25.0) (2026-07-09)
 
-
 ### Bug Fixes
 
-* avoid render-time setState in ChatComposer, correct test height constants ([3dc9520](https://github.com/equationalapplications/clanker/commit/3dc9520217de062a807ec725adc78892a3559846))
-* avoid setState-in-effect lint error, correct web composer padding const ([0090bd6](https://github.com/equationalapplications/clanker/commit/0090bd6b5426e2d06a99bf433b4c10d9f7660cc1))
-* repair embedding credits, chat composer height, and OTA export ([858643f](https://github.com/equationalapplications/clanker/commit/858643f0ab488523e4cd12e8c31ad27f7f8d0536))
-* unbreak chatViewAccessibility suite and typecheck ([7defe0d](https://github.com/equationalapplications/clanker/commit/7defe0d397c74e6d54e94fcd04cda3191a89275f))
-* unify menu busy guard, add menu-close assertion, tag doc fence ([6ab58fc](https://github.com/equationalapplications/clanker/commit/6ab58fc09dd4327fc4576ff3d8ddd4310eaf3b9b))
-
+- avoid render-time setState in ChatComposer, correct test height constants ([3dc9520](https://github.com/equationalapplications/clanker/commit/3dc9520217de062a807ec725adc78892a3559846))
+- avoid setState-in-effect lint error, correct web composer padding const ([0090bd6](https://github.com/equationalapplications/clanker/commit/0090bd6b5426e2d06a99bf433b4c10d9f7660cc1))
+- repair embedding credits, chat composer height, and OTA export ([858643f](https://github.com/equationalapplications/clanker/commit/858643f0ab488523e4cd12e8c31ad27f7f8d0536))
+- unbreak chatViewAccessibility suite and typecheck ([7defe0d](https://github.com/equationalapplications/clanker/commit/7defe0d397c74e6d54e94fcd04cda3191a89275f))
+- unify menu busy guard, add menu-close assertion, tag doc fence ([6ab58fc](https://github.com/equationalapplications/clanker/commit/6ab58fc09dd4327fc4576ff3d8ddd4310eaf3b9b))
 
 ### Features
 
-* collapse character list header actions into overflow menu ([ef6dfcf](https://github.com/equationalapplications/clanker/commit/ef6dfcf703768aad6df25c4f066bffa1995119e0))
+- collapse character list header actions into overflow menu ([ef6dfcf](https://github.com/equationalapplications/clanker/commit/ef6dfcf703768aad6df25c4f066bffa1995119e0))
 
 # [30.24.0](https://github.com/equationalapplications/clanker/compare/v30.23.0...v30.24.0) (2026-07-08)
 
-
 ### Bug Fixes
 
-* **cloud-agent:** update test mocks for 100-credit turn minimum ([0cd6619](https://github.com/equationalapplications/clanker/commit/0cd6619727f148fc26776c9e18b1b895b7f61a91))
-* detect band transitions in LowPowerBanner to avoid setState in effect ([f4a9560](https://github.com/equationalapplications/clanker/commit/f4a956046e1a4d002bfcb6c91065334cc9b07641))
-* **lint:** remove unused imports/vars flagged by eslint ([04daaa2](https://github.com/equationalapplications/clanker/commit/04daaa24a20bbbcc6bf8b5cd083e330a27e5b63e))
-* **power meter:** address code review findings from spec implementation ([157df5f](https://github.com/equationalapplications/clanker/commit/157df5f5b7340c63bc74a2f5df6dcd4f8cb2b361))
-* **power meter:** call useRouter unconditionally in LowPowerBanner ([fefbd7e](https://github.com/equationalapplications/clanker/commit/fefbd7ea39c651cdc9f0ba241cf2ab399bece1e3))
-* **power meter:** resolve code review findings from spec review ([b2e688c](https://github.com/equationalapplications/clanker/commit/b2e688cafbd6c54a59720f8a30c5715a0f885e4c))
-* **power meter:** resolve review feedback and restore chat UI ([d754914](https://github.com/equationalapplications/clanker/commit/d754914d3f0974c9fb8ca10497e22694b06ed3db))
-* **pr-review:** address major findings from PR [#550](https://github.com/equationalapplications/clanker/issues/550) review ([f7e0ed1](https://github.com/equationalapplications/clanker/commit/f7e0ed1e6dc4772cd95672206e9fbc0c622122c0))
-* **privacy:** join wrapped source lines into paragraphs for RN Text ([991099b](https://github.com/equationalapplications/clanker/commit/991099ba7bb69910d1067d00b3d203062e2f9ead))
-* **privacy:** replace wrong support@clanker.app with correct contact email ([54e574f](https://github.com/equationalapplications/clanker/commit/54e574f4ca131ab58e3326ccd5eed6a9dcc8802f))
-* **tests:** add useRouter to expo-router mock in chatViewAccessibility ([3275458](https://github.com/equationalapplications/clanker/commit/3275458d0ccaaca60595e7de7ec381c71b67d68d))
-* **tests:** resolve bootstrapSession dedupe and native ChatComposer submit handling ([db23b0b](https://github.com/equationalapplications/clanker/commit/db23b0b339952564d8580b6e2ddbf5eacdd148bb))
-
+- **cloud-agent:** update test mocks for 100-credit turn minimum ([0cd6619](https://github.com/equationalapplications/clanker/commit/0cd6619727f148fc26776c9e18b1b895b7f61a91))
+- detect band transitions in LowPowerBanner to avoid setState in effect ([f4a9560](https://github.com/equationalapplications/clanker/commit/f4a956046e1a4d002bfcb6c91065334cc9b07641))
+- **lint:** remove unused imports/vars flagged by eslint ([04daaa2](https://github.com/equationalapplications/clanker/commit/04daaa24a20bbbcc6bf8b5cd083e330a27e5b63e))
+- **power meter:** address code review findings from spec implementation ([157df5f](https://github.com/equationalapplications/clanker/commit/157df5f5b7340c63bc74a2f5df6dcd4f8cb2b361))
+- **power meter:** call useRouter unconditionally in LowPowerBanner ([fefbd7e](https://github.com/equationalapplications/clanker/commit/fefbd7ea39c651cdc9f0ba241cf2ab399bece1e3))
+- **power meter:** resolve code review findings from spec review ([b2e688c](https://github.com/equationalapplications/clanker/commit/b2e688cafbd6c54a59720f8a30c5715a0f885e4c))
+- **power meter:** resolve review feedback and restore chat UI ([d754914](https://github.com/equationalapplications/clanker/commit/d754914d3f0974c9fb8ca10497e22694b06ed3db))
+- **pr-review:** address major findings from PR [#550](https://github.com/equationalapplications/clanker/issues/550) review ([f7e0ed1](https://github.com/equationalapplications/clanker/commit/f7e0ed1e6dc4772cd95672206e9fbc0c622122c0))
+- **privacy:** join wrapped source lines into paragraphs for RN Text ([991099b](https://github.com/equationalapplications/clanker/commit/991099ba7bb69910d1067d00b3d203062e2f9ead))
+- **privacy:** replace wrong support@clanker.app with correct contact email ([54e574f](https://github.com/equationalapplications/clanker/commit/54e574f4ca131ab58e3326ccd5eed6a9dcc8802f))
+- **tests:** add useRouter to expo-router mock in chatViewAccessibility ([3275458](https://github.com/equationalapplications/clanker/commit/3275458d0ccaaca60595e7de7ec381c71b67d68d))
+- **tests:** resolve bootstrapSession dedupe and native ChatComposer submit handling ([db23b0b](https://github.com/equationalapplications/clanker/commit/db23b0b339952564d8580b6e2ddbf5eacdd148bb))
 
 ### Features
 
-* add grantedTotal, show Power balance, and update credit messages ([e70dd10](https://github.com/equationalapplications/clanker/commit/e70dd1051f9fa68e489f31f41f00fa02349a8124))
-* add LowPowerBanner, update error strings, inflate dev sandbox ([b624c1b](https://github.com/equationalapplications/clanker/commit/b624c1b5bb47f760739694f9e046174bd9f63412))
-* **cloud-agent:** credit costs and voice gate x100 (Power units) ([7797f5b](https://github.com/equationalapplications/clanker/commit/7797f5b06a05feb4eefdec0c4c2c147ae69ba86b))
-* **db:** inflate credit units x100 for Power migration ([7f3127d](https://github.com/equationalapplications/clanker/commit/7f3127d7b5d8651ae57fbe8a0298330f9344e234))
-* **functions:** credit costs and grants x100 (Power units) ([a261c7a](https://github.com/equationalapplications/clanker/commit/a261c7a2da67ea3c70a764b739c37c91328b65d7))
-* **functions:** expose grantedTotal for power meter denominator ([637329f](https://github.com/equationalapplications/clanker/commit/637329fed72e91d904f36551f905f7a367a9228f))
-* grantedTotal plumbing and usePowerBalance hook ([125ae07](https://github.com/equationalapplications/clanker/commit/125ae07a062f636e62e24aa9e38e549625756611))
-* replace credit badge with PowerMeter ([45fe5fc](https://github.com/equationalapplications/clanker/commit/45fe5fc27fbe3d5a219e78fc158f894998904c01))
-* replace credits with Power terminology and add pricing section ([5e24813](https://github.com/equationalapplications/clanker/commit/5e248130d8ebd7c3286ab7477ce3c8e7e1cd1074))
-* thread grantedTotal through auth machine and fix creditService query ([a33fae8](https://github.com/equationalapplications/clanker/commit/a33fae8b9365d8e480e5ee1baa25c5d1f4f6561e))
+- add grantedTotal, show Power balance, and update credit messages ([e70dd10](https://github.com/equationalapplications/clanker/commit/e70dd1051f9fa68e489f31f41f00fa02349a8124))
+- add LowPowerBanner, update error strings, inflate dev sandbox ([b624c1b](https://github.com/equationalapplications/clanker/commit/b624c1b5bb47f760739694f9e046174bd9f63412))
+- **cloud-agent:** credit costs and voice gate x100 (Power units) ([7797f5b](https://github.com/equationalapplications/clanker/commit/7797f5b06a05feb4eefdec0c4c2c147ae69ba86b))
+- **db:** inflate credit units x100 for Power migration ([7f3127d](https://github.com/equationalapplications/clanker/commit/7f3127d7b5d8651ae57fbe8a0298330f9344e234))
+- **functions:** credit costs and grants x100 (Power units) ([a261c7a](https://github.com/equationalapplications/clanker/commit/a261c7a2da67ea3c70a764b739c37c91328b65d7))
+- **functions:** expose grantedTotal for power meter denominator ([637329f](https://github.com/equationalapplications/clanker/commit/637329fed72e91d904f36551f905f7a367a9228f))
+- grantedTotal plumbing and usePowerBalance hook ([125ae07](https://github.com/equationalapplications/clanker/commit/125ae07a062f636e62e24aa9e38e549625756611))
+- replace credit badge with PowerMeter ([45fe5fc](https://github.com/equationalapplications/clanker/commit/45fe5fc27fbe3d5a219e78fc158f894998904c01))
+- replace credits with Power terminology and add pricing section ([5e24813](https://github.com/equationalapplications/clanker/commit/5e248130d8ebd7c3286ab7477ce3c8e7e1cd1074))
+- thread grantedTotal through auth machine and fix creditService query ([a33fae8](https://github.com/equationalapplications/clanker/commit/a33fae8b9365d8e480e5ee1baa25c5d1f4f6561e))
 
 # [30.23.0](https://github.com/equationalapplications/clanker/compare/v30.22.1...v30.23.0) (2026-07-07)
 
-
 ### Bug Fixes
 
-* address PR [#548](https://github.com/equationalapplications/clanker/issues/548) review threads ([ed454e3](https://github.com/equationalapplications/clanker/commit/ed454e3f75d7cdbe3709eac0f31f7590bfb53052))
-* **privacy:** update deletion path in privacy policy and increment version ([2788fb9](https://github.com/equationalapplications/clanker/commit/2788fb97d985d9cb6a9b1af6a520248b5bc157db))
-* **test:** unfreeze characterVoiceMigration test from DEFAULT_VOICE constant ([9dd2da9](https://github.com/equationalapplications/clanker/commit/9dd2da9217b116795ad3cc94d9f4565abff34130))
-* **voice:** expand live-voice allow-list, fix Umbriel default landmine ([2440c6b](https://github.com/equationalapplications/clanker/commit/2440c6be39c6fb9e14cc5659b0089d9414682f72))
-
+- address PR [#548](https://github.com/equationalapplications/clanker/issues/548) review threads ([ed454e3](https://github.com/equationalapplications/clanker/commit/ed454e3f75d7cdbe3709eac0f31f7590bfb53052))
+- **privacy:** update deletion path in privacy policy and increment version ([2788fb9](https://github.com/equationalapplications/clanker/commit/2788fb97d985d9cb6a9b1af6a520248b5bc157db))
+- **test:** unfreeze characterVoiceMigration test from DEFAULT_VOICE constant ([9dd2da9](https://github.com/equationalapplications/clanker/commit/9dd2da9217b116795ad3cc94d9f4565abff34130))
+- **voice:** expand live-voice allow-list, fix Umbriel default landmine ([2440c6b](https://github.com/equationalapplications/clanker/commit/2440c6be39c6fb9e14cc5659b0089d9414682f72))
 
 ### Features
 
-* **privacy:** update privacy policy, consent defaults, and account deletion flow ([be87bea](https://github.com/equationalapplications/clanker/commit/be87bea6d7a69a3a0da9cb02838217bfbb2f60ec))
+- **privacy:** update privacy policy, consent defaults, and account deletion flow ([be87bea](https://github.com/equationalapplications/clanker/commit/be87bea6d7a69a3a0da9cb02838217bfbb2f60ec))
 
 ## [30.22.1](https://github.com/equationalapplications/clanker/compare/v30.22.0...v30.22.1) (2026-07-07)
 
-
 ### Bug Fixes
 
-* **cloud-agent:** clear dispatched taskId on dispatch write failure ([bfd0148](https://github.com/equationalapplications/clanker/commit/bfd01482b9e898980fbd66d4f4a4ca93e788bb05))
-* **cloud-agent:** repair corrupted wsDesktopAgentHandler.ts (syntax error) ([ccddf8a](https://github.com/equationalapplications/clanker/commit/ccddf8a1d693bf87c7939d77ccdc33c257fa9c97)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
-* **desktop-vault-bridge:** guard markDesktopTaskExecuting against terminal-state overwrite ([2b1d299](https://github.com/equationalapplications/clanker/commit/2b1d2996ce36e4fb0706d342be1a860aa83d2bb4)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
-* **desktop-vault-bridge:** per-turn vault cap in voice, unify local dispatch ([8da9f83](https://github.com/equationalapplications/clanker/commit/8da9f83587ff433d2d29ebb5ce0ceade19c865db))
+- **cloud-agent:** clear dispatched taskId on dispatch write failure ([bfd0148](https://github.com/equationalapplications/clanker/commit/bfd01482b9e898980fbd66d4f4a4ca93e788bb05))
+- **cloud-agent:** repair corrupted wsDesktopAgentHandler.ts (syntax error) ([ccddf8a](https://github.com/equationalapplications/clanker/commit/ccddf8a1d693bf87c7939d77ccdc33c257fa9c97)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
+- **desktop-vault-bridge:** guard markDesktopTaskExecuting against terminal-state overwrite ([2b1d299](https://github.com/equationalapplications/clanker/commit/2b1d2996ce36e4fb0706d342be1a860aa83d2bb4)), closes [#545](https://github.com/equationalapplications/clanker/issues/545)
+- **desktop-vault-bridge:** per-turn vault cap in voice, unify local dispatch ([8da9f83](https://github.com/equationalapplications/clanker/commit/8da9f83587ff433d2d29ebb5ce0ceade19c865db))
 
 # [30.22.0](https://github.com/equationalapplications/clanker/compare/v30.21.1...v30.22.0) (2026-07-07)
 
-
 ### Bug Fixes
 
-* **desktop-vault-bridge:** complete review fixes ([2176336](https://github.com/equationalapplications/clanker/commit/2176336929de550a31e8adc229a66ee99ff16995))
-* **metro:** stop bundling .cjs modules as assets ([7438cba](https://github.com/equationalapplications/clanker/commit/7438cbaa87fda701ceb75ba0ada479f886fe2a04))
-
+- **desktop-vault-bridge:** complete review fixes ([2176336](https://github.com/equationalapplications/clanker/commit/2176336929de550a31e8adc229a66ee99ff16995))
+- **metro:** stop bundling .cjs modules as assets ([7438cba](https://github.com/equationalapplications/clanker/commit/7438cbaa87fda701ceb75ba0ada479f886fe2a04))
 
 ### Features
 
-* **cloud-agent:** add desktop vault bridge for Curated Thoughts ([77808d1](https://github.com/equationalapplications/clanker/commit/77808d15afac64a99550ff37d9153c2e780be2ad))
+- **cloud-agent:** add desktop vault bridge for Curated Thoughts ([77808d1](https://github.com/equationalapplications/clanker/commit/77808d15afac64a99550ff37d9153c2e780be2ad))
 
 ## [30.21.1](https://github.com/equationalapplications/clanker/compare/v30.21.0...v30.21.1) (2026-07-06)
 
-
 ### Bug Fixes
 
-* auto-sync default characters and prevent duplicate cloud uploads ([79fed5b](https://github.com/equationalapplications/clanker/commit/79fed5b3454c29a932a3578c4d7416d59635866d))
-* **database:** include pending_cloud_id in bootstrap schema check ([a76d594](https://github.com/equationalapplications/clanker/commit/a76d5949b64708e258a6da2de0e13736fa290a4a))
-* use expo-crypto for UUID generation on Hermes ([c245578](https://github.com/equationalapplications/clanker/commit/c2455780eee5d6f86af64348f8cd7e9cc44119a6))
+- auto-sync default characters and prevent duplicate cloud uploads ([79fed5b](https://github.com/equationalapplications/clanker/commit/79fed5b3454c29a932a3578c4d7416d59635866d))
+- **database:** include pending_cloud_id in bootstrap schema check ([a76d594](https://github.com/equationalapplications/clanker/commit/a76d5949b64708e258a6da2de0e13736fa290a4a))
+- use expo-crypto for UUID generation on Hermes ([c245578](https://github.com/equationalapplications/clanker/commit/c2455780eee5d6f86af64348f8cd7e9cc44119a6))
 
 # [30.21.0](https://github.com/equationalapplications/clanker/compare/v30.20.0...v30.21.0) (2026-07-06)
 
-
 ### Bug Fixes
 
-* add expo-notifications plugin for native push builds ([24d2648](https://github.com/equationalapplications/clanker/commit/24d26489d77bd30c5e781ee957abc07e8cdb5585))
-* address PR [#536](https://github.com/equationalapplications/clanker/issues/536) review feedback on docs and fixtures ([57cee8f](https://github.com/equationalapplications/clanker/commit/57cee8f501c22c07a727a33862630dd48a787b2c))
-* exclude vendored OKF fixtures from Prettier in CI ([902af03](https://github.com/equationalapplications/clanker/commit/902af036c1ea7dbfaf1d10400927a22014934f78))
-* harden web push installation id and jest Platform.OS overrides ([d2c4de9](https://github.com/equationalapplications/clanker/commit/d2c4de9cd2b3de1f27a69a43372501f1a89c5297))
-* regenerate event ids on clone remap — profile v1 preserves them ([df4453e](https://github.com/equationalapplications/clanker/commit/df4453e1f9f05f0907867b61ea49de9048c89ed1))
-* remove invalid RNFB analytics Expo config plugin ([09630b9](https://github.com/equationalapplications/clanker/commit/09630b9389ef50766b4a0e41b0b7c1224702fb56))
-* unify push token registration via Firebase callable ([35aa248](https://github.com/equationalapplications/clanker/commit/35aa2487ba9f0853bcf21c2eddcd74ecdc9a4e0b))
-
+- add expo-notifications plugin for native push builds ([24d2648](https://github.com/equationalapplications/clanker/commit/24d26489d77bd30c5e781ee957abc07e8cdb5585))
+- address PR [#536](https://github.com/equationalapplications/clanker/issues/536) review feedback on docs and fixtures ([57cee8f](https://github.com/equationalapplications/clanker/commit/57cee8f501c22c07a727a33862630dd48a787b2c))
+- exclude vendored OKF fixtures from Prettier in CI ([902af03](https://github.com/equationalapplications/clanker/commit/902af036c1ea7dbfaf1d10400927a22014934f78))
+- harden web push installation id and jest Platform.OS overrides ([d2c4de9](https://github.com/equationalapplications/clanker/commit/d2c4de9cd2b3de1f27a69a43372501f1a89c5297))
+- regenerate event ids on clone remap — profile v1 preserves them ([df4453e](https://github.com/equationalapplications/clanker/commit/df4453e1f9f05f0907867b61ea49de9048c89ed1))
+- remove invalid RNFB analytics Expo config plugin ([09630b9](https://github.com/equationalapplications/clanker/commit/09630b9389ef50766b4a0e41b0b7c1224702fb56))
+- unify push token registration via Firebase callable ([35aa248](https://github.com/equationalapplications/clanker/commit/35aa2487ba9f0853bcf21c2eddcd74ecdc9a4e0b))
 
 ### Features
 
-* add event-id scan and profile/summary preview utils ([558a694](https://github.com/equationalapplications/clanker/commit/558a694f476b703a3d57b84683db605df55fc5e6))
-* drop call-site edge augmentation — package emits ## Related natively ([9dc18ac](https://github.com/equationalapplications/clanker/commit/9dc18acc18c42bf2c715156fd0f0eb2363a1f971))
-* id-aware dedup wiring and profile/summary preview stats in import hook ([bb74942](https://github.com/equationalapplications/clanker/commit/bb74942ae17d55c4e393a6042871e1819ce64d95))
-* id-first event dedup with per-event tuple fallback ([e09020c](https://github.com/equationalapplications/clanker/commit/e09020c34002c23a02433f875e1e7d6a064b2167))
-* read-only memory summary section on character edit screen ([105bb94](https://github.com/equationalapplications/clanker/commit/105bb94bb75efbc05979b3165ad0b9d3a87ccea1))
-* show OKF profile badge and summary snippet in import previews ([cfd3fec](https://github.com/equationalapplications/clanker/commit/cfd3fec73125845e80ebc528e4f7e2d3b750a910))
+- add event-id scan and profile/summary preview utils ([558a694](https://github.com/equationalapplications/clanker/commit/558a694f476b703a3d57b84683db605df55fc5e6))
+- drop call-site edge augmentation — package emits ## Related natively ([9dc18ac](https://github.com/equationalapplications/clanker/commit/9dc18acc18c42bf2c715156fd0f0eb2363a1f971))
+- id-aware dedup wiring and profile/summary preview stats in import hook ([bb74942](https://github.com/equationalapplications/clanker/commit/bb74942ae17d55c4e393a6042871e1819ce64d95))
+- id-first event dedup with per-event tuple fallback ([e09020c](https://github.com/equationalapplications/clanker/commit/e09020c34002c23a02433f875e1e7d6a064b2167))
+- read-only memory summary section on character edit screen ([105bb94](https://github.com/equationalapplications/clanker/commit/105bb94bb75efbc05979b3165ad0b9d3a87ccea1))
+- show OKF profile badge and summary snippet in import previews ([cfd3fec](https://github.com/equationalapplications/clanker/commit/cfd3fec73125845e80ebc528e4f7e2d3b750a910))
 
 # [30.20.0](https://github.com/equationalapplications/clanker/compare/v30.19.2...v30.20.0) (2026-07-05)
 
-
 ### Bug Fixes
 
-* **analytics:** address PR 535 review feedback ([6855bc2](https://github.com/equationalapplications/clanker/commit/6855bc27b366afde9ac76acf8641271eb0300c44))
-* wire native analytics consent and guard web init failures ([2b35bc5](https://github.com/equationalapplications/clanker/commit/2b35bc5f2fb843063c73aa5ab355f8111fdc28cc))
-
+- **analytics:** address PR 535 review feedback ([6855bc2](https://github.com/equationalapplications/clanker/commit/6855bc27b366afde9ac76acf8641271eb0300c44))
+- wire native analytics consent and guard web init failures ([2b35bc5](https://github.com/equationalapplications/clanker/commit/2b35bc5f2fb843063c73aa5ab355f8111fdc28cc))
 
 ### Features
 
-* add Firebase Analytics (GA4) across platforms ([8176195](https://github.com/equationalapplications/clanker/commit/817619592bc29aa720fdced35b54a83317038d6f))
+- add Firebase Analytics (GA4) across platforms ([8176195](https://github.com/equationalapplications/clanker/commit/817619592bc29aa720fdced35b54a83317038d6f))
 
 ## [30.19.2](https://github.com/equationalapplications/clanker/compare/v30.19.1...v30.19.2) (2026-07-05)
 
-
 ### Bug Fixes
 
-* align marketing and support copy for chat pricing ([34ba27b](https://github.com/equationalapplications/clanker/commit/34ba27b0d4f1a817b3b26276bcb642472faa0679))
-* clarify support voice link points to feature details ([59df45c](https://github.com/equationalapplications/clanker/commit/59df45c52b57cb2c9948a0652d8b6d3c004683e6))
+- align marketing and support copy for chat pricing ([34ba27b](https://github.com/equationalapplications/clanker/commit/34ba27b0d4f1a817b3b26276bcb642472faa0679))
+- clarify support voice link points to feature details ([59df45c](https://github.com/equationalapplications/clanker/commit/59df45c52b57cb2c9948a0652d8b6d3c004683e6))
 
 ## [30.19.1](https://github.com/equationalapplications/clanker/compare/v30.19.0...v30.19.1) (2026-07-05)
 
-
 ### Bug Fixes
 
-* add allow-same-origin to YouTube iframe sandbox on landing pages ([deed46f](https://github.com/equationalapplications/clanker/commit/deed46f926f7142eb9cfff3e01b03c3e18464a0e))
+- add allow-same-origin to YouTube iframe sandbox on landing pages ([deed46f](https://github.com/equationalapplications/clanker/commit/deed46f926f7142eb9cfff3e01b03c3e18464a0e))
 
 # [30.19.0](https://github.com/equationalapplications/clanker/compare/v30.18.0...v30.19.0) (2026-07-04)
 
-
 ### Bug Fixes
 
-* address PR review feedback for landing page unification ([f79a5ee](https://github.com/equationalapplications/clanker/commit/f79a5ee94b088d88b1101f477cb68ec020179b24))
-* escape double quotes in HTML attribute values ([37aa8e0](https://github.com/equationalapplications/clanker/commit/37aa8e0e85b89fd9c5786d373562a3d27a7fdc8d))
-
+- address PR review feedback for landing page unification ([f79a5ee](https://github.com/equationalapplications/clanker/commit/f79a5ee94b088d88b1101f477cb68ec020179b24))
+- escape double quotes in HTML attribute values ([37aa8e0](https://github.com/equationalapplications/clanker/commit/37aa8e0e85b89fd9c5786d373562a3d27a7fdc8d))
 
 ### Features
 
-* unify landing page content across React and static welcome ([2205378](https://github.com/equationalapplications/clanker/commit/2205378f0de03407830a11f30136c52fc2204ff1))
+- unify landing page content across React and static welcome ([2205378](https://github.com/equationalapplications/clanker/commit/2205378f0de03407830a11f30136c52fc2204ff1))
 
 # [30.18.0](https://github.com/equationalapplications/clanker/compare/v30.17.0...v30.18.0) (2026-07-04)
 
-
 ### Bug Fixes
 
-* align SEO metadata and sitemap lastmod with review feedback ([ad15e77](https://github.com/equationalapplications/clanker/commit/ad15e77ad80393ebc8723d402b768860d8d882df))
-
+- align SEO metadata and sitemap lastmod with review feedback ([ad15e77](https://github.com/equationalapplications/clanker/commit/ad15e77ad80393ebc8723d402b768860d8d882df))
 
 ### Features
 
-* add public landing pages and SEO improvements ([045d67c](https://github.com/equationalapplications/clanker/commit/045d67cf02e141d4acc4ac94e3c5a41c34fa89e7))
+- add public landing pages and SEO improvements ([045d67c](https://github.com/equationalapplications/clanker/commit/045d67cf02e141d4acc4ac94e3c5a41c34fa89e7))
 
 # [30.17.0](https://github.com/equationalapplications/clanker/compare/v30.16.0...v30.17.0) (2026-07-04)
 
-
 ### Bug Fixes
 
-* **deps:** bump llm packages to 4.17.3 ([2f692c7](https://github.com/equationalapplications/clanker/commit/2f692c7cc8aa9511adb659a72e2c35afc07bf3f7))
-* **okf:** add explicit Cancel button to import preview modal ([1dc6549](https://github.com/equationalapplications/clanker/commit/1dc654978bafcbbc4a9ad96dfbad7a51d6c831e1))
-* **okf:** address CodeRabbit review feedback ([185801d](https://github.com/equationalapplications/clanker/commit/185801d71f4376ae20c6d403ec134e0e7740e1c5))
-* **okf:** harden import and export flows ([a70b894](https://github.com/equationalapplications/clanker/commit/a70b894837e3e7eca703cf1e9483649f29426244))
-* **okf:** keep export loading state through native save ([7e44ae3](https://github.com/equationalapplications/clanker/commit/7e44ae31778f04f1cefcb5b87125faf869aa3fd9))
-* **okf:** save Android exports to device via SAF ([77cbcae](https://github.com/equationalapplications/clanker/commit/77cbcae68c9839e43b054847b37e84b240713201))
-
+- **deps:** bump llm packages to 4.17.3 ([2f692c7](https://github.com/equationalapplications/clanker/commit/2f692c7cc8aa9511adb659a72e2c35afc07bf3f7))
+- **okf:** add explicit Cancel button to import preview modal ([1dc6549](https://github.com/equationalapplications/clanker/commit/1dc654978bafcbbc4a9ad96dfbad7a51d6c831e1))
+- **okf:** address CodeRabbit review feedback ([185801d](https://github.com/equationalapplications/clanker/commit/185801d71f4376ae20c6d403ec134e0e7740e1c5))
+- **okf:** harden import and export flows ([a70b894](https://github.com/equationalapplications/clanker/commit/a70b894837e3e7eca703cf1e9483649f29426244))
+- **okf:** keep export loading state through native save ([7e44ae3](https://github.com/equationalapplications/clanker/commit/7e44ae31778f04f1cefcb5b87125faf869aa3fd9))
+- **okf:** save Android exports to device via SAF ([77cbcae](https://github.com/equationalapplications/clanker/commit/77cbcae68c9839e43b054847b37e84b240713201))
 
 ### Features
 
-* add okf import support with marketing pages and seo updates ([34366b0](https://github.com/equationalapplications/clanker/commit/34366b086453e04e40fdb4ea41652b03419b7fc5)), closes [#3](https://github.com/equationalapplications/clanker/issues/3) [#1](https://github.com/equationalapplications/clanker/issues/1) [#2](https://github.com/equationalapplications/clanker/issues/2) [#3](https://github.com/equationalapplications/clanker/issues/3)
-* **okf:** dedupe episodic events before a merge/replace restore ([1d8cfa1](https://github.com/equationalapplications/clanker/commit/1d8cfa142f2662186da37effa7f5bcd969849b42))
-* **okf:** wire clone (create-from-bundle) UI into character list screen ([d48ebe4](https://github.com/equationalapplications/clanker/commit/d48ebe4d102867069353cf80709180809cf4f8d7))
-* **okf:** wire restore (merge/replace) UI into character edit screen ([8b29007](https://github.com/equationalapplications/clanker/commit/8b2900793dd4e80e98f2965356450217ec2acc00))
+- add okf import support with marketing pages and seo updates ([34366b0](https://github.com/equationalapplications/clanker/commit/34366b086453e04e40fdb4ea41652b03419b7fc5)), closes [#3](https://github.com/equationalapplications/clanker/issues/3) [#1](https://github.com/equationalapplications/clanker/issues/1) [#2](https://github.com/equationalapplications/clanker/issues/2) [#3](https://github.com/equationalapplications/clanker/issues/3)
+- **okf:** dedupe episodic events before a merge/replace restore ([1d8cfa1](https://github.com/equationalapplications/clanker/commit/1d8cfa142f2662186da37effa7f5bcd969849b42))
+- **okf:** wire clone (create-from-bundle) UI into character list screen ([d48ebe4](https://github.com/equationalapplications/clanker/commit/d48ebe4d102867069353cf80709180809cf4f8d7))
+- **okf:** wire restore (merge/replace) UI into character edit screen ([8b29007](https://github.com/equationalapplications/clanker/commit/8b2900793dd4e80e98f2965356450217ec2acc00))
 
 # [30.15.0](https://github.com/equationalapplications/clanker/compare/v30.14.2...v30.15.0) (2026-07-03)
 
-
 ### Bug Fixes
 
-* remove dead createNewCharacter function and unused import ([0b6dc06](https://github.com/equationalapplications/clanker/commit/0b6dc0622d7918499f7bebc650db5b0047a001ee))
-
+- remove dead createNewCharacter function and unused import ([0b6dc06](https://github.com/equationalapplications/clanker/commit/0b6dc0622d7918499f7bebc650db5b0047a001ee))
 
 ### Features
 
-* enable cloud sync by default for new characters ([5dd7504](https://github.com/equationalapplications/clanker/commit/5dd7504b13d572e292b942feec4db76cf6b1b362))
+- enable cloud sync by default for new characters ([5dd7504](https://github.com/equationalapplications/clanker/commit/5dd7504b13d572e292b942feec4db76cf6b1b362))
 
 ## [30.14.2](https://github.com/equationalapplications/clanker/compare/v30.14.1...v30.14.2) (2026-07-03)
 
-
 ### Bug Fixes
 
-* generation-safe Android barge-in and docs blockquote lint ([4ac07b0](https://github.com/equationalapplications/clanker/commit/4ac07b08c0b3d8d442e65249305c639f0e8fd7ae))
-* iOS simulator dev build + patch expo-age-range for SDK 26.2 ([86a2713](https://github.com/equationalapplications/clanker/commit/86a27132f471eefaf2c51b70017935f355f0fd22))
-* keep mic alive during native live voice barge-in ([5e3aa8f](https://github.com/equationalapplications/clanker/commit/5e3aa8fc778fbd56575a84e344c15f44f74acb8e))
-* repair malformed speechmatics patch for CI ([f9b60b6](https://github.com/equationalapplications/clanker/commit/f9b60b6dd6cca2ea98c64a3c0848e7f8634ace68))
+- generation-safe Android barge-in and docs blockquote lint ([4ac07b0](https://github.com/equationalapplications/clanker/commit/4ac07b08c0b3d8d442e65249305c639f0e8fd7ae))
+- iOS simulator dev build + patch expo-age-range for SDK 26.2 ([86a2713](https://github.com/equationalapplications/clanker/commit/86a27132f471eefaf2c51b70017935f355f0fd22))
+- keep mic alive during native live voice barge-in ([5e3aa8f](https://github.com/equationalapplications/clanker/commit/5e3aa8fc778fbd56575a84e344c15f44f74acb8e))
+- repair malformed speechmatics patch for CI ([f9b60b6](https://github.com/equationalapplications/clanker/commit/f9b60b6dd6cca2ea98c64a3c0848e7f8634ace68))
 
 ## [30.14.1](https://github.com/equationalapplications/clanker/compare/v30.14.0...v30.14.1) (2026-07-02)
 
-
 ### Bug Fixes
 
-* address PR [#516](https://github.com/equationalapplications/clanker/issues/516) review findings ([ab7ce60](https://github.com/equationalapplications/clanker/commit/ab7ce602373b82eb7f36386e83a6f2f1495d3468))
-* address PR 516 review — single importDump timeout, doc 0018 ([80c9e40](https://github.com/equationalapplications/clanker/commit/80c9e4019d848d6534f6774a9d78f6b0f03fed9f))
-* dev environment for local Android dev with cloud-agent ([fc61d3f](https://github.com/equationalapplications/clanker/commit/fc61d3f314f6bfd1fda3ac40f45a837a4db48391))
-* **voice:** retry importDump on wiki librarian lock during Talk sync ([0dad7d0](https://github.com/equationalapplications/clanker/commit/0dad7d0ec43e0ca54bdb0814e1f9215ccd5ec0cd))
+- address PR [#516](https://github.com/equationalapplications/clanker/issues/516) review findings ([ab7ce60](https://github.com/equationalapplications/clanker/commit/ab7ce602373b82eb7f36386e83a6f2f1495d3468))
+- address PR 516 review — single importDump timeout, doc 0018 ([80c9e40](https://github.com/equationalapplications/clanker/commit/80c9e4019d848d6534f6774a9d78f6b0f03fed9f))
+- dev environment for local Android dev with cloud-agent ([fc61d3f](https://github.com/equationalapplications/clanker/commit/fc61d3f314f6bfd1fda3ac40f45a837a4db48391))
+- **voice:** retry importDump on wiki librarian lock during Talk sync ([0dad7d0](https://github.com/equationalapplications/clanker/commit/0dad7d0ec43e0ca54bdb0814e1f9215ccd5ec0cd))
 
 # [30.14.0](https://github.com/equationalapplications/clanker/compare/v30.13.1...v30.14.0) (2026-07-02)
 
-
 ### Bug Fixes
 
-* address CodeRabbit findings on PR [#513](https://github.com/equationalapplications/clanker/issues/513) ([153bb7b](https://github.com/equationalapplications/clanker/commit/153bb7bfebd022531e69ce39cac4dcc7a5fc4e62))
-* **cloud-agent:** address PR review findings on agent event loop ([49d5039](https://github.com/equationalapplications/clanker/commit/49d50392e949b272e5530deab5839e1f5c78a30b))
-* **cloud-agent:** bill every completed model turn, not just tool calls ([1dfc042](https://github.com/equationalapplications/clanker/commit/1dfc0427d148ffc152c3cd2e23a9bfb45a67c573))
-* **functions:** guard missing Firebase email in generateEmbedding ([f9c6da5](https://github.com/equationalapplications/clanker/commit/f9c6da5142a0c0e7862f0f50197d3f5ff2dfdce4))
-
+- address CodeRabbit findings on PR [#513](https://github.com/equationalapplications/clanker/issues/513) ([153bb7b](https://github.com/equationalapplications/clanker/commit/153bb7bfebd022531e69ce39cac4dcc7a5fc4e62))
+- **cloud-agent:** address PR review findings on agent event loop ([49d5039](https://github.com/equationalapplications/clanker/commit/49d50392e949b272e5530deab5839e1f5c78a30b))
+- **cloud-agent:** bill every completed model turn, not just tool calls ([1dfc042](https://github.com/equationalapplications/clanker/commit/1dfc0427d148ffc152c3cd2e23a9bfb45a67c573))
+- **functions:** guard missing Firebase email in generateEmbedding ([f9c6da5](https://github.com/equationalapplications/clanker/commit/f9c6da5142a0c0e7862f0f50197d3f5ff2dfdce4))
 
 ### Features
 
-* **billing:** ship July 2026 credit economy repricing ([2243a5d](https://github.com/equationalapplications/clanker/commit/2243a5d515b91ecfa549e1634f44e2d0b3718773))
+- **billing:** ship July 2026 credit economy repricing ([2243a5d](https://github.com/equationalapplications/clanker/commit/2243a5d515b91ecfa549e1634f44e2d0b3718773))
 
 ## [30.13.1](https://github.com/equationalapplications/clanker/compare/v30.13.0...v30.13.1) (2026-07-01)
 
-
 ### Bug Fixes
 
-* **security:** require email_verified for admin allowlist, throttle generateEmbedding ([3e3fb0a](https://github.com/equationalapplications/clanker/commit/3e3fb0a6643e2165b6feb2d28fc4085fef46d20e))
+- **security:** require email_verified for admin allowlist, throttle generateEmbedding ([3e3fb0a](https://github.com/equationalapplications/clanker/commit/3e3fb0a6643e2165b6feb2d28fc4085fef46d20e))
 
 # [30.13.0](https://github.com/equationalapplications/clanker/compare/v30.12.0...v30.13.0) (2026-07-01)
 
-
 ### Bug Fixes
 
-* address PR 509 review feedback across billing and voice handoff ([3f9abd6](https://github.com/equationalapplications/clanker/commit/3f9abd6013cbe717066127b43bd292fca47d44ec))
-* **billing:** address Stripe webhook review feedback on PR 508 ([b4d499a](https://github.com/equationalapplications/clanker/commit/b4d499a3f35990e067a389c2f0994133f0df0a53))
-* **billing:** harden stripe dedupe leases and legacy refund tracking ([8690510](https://github.com/equationalapplications/clanker/commit/8690510c06109fc4aa34e01df6f8c6e6fdd7dec2))
-* **billing:** make webhook dedupe concurrent-safe and fix refund rounding ([f55f3ed](https://github.com/equationalapplications/clanker/commit/f55f3ed03bb6336b3a28a0492782da1c41217bb1))
-* **credits:** align spec and tests with allocations refund contract ([608d9a6](https://github.com/equationalapplications/clanker/commit/608d9a617866b33619cef56eba117501c3c80c53))
-* **credits:** return spend allocations for reversible refunds ([0af5f9f](https://github.com/equationalapplications/clanker/commit/0af5f9fb7aebb1b9c9c865d30b5fc9b225c4ce0f))
-* **credits:** spend across fragmented rows and align billing policy ([83bce09](https://github.com/equationalapplications/clanker/commit/83bce09d0e6a26d8d1d4e8cbb9fd7fd89074114f))
-* **talk:** address PR review feedback on timeouts and truncation ([d2665a4](https://github.com/equationalapplications/clanker/commit/d2665a4892aa9386d6cdeb2bd69dfe278d90d681))
-* **talk:** announce credit count to screen readers ([8cee99f](https://github.com/equationalapplications/clanker/commit/8cee99fd5ee58ed142ddb86d8fabf66da1386716))
-* **talk:** bridge Chat memory into live voice sessions ([e768dd5](https://github.com/equationalapplications/clanker/commit/e768dd56fe6d8d2f91973d9c51bc0d89cd6d5598))
-
+- address PR 509 review feedback across billing and voice handoff ([3f9abd6](https://github.com/equationalapplications/clanker/commit/3f9abd6013cbe717066127b43bd292fca47d44ec))
+- **billing:** address Stripe webhook review feedback on PR 508 ([b4d499a](https://github.com/equationalapplications/clanker/commit/b4d499a3f35990e067a389c2f0994133f0df0a53))
+- **billing:** harden stripe dedupe leases and legacy refund tracking ([8690510](https://github.com/equationalapplications/clanker/commit/8690510c06109fc4aa34e01df6f8c6e6fdd7dec2))
+- **billing:** make webhook dedupe concurrent-safe and fix refund rounding ([f55f3ed](https://github.com/equationalapplications/clanker/commit/f55f3ed03bb6336b3a28a0492782da1c41217bb1))
+- **credits:** align spec and tests with allocations refund contract ([608d9a6](https://github.com/equationalapplications/clanker/commit/608d9a617866b33619cef56eba117501c3c80c53))
+- **credits:** return spend allocations for reversible refunds ([0af5f9f](https://github.com/equationalapplications/clanker/commit/0af5f9fb7aebb1b9c9c865d30b5fc9b225c4ce0f))
+- **credits:** spend across fragmented rows and align billing policy ([83bce09](https://github.com/equationalapplications/clanker/commit/83bce09d0e6a26d8d1d4e8cbb9fd7fd89074114f))
+- **talk:** address PR review feedback on timeouts and truncation ([d2665a4](https://github.com/equationalapplications/clanker/commit/d2665a4892aa9386d6cdeb2bd69dfe278d90d681))
+- **talk:** announce credit count to screen readers ([8cee99f](https://github.com/equationalapplications/clanker/commit/8cee99fd5ee58ed142ddb86d8fabf66da1386716))
+- **talk:** bridge Chat memory into live voice sessions ([e768dd5](https://github.com/equationalapplications/clanker/commit/e768dd56fe6d8d2f91973d9c51bc0d89cd6d5598))
 
 ### Features
 
-* **billing:** harden cross-platform subscriptions and webhook idempotency ([f08ddd6](https://github.com/equationalapplications/clanker/commit/f08ddd6e0fbee91a483d50c81db7c568d996a101))
-* **credits:** reconcile live-voice spends and show in-call balance ([026ce81](https://github.com/equationalapplications/clanker/commit/026ce81e7a5580757e51f3e11bec4878b0f4ee92))
+- **billing:** harden cross-platform subscriptions and webhook idempotency ([f08ddd6](https://github.com/equationalapplications/clanker/commit/f08ddd6e0fbee91a483d50c81db7c568d996a101))
+- **credits:** reconcile live-voice spends and show in-call balance ([026ce81](https://github.com/equationalapplications/clanker/commit/026ce81e7a5580757e51f3e11bec4878b0f4ee92))
 
 # [30.12.0](https://github.com/equationalapplications/clanker/compare/v30.11.0...v30.12.0) (2026-07-01)
 
-
 ### Bug Fixes
 
-* clear approval token on deny and read _isLocal from notification data ([c232c85](https://github.com/equationalapplications/clanker/commit/c232c853206c346fca04854936a1f81275a6411b))
-* pin @babel/core to v7 after dependabot babel 8 bump ([a0e3382](https://github.com/equationalapplications/clanker/commit/a0e33822243cd20e9cc8725d38fae5d0146989d0))
-
+- clear approval token on deny and read _isLocal from notification data ([c232c85](https://github.com/equationalapplications/clanker/commit/c232c853206c346fca04854936a1f81275a6411b))
+- pin @babel/core to v7 after dependabot babel 8 bump ([a0e3382](https://github.com/equationalapplications/clanker/commit/a0e33822243cd20e9cc8725d38fae5d0146989d0))
 
 ### Features
 
-* **web:** enable Expo web push with VAPID config ([bccbbea](https://github.com/equationalapplications/clanker/commit/bccbbea8fce49b2926130c1c23144ab88988e432))
+- **web:** enable Expo web push with VAPID config ([bccbbea](https://github.com/equationalapplications/clanker/commit/bccbbea8fce49b2926130c1c23144ab88988e432))
 
 # [30.11.0](https://github.com/equationalapplications/clanker/compare/v30.10.0...v30.11.0) (2026-06-30)
 
-
 ### Bug Fixes
 
-* address PR review feedback on static pages and web DB lifecycle ([574cff9](https://github.com/equationalapplications/clanker/commit/574cff96956fb80256df072deaffffeb74004e3b))
-* **landing:** address PR 499 review feedback ([ed953bc](https://github.com/equationalapplications/clanker/commit/ed953bc9a6a1f842501e0eeeabbdef16fe01830a))
-* **web:** opfs startup recovery and welcome page icon ([737f03f](https://github.com/equationalapplications/clanker/commit/737f03fdc2ebedbc183d8000660e75696429f7af))
-
+- address PR review feedback on static pages and web DB lifecycle ([574cff9](https://github.com/equationalapplications/clanker/commit/574cff96956fb80256df072deaffffeb74004e3b))
+- **landing:** address PR 499 review feedback ([ed953bc](https://github.com/equationalapplications/clanker/commit/ed953bc9a6a1f842501e0eeeabbdef16fe01830a))
+- **web:** opfs startup recovery and welcome page icon ([737f03f](https://github.com/equationalapplications/clanker/commit/737f03fdc2ebedbc183d8000660e75696429f7af))
 
 ### Features
 
-* **landing:** promote real-time voice on home and promo page ([fd55703](https://github.com/equationalapplications/clanker/commit/fd55703de37e9199fa715d79f7dd0f1e18cde041))
-* **landing:** serve /real-time-voice as static HTML for SEO ([c046dce](https://github.com/equationalapplications/clanker/commit/c046dcea1608d2c8839e5d58832ea4b83c0c5b9d))
-* **landing:** static marketing pages and remove React voice route ([e725142](https://github.com/equationalapplications/clanker/commit/e7251426ac3bc1583ffe33728de9c5bb363d7aee))
+- **landing:** promote real-time voice on home and promo page ([fd55703](https://github.com/equationalapplications/clanker/commit/fd55703de37e9199fa715d79f7dd0f1e18cde041))
+- **landing:** serve /real-time-voice as static HTML for SEO ([c046dce](https://github.com/equationalapplications/clanker/commit/c046dcea1608d2c8839e5d58832ea4b83c0c5b9d))
+- **landing:** static marketing pages and remove React voice route ([e725142](https://github.com/equationalapplications/clanker/commit/e7251426ac3bc1583ffe33728de9c5bb363d7aee))
 
 # [30.10.0](https://github.com/equationalapplications/clanker/compare/v30.9.0...v30.10.0) (2026-06-30)
 
-
 ### Bug Fixes
 
-* address PR 498 review feedback on scheduler idempotency and fallbacks ([d12ad20](https://github.com/equationalapplications/clanker/commit/d12ad2096e67865183ad401886b63d49213f9157))
-* **bridge:** address PR 494 review feedback on scheduler and auth ([5f72fdd](https://github.com/equationalapplications/clanker/commit/5f72fdd7894a8b5649c7cfe2b74057c44b9d46b3))
-* **bridge:** address PR review feedback for pending-session polling ([1ce2477](https://github.com/equationalapplications/clanker/commit/1ce2477c429698e54f890fffadc32f86c0a4d714))
-* **bridge:** align extension, docs, and drop pending-session poll ([cfa6205](https://github.com/equationalapplications/clanker/commit/cfa62059f411960386012a5ff4f21d686256e31e))
-* **cloud-agent:** rate-limit scheduler trigger auth for CodeQL ([484c5fd](https://github.com/equationalapplications/clanker/commit/484c5fd0461c9509867bdfc01c4137736ee77f86))
-* **extension:** address PR 497 review feedback ([8a5834b](https://github.com/equationalapplications/clanker/commit/8a5834b07da427457abb014dcd98be5a9608380b))
-* **extension:** require build-injected env at load time ([35eeb69](https://github.com/equationalapplications/clanker/commit/35eeb691b2bfca65ba3c3697b37fd3c2868385ae))
-* **extension:** update content-bridge test for sendMessage flow ([19e618d](https://github.com/equationalapplications/clanker/commit/19e618d519089b00a88d2eeecf705a9df69b5b6b))
-* **firestore:** allow approvalToken in auth doc client updates ([7dbabf7](https://github.com/equationalapplications/clanker/commit/7dbabf7e7eea1997a54608d771cd96bb1b52b0b5))
-
+- address PR 498 review feedback on scheduler idempotency and fallbacks ([d12ad20](https://github.com/equationalapplications/clanker/commit/d12ad2096e67865183ad401886b63d49213f9157))
+- **bridge:** address PR 494 review feedback on scheduler and auth ([5f72fdd](https://github.com/equationalapplications/clanker/commit/5f72fdd7894a8b5649c7cfe2b74057c44b9d46b3))
+- **bridge:** address PR review feedback for pending-session polling ([1ce2477](https://github.com/equationalapplications/clanker/commit/1ce2477c429698e54f890fffadc32f86c0a4d714))
+- **bridge:** align extension, docs, and drop pending-session poll ([cfa6205](https://github.com/equationalapplications/clanker/commit/cfa62059f411960386012a5ff4f21d686256e31e))
+- **cloud-agent:** rate-limit scheduler trigger auth for CodeQL ([484c5fd](https://github.com/equationalapplications/clanker/commit/484c5fd0461c9509867bdfc01c4137736ee77f86))
+- **extension:** address PR 497 review feedback ([8a5834b](https://github.com/equationalapplications/clanker/commit/8a5834b07da427457abb014dcd98be5a9608380b))
+- **extension:** require build-injected env at load time ([35eeb69](https://github.com/equationalapplications/clanker/commit/35eeb691b2bfca65ba3c3697b37fd3c2868385ae))
+- **extension:** update content-bridge test for sendMessage flow ([19e618d](https://github.com/equationalapplications/clanker/commit/19e618d519089b00a88d2eeecf705a9df69b5b6b))
+- **firestore:** allow approvalToken in auth doc client updates ([7dbabf7](https://github.com/equationalapplications/clanker/commit/7dbabf7e7eea1997a54608d771cd96bb1b52b0b5))
 
 ### Features
 
-* **bridge:** complete Phase 4 E2E validation of MV3 browser extension bridge ([968a0f8](https://github.com/equationalapplications/clanker/commit/968a0f8c2e5bcc8ed68e4529e504047d026bf5f4))
-* **cloud-agent:** add Cloud Scheduler trigger handler and route ([9259c7f](https://github.com/equationalapplications/clanker/commit/9259c7f2c0ca1769ca769e35b8faff6315e2dab3))
-* **cloud-agent:** add sendProactive to fcm dispatcher ([24de69d](https://github.com/equationalapplications/clanker/commit/24de69d69ac36f3a549473bd6eda804574b7065d))
-* **cloud-agent:** implement Expo Push fallback for closed voice sessions ([5ed9c11](https://github.com/equationalapplications/clanker/commit/5ed9c1182f6c91a02809193ca27a264264ba572f))
-* **extension:** prepare CWS submission readiness ([6875b45](https://github.com/equationalapplications/clanker/commit/6875b45a7b8547cf18f53e4f67f0e2b8e1c8c35e))
-* **privacy:** add browser extension data usage section, bump to v1.5 ([21d4eab](https://github.com/equationalapplications/clanker/commit/21d4eab7c747a1586c9749e07b590666d04488c8))
+- **bridge:** complete Phase 4 E2E validation of MV3 browser extension bridge ([968a0f8](https://github.com/equationalapplications/clanker/commit/968a0f8c2e5bcc8ed68e4529e504047d026bf5f4))
+- **cloud-agent:** add Cloud Scheduler trigger handler and route ([9259c7f](https://github.com/equationalapplications/clanker/commit/9259c7f2c0ca1769ca769e35b8faff6315e2dab3))
+- **cloud-agent:** add sendProactive to fcm dispatcher ([24de69d](https://github.com/equationalapplications/clanker/commit/24de69d69ac36f3a549473bd6eda804574b7065d))
+- **cloud-agent:** implement Expo Push fallback for closed voice sessions ([5ed9c11](https://github.com/equationalapplications/clanker/commit/5ed9c1182f6c91a02809193ca27a264264ba572f))
+- **extension:** prepare CWS submission readiness ([6875b45](https://github.com/equationalapplications/clanker/commit/6875b45a7b8547cf18f53e4f67f0e2b8e1c8c35e))
+- **privacy:** add browser extension data usage section, bump to v1.5 ([21d4eab](https://github.com/equationalapplications/clanker/commit/21d4eab7c747a1586c9749e07b590666d04488c8))
 
 # [30.9.0](https://github.com/equationalapplications/clanker/compare/v30.8.1...v30.9.0) (2026-06-29)
 
-
 ### Bug Fixes
 
-* **bridge/p2:** address CodeRabbit review feedback on PR [#491](https://github.com/equationalapplications/clanker/issues/491) ([3fe2c20](https://github.com/equationalapplications/clanker/commit/3fe2c20b5eb9da0cc1c9cbdd10b22fb42a1d910c))
-* **bridge:** address PR [#492](https://github.com/equationalapplications/clanker/issues/492) review feedback ([0da765e](https://github.com/equationalapplications/clanker/commit/0da765ef7de55db427443d5dc574669322120a10))
-* **bridge:** address PR 490 CodeRabbit review feedback ([60b4cdc](https://github.com/equationalapplications/clanker/commit/60b4cdc4a434f371088b3f11af3d6fcdba8d72fe))
-* **bridge:** harden Phase 1 bridge from review findings ([66f11db](https://github.com/equationalapplications/clanker/commit/66f11db9e59e39c777a21098696d537e766224ae))
-* **bridge:** rate-limit auth bridge routes and refresh docs ([864f06a](https://github.com/equationalapplications/clanker/commit/864f06a9522b1945b22ee5db534a98945ce66f01))
-* **bridge:** resolve Phase 1 gaps — UID split, host blocklist, grant UX ([8c17163](https://github.com/equationalapplications/clanker/commit/8c17163dea1a0a2def3383adfcc3b8235f2430a3))
-* **ci:** run bridge node:test suites outside Jest ([3d915db](https://github.com/equationalapplications/clanker/commit/3d915dbdd9e94b3b597b7a0a415df77416453ede))
-
+- **bridge/p2:** address CodeRabbit review feedback on PR [#491](https://github.com/equationalapplications/clanker/issues/491) ([3fe2c20](https://github.com/equationalapplications/clanker/commit/3fe2c20b5eb9da0cc1c9cbdd10b22fb42a1d910c))
+- **bridge:** address PR [#492](https://github.com/equationalapplications/clanker/issues/492) review feedback ([0da765e](https://github.com/equationalapplications/clanker/commit/0da765ef7de55db427443d5dc574669322120a10))
+- **bridge:** address PR 490 CodeRabbit review feedback ([60b4cdc](https://github.com/equationalapplications/clanker/commit/60b4cdc4a434f371088b3f11af3d6fcdba8d72fe))
+- **bridge:** harden Phase 1 bridge from review findings ([66f11db](https://github.com/equationalapplications/clanker/commit/66f11db9e59e39c777a21098696d537e766224ae))
+- **bridge:** rate-limit auth bridge routes and refresh docs ([864f06a](https://github.com/equationalapplications/clanker/commit/864f06a9522b1945b22ee5db534a98945ce66f01))
+- **bridge:** resolve Phase 1 gaps — UID split, host blocklist, grant UX ([8c17163](https://github.com/equationalapplications/clanker/commit/8c17163dea1a0a2def3383adfcc3b8235f2430a3))
+- **ci:** run bridge node:test suites outside Jest ([3d915db](https://github.com/equationalapplications/clanker/commit/3d915dbdd9e94b3b597b7a0a415df77416453ede))
 
 ### Features
 
-* **bridge/p2:** stateful actions with mobile approval flow ([57d860b](https://github.com/equationalapplications/clanker/commit/57d860b75f7d24c18b01bdae8efdad9c22811671))
-* **bridge:** add Phase 1 MV3 read-only browser extension bridge ([32382e1](https://github.com/equationalapplications/clanker/commit/32382e16349b0806ed061c441bb720ff51798c4e))
+- **bridge/p2:** stateful actions with mobile approval flow ([57d860b](https://github.com/equationalapplications/clanker/commit/57d860b75f7d24c18b01bdae8efdad9c22811671))
+- **bridge:** add Phase 1 MV3 read-only browser extension bridge ([32382e1](https://github.com/equationalapplications/clanker/commit/32382e16349b0806ed061c441bb720ff51798c4e))
 
 ## [30.8.1](https://github.com/equationalapplications/clanker/compare/v30.8.0...v30.8.1) (2026-06-28)
 
-
 ### Bug Fixes
 
-* **live-voice:** resolve cloud-agent URL for production EAS builds ([aa96a30](https://github.com/equationalapplications/clanker/commit/aa96a30f034e75995d76a22618bc1608a38d676f))
-* **live-voice:** validate dev URL and guard WebSocket handlers ([0d1da40](https://github.com/equationalapplications/clanker/commit/0d1da40ebd52d8b2069d488b47bf7804117750e7))
+- **live-voice:** resolve cloud-agent URL for production EAS builds ([aa96a30](https://github.com/equationalapplications/clanker/commit/aa96a30f034e75995d76a22618bc1608a38d676f))
+- **live-voice:** validate dev URL and guard WebSocket handlers ([0d1da40](https://github.com/equationalapplications/clanker/commit/0d1da40ebd52d8b2069d488b47bf7804117750e7))
 
 # [30.8.0](https://github.com/equationalapplications/clanker/compare/v30.7.1...v30.8.0) (2026-06-28)
 
-
 ### Bug Fixes
 
-* **chat:** derive avatar initials from multi-word names ([5d0b659](https://github.com/equationalapplications/clanker/commit/5d0b65958b53e5a58b593a77e462f06c4cce2648))
-* **chat:** replace dead via.placeholder.com fallback with Avatar.Text initials ([668507e](https://github.com/equationalapplications/clanker/commit/668507efea8dfb7fae95e19653201bcc4fe458b3))
-* **ios:** patch expo-two-way-audio for Expo SDK 56 Swift build errors ([cbdcbfa](https://github.com/equationalapplications/clanker/commit/cbdcbfa748b55d0ff776aef371c804eadbe82070))
-* **lint:** remove unnecessary userId dep from useMemo in useLiveVoiceChat ([fa5b810](https://github.com/equationalapplications/clanker/commit/fa5b81041e4ca62359c68c5e7bc2616d6fff7b73))
-* **live-voice:** scope USER_CHANGED to idle and error states ([aaa93f7](https://github.com/equationalapplications/clanker/commit/aaa93f7c6479f908179777d39a89b076470d1481))
-* **pr:** address CodeRabbit review on PR [#486](https://github.com/equationalapplications/clanker/issues/486) ([743e302](https://github.com/equationalapplications/clanker/commit/743e302c45d13c0bd19548c9f3b4c25b0592ebaf))
-* **voice:** re-entry guard on startRecording, pin native module version ([bd2317e](https://github.com/equationalapplications/clanker/commit/bd2317eeeb4a3da871323d5a92e3329bb6a1abc4))
-* **voice:** skip wikiSync in dev sandbox when starting live call ([cb0bcf9](https://github.com/equationalapplications/clanker/commit/cb0bcf9f92edcdfd32a724ab7b0c5aa1695ac490))
-
+- **chat:** derive avatar initials from multi-word names ([5d0b659](https://github.com/equationalapplications/clanker/commit/5d0b65958b53e5a58b593a77e462f06c4cce2648))
+- **chat:** replace dead via.placeholder.com fallback with Avatar.Text initials ([668507e](https://github.com/equationalapplications/clanker/commit/668507efea8dfb7fae95e19653201bcc4fe458b3))
+- **ios:** patch expo-two-way-audio for Expo SDK 56 Swift build errors ([cbdcbfa](https://github.com/equationalapplications/clanker/commit/cbdcbfa748b55d0ff776aef371c804eadbe82070))
+- **lint:** remove unnecessary userId dep from useMemo in useLiveVoiceChat ([fa5b810](https://github.com/equationalapplications/clanker/commit/fa5b81041e4ca62359c68c5e7bc2616d6fff7b73))
+- **live-voice:** scope USER_CHANGED to idle and error states ([aaa93f7](https://github.com/equationalapplications/clanker/commit/aaa93f7c6479f908179777d39a89b076470d1481))
+- **pr:** address CodeRabbit review on PR [#486](https://github.com/equationalapplications/clanker/issues/486) ([743e302](https://github.com/equationalapplications/clanker/commit/743e302c45d13c0bd19548c9f3b4c25b0592ebaf))
+- **voice:** re-entry guard on startRecording, pin native module version ([bd2317e](https://github.com/equationalapplications/clanker/commit/bd2317eeeb4a3da871323d5a92e3329bb6a1abc4))
+- **voice:** skip wikiSync in dev sandbox when starting live call ([cb0bcf9](https://github.com/equationalapplications/clanker/commit/cb0bcf9f92edcdfd32a724ab7b0c5aa1695ac490))
 
 ### Features
 
-* **voice:** unified duplex native audio via expo-two-way-audio ([6c156d6](https://github.com/equationalapplications/clanker/commit/6c156d6e15b8a6a5814b3f1fc6162a25c8765140))
+- **voice:** unified duplex native audio via expo-two-way-audio ([6c156d6](https://github.com/equationalapplications/clanker/commit/6c156d6e15b8a6a5814b3f1fc6162a25c8765140))
 
 ## [30.7.1](https://github.com/equationalapplications/clanker/compare/v30.7.0...v30.7.1) (2026-06-27)
 
-
 ### Bug Fixes
 
-* address PR 481 review feedback on character validation and transcript save ([0dd6b94](https://github.com/equationalapplications/clanker/commit/0dd6b94191905a05bce37cd61679da76a9a8bc58))
-* address PR review feedback for live tools and character selection ([4275a80](https://github.com/equationalapplications/clanker/commit/4275a804f54c92c7b34e6fb83780a95590704c1f))
-* **cloud-agent:** exclude app-only localCloudAgent from tsc build ([79703bd](https://github.com/equationalapplications/clanker/commit/79703bd5c40601983525a9400bf4bfbe9a8a7c32))
-* **dev-sandbox:** hybrid local dev mirrors production escalation flow ([0df6be2](https://github.com/equationalapplications/clanker/commit/0df6be2d95a05f495c8e705fa1406401e415a958))
-* **live-voice:** address PR 483 review feedback ([3d50eb7](https://github.com/equationalapplications/clanker/commit/3d50eb706969bcce733c03a20d8a11e539b6ee53))
-* **live-voice:** address PR reviews and restore grounding citations ([79be42d](https://github.com/equationalapplications/clanker/commit/79be42df0db3c4629edbcdfeb803098100d773d8))
-* **live-voice:** fix entity key remapping, auth UUID, model name, and audio field ([80d1d82](https://github.com/equationalapplications/clanker/commit/80d1d822e1c6e145dd36acbdc7ecd4b46f20b58e))
-* **live-voice:** persist search grounding metadata on saved voice replies ([3cd110c](https://github.com/equationalapplications/clanker/commit/3cd110c5351e45b0586df227e88eb977b029d942))
-* **live-voice:** preserve transcript order when saving Talk messages to Chat ([6661477](https://github.com/equationalapplications/clanker/commit/666147775c14b240e3004ccdcd4c47ed4867a0d5))
-* **live-voice:** sync Talk character with Chat and surface search grounding ([0ce00f2](https://github.com/equationalapplications/clanker/commit/0ce00f21aca0b2cca6167ea40118c8b501abafa8))
-* **test:** mock AudioContext sampleRate for web live audio tests ([0419c6f](https://github.com/equationalapplications/clanker/commit/0419c6f9e49c8af24c81c3d6bd58dd62d3b5d9a9))
-* **voice:** best-effort per-message transcript persistence ([0bf4dbc](https://github.com/equationalapplications/clanker/commit/0bf4dbcd24a2cca513a0b306db2aa1b820467933))
-* **web-voice:** address PR review on cleanup and chunk sizing ([f798686](https://github.com/equationalapplications/clanker/commit/f7986865dab80f15184874c5f6632e5176449c2c))
-* **web-voice:** implement useLiveAudioIO.web with AudioWorklet I/O ([52cdb3d](https://github.com/equationalapplications/clanker/commit/52cdb3d8698f9dc22171ad5c2287ef4b848bd534))
-* **wiki-sync:** bridge v4 source_type values across wiki sync ([a3fe612](https://github.com/equationalapplications/clanker/commit/a3fe612c3aa802be7b84d0e008456cca6bdb34f5))
+- address PR 481 review feedback on character validation and transcript save ([0dd6b94](https://github.com/equationalapplications/clanker/commit/0dd6b94191905a05bce37cd61679da76a9a8bc58))
+- address PR review feedback for live tools and character selection ([4275a80](https://github.com/equationalapplications/clanker/commit/4275a804f54c92c7b34e6fb83780a95590704c1f))
+- **cloud-agent:** exclude app-only localCloudAgent from tsc build ([79703bd](https://github.com/equationalapplications/clanker/commit/79703bd5c40601983525a9400bf4bfbe9a8a7c32))
+- **dev-sandbox:** hybrid local dev mirrors production escalation flow ([0df6be2](https://github.com/equationalapplications/clanker/commit/0df6be2d95a05f495c8e705fa1406401e415a958))
+- **live-voice:** address PR 483 review feedback ([3d50eb7](https://github.com/equationalapplications/clanker/commit/3d50eb706969bcce733c03a20d8a11e539b6ee53))
+- **live-voice:** address PR reviews and restore grounding citations ([79be42d](https://github.com/equationalapplications/clanker/commit/79be42df0db3c4629edbcdfeb803098100d773d8))
+- **live-voice:** fix entity key remapping, auth UUID, model name, and audio field ([80d1d82](https://github.com/equationalapplications/clanker/commit/80d1d822e1c6e145dd36acbdc7ecd4b46f20b58e))
+- **live-voice:** persist search grounding metadata on saved voice replies ([3cd110c](https://github.com/equationalapplications/clanker/commit/3cd110c5351e45b0586df227e88eb977b029d942))
+- **live-voice:** preserve transcript order when saving Talk messages to Chat ([6661477](https://github.com/equationalapplications/clanker/commit/666147775c14b240e3004ccdcd4c47ed4867a0d5))
+- **live-voice:** sync Talk character with Chat and surface search grounding ([0ce00f2](https://github.com/equationalapplications/clanker/commit/0ce00f21aca0b2cca6167ea40118c8b501abafa8))
+- **test:** mock AudioContext sampleRate for web live audio tests ([0419c6f](https://github.com/equationalapplications/clanker/commit/0419c6f9e49c8af24c81c3d6bd58dd62d3b5d9a9))
+- **voice:** best-effort per-message transcript persistence ([0bf4dbc](https://github.com/equationalapplications/clanker/commit/0bf4dbcd24a2cca513a0b306db2aa1b820467933))
+- **web-voice:** address PR review on cleanup and chunk sizing ([f798686](https://github.com/equationalapplications/clanker/commit/f7986865dab80f15184874c5f6632e5176449c2c))
+- **web-voice:** implement useLiveAudioIO.web with AudioWorklet I/O ([52cdb3d](https://github.com/equationalapplications/clanker/commit/52cdb3d8698f9dc22171ad5c2287ef4b848bd534))
+- **wiki-sync:** bridge v4 source_type values across wiki sync ([a3fe612](https://github.com/equationalapplications/clanker/commit/a3fe612c3aa802be7b84d0e008456cca6bdb34f5))
 
 # [30.7.0](https://github.com/equationalapplications/clanker/compare/v30.6.0...v30.7.0) (2026-06-26)
 
-
 ### Bug Fixes
 
-* **live-voice:** add END_CALL in error state; fix stale test name ([bcc0569](https://github.com/equationalapplications/clanker/commit/bcc05691cc3ec8942008e2a0686c32bf3f9e2ad1))
-* **live-voice:** address CodeRabbit and Copilot review findings ([7e35654](https://github.com/equationalapplications/clanker/commit/7e35654001157a870749c0f3eb50dce7a7892ace))
-* **live-voice:** address Copilot review on Talk tab and audio hooks ([5615082](https://github.com/equationalapplications/clanker/commit/561508227919da6d9349a1c785ba749b0cee124d))
-* **live-voice:** address PR review on billing, tools, and voice UI ([422d8d5](https://github.com/equationalapplications/clanker/commit/422d8d5143745dadad38bc145010b88633b3f9a6))
-* **live-voice:** await session_ready before transitioning to live state ([86016fa](https://github.com/equationalapplications/clanker/commit/86016faaee39506bb76772b1a767e92aec83d5c4))
-* **live-voice:** replace ref-during-render with stable useCallback deps ([5774d60](https://github.com/equationalapplications/clanker/commit/5774d6035b7aca1e9b918db410281ebdb5ffa907))
-
+- **live-voice:** add END_CALL in error state; fix stale test name ([bcc0569](https://github.com/equationalapplications/clanker/commit/bcc05691cc3ec8942008e2a0686c32bf3f9e2ad1))
+- **live-voice:** address CodeRabbit and Copilot review findings ([7e35654](https://github.com/equationalapplications/clanker/commit/7e35654001157a870749c0f3eb50dce7a7892ace))
+- **live-voice:** address Copilot review on Talk tab and audio hooks ([5615082](https://github.com/equationalapplications/clanker/commit/561508227919da6d9349a1c785ba749b0cee124d))
+- **live-voice:** address PR review on billing, tools, and voice UI ([422d8d5](https://github.com/equationalapplications/clanker/commit/422d8d5143745dadad38bc145010b88633b3f9a6))
+- **live-voice:** await session_ready before transitioning to live state ([86016fa](https://github.com/equationalapplications/clanker/commit/86016faaee39506bb76772b1a767e92aec83d5c4))
+- **live-voice:** replace ref-during-render with stable useCallback deps ([5774d60](https://github.com/equationalapplications/clanker/commit/5774d6035b7aca1e9b918db410281ebdb5ffa907))
 
 ### Features
 
-* **live-voice:** add /agent/live WebSocket proxy and tool adapter ([4eebc25](https://github.com/equationalapplications/clanker/commit/4eebc25436cbf8698ffeed7da1149163e3a7fbf7))
-* **talk:** add Gemini Live voice chat via XState machine and audio hooks ([c695ab0](https://github.com/equationalapplications/clanker/commit/c695ab0e367c085f390f1720c09e33f3d7e6b6bf))
+- **live-voice:** add /agent/live WebSocket proxy and tool adapter ([4eebc25](https://github.com/equationalapplications/clanker/commit/4eebc25436cbf8698ffeed7da1149163e3a7fbf7))
+- **talk:** add Gemini Live voice chat via XState machine and audio hooks ([c695ab0](https://github.com/equationalapplications/clanker/commit/c695ab0e367c085f390f1720c09e33f3d7e6b6bf))
 
 # [30.6.0](https://github.com/equationalapplications/clanker/compare/v30.5.5...v30.6.0) (2026-06-26)
 
-
 ### Bug Fixes
 
-* **agent:** address PR review feedback for WebSocket streaming ([f4af08f](https://github.com/equationalapplications/clanker/commit/f4af08f12b747cda88abbd3a3bedb74e413509f5))
-* **cloud-agent:** pass abortSignal to ADK runner on WS disconnect ([0a5923c](https://github.com/equationalapplications/clanker/commit/0a5923cf90e91c6a272411d5cccbe5650e2e13fe))
-* **cloud-agent:** repair rate-limit test mock DB select chaining ([629b989](https://github.com/equationalapplications/clanker/commit/629b9892a14824143de3366fe0f17b670f130a79))
-* **grounding:** harden native sanitizer and address review nits ([936609a](https://github.com/equationalapplications/clanker/commit/936609a7cd4b228fe0a66a6fdcc0d50f4ddf1ad8))
-* **grounding:** harden URL attribute regex and duplicate handling ([4c0e207](https://github.com/equationalapplications/clanker/commit/4c0e20719e19f9e9c4a204d09de68c6c84680865))
-
+- **agent:** address PR review feedback for WebSocket streaming ([f4af08f](https://github.com/equationalapplications/clanker/commit/f4af08f12b747cda88abbd3a3bedb74e413509f5))
+- **cloud-agent:** pass abortSignal to ADK runner on WS disconnect ([0a5923c](https://github.com/equationalapplications/clanker/commit/0a5923cf90e91c6a272411d5cccbe5650e2e13fe))
+- **cloud-agent:** repair rate-limit test mock DB select chaining ([629b989](https://github.com/equationalapplications/clanker/commit/629b9892a14824143de3366fe0f17b670f130a79))
+- **grounding:** harden native sanitizer and address review nits ([936609a](https://github.com/equationalapplications/clanker/commit/936609a7cd4b228fe0a66a6fdcc0d50f4ddf1ad8))
+- **grounding:** harden URL attribute regex and duplicate handling ([4c0e207](https://github.com/equationalapplications/clanker/commit/4c0e20719e19f9e9c4a204d09de68c6c84680865))
 
 ### Features
 
-* **chat:** show WebSocket tool status and streaming tokens in UI ([772d787](https://github.com/equationalapplications/clanker/commit/772d787565ee884e3196b6059de2b8144435bc52))
-* **cloud-agent:** add WebSocket agent streaming with HTTP fallback ([4cec5d4](https://github.com/equationalapplications/clanker/commit/4cec5d4fc2faa7617cede8e69fb288969d802738))
+- **chat:** show WebSocket tool status and streaming tokens in UI ([772d787](https://github.com/equationalapplications/clanker/commit/772d787565ee884e3196b6059de2b8144435bc52))
+- **cloud-agent:** add WebSocket agent streaming with HTTP fallback ([4cec5d4](https://github.com/equationalapplications/clanker/commit/4cec5d4fc2faa7617cede8e69fb288969d802738))
 
 ## [30.5.5](https://github.com/equationalapplications/clanker/compare/v30.5.4...v30.5.5) (2026-06-25)
 
-
 ### Bug Fixes
 
-* **chat:** address Copilot review on grounding and generateReply ([d0c0be4](https://github.com/equationalapplications/clanker/commit/d0c0be439d4d3229eae31f0c7d7d47527b1d5979))
-* **grounding:** contain search suggestions WebView on iOS and Android ([32ed0db](https://github.com/equationalapplications/clanker/commit/32ed0dbe408fffa09efc457e4cfc597af30f7e97))
-* **grounding:** strip executable markup before native WebView render ([8b4e5dc](https://github.com/equationalapplications/clanker/commit/8b4e5dcdeb079c04e510629b9e788cf8c23bbb9c))
-* **security:** harden grounding HTML sanitization for CodeQL ([2cc1bdc](https://github.com/equationalapplications/clanker/commit/2cc1bdc961825ae467eb9312dc46989ab366cac8))
-* **security:** match malformed script closing tags in sanitizer ([d871371](https://github.com/equationalapplications/clanker/commit/d8713716449d3681c2b70dc5fe88bbe47a56a164))
-* **web:** address PR review feedback for grounding and chat ([5c9959b](https://github.com/equationalapplications/clanker/commit/5c9959b1a037f747656ce918a5639bdbe95ffc60))
-* **web:** restore chat replies and grounding widget layout ([6c81baf](https://github.com/equationalapplications/clanker/commit/6c81baf75c5325f9beb7470aafec27a86691add5))
+- **chat:** address Copilot review on grounding and generateReply ([d0c0be4](https://github.com/equationalapplications/clanker/commit/d0c0be439d4d3229eae31f0c7d7d47527b1d5979))
+- **grounding:** contain search suggestions WebView on iOS and Android ([32ed0db](https://github.com/equationalapplications/clanker/commit/32ed0dbe408fffa09efc457e4cfc597af30f7e97))
+- **grounding:** strip executable markup before native WebView render ([8b4e5dc](https://github.com/equationalapplications/clanker/commit/8b4e5dcdeb079c04e510629b9e788cf8c23bbb9c))
+- **security:** harden grounding HTML sanitization for CodeQL ([2cc1bdc](https://github.com/equationalapplications/clanker/commit/2cc1bdc961825ae467eb9312dc46989ab366cac8))
+- **security:** match malformed script closing tags in sanitizer ([d871371](https://github.com/equationalapplications/clanker/commit/d8713716449d3681c2b70dc5fe88bbe47a56a164))
+- **web:** address PR review feedback for grounding and chat ([5c9959b](https://github.com/equationalapplications/clanker/commit/5c9959b1a037f747656ce918a5639bdbe95ffc60))
+- **web:** restore chat replies and grounding widget layout ([6c81baf](https://github.com/equationalapplications/clanker/commit/6c81baf75c5325f9beb7470aafec27a86691add5))
 
 ## [30.5.4](https://github.com/equationalapplications/clanker/compare/v30.5.3...v30.5.4) (2026-06-25)
 
-
 ### Bug Fixes
 
-* **config:** silence dotenv logs to fix expo-doctor check ([535fd32](https://github.com/equationalapplications/clanker/commit/535fd324656c092e4debf9a1769026dbc5c85756))
-* **deps:** align core-llm-wiki to 4.17.1 for deduplication ([c609ac9](https://github.com/equationalapplications/clanker/commit/c609ac99728ed0595acb4df8323d76b35a4cf243))
-* **deps:** pin expo-llm-wiki to 4.17.1 ([c10905a](https://github.com/equationalapplications/clanker/commit/c10905ad6b6b62d01c1136d77988f2be9af58f2e))
+- **config:** silence dotenv logs to fix expo-doctor check ([535fd32](https://github.com/equationalapplications/clanker/commit/535fd324656c092e4debf9a1769026dbc5c85756))
+- **deps:** align core-llm-wiki to 4.17.1 for deduplication ([c609ac9](https://github.com/equationalapplications/clanker/commit/c609ac99728ed0595acb4df8323d76b35a4cf243))
+- **deps:** pin expo-llm-wiki to 4.17.1 ([c10905a](https://github.com/equationalapplications/clanker/commit/c10905ad6b6b62d01c1136d77988f2be9af58f2e))
 
 ## [30.5.3](https://github.com/equationalapplications/clanker/compare/v30.5.2...v30.5.3) (2026-06-25)
 
-
 ### Bug Fixes
 
-* **grounding:** address CodeRabbit review on metadata, links, DB conflicts ([a21597f](https://github.com/equationalapplications/clanker/commit/a21597f1a180b2d6062c567b763a36b75cf8ae50))
-* **grounding:** address Copilot TS and message ID review comments ([5542a52](https://github.com/equationalapplications/clanker/commit/5542a527bdaebb379725593b450056077bea50f4))
-* **grounding:** address PR review on iframe sandbox and message inserts ([aef3caf](https://github.com/equationalapplications/clanker/commit/aef3caff491687971b0eeb4672f64508ed645c94))
-* **grounding:** let web citation links escape iframe sandbox ([5a37e31](https://github.com/equationalapplications/clanker/commit/5a37e313172a5f7bd3d2ae8806874e126b5330ac))
-* **grounding:** thread Gemini search citations end-to-end, fix web render ([ad3928f](https://github.com/equationalapplications/clanker/commit/ad3928f99686fdcf0b9898f8843e6adac6a75102))
-* **web:** preserve grounding HTML styles after link sanitization ([87d50a3](https://github.com/equationalapplications/clanker/commit/87d50a31ae1db73cdac5890dc86452440bca09d4))
+- **grounding:** address CodeRabbit review on metadata, links, DB conflicts ([a21597f](https://github.com/equationalapplications/clanker/commit/a21597f1a180b2d6062c567b763a36b75cf8ae50))
+- **grounding:** address Copilot TS and message ID review comments ([5542a52](https://github.com/equationalapplications/clanker/commit/5542a527bdaebb379725593b450056077bea50f4))
+- **grounding:** address PR review on iframe sandbox and message inserts ([aef3caf](https://github.com/equationalapplications/clanker/commit/aef3caff491687971b0eeb4672f64508ed645c94))
+- **grounding:** let web citation links escape iframe sandbox ([5a37e31](https://github.com/equationalapplications/clanker/commit/5a37e313172a5f7bd3d2ae8806874e126b5330ac))
+- **grounding:** thread Gemini search citations end-to-end, fix web render ([ad3928f](https://github.com/equationalapplications/clanker/commit/ad3928f99686fdcf0b9898f8843e6adac6a75102))
+- **web:** preserve grounding HTML styles after link sanitization ([87d50a3](https://github.com/equationalapplications/clanker/commit/87d50a31ae1db73cdac5890dc86452440bca09d4))
 
 ## [30.5.2](https://github.com/equationalapplications/clanker/compare/v30.5.1...v30.5.2) (2026-06-24)
 
-
 ### Bug Fixes
 
-* **agent:** restore CharacterPromptBuilder array syntax after review fix ([8aba7fa](https://github.com/equationalapplications/clanker/commit/8aba7faad156b233ecfc718309fde65218c93919))
-* **agent:** route live-info queries from edge agent to cloud agent ([760e070](https://github.com/equationalapplications/clanker/commit/760e0708934afe464ba42ce8d1d70960b2c4bf27))
-* **chat:** keep send slot visible while generating response ([08d4ed1](https://github.com/equationalapplications/clanker/commit/08d4ed148a8afb1323daa0bfc68ccfc6cc29ec3e))
-* **chat:** show loading indicator for edge and cloud agent replies ([ba7c71b](https://github.com/equationalapplications/clanker/commit/ba7c71b1d61307a809e8a61de89df891638d0ceb))
-* **functions:** clear eslint warnings in tests and scripts ([aae8d2f](https://github.com/equationalapplications/clanker/commit/aae8d2fbeaa4247eb6e8a48866721da345b6943e))
-* **voice:** stop TTS from speaking the style-hint instruction text ([f47e7d5](https://github.com/equationalapplications/clanker/commit/f47e7d55d1d80fe3b56ccc3de13b185eecf60037))
+- **agent:** restore CharacterPromptBuilder array syntax after review fix ([8aba7fa](https://github.com/equationalapplications/clanker/commit/8aba7faad156b233ecfc718309fde65218c93919))
+- **agent:** route live-info queries from edge agent to cloud agent ([760e070](https://github.com/equationalapplications/clanker/commit/760e0708934afe464ba42ce8d1d70960b2c4bf27))
+- **chat:** keep send slot visible while generating response ([08d4ed1](https://github.com/equationalapplications/clanker/commit/08d4ed148a8afb1323daa0bfc68ccfc6cc29ec3e))
+- **chat:** show loading indicator for edge and cloud agent replies ([ba7c71b](https://github.com/equationalapplications/clanker/commit/ba7c71b1d61307a809e8a61de89df891638d0ceb))
+- **functions:** clear eslint warnings in tests and scripts ([aae8d2f](https://github.com/equationalapplications/clanker/commit/aae8d2fbeaa4247eb6e8a48866721da345b6943e))
+- **voice:** stop TTS from speaking the style-hint instruction text ([f47e7d5](https://github.com/equationalapplications/clanker/commit/f47e7d55d1d80fe3b56ccc3de13b185eecf60037))
 
 ## [30.5.1](https://github.com/equationalapplications/clanker/compare/v30.5.0...v30.5.1) (2026-06-24)
 
-
 ### Bug Fixes
 
-* **env:** stop .env.local from leaking dev-sandbox vars into prod builds ([93867aa](https://github.com/equationalapplications/clanker/commit/93867aa9267e5fca0f1168b13861fa018163a368))
-* **functions:** add console/URL globals to eslint config ([ea5917d](https://github.com/equationalapplications/clanker/commit/ea5917db9ccb6cc6a5f058792f0ddc60f7749bcb))
-* **functions:** raise wikiLlm timeout to match slow Vertex AI calls ([4f0b33c](https://github.com/equationalapplications/clanker/commit/4f0b33c123b6ebbccd416b4dc86c8913928978cf))
-* **pr:** address Copilot review on PR 463 ([e1650ce](https://github.com/equationalapplications/clanker/commit/e1650ce4c621db819bd65284f6036853000d7a0f))
+- **env:** stop .env.local from leaking dev-sandbox vars into prod builds ([93867aa](https://github.com/equationalapplications/clanker/commit/93867aa9267e5fca0f1168b13861fa018163a368))
+- **functions:** add console/URL globals to eslint config ([ea5917d](https://github.com/equationalapplications/clanker/commit/ea5917db9ccb6cc6a5f058792f0ddc60f7749bcb))
+- **functions:** raise wikiLlm timeout to match slow Vertex AI calls ([4f0b33c](https://github.com/equationalapplications/clanker/commit/4f0b33c123b6ebbccd416b4dc86c8913928978cf))
+- **pr:** address Copilot review on PR 463 ([e1650ce](https://github.com/equationalapplications/clanker/commit/e1650ce4c621db819bd65284f6036853000d7a0f))
 
 # [30.5.0](https://github.com/equationalapplications/clanker/compare/v30.4.0...v30.5.0) (2026-06-24)
 
-
 ### Bug Fixes
 
-* **chat:** keep sent messages visible while agent is thinking ([872f1e3](https://github.com/equationalapplications/clanker/commit/872f1e3881e4149b4d97c9000f445faacb6176d0))
-* **dev-sandbox:** route mock-auth chat to local cloud-agent ([fd2bf65](https://github.com/equationalapplications/clanker/commit/fd2bf65ce6610592da534e6c6b9d94d6c9a4f4b4))
-* **dev-sandbox:** skip Firebase wiki/sync paths under mock auth ([e928ec1](https://github.com/equationalapplications/clanker/commit/e928ec1b21e16263a03239c406ce76f80e938af0))
-* **edge-agent:** clear isThinking after dev-sandbox escalation ([4cf460c](https://github.com/equationalapplications/clanker/commit/4cf460c1c183f4a83b431d83e0e0e4e630ea4e5e))
-* **edge-agent:** surface proxy usage snapshot and document BYOI architecture ([23e007c](https://github.com/equationalapplications/clanker/commit/23e007c7a24be0cfe10caa46c26e857e3b968a44))
-* **migrations:** commit migrate.mjs into functions/, wire to npm run migrate ([d0d9038](https://github.com/equationalapplications/clanker/commit/d0d90386834d29db41a0ddf02f7ace5270bfbce6))
-* **review:** address PR 461 Copilot and CodeRabbit feedback ([82aedcc](https://github.com/equationalapplications/clanker/commit/82aedccef934a4074f3caebe7e0a8e8697381e4b))
-
+- **chat:** keep sent messages visible while agent is thinking ([872f1e3](https://github.com/equationalapplications/clanker/commit/872f1e3881e4149b4d97c9000f445faacb6176d0))
+- **dev-sandbox:** route mock-auth chat to local cloud-agent ([fd2bf65](https://github.com/equationalapplications/clanker/commit/fd2bf65ce6610592da534e6c6b9d94d6c9a4f4b4))
+- **dev-sandbox:** skip Firebase wiki/sync paths under mock auth ([e928ec1](https://github.com/equationalapplications/clanker/commit/e928ec1b21e16263a03239c406ce76f80e938af0))
+- **edge-agent:** clear isThinking after dev-sandbox escalation ([4cf460c](https://github.com/equationalapplications/clanker/commit/4cf460c1c183f4a83b431d83e0e0e4e630ea4e5e))
+- **edge-agent:** surface proxy usage snapshot and document BYOI architecture ([23e007c](https://github.com/equationalapplications/clanker/commit/23e007c7a24be0cfe10caa46c26e857e3b968a44))
+- **migrations:** commit migrate.mjs into functions/, wire to npm run migrate ([d0d9038](https://github.com/equationalapplications/clanker/commit/d0d90386834d29db41a0ddf02f7ace5270bfbce6))
+- **review:** address PR 461 Copilot and CodeRabbit feedback ([82aedcc](https://github.com/equationalapplications/clanker/commit/82aedccef934a4074f3caebe7e0a8e8697381e4b))
 
 ### Features
 
-* **cloud-agent:** add local Postgres migration script for dev sandbox ([da2f47a](https://github.com/equationalapplications/clanker/commit/da2f47ada923bd972f3d91b1f1643568be9b9de8))
-* **db:** add native Cloud SQL backup script, run pre-migration by default ([598a38d](https://github.com/equationalapplications/clanker/commit/598a38d627c71b5e26988a54020d56f7acc18744))
-* **migrations:** add deploy-migrations.sh to fetch secrets + run migrate.mjs in one step ([fcf4fdf](https://github.com/equationalapplications/clanker/commit/fcf4fdf7d0c18e2b0a62989d2a70ba49e584e14e))
+- **cloud-agent:** add local Postgres migration script for dev sandbox ([da2f47a](https://github.com/equationalapplications/clanker/commit/da2f47ada923bd972f3d91b1f1643568be9b9de8))
+- **db:** add native Cloud SQL backup script, run pre-migration by default ([598a38d](https://github.com/equationalapplications/clanker/commit/598a38d627c71b5e26988a54020d56f7acc18744))
+- **migrations:** add deploy-migrations.sh to fetch secrets + run migrate.mjs in one step ([fcf4fdf](https://github.com/equationalapplications/clanker/commit/fcf4fdf7d0c18e2b0a62989d2a70ba49e584e14e))
 
 # [30.4.0](https://github.com/equationalapplications/clanker/compare/v30.3.0...v30.4.0) (2026-06-24)
 
-
 ### Bug Fixes
 
-* **cloud-agent:** expose edgeTypes and minTraversalConfidence in wiki_traverse_graph schema ([d625182](https://github.com/equationalapplications/clanker/commit/d6251820c5881eb807c3f48a4d1d70cc27293798))
-* **edge:** address PR review feedback on escalation and validation ([b288fcd](https://github.com/equationalapplications/clanker/commit/b288fcde1d1f20c22a243fbebf5f6571d9f37423))
-* **pr-459:** address review findings for ontology sync and graph tools ([bfab202](https://github.com/equationalapplications/clanker/commit/bfab202442bb20627d0f4d28725cb4ef778b6a88))
-* **wiki-sync:** allow null ontology manifest when mode is off ([ce3daae](https://github.com/equationalapplications/clanker/commit/ce3daae60732ff58005a89c088e2d63c715dd973))
-* **wiki:** cap graph traversal and stabilize edge ranking ([10667a4](https://github.com/equationalapplications/clanker/commit/10667a4412c867932512f613ab69d476019c2fd6))
-
+- **cloud-agent:** expose edgeTypes and minTraversalConfidence in wiki_traverse_graph schema ([d625182](https://github.com/equationalapplications/clanker/commit/d6251820c5881eb807c3f48a4d1d70cc27293798))
+- **edge:** address PR review feedback on escalation and validation ([b288fcd](https://github.com/equationalapplications/clanker/commit/b288fcde1d1f20c22a243fbebf5f6571d9f37423))
+- **pr-459:** address review findings for ontology sync and graph tools ([bfab202](https://github.com/equationalapplications/clanker/commit/bfab202442bb20627d0f4d28725cb4ef778b6a88))
+- **wiki-sync:** allow null ontology manifest when mode is off ([ce3daae](https://github.com/equationalapplications/clanker/commit/ce3daae60732ff58005a89c088e2d63c715dd973))
+- **wiki:** cap graph traversal and stabilize edge ranking ([10667a4](https://github.com/equationalapplications/clanker/commit/10667a4412c867932512f613ab69d476019c2fd6))
 
 ### Features
 
-* **db:** add organizations and organization_members tables ([347b0f6](https://github.com/equationalapplications/clanker/commit/347b0f6f43608ca2fff69cdb2c0ba0c9d71f2782))
-* **db:** generate migration for organizations and organization_members ([b047de7](https://github.com/equationalapplications/clanker/commit/b047de72878fc022bfcb154219ad66e7afb74343))
-* **edge:** restore on-device tool loop, ontology sync, and status UI cleanup ([c1a3fbd](https://github.com/equationalapplications/clanker/commit/c1a3fbd27b3f1aa17028f6c7323d14677168ee4b))
-* **wiki:** cloud ontology graph traversal phase 1 ([edb4e96](https://github.com/equationalapplications/clanker/commit/edb4e96d078a630a4c7117c5c84eb84aa47d5517))
+- **db:** add organizations and organization_members tables ([347b0f6](https://github.com/equationalapplications/clanker/commit/347b0f6f43608ca2fff69cdb2c0ba0c9d71f2782))
+- **db:** generate migration for organizations and organization_members ([b047de7](https://github.com/equationalapplications/clanker/commit/b047de72878fc022bfcb154219ad66e7afb74343))
+- **edge:** restore on-device tool loop, ontology sync, and status UI cleanup ([c1a3fbd](https://github.com/equationalapplications/clanker/commit/c1a3fbd27b3f1aa17028f6c7323d14677168ee4b))
+- **wiki:** cloud ontology graph traversal phase 1 ([edb4e96](https://github.com/equationalapplications/clanker/commit/edb4e96d078a630a4c7117c5c84eb84aa47d5517))
 
 # [30.3.0](https://github.com/equationalapplications/clanker/compare/v30.2.0...v30.3.0) (2026-06-20)
 
-
 ### Bug Fixes
 
-* **chat:** guard outer upload catch against unmount ([85572be](https://github.com/equationalapplications/clanker/commit/85572beafb1bbb6deaee20325a0539e90d83e28e))
-* **chat:** harden document upload against timeouts and stale requests ([e289762](https://github.com/equationalapplications/clanker/commit/e28976266806fa104ff1854e8a57b4a39b491606))
-* **config:** add client timeout headroom above backend deadline ([3c2eaf8](https://github.com/equationalapplications/clanker/commit/3c2eaf8be22d4db0744de3aab0f3fe3405d7a096))
-* **functions:** raise Gemini output limits and log conversion failures ([2e56684](https://github.com/equationalapplications/clanker/commit/2e566849c4a729efe8c899086e44d863524cbdef))
-
+- **chat:** guard outer upload catch against unmount ([85572be](https://github.com/equationalapplications/clanker/commit/85572beafb1bbb6deaee20325a0539e90d83e28e))
+- **chat:** harden document upload against timeouts and stale requests ([e289762](https://github.com/equationalapplications/clanker/commit/e28976266806fa104ff1854e8a57b4a39b491606))
+- **config:** add client timeout headroom above backend deadline ([3c2eaf8](https://github.com/equationalapplications/clanker/commit/3c2eaf8be22d4db0744de3aab0f3fe3405d7a096))
+- **functions:** raise Gemini output limits and log conversion failures ([2e56684](https://github.com/equationalapplications/clanker/commit/2e566849c4a729efe8c899086e44d863524cbdef))
 
 ### Features
 
-* **chat:** add document upload phase feedback during ingest ([18e31f8](https://github.com/equationalapplications/clanker/commit/18e31f8cfad1ac9395d80f476b836db454410442))
+- **chat:** add document upload phase feedback during ingest ([18e31f8](https://github.com/equationalapplications/clanker/commit/18e31f8cfad1ac9395d80f476b836db454410442))
 
 # [30.2.0](https://github.com/equationalapplications/clanker/compare/v30.1.1...v30.2.0) (2026-06-20)
 
-
 ### Bug Fixes
 
-* **chat:** narrow convertDocumentText error toasts ([c63c7a5](https://github.com/equationalapplications/clanker/commit/c63c7a5fcfb486a0c368eac86f833971d67e2e42))
-* **doc-uploads:** address CodeRabbit review on PR [#452](https://github.com/equationalapplications/clanker/issues/452) ([600d7aa](https://github.com/equationalapplications/clanker/commit/600d7aa788f06ed3d80e35bb20e78b935c033d0d))
-* **doc-uploads:** address Copilot review on convertDocumentText ([a38b773](https://github.com/equationalapplications/clanker/commit/a38b773fd13a9b913af16867e8d6564e5f498f73))
-* **document-conversion:** tighten error handling and tests ([43982eb](https://github.com/equationalapplications/clanker/commit/43982eb120c02c4bceb5c0e3aa980f7834bae710))
-* **test:** trigger FileReader.onload in chatComposer mock ([71ebf72](https://github.com/equationalapplications/clanker/commit/71ebf72a9fb985ea1957b005bdea5eeaa954af68))
-
+- **chat:** narrow convertDocumentText error toasts ([c63c7a5](https://github.com/equationalapplications/clanker/commit/c63c7a5fcfb486a0c368eac86f833971d67e2e42))
+- **doc-uploads:** address CodeRabbit review on PR [#452](https://github.com/equationalapplications/clanker/issues/452) ([600d7aa](https://github.com/equationalapplications/clanker/commit/600d7aa788f06ed3d80e35bb20e78b935c033d0d))
+- **doc-uploads:** address Copilot review on convertDocumentText ([a38b773](https://github.com/equationalapplications/clanker/commit/a38b773fd13a9b913af16867e8d6564e5f498f73))
+- **document-conversion:** tighten error handling and tests ([43982eb](https://github.com/equationalapplications/clanker/commit/43982eb120c02c4bceb5c0e3aa980f7834bae710))
+- **test:** trigger FileReader.onload in chatComposer mock ([71ebf72](https://github.com/equationalapplications/clanker/commit/71ebf72a9fb985ea1957b005bdea5eeaa954af68))
 
 ### Features
 
-* **client:** route PDF/DOCX/image uploads through convertDocumentText (native) ([bc3b0e0](https://github.com/equationalapplications/clanker/commit/bc3b0e0a3b1f51fefafcfaee8c8b66ada8a8a8eb))
-* **client:** route PDF/DOCX/image uploads through convertDocumentText (web) ([115ce45](https://github.com/equationalapplications/clanker/commit/115ce456a6fe4712f040e97a5926007210bb5580))
-* **client:** wire convertDocumentText callable into apiClient ([be7338a](https://github.com/equationalapplications/clanker/commit/be7338a0171c49e201ee1bbd358067e183a469f9))
-* **functions:** add convertDocumentText callable for PDF/DOCX/image conversion ([1550e93](https://github.com/equationalapplications/clanker/commit/1550e934143021d2bf2adf12f5acfc5fba711e5c))
-* **functions:** register convertDocumentText, remove dead documentExtract callable ([8c3cc39](https://github.com/equationalapplications/clanker/commit/8c3cc396289c7c5fdc421b691c2ed0929def144b))
-* **landing:** promote Personal Assistant and Wiki-Based Memory to active features ([86bd367](https://github.com/equationalapplications/clanker/commit/86bd36731d5bbf18161a545e738df934d0543cfb))
+- **client:** route PDF/DOCX/image uploads through convertDocumentText (native) ([bc3b0e0](https://github.com/equationalapplications/clanker/commit/bc3b0e0a3b1f51fefafcfaee8c8b66ada8a8a8eb))
+- **client:** route PDF/DOCX/image uploads through convertDocumentText (web) ([115ce45](https://github.com/equationalapplications/clanker/commit/115ce456a6fe4712f040e97a5926007210bb5580))
+- **client:** wire convertDocumentText callable into apiClient ([be7338a](https://github.com/equationalapplications/clanker/commit/be7338a0171c49e201ee1bbd358067e183a469f9))
+- **functions:** add convertDocumentText callable for PDF/DOCX/image conversion ([1550e93](https://github.com/equationalapplications/clanker/commit/1550e934143021d2bf2adf12f5acfc5fba711e5c))
+- **functions:** register convertDocumentText, remove dead documentExtract callable ([8c3cc39](https://github.com/equationalapplications/clanker/commit/8c3cc396289c7c5fdc421b691c2ed0929def144b))
+- **landing:** promote Personal Assistant and Wiki-Based Memory to active features ([86bd367](https://github.com/equationalapplications/clanker/commit/86bd36731d5bbf18161a545e738df934d0543cfb))
 
 ## [30.1.1](https://github.com/equationalapplications/clanker/compare/v30.1.0...v30.1.1) (2026-06-19)
 
-
 ### Bug Fixes
 
-* address PR 448 Copilot review on escalation state and env errors ([7cd63ed](https://github.com/equationalapplications/clanker/commit/7cd63ed140c7d3ad15d1d30a57141c42fff67372))
-* address PR 448 review feedback on env wiring, escalation contract, and project-id fallback ([051c976](https://github.com/equationalapplications/clanker/commit/051c976058103fbb591fa70d5f6eb304bb3dd5e1))
-* disable Gemini 3 thinking budget to prevent empty model responses ([2521da4](https://github.com/equationalapplications/clanker/commit/2521da42eabfb7e68f2489cc220041f7e3625ff0))
-* **functions:** trim project env vars and require explicit GCP_PROJECT locally ([c17b3ca](https://github.com/equationalapplications/clanker/commit/c17b3ca79103922e7eec4ef1f50e34370f7b5a3d))
-* gemini 3 models require global vertex ai location, not us-central1 ([0b7d270](https://github.com/equationalapplications/clanker/commit/0b7d2705a991e9c0ded5b24718b1607c2c4b7281))
-* gemini 3 models require global vertex ai location, not us-central1 ([014ecaa](https://github.com/equationalapplications/clanker/commit/014ecaa1653a46b6b964c1c70d8040d554c8619d))
-* **review:** address PR 449 review feedback ([6d648c9](https://github.com/equationalapplications/clanker/commit/6d648c991dc4992636b7620f3312c1ad11bdd5ac))
-* **test:** align eval helper auth with Vertex ADC pattern ([e7f6a6b](https://github.com/equationalapplications/clanker/commit/e7f6a6b71b746356fa06586df05ce2e4d87cb506))
-* **vertex:** harden env resolution and align useEdgeAgent signature ([cce8532](https://github.com/equationalapplications/clanker/commit/cce853228ac1e20b5b9273c832eab0c78f2a2ae4))
+- address PR 448 Copilot review on escalation state and env errors ([7cd63ed](https://github.com/equationalapplications/clanker/commit/7cd63ed140c7d3ad15d1d30a57141c42fff67372))
+- address PR 448 review feedback on env wiring, escalation contract, and project-id fallback ([051c976](https://github.com/equationalapplications/clanker/commit/051c976058103fbb591fa70d5f6eb304bb3dd5e1))
+- disable Gemini 3 thinking budget to prevent empty model responses ([2521da4](https://github.com/equationalapplications/clanker/commit/2521da42eabfb7e68f2489cc220041f7e3625ff0))
+- **functions:** trim project env vars and require explicit GCP_PROJECT locally ([c17b3ca](https://github.com/equationalapplications/clanker/commit/c17b3ca79103922e7eec4ef1f50e34370f7b5a3d))
+- gemini 3 models require global vertex ai location, not us-central1 ([0b7d270](https://github.com/equationalapplications/clanker/commit/0b7d2705a991e9c0ded5b24718b1607c2c4b7281))
+- gemini 3 models require global vertex ai location, not us-central1 ([014ecaa](https://github.com/equationalapplications/clanker/commit/014ecaa1653a46b6b964c1c70d8040d554c8619d))
+- **review:** address PR 449 review feedback ([6d648c9](https://github.com/equationalapplications/clanker/commit/6d648c991dc4992636b7620f3312c1ad11bdd5ac))
+- **test:** align eval helper auth with Vertex ADC pattern ([e7f6a6b](https://github.com/equationalapplications/clanker/commit/e7f6a6b71b746356fa06586df05ce2e4d87cb506))
+- **vertex:** harden env resolution and align useEdgeAgent signature ([cce8532](https://github.com/equationalapplications/clanker/commit/cce853228ac1e20b5b9273c832eab0c78f2a2ae4))
 
 # [30.1.0](https://github.com/equationalapplications/clanker/compare/v30.0.0...v30.1.0) (2026-06-19)
 
-
 ### Bug Fixes
 
-* address CodeRabbit review feedback on PR 447 ([73e8f5e](https://github.com/equationalapplications/clanker/commit/73e8f5e356429ddfa8a4b375f37a874abb6e2ca9))
-* **cloud-agent:** add missing core-llm-tools dependency ([e0a9257](https://github.com/equationalapplications/clanker/commit/e0a9257b494c250b7634dfc2f2b665b8f339c4fc))
-* **cloud-agent:** address live test review feedback ([3944980](https://github.com/equationalapplications/clanker/commit/3944980eb9d15fdd87699b22e0234615f84237d9))
-* **cloud-agent:** harden deploy script and Dockerfile symlink ([22fd5ce](https://github.com/equationalapplications/clanker/commit/22fd5cec007f230e08c0310cc7b9299bfec50cdf))
-* **cloud-agent:** remove unused core-llm-tools dependency ([a82fd9c](https://github.com/equationalapplications/clanker/commit/a82fd9ce5f91a4415075b49b4752882984f83b73))
-* **cloud-agent:** symlink node_modules so tsc resolves shared/ deps ([f4ecac8](https://github.com/equationalapplications/clanker/commit/f4ecac847074056d27375690bd53f98ca5dafa30))
-* **functions:** use dynamic moduleName import for vertexai typecheck compatibility ([45cfe7a](https://github.com/equationalapplications/clanker/commit/45cfe7ad785a7521a2eb88b21dcde08d7e7ac39c))
-* guard citation URLs and use numeric extract schema constraints ([8c9848b](https://github.com/equationalapplications/clanker/commit/8c9848b04efa2788fa9e2067628667b097aefa6a))
-* harden grounding metadata parsing and open search suggestion links ([f813b04](https://github.com/equationalapplications/clanker/commit/f813b042ef2afb1988105b8e274d2043d694c265))
-
+- address CodeRabbit review feedback on PR 447 ([73e8f5e](https://github.com/equationalapplications/clanker/commit/73e8f5e356429ddfa8a4b375f37a874abb6e2ca9))
+- **cloud-agent:** add missing core-llm-tools dependency ([e0a9257](https://github.com/equationalapplications/clanker/commit/e0a9257b494c250b7634dfc2f2b665b8f339c4fc))
+- **cloud-agent:** address live test review feedback ([3944980](https://github.com/equationalapplications/clanker/commit/3944980eb9d15fdd87699b22e0234615f84237d9))
+- **cloud-agent:** harden deploy script and Dockerfile symlink ([22fd5ce](https://github.com/equationalapplications/clanker/commit/22fd5cec007f230e08c0310cc7b9299bfec50cdf))
+- **cloud-agent:** remove unused core-llm-tools dependency ([a82fd9c](https://github.com/equationalapplications/clanker/commit/a82fd9ce5f91a4415075b49b4752882984f83b73))
+- **cloud-agent:** symlink node_modules so tsc resolves shared/ deps ([f4ecac8](https://github.com/equationalapplications/clanker/commit/f4ecac847074056d27375690bd53f98ca5dafa30))
+- **functions:** use dynamic moduleName import for vertexai typecheck compatibility ([45cfe7a](https://github.com/equationalapplications/clanker/commit/45cfe7ad785a7521a2eb88b21dcde08d7e7ac39c))
+- guard citation URLs and use numeric extract schema constraints ([8c9848b](https://github.com/equationalapplications/clanker/commit/8c9848b04efa2788fa9e2067628667b097aefa6a))
+- harden grounding metadata parsing and open search suggestion links ([f813b04](https://github.com/equationalapplications/clanker/commit/f813b042ef2afb1988105b8e274d2043d694c265))
 
 ### Features
 
-* add Google Search grounding tool to the cloud-agent ADK agent ([ae1d16c](https://github.com/equationalapplications/clanker/commit/ae1d16cfc2c6d2ed385845ef1056374b13473dcc))
-* **cloud-agent:** add deploy script ([1d1dccd](https://github.com/equationalapplications/clanker/commit/1d1dccd2b77546ab8b155aa3ecae75664489d35c))
-* forward groundingMetadata into saveAIMessage via GroundedIMessage ([cc6fa8c](https://github.com/equationalapplications/clanker/commit/cc6fa8cb9b4a438d7a688142870937418965f4e9))
-* migrate generateReply to @google/genai with Google Search grounding ([938164e](https://github.com/equationalapplications/clanker/commit/938164eefde06fc4fcf4db5f262d23813084c3cc))
-* parse and forward groundingMetadata in chatReplyService ([bbde842](https://github.com/equationalapplications/clanker/commit/bbde84295d86e524a3b2e038997992d7a167b636))
-* render Google Search citations and Search Suggestions widget in ChatView ([c185c85](https://github.com/equationalapplications/clanker/commit/c185c8529e3d1fa573c98c7f7615d7bcc8958b76))
+- add Google Search grounding tool to the cloud-agent ADK agent ([ae1d16c](https://github.com/equationalapplications/clanker/commit/ae1d16cfc2c6d2ed385845ef1056374b13473dcc))
+- **cloud-agent:** add deploy script ([1d1dccd](https://github.com/equationalapplications/clanker/commit/1d1dccd2b77546ab8b155aa3ecae75664489d35c))
+- forward groundingMetadata into saveAIMessage via GroundedIMessage ([cc6fa8c](https://github.com/equationalapplications/clanker/commit/cc6fa8cb9b4a438d7a688142870937418965f4e9))
+- migrate generateReply to @google/genai with Google Search grounding ([938164e](https://github.com/equationalapplications/clanker/commit/938164eefde06fc4fcf4db5f262d23813084c3cc))
+- parse and forward groundingMetadata in chatReplyService ([bbde842](https://github.com/equationalapplications/clanker/commit/bbde84295d86e524a3b2e038997992d7a167b636))
+- render Google Search citations and Search Suggestions widget in ChatView ([c185c85](https://github.com/equationalapplications/clanker/commit/c185c8529e3d1fa573c98c7f7615d7bcc8958b76))
 
 # [30.0.0](https://github.com/equationalapplications/clanker/compare/v29.19.2...v30.0.0) (2026-06-17)
 
-
-* feat(age-restriction)!: refactor age verification with custom hook ([3ba987e](https://github.com/equationalapplications/clanker/commit/3ba987e280c97f530d100b7be48f4c873a4fb3f4))
-
+- feat(age-restriction)!: refactor age verification with custom hook ([3ba987e](https://github.com/equationalapplications/clanker/commit/3ba987e280c97f530d100b7be48f4c873a4fb3f4))
 
 ### Bug Fixes
 
-* **age-restriction:** address CodeRabbit review on DOB parsing and tests ([b60b1fd](https://github.com/equationalapplications/clanker/commit/b60b1fd175ef02a4be54fc1ea1701587b9b79078))
-* **age-restriction:** address PR review feedback on DOB validation and tests ([abf5b12](https://github.com/equationalapplications/clanker/commit/abf5b1206c92ee3dcaefc71936e1062653bdadeb))
-* **age-restriction:** show loading state on DOB fallback submit ([1610472](https://github.com/equationalapplications/clanker/commit/16104728d87a7686623447a46564f5d9fa6055d3))
-* **age-verification:** address PR 442 Copilot review feedback ([17a920a](https://github.com/equationalapplications/clanker/commit/17a920a0fa043fe7039b0c1c68bc71d2ca5a3d66))
-* **test:** replace expo-router requireActual mock to fix Jest ESM parse error ([af19bd3](https://github.com/equationalapplications/clanker/commit/af19bd34fcb3936b005f8a2976d5bc3bfdab20a9))
-
+- **age-restriction:** address CodeRabbit review on DOB parsing and tests ([b60b1fd](https://github.com/equationalapplications/clanker/commit/b60b1fd175ef02a4be54fc1ea1701587b9b79078))
+- **age-restriction:** address PR review feedback on DOB validation and tests ([abf5b12](https://github.com/equationalapplications/clanker/commit/abf5b1206c92ee3dcaefc71936e1062653bdadeb))
+- **age-restriction:** show loading state on DOB fallback submit ([1610472](https://github.com/equationalapplications/clanker/commit/16104728d87a7686623447a46564f5d9fa6055d3))
+- **age-verification:** address PR 442 Copilot review feedback ([17a920a](https://github.com/equationalapplications/clanker/commit/17a920a0fa043fe7039b0c1c68bc71d2ca5a3d66))
+- **test:** replace expo-router requireActual mock to fix Jest ESM parse error ([af19bd3](https://github.com/equationalapplications/clanker/commit/af19bd34fcb3936b005f8a2976d5bc3bfdab20a9))
 
 ### Features
 
-* add ManualDobPicker component with age calculation ([8417811](https://github.com/equationalapplications/clanker/commit/8417811371229ae7cc3b71d802689c533dbd05e8))
-* add useAgeVerification hook with platform branching ([6857b05](https://github.com/equationalapplications/clanker/commit/6857b052bde4a07cd92a85df1d4ede6909cea174))
-* remove age self-attestation from terms checkbox — enforced by hook ([58b908b](https://github.com/equationalapplications/clanker/commit/58b908b10e4ae11120a38e963b5e353ab9dc15f4))
-* wire useAgeVerification into accept-terms screen ([1a5a60f](https://github.com/equationalapplications/clanker/commit/1a5a60f8902e1b3fa8807663ce69364f37188e42))
-
+- add ManualDobPicker component with age calculation ([8417811](https://github.com/equationalapplications/clanker/commit/8417811371229ae7cc3b71d802689c533dbd05e8))
+- add useAgeVerification hook with platform branching ([6857b05](https://github.com/equationalapplications/clanker/commit/6857b052bde4a07cd92a85df1d4ede6909cea174))
+- remove age self-attestation from terms checkbox — enforced by hook ([58b908b](https://github.com/equationalapplications/clanker/commit/58b908b10e4ae11120a38e963b5e353ab9dc15f4))
+- wire useAgeVerification into accept-terms screen ([1a5a60f](https://github.com/equationalapplications/clanker/commit/1a5a60f8902e1b3fa8807663ce69364f37188e42))
 
 ### BREAKING CHANGES
 
-* Age verification now requires native build due to hook architecture changes
+- Age verification now requires native build due to hook architecture changes
 
 ## [29.19.2](https://github.com/equationalapplications/clanker/compare/v29.19.1...v29.19.2) (2026-06-06)
 
-
 ### Bug Fixes
 
-* **deps:** bump expo-speech-recognition to SDK 56 ([57af687](https://github.com/equationalapplications/clanker/commit/57af6876424741200463fe70df540cdc62eb9577))
-* **deps:** update expo-speech-recognition to 56.0.1 ([8da3451](https://github.com/equationalapplications/clanker/commit/8da3451efa06ead4fe162c88f614173a3b786a5b))
+- **deps:** bump expo-speech-recognition to SDK 56 ([57af687](https://github.com/equationalapplications/clanker/commit/57af6876424741200463fe70df540cdc62eb9577))
+- **deps:** update expo-speech-recognition to 56.0.1 ([8da3451](https://github.com/equationalapplications/clanker/commit/8da3451efa06ead4fe162c88f614173a3b786a5b))
 
 ## [29.19.1](https://github.com/equationalapplications/clanker/compare/v29.19.0...v29.19.1) (2026-06-05)
 
-
 ### Bug Fixes
 
-* address review feedback on cross-platform test script and fetch race ([2e6ed9c](https://github.com/equationalapplications/clanker/commit/2e6ed9c92693d34680a809cfa014f13ff81780f4))
-* **deps:** pin react-test-renderer to exact version ([d7de6cb](https://github.com/equationalapplications/clanker/commit/d7de6cb15968f05083e2cab06354dc018c447ae1))
-* resolve type errors, lint issues, and test infrastructure ([2587e01](https://github.com/equationalapplications/clanker/commit/2587e0121f66440fc1a95e16954b299bfe52cbc9))
-* **scripts:** apply jest preload to test:watch and edge-evals ([377e99b](https://github.com/equationalapplications/clanker/commit/377e99bda2a401789519c5ddfd55a0998fc7d6bd))
-* **test:** restore __DEV__ in Jest globals and remove manual test cleanup ([41a5131](https://github.com/equationalapplications/clanker/commit/41a5131e68809eb3a287b17c87e35f3bbd80a04b))
+- address review feedback on cross-platform test script and fetch race ([2e6ed9c](https://github.com/equationalapplications/clanker/commit/2e6ed9c92693d34680a809cfa014f13ff81780f4))
+- **deps:** pin react-test-renderer to exact version ([d7de6cb](https://github.com/equationalapplications/clanker/commit/d7de6cb15968f05083e2cab06354dc018c447ae1))
+- resolve type errors, lint issues, and test infrastructure ([2587e01](https://github.com/equationalapplications/clanker/commit/2587e0121f66440fc1a95e16954b299bfe52cbc9))
+- **scripts:** apply jest preload to test:watch and edge-evals ([377e99b](https://github.com/equationalapplications/clanker/commit/377e99bda2a401789519c5ddfd55a0998fc7d6bd))
+- **test:** restore **DEV** in Jest globals and remove manual test cleanup ([41a5131](https://github.com/equationalapplications/clanker/commit/41a5131e68809eb3a287b17c87e35f3bbd80a04b))
 
 # [29.19.0](https://github.com/equationalapplications/clanker/compare/v29.18.0...v29.19.0) (2026-06-05)
 
-
 ### Bug Fixes
 
-* address PR [#434](https://github.com/equationalapplications/clanker/issues/434) review issues ([6591d6d](https://github.com/equationalapplications/clanker/commit/6591d6d1e85d7fbe91fed58bd766ef27d2b82668))
-* align test mocks and assertions with renamed wiki tools ([4782f5d](https://github.com/equationalapplications/clanker/commit/4782f5d7232b97bb09588362bd50887b34cf81ae))
-* **auth:** wire mock user to getCurrentUser() in dev sandbox ([0df212b](https://github.com/equationalapplications/clanker/commit/0df212b5e34df16a7e05b4f3c9c7839306a37121)), closes [#430](https://github.com/equationalapplications/clanker/issues/430)
-* **ci:** update package-lock.json to match @google/genai@^2.8.0 ([fb94c2e](https://github.com/equationalapplications/clanker/commit/fb94c2e359520321f8285876d6c884d23f318688))
-* **cloud-agent:** fix timestamp threshold bug and add missing embedding index ([893d8cb](https://github.com/equationalapplications/clanker/commit/893d8cb5dcc48354b8ba987212b0b2c71b522da9))
-* correct shared import path in clankerManifests, update design doc status ([5e839f6](https://github.com/equationalapplications/clanker/commit/5e839f6edacc8086cc6c9cff9c6087363cef70c2))
-* **dev-sandbox:** add env warning and fix TypeScript error in chatReplyService ([93fcaa1](https://github.com/equationalapplications/clanker/commit/93fcaa1c59dc84fb3e2575b29877d49e38156043))
-* **dev-sandbox:** add missing return in bootstrapSession mock branch, fix Type enum ([3083065](https://github.com/equationalapplications/clanker/commit/308306502a3d35d2384d1e1c1d6420a7d544e60e))
-* **dev-sandbox:** apply production validations in sandbox path and fix seed idempotency ([667e794](https://github.com/equationalapplications/clanker/commit/667e794e3b84d7ff1c6740718ba997e907a62a6a))
-* **dev-sandbox:** resolve syntax error in chatReplyService.ts ([6ee4991](https://github.com/equationalapplications/clanker/commit/6ee4991b1253a9bb380581ac2f5c0a36a7d6dfe0))
-* **dev-sandbox:** update env docs, fix TypeScript errors, and add tests ([a4ab54d](https://github.com/equationalapplications/clanker/commit/a4ab54ddf4d4c91d0462c5ddc32d1116ce498b68))
-* **dev-sandbox:** update tests for getCurrentUser refactor and Type enum ([1850b7b](https://github.com/equationalapplications/clanker/commit/1850b7b3f9da8415fc59b79e8dc38e6be1bbfe6a))
-* **dev-sandbox:** use getCurrentUser() in cloudAgentService, remove auth.currentUser cast ([a2d727b](https://github.com/equationalapplications/clanker/commit/a2d727b64bcb95cc3fa92806409cf36d0b600e64))
-* **pr-430:** address review comments ([164880f](https://github.com/equationalapplications/clanker/commit/164880f85a442e6a2d26bf432cdf82ceacc71c7b))
-* resolve build errors - tsconfig shared/, wiki tx cast, null-safety ([d1bcf4a](https://github.com/equationalapplications/clanker/commit/d1bcf4a5480e31f6d6392866ab643384285a59f5))
-* restore escalate description and gate auth debug behind isMockAuth ([c12dca4](https://github.com/equationalapplications/clanker/commit/c12dca4c301c589e3290523ced0c6099cd53e192))
-* **sandbox:** use correct env var EXPO_PUBLIC_GOOGLE_GENAI_API_KEY ([529a5e8](https://github.com/equationalapplications/clanker/commit/529a5e85f4e0c2959ee8a0bb9250f604aa074c86))
-* **test:** add missing EXPO_PUBLIC_GOOGLE_GENAI_API_KEY to mock auth test ([2602d66](https://github.com/equationalapplications/clanker/commit/2602d661330fd2275308e89011d2b93242406e5b))
-* update test files for shared manifest re-export ([3292513](https://github.com/equationalapplications/clanker/commit/32925139ef1de5b1e2c58a8a7b70d9cbf798ae9b))
-
+- address PR [#434](https://github.com/equationalapplications/clanker/issues/434) review issues ([6591d6d](https://github.com/equationalapplications/clanker/commit/6591d6d1e85d7fbe91fed58bd766ef27d2b82668))
+- align test mocks and assertions with renamed wiki tools ([4782f5d](https://github.com/equationalapplications/clanker/commit/4782f5d7232b97bb09588362bd50887b34cf81ae))
+- **auth:** wire mock user to getCurrentUser() in dev sandbox ([0df212b](https://github.com/equationalapplications/clanker/commit/0df212b5e34df16a7e05b4f3c9c7839306a37121)), closes [#430](https://github.com/equationalapplications/clanker/issues/430)
+- **ci:** update package-lock.json to match @google/genai@^2.8.0 ([fb94c2e](https://github.com/equationalapplications/clanker/commit/fb94c2e359520321f8285876d6c884d23f318688))
+- **cloud-agent:** fix timestamp threshold bug and add missing embedding index ([893d8cb](https://github.com/equationalapplications/clanker/commit/893d8cb5dcc48354b8ba987212b0b2c71b522da9))
+- correct shared import path in clankerManifests, update design doc status ([5e839f6](https://github.com/equationalapplications/clanker/commit/5e839f6edacc8086cc6c9cff9c6087363cef70c2))
+- **dev-sandbox:** add env warning and fix TypeScript error in chatReplyService ([93fcaa1](https://github.com/equationalapplications/clanker/commit/93fcaa1c59dc84fb3e2575b29877d49e38156043))
+- **dev-sandbox:** add missing return in bootstrapSession mock branch, fix Type enum ([3083065](https://github.com/equationalapplications/clanker/commit/308306502a3d35d2384d1e1c1d6420a7d544e60e))
+- **dev-sandbox:** apply production validations in sandbox path and fix seed idempotency ([667e794](https://github.com/equationalapplications/clanker/commit/667e794e3b84d7ff1c6740718ba997e907a62a6a))
+- **dev-sandbox:** resolve syntax error in chatReplyService.ts ([6ee4991](https://github.com/equationalapplications/clanker/commit/6ee4991b1253a9bb380581ac2f5c0a36a7d6dfe0))
+- **dev-sandbox:** update env docs, fix TypeScript errors, and add tests ([a4ab54d](https://github.com/equationalapplications/clanker/commit/a4ab54ddf4d4c91d0462c5ddc32d1116ce498b68))
+- **dev-sandbox:** update tests for getCurrentUser refactor and Type enum ([1850b7b](https://github.com/equationalapplications/clanker/commit/1850b7b3f9da8415fc59b79e8dc38e6be1bbfe6a))
+- **dev-sandbox:** use getCurrentUser() in cloudAgentService, remove auth.currentUser cast ([a2d727b](https://github.com/equationalapplications/clanker/commit/a2d727b64bcb95cc3fa92806409cf36d0b600e64))
+- **pr-430:** address review comments ([164880f](https://github.com/equationalapplications/clanker/commit/164880f85a442e6a2d26bf432cdf82ceacc71c7b))
+- resolve build errors - tsconfig shared/, wiki tx cast, null-safety ([d1bcf4a](https://github.com/equationalapplications/clanker/commit/d1bcf4a5480e31f6d6392866ab643384285a59f5))
+- restore escalate description and gate auth debug behind isMockAuth ([c12dca4](https://github.com/equationalapplications/clanker/commit/c12dca4c301c589e3290523ced0c6099cd53e192))
+- **sandbox:** use correct env var EXPO_PUBLIC_GOOGLE_GENAI_API_KEY ([529a5e8](https://github.com/equationalapplications/clanker/commit/529a5e85f4e0c2959ee8a0bb9250f604aa074c86))
+- **test:** add missing EXPO_PUBLIC_GOOGLE_GENAI_API_KEY to mock auth test ([2602d66](https://github.com/equationalapplications/clanker/commit/2602d661330fd2275308e89011d2b93242406e5b))
+- update test files for shared manifest re-export ([3292513](https://github.com/equationalapplications/clanker/commit/32925139ef1de5b1e2c58a8a7b70d9cbf798ae9b))
 
 ### Features
 
-* add shared agent tool manifests and wiki utilities ([b766ceb](https://github.com/equationalapplications/clanker/commit/b766ceb0b95065081d7d435daf92ca39cf0aee84))
-* cloud wiki_read/wiki_write — pgvector cosine search + dual-write ([8a191ba](https://github.com/equationalapplications/clanker/commit/8a191babeaa1dcaa9e25130fff74845f584af04a))
-* **dev-sandbox:** fix cloud agent escalation with pgvector and mock auth ([9cb162c](https://github.com/equationalapplications/clanker/commit/9cb162cba0cf429f95e2b8d3e7dfe90ab3736db3))
-* **dev-sandbox:** implement dev sandbox with terms pre-accepted ([c7eb296](https://github.com/equationalapplications/clanker/commit/c7eb296186937fdec368458979ec2d14925a704d))
-* edge SQLite task CRUD, shared manifest, X-Timezone ([92c79fb](https://github.com/equationalapplications/clanker/commit/92c79fb8a1b13b07205e98a6dc8401e10b5f8e44))
-* **sandbox:** add docker infra, DATABASE_URL branch, mock auth, seed script ([35ae309](https://github.com/equationalapplications/clanker/commit/35ae309f3f0356185b1e313a18a25c43a1fb30a9))
-* **sandbox:** add Edge Agent routing with local Gemini evaluation ([abc50fd](https://github.com/equationalapplications/clanker/commit/abc50fd3d5c50ae0a456224cb17335d83600f367))
-* **sandbox:** mock auth, bootstrap, and chat reply for local dev ([ccf19ae](https://github.com/equationalapplications/clanker/commit/ccf19ae3a61798fbde765fa73beda85d153493e4))
-* wire all new cloud tools, pgvector queryWikiContext, timezone header ([ddd2cb1](https://github.com/equationalapplications/clanker/commit/ddd2cb159124c4e07f0412f25e3677d39e9d679f))
+- add shared agent tool manifests and wiki utilities ([b766ceb](https://github.com/equationalapplications/clanker/commit/b766ceb0b95065081d7d435daf92ca39cf0aee84))
+- cloud wiki_read/wiki_write — pgvector cosine search + dual-write ([8a191ba](https://github.com/equationalapplications/clanker/commit/8a191babeaa1dcaa9e25130fff74845f584af04a))
+- **dev-sandbox:** fix cloud agent escalation with pgvector and mock auth ([9cb162c](https://github.com/equationalapplications/clanker/commit/9cb162cba0cf429f95e2b8d3e7dfe90ab3736db3))
+- **dev-sandbox:** implement dev sandbox with terms pre-accepted ([c7eb296](https://github.com/equationalapplications/clanker/commit/c7eb296186937fdec368458979ec2d14925a704d))
+- edge SQLite task CRUD, shared manifest, X-Timezone ([92c79fb](https://github.com/equationalapplications/clanker/commit/92c79fb8a1b13b07205e98a6dc8401e10b5f8e44))
+- **sandbox:** add docker infra, DATABASE_URL branch, mock auth, seed script ([35ae309](https://github.com/equationalapplications/clanker/commit/35ae309f3f0356185b1e313a18a25c43a1fb30a9))
+- **sandbox:** add Edge Agent routing with local Gemini evaluation ([abc50fd](https://github.com/equationalapplications/clanker/commit/abc50fd3d5c50ae0a456224cb17335d83600f367))
+- **sandbox:** mock auth, bootstrap, and chat reply for local dev ([ccf19ae](https://github.com/equationalapplications/clanker/commit/ccf19ae3a61798fbde765fa73beda85d153493e4))
+- wire all new cloud tools, pgvector queryWikiContext, timezone header ([ddd2cb1](https://github.com/equationalapplications/clanker/commit/ddd2cb159124c4e07f0412f25e3677d39e9d679f))
 
 # [29.18.0](https://github.com/equationalapplications/clanker/compare/v29.17.2...v29.18.0) (2026-06-04)
 
-
 ### Bug Fixes
 
-* **cloud-agent:** accept 4 or 5 execute calls in refundCredit test ([e64675d](https://github.com/equationalapplications/clanker/commit/e64675dbc72dd34c4033eba9bb78e08f753f46b5))
-* **cloud-agent:** add transaction support to mock DB clients in tests ([402564b](https://github.com/equationalapplications/clanker/commit/402564b79d280fbce6c5001db58a51c53049b736))
-* **cloud-agent:** match functions lock order to prevent deadlocks ([40914bb](https://github.com/equationalapplications/clanker/commit/40914bbaf7137c8554edbc469e682206e0f1fe35))
-* **cloud-agent:** move spendCredit before writes to fail fast with 402 ([c09ad91](https://github.com/equationalapplications/clanker/commit/c09ad91acb00497dc6b5ed0ac4c651bf5174336c))
-* **cloud-agent:** wrap refundCredit in transaction to hold FOR UPDATE locks ([82af9ea](https://github.com/equationalapplications/clanker/commit/82af9eaffa8a170e4b6dd0b494175b12734c32b0)), closes [#427](https://github.com/equationalapplications/clanker/issues/427)
-* **pr-428:** address review comments ([460b2a6](https://github.com/equationalapplications/clanker/commit/460b2a66abbde90a128038bd5554a8097b34f138)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
-* **test:** add missing navigation mocks to fix staging test failures ([ee0788b](https://github.com/equationalapplications/clanker/commit/ee0788bd2cbc563abded92752b39956acbcef282)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
-* **ui:** address PR review - use focus/blur listeners, guard window.reload ([9824bd1](https://github.com/equationalapplications/clanker/commit/9824bd16a1f33ad89778862d521fd90ae05af87e))
-* **ui:** credits badge, single header, escalation indicator, multi-tab error ([f9174d0](https://github.com/equationalapplications/clanker/commit/f9174d06869bd7f9608528c225067d4f91fb6ae3))
-* **ui:** use globalThis instead of window for cross-platform reload safety ([ab25afd](https://github.com/equationalapplications/clanker/commit/ab25afdcb45b01a00652aaa495da1a0a8837b48b))
-
+- **cloud-agent:** accept 4 or 5 execute calls in refundCredit test ([e64675d](https://github.com/equationalapplications/clanker/commit/e64675dbc72dd34c4033eba9bb78e08f753f46b5))
+- **cloud-agent:** add transaction support to mock DB clients in tests ([402564b](https://github.com/equationalapplications/clanker/commit/402564b79d280fbce6c5001db58a51c53049b736))
+- **cloud-agent:** match functions lock order to prevent deadlocks ([40914bb](https://github.com/equationalapplications/clanker/commit/40914bbaf7137c8554edbc469e682206e0f1fe35))
+- **cloud-agent:** move spendCredit before writes to fail fast with 402 ([c09ad91](https://github.com/equationalapplications/clanker/commit/c09ad91acb00497dc6b5ed0ac4c651bf5174336c))
+- **cloud-agent:** wrap refundCredit in transaction to hold FOR UPDATE locks ([82af9ea](https://github.com/equationalapplications/clanker/commit/82af9eaffa8a170e4b6dd0b494175b12734c32b0)), closes [#427](https://github.com/equationalapplications/clanker/issues/427)
+- **pr-428:** address review comments ([460b2a6](https://github.com/equationalapplications/clanker/commit/460b2a66abbde90a128038bd5554a8097b34f138)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
+- **test:** add missing navigation mocks to fix staging test failures ([ee0788b](https://github.com/equationalapplications/clanker/commit/ee0788bd2cbc563abded92752b39956acbcef282)), closes [#428](https://github.com/equationalapplications/clanker/issues/428)
+- **ui:** address PR review - use focus/blur listeners, guard window.reload ([9824bd1](https://github.com/equationalapplications/clanker/commit/9824bd16a1f33ad89778862d521fd90ae05af87e))
+- **ui:** credits badge, single header, escalation indicator, multi-tab error ([f9174d0](https://github.com/equationalapplications/clanker/commit/f9174d06869bd7f9608528c225067d4f91fb6ae3))
+- **ui:** use globalThis instead of window for cross-platform reload safety ([ab25afd](https://github.com/equationalapplications/clanker/commit/ab25afdcb45b01a00652aaa495da1a0a8837b48b))
 
 ### Features
 
-* **cloud-agent:** add credit deduction to /agent/run with spend-execute-refund pattern ([cbc4c4c](https://github.com/equationalapplications/clanker/commit/cbc4c4c64f7019b1f9addf135381f1e3d43c121e))
-* **cloud-agent:** add creditService with spend/refund/getBalance raw SQL ([1a44a7c](https://github.com/equationalapplications/clanker/commit/1a44a7c07811005e3dc09bc9ce574c065d405e4b))
-* **expo:** dispatch USAGE_SNAPSHOT_RECEIVED from cloud agent responses and handle 402 ([cbe731c](https://github.com/equationalapplications/clanker/commit/cbe731c2521bd0f1de75969c3385ce5ea090dbf2))
-* **expo:** handle 402 and parse usageSnapshot in cloudAgentService ([16936c9](https://github.com/equationalapplications/clanker/commit/16936c977662577b864cf2f6d64e61c19041ae45))
+- **cloud-agent:** add credit deduction to /agent/run with spend-execute-refund pattern ([cbc4c4c](https://github.com/equationalapplications/clanker/commit/cbc4c4c64f7019b1f9addf135381f1e3d43c121e))
+- **cloud-agent:** add creditService with spend/refund/getBalance raw SQL ([1a44a7c](https://github.com/equationalapplications/clanker/commit/1a44a7c07811005e3dc09bc9ce574c065d405e4b))
+- **expo:** dispatch USAGE_SNAPSHOT_RECEIVED from cloud agent responses and handle 402 ([cbe731c](https://github.com/equationalapplications/clanker/commit/cbe731c2521bd0f1de75969c3385ce5ea090dbf2))
+- **expo:** handle 402 and parse usageSnapshot in cloudAgentService ([16936c9](https://github.com/equationalapplications/clanker/commit/16936c977662577b864cf2f6d64e61c19041ae45))
 
 ## [29.17.2](https://github.com/equationalapplications/clanker/compare/v29.17.1...v29.17.2) (2026-06-03)
 
-
 ### Bug Fixes
 
-* **c4:** move Cloud SQL and Cloud Agent to Google Cloud boundary ([aeb7881](https://github.com/equationalapplications/clanker/commit/aeb788172b04f302a5746daa955a605354a10279))
+- **c4:** move Cloud SQL and Cloud Agent to Google Cloud boundary ([aeb7881](https://github.com/equationalapplications/clanker/commit/aeb788172b04f302a5746daa955a605354a10279))
 
 ## [29.17.1](https://github.com/equationalapplications/clanker/compare/v29.17.0...v29.17.1) (2026-06-03)
 
-
 ### Bug Fixes
 
-* **charts:** restore import fallback for machines; replace OpenAI with Gemini ([a8a7a05](https://github.com/equationalapplications/clanker/commit/a8a7a05122b80512e24e46a4498aa97decb58cf4))
-* **scripts:** close SQL template literal in generate-charts.js ([b6cf9ef](https://github.com/equationalapplications/clanker/commit/b6cf9efb19810262b4c1c26ad3685ae7e1600239))
+- **charts:** restore import fallback for machines; replace OpenAI with Gemini ([a8a7a05](https://github.com/equationalapplications/clanker/commit/a8a7a05122b80512e24e46a4498aa97decb58cf4))
+- **scripts:** close SQL template literal in generate-charts.js ([b6cf9ef](https://github.com/equationalapplications/clanker/commit/b6cf9efb19810262b4c1c26ad3685ae7e1600239))
 
 # [29.17.0](https://github.com/equationalapplications/clanker/compare/v29.16.0...v29.17.0) (2026-06-03)
 
-
 ### Features
 
-* **charts:** pivot to file-level module flowcharts ([5268a87](https://github.com/equationalapplications/clanker/commit/5268a879a590114272e16614092d7f84abf0c445))
-* **charts:** rewrite to folder-level dependency overview ([6d7ac8d](https://github.com/equationalapplications/clanker/commit/6d7ac8d7c2031d5b59825cdf4bd082d0828206be))
+- **charts:** pivot to file-level module flowcharts ([5268a87](https://github.com/equationalapplications/clanker/commit/5268a879a590114272e16614092d7f84abf0c445))
+- **charts:** rewrite to folder-level dependency overview ([6d7ac8d](https://github.com/equationalapplications/clanker/commit/6d7ac8d7c2031d5b59825cdf4bd082d0828206be))
 
 # [29.16.0](https://github.com/equationalapplications/clanker/compare/v29.15.1...v29.16.0) (2026-06-03)
 
-
 ### Bug Fixes
 
-* address Copilot review — tsconfig exclusion and create_task return value ([99dc943](https://github.com/equationalapplications/clanker/commit/99dc94345e2e0e5efed70454f30fc244d21d9ef4))
-* **cloud-agent:** add rate limiting to /agent/run (20 req/min) ([e65c778](https://github.com/equationalapplications/clanker/commit/e65c7783b3cf355ef3f889f41e24e3f638a18133))
-* **cloud-agent:** add userId filter to wiki queries and validate contentSchema role ([426a2ef](https://github.com/equationalapplications/clanker/commit/426a2ef62d4d75b48ec2b67db8d79ccd3326d884))
-* **cloud-agent:** address Copilot review feedback on PR [#418](https://github.com/equationalapplications/clanker/issues/418) ([7c386af](https://github.com/equationalapplications/clanker/commit/7c386afff6788dffe4f37490ce7ffabf429926f6))
-* **cloud-agent:** address Copilot review issues ([80f5f24](https://github.com/equationalapplications/clanker/commit/80f5f2416f9a3df152ce5eef49f4c85a277da31c))
-* **cloud-agent:** address Copilot review threads in index.ts ([72c5ff6](https://github.com/equationalapplications/clanker/commit/72c5ff67eb55599a19b455db0da07f85d328a036))
-* **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([e7a9c3c](https://github.com/equationalapplications/clanker/commit/e7a9c3c2fc217e5976d7c70318a3fa8b96b8d8d6))
-* **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([1581bb0](https://github.com/equationalapplications/clanker/commit/1581bb00b25ffc27f460b76cec3506ba50532446))
-* **cloud-agent:** address PR [#418](https://github.com/equationalapplications/clanker/issues/418) review feedback ([d8f6ecb](https://github.com/equationalapplications/clanker/commit/d8f6ecbdf22dda55be81816f609fc8bd79d1f1a9))
-* **cloud-agent:** address PR review feedback ([3ab0407](https://github.com/equationalapplications/clanker/commit/3ab040709c74445c863a41dc2c2bcff1721f4b9a))
-* **cloud-agent:** address remaining Copilot review threads ([50fdd0e](https://github.com/equationalapplications/clanker/commit/50fdd0e5a1c8adb551b8223c4bf2203e39a65491))
-* **cloud-agent:** address remaining Copilot review threads ([c888054](https://github.com/equationalapplications/clanker/commit/c888054c896f8c2fb3c7cddc9bd76d20f34f28d9))
-* **cloud-agent:** address security review — ReDoS, body limit, CORS wildcard ([38833ce](https://github.com/equationalapplications/clanker/commit/38833ce2cdc05c35e5fa519f2f8fa5c80f421644))
-* **cloud-agent:** apply cloud agent fixes and add ignore files ([91ac0d9](https://github.com/equationalapplications/clanker/commit/91ac0d90907c34473d177044bfb261e8ef51ca2f))
-* **cloud-agent:** detect Cloud Run (K_SERVICE) as production in 500 handler ([0c2d9fb](https://github.com/equationalapplications/clanker/commit/0c2d9fbc52e87e4e8d341abd298bad182b1bdf66))
-* **cloud-agent:** fix corsOrigins wildcard handling and rate limiter JSON response ([f465754](https://github.com/equationalapplications/clanker/commit/f46575450a7060bdc8324db8bc26d604f82b8331))
-* **cloud-agent:** fix silent empty replies and broken endpoint routing ([7d1797d](https://github.com/equationalapplications/clanker/commit/7d1797d418fdca713dee1e2507c4c58927377b57))
-* **cloud-agent:** fix try-block indentation, restrict CORS, add 500-path test ([22d101f](https://github.com/equationalapplications/clanker/commit/22d101f890b81279d66a0b8672eb0cc9390b3d03))
-* **cloud-agent:** rename shadowed `message` to `errorMessage` in error handler ([f50d9e6](https://github.com/equationalapplications/clanker/commit/f50d9e68a4a161ae4c1dc00f8fa7a989006fbf9f))
-* **cloud-agent:** restore CORS_ORIGIN=* passthrough and fix stale spec/test ([21ff2f9](https://github.com/equationalapplications/clanker/commit/21ff2f93c67625179b0e75e7d4e73236779f3143))
-* **cloud-agent:** restore origin reflection when CORS_ORIGIN is unset ([6c22033](https://github.com/equationalapplications/clanker/commit/6c220338524c9c0200bf89caaa6d33da59ddb742))
-* **cloud-agent:** restrict CORS to explicit origins, remove wildcard default ([23706f8](https://github.com/equationalapplications/clanker/commit/23706f872229665ecdb1cfa2a10d773372b3196a))
-* **cloud-agent:** swap Zod trim/min order and trim EXPO_PUBLIC_CLOUD_AGENT_URL ([a0ec01a](https://github.com/equationalapplications/clanker/commit/a0ec01a3281d34f32ec7037f7b101e9014c5118a))
-* **cloud-agent:** uuid validation, cors default, list_tasks order ([ecc03b5](https://github.com/equationalapplications/clanker/commit/ecc03b558a7552dea79700c4d82233fc41d532a7))
-* **edge:** add task cascade delete, stable task ids, and update edge eval docs ([5342eb7](https://github.com/equationalapplications/clanker/commit/5342eb767fa800d28487b070396e7a9312c9c1fb))
-* **edge:** address Copilot review feedback on write_observation PR ([6b94568](https://github.com/equationalapplications/clanker/commit/6b945681420f3cbeac434e2db3a0d77176e80414))
-* handle wildcard in CORS origins and add backward-compatible URL test coverage ([349e4c3](https://github.com/equationalapplications/clanker/commit/349e4c3c34cb8e0c08cfd0a2bff04d410322f4f6))
-* **jest:** exclude cloud-agent/ from root test run ([5f84008](https://github.com/equationalapplications/clanker/commit/5f84008f9be22f9f949ede3d8f933efcac202ea4))
-* restore casual-chat escalation guard and align Cloud Agent system prompt ([24ca36c](https://github.com/equationalapplications/clanker/commit/24ca36cd03b3588c6605b5eb0340d52a585db7f0))
-* **test:** update buildAgent model assertion to gemini-2.5-flash ([f7fa1b0](https://github.com/equationalapplications/clanker/commit/f7fa1b0789d1e51815bb988bf29e3af3b8b4c899))
-* **test:** update cloudAgentService mock URL to base URL only ([75bb4f7](https://github.com/equationalapplications/clanker/commit/75bb4f78cdf67b15b119c2d60f451d51bd97364d))
-
+- address Copilot review — tsconfig exclusion and create_task return value ([99dc943](https://github.com/equationalapplications/clanker/commit/99dc94345e2e0e5efed70454f30fc244d21d9ef4))
+- **cloud-agent:** add rate limiting to /agent/run (20 req/min) ([e65c778](https://github.com/equationalapplications/clanker/commit/e65c7783b3cf355ef3f889f41e24e3f638a18133))
+- **cloud-agent:** add userId filter to wiki queries and validate contentSchema role ([426a2ef](https://github.com/equationalapplications/clanker/commit/426a2ef62d4d75b48ec2b67db8d79ccd3326d884))
+- **cloud-agent:** address Copilot review feedback on PR [#418](https://github.com/equationalapplications/clanker/issues/418) ([7c386af](https://github.com/equationalapplications/clanker/commit/7c386afff6788dffe4f37490ce7ffabf429926f6))
+- **cloud-agent:** address Copilot review issues ([80f5f24](https://github.com/equationalapplications/clanker/commit/80f5f2416f9a3df152ce5eef49f4c85a277da31c))
+- **cloud-agent:** address Copilot review threads in index.ts ([72c5ff6](https://github.com/equationalapplications/clanker/commit/72c5ff67eb55599a19b455db0da07f85d328a036))
+- **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([e7a9c3c](https://github.com/equationalapplications/clanker/commit/e7a9c3c2fc217e5976d7c70318a3fa8b96b8d8d6))
+- **cloud-agent:** address PR [#416](https://github.com/equationalapplications/clanker/issues/416) review comments ([1581bb0](https://github.com/equationalapplications/clanker/commit/1581bb00b25ffc27f460b76cec3506ba50532446))
+- **cloud-agent:** address PR [#418](https://github.com/equationalapplications/clanker/issues/418) review feedback ([d8f6ecb](https://github.com/equationalapplications/clanker/commit/d8f6ecbdf22dda55be81816f609fc8bd79d1f1a9))
+- **cloud-agent:** address PR review feedback ([3ab0407](https://github.com/equationalapplications/clanker/commit/3ab040709c74445c863a41dc2c2bcff1721f4b9a))
+- **cloud-agent:** address remaining Copilot review threads ([50fdd0e](https://github.com/equationalapplications/clanker/commit/50fdd0e5a1c8adb551b8223c4bf2203e39a65491))
+- **cloud-agent:** address remaining Copilot review threads ([c888054](https://github.com/equationalapplications/clanker/commit/c888054c896f8c2fb3c7cddc9bd76d20f34f28d9))
+- **cloud-agent:** address security review — ReDoS, body limit, CORS wildcard ([38833ce](https://github.com/equationalapplications/clanker/commit/38833ce2cdc05c35e5fa519f2f8fa5c80f421644))
+- **cloud-agent:** apply cloud agent fixes and add ignore files ([91ac0d9](https://github.com/equationalapplications/clanker/commit/91ac0d90907c34473d177044bfb261e8ef51ca2f))
+- **cloud-agent:** detect Cloud Run (K_SERVICE) as production in 500 handler ([0c2d9fb](https://github.com/equationalapplications/clanker/commit/0c2d9fbc52e87e4e8d341abd298bad182b1bdf66))
+- **cloud-agent:** fix corsOrigins wildcard handling and rate limiter JSON response ([f465754](https://github.com/equationalapplications/clanker/commit/f46575450a7060bdc8324db8bc26d604f82b8331))
+- **cloud-agent:** fix silent empty replies and broken endpoint routing ([7d1797d](https://github.com/equationalapplications/clanker/commit/7d1797d418fdca713dee1e2507c4c58927377b57))
+- **cloud-agent:** fix try-block indentation, restrict CORS, add 500-path test ([22d101f](https://github.com/equationalapplications/clanker/commit/22d101f890b81279d66a0b8672eb0cc9390b3d03))
+- **cloud-agent:** rename shadowed `message` to `errorMessage` in error handler ([f50d9e6](https://github.com/equationalapplications/clanker/commit/f50d9e68a4a161ae4c1dc00f8fa7a989006fbf9f))
+- **cloud-agent:** restore CORS_ORIGIN=* passthrough and fix stale spec/test ([21ff2f9](https://github.com/equationalapplications/clanker/commit/21ff2f93c67625179b0e75e7d4e73236779f3143))
+- **cloud-agent:** restore origin reflection when CORS_ORIGIN is unset ([6c22033](https://github.com/equationalapplications/clanker/commit/6c220338524c9c0200bf89caaa6d33da59ddb742))
+- **cloud-agent:** restrict CORS to explicit origins, remove wildcard default ([23706f8](https://github.com/equationalapplications/clanker/commit/23706f872229665ecdb1cfa2a10d773372b3196a))
+- **cloud-agent:** swap Zod trim/min order and trim EXPO_PUBLIC_CLOUD_AGENT_URL ([a0ec01a](https://github.com/equationalapplications/clanker/commit/a0ec01a3281d34f32ec7037f7b101e9014c5118a))
+- **cloud-agent:** uuid validation, cors default, list_tasks order ([ecc03b5](https://github.com/equationalapplications/clanker/commit/ecc03b558a7552dea79700c4d82233fc41d532a7))
+- **edge:** add task cascade delete, stable task ids, and update edge eval docs ([5342eb7](https://github.com/equationalapplications/clanker/commit/5342eb767fa800d28487b070396e7a9312c9c1fb))
+- **edge:** address Copilot review feedback on write_observation PR ([6b94568](https://github.com/equationalapplications/clanker/commit/6b945681420f3cbeac434e2db3a0d77176e80414))
+- handle wildcard in CORS origins and add backward-compatible URL test coverage ([349e4c3](https://github.com/equationalapplications/clanker/commit/349e4c3c34cb8e0c08cfd0a2bff04d410322f4f6))
+- **jest:** exclude cloud-agent/ from root test run ([5f84008](https://github.com/equationalapplications/clanker/commit/5f84008f9be22f9f949ede3d8f933efcac202ea4))
+- restore casual-chat escalation guard and align Cloud Agent system prompt ([24ca36c](https://github.com/equationalapplications/clanker/commit/24ca36cd03b3588c6605b5eb0340d52a585db7f0))
+- **test:** update buildAgent model assertion to gemini-2.5-flash ([f7fa1b0](https://github.com/equationalapplications/clanker/commit/f7fa1b0789d1e51815bb988bf29e3af3b8b4c899))
+- **test:** update cloudAgentService mock URL to base URL only ([75bb4f7](https://github.com/equationalapplications/clanker/commit/75bb4f78cdf67b15b119c2d60f451d51bd97364d))
 
 ### Features
 
-* **cloud-agent:** add buildAgent factory with injected LlmAgent and four tools ([931c985](https://github.com/equationalapplications/clanker/commit/931c985991af37b7f45a1f3121cedec9f83127d7))
-* **cloud-agent:** add cloud sql connector and drizzle client ([36818b4](https://github.com/equationalapplications/clanker/commit/36818b455136291f6b154a4713079c0b4d394c5e))
-* **cloud-agent:** add express server with firebase auth middleware and agent run endpoint ([ecb94e9](https://github.com/equationalapplications/clanker/commit/ecb94e9dcd14e6f8938817e2b15ce8fc4c09e608))
-* **cloud-agent:** add minimal drizzle schema for cloud sql bounded context ([0b66313](https://github.com/equationalapplications/clanker/commit/0b663138c4043be5ec948a229460b66d629e0e50))
-* **cloud-agent:** add package scaffolding and dockerfile ([d801850](https://github.com/equationalapplications/clanker/commit/d801850f271f22ceddeb05c58a2f906ac60e5ff2))
-* **cloud-agent:** add task tools and design spec update ([1609f12](https://github.com/equationalapplications/clanker/commit/1609f126929feeaee5bef97d474dfb5a55dc7922))
-* **cloud-agent:** add wiki_read and wiki_write ADK tools with closure security ([2f64b3b](https://github.com/equationalapplications/clanker/commit/2f64b3b539a6fbff107d17f6a6dab6f9dd7a7a80))
-* **db:** add cloud sql tasks table for cloud agent ([9bf9138](https://github.com/equationalapplications/clanker/commit/9bf91387552548ef961b09b590711a91bd964cdb))
-* **db:** add taskDatabase CRUD for local tasks ([8e5fd9d](https://github.com/equationalapplications/clanker/commit/8e5fd9dd2ef599eb63dc934ab67e4d84852cf655))
-* **db:** add tasks table via migration v19 ([53c4ccd](https://github.com/equationalapplications/clanker/commit/53c4ccd4ffea37f7cc4c3685309683ff589f8623))
-* **edge:** add create_task and list_tasks tool executors ([a3adacb](https://github.com/equationalapplications/clanker/commit/a3adacb44e284dbefb7405182079c3e839431f5a))
-* **edge:** add write_observation schema and tighten escalation guard ([ed56e2e](https://github.com/equationalapplications/clanker/commit/ed56e2e0bba6979771c4e75661ef71adc96dc26e))
-* **edge:** implement write_observation executor ([34c348e](https://github.com/equationalapplications/clanker/commit/34c348e043db9928a428f4a615fd39ff6fdb9dd7))
-* **edge:** inject create_task and list_tasks into edge agent tool declarations ([b1527fc](https://github.com/equationalapplications/clanker/commit/b1527fc253becc9d9b7bf648b1fd755a6ce36ac4))
-* **edge:** inject write_observation into edge loop when wiki present ([bad07ae](https://github.com/equationalapplications/clanker/commit/bad07aef2ccf43a322bb761a08c7fac54e22555a))
-* **expo:** add Cloud Agent HTTP client and route escalated cloud-synced messages ([62d15a7](https://github.com/equationalapplications/clanker/commit/62d15a7adf6928d9c8d2eb3d2cd6f16511bf6bf0))
-* **manifests:** add create_task and list_tasks schemas; guard escalation ([1d721ae](https://github.com/equationalapplications/clanker/commit/1d721ae9885e953fa2e896420a2202181677893d))
-* **wiki:** export writeToWiki helper ([b6bf036](https://github.com/equationalapplications/clanker/commit/b6bf03605a7540aebd451e80fbe6f5936ae0a73b))
+- **cloud-agent:** add buildAgent factory with injected LlmAgent and four tools ([931c985](https://github.com/equationalapplications/clanker/commit/931c985991af37b7f45a1f3121cedec9f83127d7))
+- **cloud-agent:** add cloud sql connector and drizzle client ([36818b4](https://github.com/equationalapplications/clanker/commit/36818b455136291f6b154a4713079c0b4d394c5e))
+- **cloud-agent:** add express server with firebase auth middleware and agent run endpoint ([ecb94e9](https://github.com/equationalapplications/clanker/commit/ecb94e9dcd14e6f8938817e2b15ce8fc4c09e608))
+- **cloud-agent:** add minimal drizzle schema for cloud sql bounded context ([0b66313](https://github.com/equationalapplications/clanker/commit/0b663138c4043be5ec948a229460b66d629e0e50))
+- **cloud-agent:** add package scaffolding and dockerfile ([d801850](https://github.com/equationalapplications/clanker/commit/d801850f271f22ceddeb05c58a2f906ac60e5ff2))
+- **cloud-agent:** add task tools and design spec update ([1609f12](https://github.com/equationalapplications/clanker/commit/1609f126929feeaee5bef97d474dfb5a55dc7922))
+- **cloud-agent:** add wiki_read and wiki_write ADK tools with closure security ([2f64b3b](https://github.com/equationalapplications/clanker/commit/2f64b3b539a6fbff107d17f6a6dab6f9dd7a7a80))
+- **db:** add cloud sql tasks table for cloud agent ([9bf9138](https://github.com/equationalapplications/clanker/commit/9bf91387552548ef961b09b590711a91bd964cdb))
+- **db:** add taskDatabase CRUD for local tasks ([8e5fd9d](https://github.com/equationalapplications/clanker/commit/8e5fd9dd2ef599eb63dc934ab67e4d84852cf655))
+- **db:** add tasks table via migration v19 ([53c4ccd](https://github.com/equationalapplications/clanker/commit/53c4ccd4ffea37f7cc4c3685309683ff589f8623))
+- **edge:** add create_task and list_tasks tool executors ([a3adacb](https://github.com/equationalapplications/clanker/commit/a3adacb44e284dbefb7405182079c3e839431f5a))
+- **edge:** add write_observation schema and tighten escalation guard ([ed56e2e](https://github.com/equationalapplications/clanker/commit/ed56e2e0bba6979771c4e75661ef71adc96dc26e))
+- **edge:** implement write_observation executor ([34c348e](https://github.com/equationalapplications/clanker/commit/34c348e043db9928a428f4a615fd39ff6fdb9dd7))
+- **edge:** inject create_task and list_tasks into edge agent tool declarations ([b1527fc](https://github.com/equationalapplications/clanker/commit/b1527fc253becc9d9b7bf648b1fd755a6ce36ac4))
+- **edge:** inject write_observation into edge loop when wiki present ([bad07ae](https://github.com/equationalapplications/clanker/commit/bad07aef2ccf43a322bb761a08c7fac54e22555a))
+- **expo:** add Cloud Agent HTTP client and route escalated cloud-synced messages ([62d15a7](https://github.com/equationalapplications/clanker/commit/62d15a7adf6928d9c8d2eb3d2cd6f16511bf6bf0))
+- **manifests:** add create_task and list_tasks schemas; guard escalation ([1d721ae](https://github.com/equationalapplications/clanker/commit/1d721ae9885e953fa2e896420a2202181677893d))
+- **wiki:** export writeToWiki helper ([b6bf036](https://github.com/equationalapplications/clanker/commit/b6bf03605a7540aebd451e80fbe6f5936ae0a73b))
 
 ## [29.15.1](https://github.com/equationalapplications/clanker/compare/v29.15.0...v29.15.1) (2026-05-29)
 
-
 ### Bug Fixes
 
-* **chat:** allow non-cloud chars to use generateReply; fix cloud toggle ([8920d94](https://github.com/equationalapplications/clanker/commit/8920d94d70deef4ffe693aa2c15073fddb56d9ac))
+- **chat:** allow non-cloud chars to use generateReply; fix cloud toggle ([8920d94](https://github.com/equationalapplications/clanker/commit/8920d94d70deef4ffe693aa2c15073fddb56d9ac))
 
 # [29.15.0](https://github.com/equationalapplications/clanker/compare/v29.14.0...v29.15.0) (2026-05-29)
 
-
 ### Bug Fixes
 
-* **ai:** keep minimal system instruction and trim intro payload ([7c01d5e](https://github.com/equationalapplications/clanker/commit/7c01d5ed931ad40df9be95aea77e31bc1fc038cd)), closes [#411](https://github.com/equationalapplications/clanker/issues/411)
-* **ai:** resolve PR review issues in aiChatService and generateReply ([fc2da5d](https://github.com/equationalapplications/clanker/commit/fc2da5dbc46b1868decc963721eff8ac8422d484))
-* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([f9ba269](https://github.com/equationalapplications/clanker/commit/f9ba269966ce6e40a68781b6b5624ab3aeb0a8d2))
-* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([a6f6ea2](https://github.com/equationalapplications/clanker/commit/a6f6ea25a38c22ee8345ef4945287115a3edcaff))
-* **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([e851cfa](https://github.com/equationalapplications/clanker/commit/e851cfa5b35a7da237457193d8e88da9d88ea0f3))
-* **chat:** address review threads for structured prompt migration ([ced8f64](https://github.com/equationalapplications/clanker/commit/ced8f64ca749eab5dd2ee782930041f390d6367f))
-* **chat:** resolve structured prompt migration review feedback ([1740c23](https://github.com/equationalapplications/clanker/commit/1740c232d329567574747b54fe5aad83c17bda2b))
-* **chat:** resolve structured prompt review issues from PR 411 ([21e9482](https://github.com/equationalapplications/clanker/commit/21e9482926c161f82af1bba6a6defef832cf0200))
-* **chat:** route local-only edge escalations through Firebase and remove stale local-only fallback ([d09c1b6](https://github.com/equationalapplications/clanker/commit/d09c1b677974ae46c15d111764ebf736e63faca8))
-* **core:** correct clankerMemorySchema function declaration typing ([2f6e248](https://github.com/equationalapplications/clanker/commit/2f6e2483349b662b690acf19c63674df981f26cc))
-* **edge:** guard local-only escalation and validate search_memory query input ([95e4c7b](https://github.com/equationalapplications/clanker/commit/95e4c7b4b1a4b39515958c47d71edc6446502300))
-* **edge:** harden search_memory and gate tool on wiki availability ([91cd7bb](https://github.com/equationalapplications/clanker/commit/91cd7bb33d07619855631c709c491fc1ec57497a))
-* **edge:** preserve local-only fallback and clarify time manifest wording ([14503b8](https://github.com/equationalapplications/clanker/commit/14503b8d041d576fc8692ad59b62916920357320))
-* **functions:** validate structured contents items for generateReply ([f6df33e](https://github.com/equationalapplications/clanker/commit/f6df33e0eee5c486e6ad1df34aaae2262e61120c))
-* **generateReply:** address PR review comments ([91ddbc6](https://github.com/equationalapplications/clanker/commit/91ddbc651a970be4199443d40511f7277e08e698))
-* **generateReply:** address unresolved review threads ([8367948](https://github.com/equationalapplications/clanker/commit/83679481ea4eb630915efa8ea1c715c58ec5a194))
-* **hooks:** replace require with import in useEdgeAgent test to satisfy lint ([e826ab5](https://github.com/equationalapplications/clanker/commit/e826ab5ddead37ab58ea609fbcc3eb6662d8c3ee))
-* **pr-411:** address review feedback on prompt ordering, soft-break credits, and name normalization ([d47f3e7](https://github.com/equationalapplications/clanker/commit/d47f3e77d9076089d59dff7fda4b25ebc286bae0))
-* **superpowers:** address PR review comments from spec alignment review ([64a1852](https://github.com/equationalapplications/clanker/commit/64a1852a14fe7a4a80f4378e63b2b85204ccebdf))
-
+- **ai:** keep minimal system instruction and trim intro payload ([7c01d5e](https://github.com/equationalapplications/clanker/commit/7c01d5ed931ad40df9be95aea77e31bc1fc038cd)), closes [#411](https://github.com/equationalapplications/clanker/issues/411)
+- **ai:** resolve PR review issues in aiChatService and generateReply ([fc2da5d](https://github.com/equationalapplications/clanker/commit/fc2da5dbc46b1868decc963721eff8ac8422d484))
+- **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([f9ba269](https://github.com/equationalapplications/clanker/commit/f9ba269966ce6e40a68781b6b5624ab3aeb0a8d2))
+- **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([a6f6ea2](https://github.com/equationalapplications/clanker/commit/a6f6ea25a38c22ee8345ef4945287115a3edcaff))
+- **chat:** address PR [#411](https://github.com/equationalapplications/clanker/issues/411) review comments ([e851cfa](https://github.com/equationalapplications/clanker/commit/e851cfa5b35a7da237457193d8e88da9d88ea0f3))
+- **chat:** address review threads for structured prompt migration ([ced8f64](https://github.com/equationalapplications/clanker/commit/ced8f64ca749eab5dd2ee782930041f390d6367f))
+- **chat:** resolve structured prompt migration review feedback ([1740c23](https://github.com/equationalapplications/clanker/commit/1740c232d329567574747b54fe5aad83c17bda2b))
+- **chat:** resolve structured prompt review issues from PR 411 ([21e9482](https://github.com/equationalapplications/clanker/commit/21e9482926c161f82af1bba6a6defef832cf0200))
+- **chat:** route local-only edge escalations through Firebase and remove stale local-only fallback ([d09c1b6](https://github.com/equationalapplications/clanker/commit/d09c1b677974ae46c15d111764ebf736e63faca8))
+- **core:** correct clankerMemorySchema function declaration typing ([2f6e248](https://github.com/equationalapplications/clanker/commit/2f6e2483349b662b690acf19c63674df981f26cc))
+- **edge:** guard local-only escalation and validate search_memory query input ([95e4c7b](https://github.com/equationalapplications/clanker/commit/95e4c7b4b1a4b39515958c47d71edc6446502300))
+- **edge:** harden search_memory and gate tool on wiki availability ([91cd7bb](https://github.com/equationalapplications/clanker/commit/91cd7bb33d07619855631c709c491fc1ec57497a))
+- **edge:** preserve local-only fallback and clarify time manifest wording ([14503b8](https://github.com/equationalapplications/clanker/commit/14503b8d041d576fc8692ad59b62916920357320))
+- **functions:** validate structured contents items for generateReply ([f6df33e](https://github.com/equationalapplications/clanker/commit/f6df33e0eee5c486e6ad1df34aaae2262e61120c))
+- **generateReply:** address PR review comments ([91ddbc6](https://github.com/equationalapplications/clanker/commit/91ddbc651a970be4199443d40511f7277e08e698))
+- **generateReply:** address unresolved review threads ([8367948](https://github.com/equationalapplications/clanker/commit/83679481ea4eb630915efa8ea1c715c58ec5a194))
+- **hooks:** replace require with import in useEdgeAgent test to satisfy lint ([e826ab5](https://github.com/equationalapplications/clanker/commit/e826ab5ddead37ab58ea609fbcc3eb6662d8c3ee))
+- **pr-411:** address review feedback on prompt ordering, soft-break credits, and name normalization ([d47f3e7](https://github.com/equationalapplications/clanker/commit/d47f3e77d9076089d59dff7fda4b25ebc286bae0))
+- **superpowers:** address PR review comments from spec alignment review ([64a1852](https://github.com/equationalapplications/clanker/commit/64a1852a14fe7a4a80f4378e63b2b85204ccebdf))
 
 ### Features
 
-* **chat:** migrate cloud chat to structured GenAI contents and remove legacy buildChatPrompt ([c62fe98](https://github.com/equationalapplications/clanker/commit/c62fe98b556fb80634766720eadb71768a987c61))
-* **edge:** add clanker manifests, async search_memory, and wiki injection ([831e0af](https://github.com/equationalapplications/clanker/commit/831e0afa72a63326846294ac5e54302304a3d2e3))
+- **chat:** migrate cloud chat to structured GenAI contents and remove legacy buildChatPrompt ([c62fe98](https://github.com/equationalapplications/clanker/commit/c62fe98b556fb80634766720eadb71768a987c61))
+- **edge:** add clanker manifests, async search_memory, and wiki injection ([831e0af](https://github.com/equationalapplications/clanker/commit/831e0afa72a63326846294ac5e54302304a3d2e3))
 
 # [29.14.0](https://github.com/equationalapplications/clanker/compare/v29.13.1...v29.14.0) (2026-05-28)
 
-
 ### Bug Fixes
 
-* **db:** add userId filter to getUnsyncedMessages and synced_at to batchInsertMessages ([9b6a106](https://github.com/equationalapplications/clanker/commit/9b6a10691c884c32741b4724e501aa16fe3e737d))
-* **edge:** address all 8 Copilot review threads for PR [#405](https://github.com/equationalapplications/clanker/issues/405) ([8dea5b9](https://github.com/equationalapplications/clanker/commit/8dea5b98dc73ed5993cc56c25f1c1980c2ff094b))
-* **edge:** characterPromptBuilder quality fixes: type guards, test coverage, JSDoc ([c57bc3f](https://github.com/equationalapplications/clanker/commit/c57bc3f113b70fb2e8da8d2a99f1f475af29e150))
-* **edge:** only mark messages synced when cloud sync actually succeeded ([da36876](https://github.com/equationalapplications/clanker/commit/da368768f5f73e1fe29e03017948c9e902d28981))
-* **edge:** useAIChat quality fixes: comments and substr deprecation ([4e8d396](https://github.com/equationalapplications/clanker/commit/4e8d396e5132dec2918cc413895e8292dd1a8776))
-* **edge:** useEdgeAgent quality fixes: error handling, type casts, test coverage ([73096b2](https://github.com/equationalapplications/clanker/commit/73096b20f5893729b15fc4b7d0748dbacab516dd))
-* **edge:** validate unsyncedHistory ownership and sync only user messages ([da9868c](https://github.com/equationalapplications/clanker/commit/da9868c4643f4cd7768da51f81bb382cc0a59a7e))
-* **edge:** wire characterId to Firebase and validate unsyncedHistory elements ([c056091](https://github.com/equationalapplications/clanker/commit/c0560910faeb8b8524e790e995bdd6c902e05fc6))
-* **generateReply:** skip model-role messages in unsyncedHistory bulk insert ([d0c80f2](https://github.com/equationalapplications/clanker/commit/d0c80f2d3f52a73d8fe2e5b6b21d5b572bad75b2))
-* **tools:** address Copilot review on PR [#404](https://github.com/equationalapplications/clanker/issues/404) ([6b54789](https://github.com/equationalapplications/clanker/commit/6b54789b27a03992d4575ed822e2afb2d75be558))
-
+- **db:** add userId filter to getUnsyncedMessages and synced_at to batchInsertMessages ([9b6a106](https://github.com/equationalapplications/clanker/commit/9b6a10691c884c32741b4724e501aa16fe3e737d))
+- **edge:** address all 8 Copilot review threads for PR [#405](https://github.com/equationalapplications/clanker/issues/405) ([8dea5b9](https://github.com/equationalapplications/clanker/commit/8dea5b98dc73ed5993cc56c25f1c1980c2ff094b))
+- **edge:** characterPromptBuilder quality fixes: type guards, test coverage, JSDoc ([c57bc3f](https://github.com/equationalapplications/clanker/commit/c57bc3f113b70fb2e8da8d2a99f1f475af29e150))
+- **edge:** only mark messages synced when cloud sync actually succeeded ([da36876](https://github.com/equationalapplications/clanker/commit/da368768f5f73e1fe29e03017948c9e902d28981))
+- **edge:** useAIChat quality fixes: comments and substr deprecation ([4e8d396](https://github.com/equationalapplications/clanker/commit/4e8d396e5132dec2918cc413895e8292dd1a8776))
+- **edge:** useEdgeAgent quality fixes: error handling, type casts, test coverage ([73096b2](https://github.com/equationalapplications/clanker/commit/73096b20f5893729b15fc4b7d0748dbacab516dd))
+- **edge:** validate unsyncedHistory ownership and sync only user messages ([da9868c](https://github.com/equationalapplications/clanker/commit/da9868c4643f4cd7768da51f81bb382cc0a59a7e))
+- **edge:** wire characterId to Firebase and validate unsyncedHistory elements ([c056091](https://github.com/equationalapplications/clanker/commit/c0560910faeb8b8524e790e995bdd6c902e05fc6))
+- **generateReply:** skip model-role messages in unsyncedHistory bulk insert ([d0c80f2](https://github.com/equationalapplications/clanker/commit/d0c80f2d3f52a73d8fe2e5b6b21d5b572bad75b2))
+- **tools:** address Copilot review on PR [#404](https://github.com/equationalapplications/clanker/issues/404) ([6b54789](https://github.com/equationalapplications/clanker/commit/6b54789b27a03992d4575ed822e2afb2d75be558))
 
 ### Features
 
-* **db:** migration 18 adds synced_at to messages for cloud sync tracking ([cd1aa39](https://github.com/equationalapplications/clanker/commit/cd1aa39386568baaa09496e8014ba696ae366521))
-* **edge:** add CharacterPromptBuilder for @google/genai content format ([3ab36c6](https://github.com/equationalapplications/clanker/commit/3ab36c6f6d3766052d178f98358aa0842de14106))
-* **edge:** add edgeToolExecutors with get_current_time ([8eaf74d](https://github.com/equationalapplications/clanker/commit/8eaf74dc6ba2a4f852dc69d16fd7331c753e7964))
-* **edge:** add useEdgeAgent with @google/genai while-loop and escalation ([2370555](https://github.com/equationalapplications/clanker/commit/2370555b556f6a98245e9b52ef54cb40bcc94b53))
-* **edge:** gate escalate_to_cloud tool on isCloudSynced option ([cfbc0e0](https://github.com/equationalapplications/clanker/commit/cfbc0e05cf0b1fb93fe610394f7efad2ff3a787d))
-* **edge:** render escalation banner in ChatView when escalationState is escalating ([806fc8f](https://github.com/equationalapplications/clanker/commit/806fc8f5dbd5f009483068d1cd48ff03dc6b6316))
-* **edge:** wire escalation handoff with unsyncedHistory to Firebase ([2344a2f](https://github.com/equationalapplications/clanker/commit/2344a2fd2cc888a485d15d70e87c4c29a1775a05))
-* **edge:** wire useEdgeAgent into useAIChat with edge-first routing ([54c2f39](https://github.com/equationalapplications/clanker/commit/54c2f392ad83fee8b474d4ad09fb8481ae0f8415))
-* **sync:** add SyncMessage interface and toSyncMessage mapper ([29c2c22](https://github.com/equationalapplications/clanker/commit/29c2c222c4d1960f6e256c3a59aab27fa637f794))
-* **tools:** integrate @equationalapplications/core-llm-tools for shared time schema ([a6cd2c4](https://github.com/equationalapplications/clanker/commit/a6cd2c4a71c64215442062f4db7bb49c44927e40))
+- **db:** migration 18 adds synced_at to messages for cloud sync tracking ([cd1aa39](https://github.com/equationalapplications/clanker/commit/cd1aa39386568baaa09496e8014ba696ae366521))
+- **edge:** add CharacterPromptBuilder for @google/genai content format ([3ab36c6](https://github.com/equationalapplications/clanker/commit/3ab36c6f6d3766052d178f98358aa0842de14106))
+- **edge:** add edgeToolExecutors with get_current_time ([8eaf74d](https://github.com/equationalapplications/clanker/commit/8eaf74dc6ba2a4f852dc69d16fd7331c753e7964))
+- **edge:** add useEdgeAgent with @google/genai while-loop and escalation ([2370555](https://github.com/equationalapplications/clanker/commit/2370555b556f6a98245e9b52ef54cb40bcc94b53))
+- **edge:** gate escalate_to_cloud tool on isCloudSynced option ([cfbc0e0](https://github.com/equationalapplications/clanker/commit/cfbc0e05cf0b1fb93fe610394f7efad2ff3a787d))
+- **edge:** render escalation banner in ChatView when escalationState is escalating ([806fc8f](https://github.com/equationalapplications/clanker/commit/806fc8f5dbd5f009483068d1cd48ff03dc6b6316))
+- **edge:** wire escalation handoff with unsyncedHistory to Firebase ([2344a2f](https://github.com/equationalapplications/clanker/commit/2344a2fd2cc888a485d15d70e87c4c29a1775a05))
+- **edge:** wire useEdgeAgent into useAIChat with edge-first routing ([54c2f39](https://github.com/equationalapplications/clanker/commit/54c2f392ad83fee8b474d4ad09fb8481ae0f8415))
+- **sync:** add SyncMessage interface and toSyncMessage mapper ([29c2c22](https://github.com/equationalapplications/clanker/commit/29c2c222c4d1960f6e256c3a59aab27fa637f794))
+- **tools:** integrate @equationalapplications/core-llm-tools for shared time schema ([a6cd2c4](https://github.com/equationalapplications/clanker/commit/a6cd2c4a71c64215442062f4db7bb49c44927e40))
 
 ## [29.13.1](https://github.com/equationalapplications/clanker/compare/v29.13.0...v29.13.1) (2026-05-26)
 
-
 ### Bug Fixes
 
-* address PR review comments - GCP_PROJECT var, remove __dirname, replace prod identifiers ([ddc90a0](https://github.com/equationalapplications/clanker/commit/ddc90a08e2cc03ad10b9037907aae335c55035e3))
-* **credits:** invalidate queries on insufficient-credit failure ([916c501](https://github.com/equationalapplications/clanker/commit/916c50100b635ee0177e54e05e8b8a71ea067fff))
-* **credits:** serialize setCredits and harden exchangeToken credit read ([eee9186](https://github.com/equationalapplications/clanker/commit/eee91868af31aac40a478edfb8d61d2fb05c5f05))
-* **credits:** stabilize admin credit set/reset and handle failed-precondition UI flow ([30a80df](https://github.com/equationalapplications/clanker/commit/30a80df506f282b8ed089c770f7d15f3101f0784))
-* **credits:** sync admin credit updates and expose insufficient-credit failures ([5b2e96b](https://github.com/equationalapplications/clanker/commit/5b2e96b8ccb347b714ea3947189f574c0cc9ffbd))
-* **docs:** remove hard-coded Cloud SQL project placeholder and unused migration script import ([29983da](https://github.com/equationalapplications/clanker/commit/29983daf6ed19e09c92842bd7bdfe23ad0d521d8))
+- address PR review comments - GCP_PROJECT var, remove __dirname, replace prod identifiers ([ddc90a0](https://github.com/equationalapplications/clanker/commit/ddc90a08e2cc03ad10b9037907aae335c55035e3))
+- **credits:** invalidate queries on insufficient-credit failure ([916c501](https://github.com/equationalapplications/clanker/commit/916c50100b635ee0177e54e05e8b8a71ea067fff))
+- **credits:** serialize setCredits and harden exchangeToken credit read ([eee9186](https://github.com/equationalapplications/clanker/commit/eee91868af31aac40a478edfb8d61d2fb05c5f05))
+- **credits:** stabilize admin credit set/reset and handle failed-precondition UI flow ([30a80df](https://github.com/equationalapplications/clanker/commit/30a80df506f282b8ed089c770f7d15f3101f0784))
+- **credits:** sync admin credit updates and expose insufficient-credit failures ([5b2e96b](https://github.com/equationalapplications/clanker/commit/5b2e96b8ccb347b714ea3947189f574c0cc9ffbd))
+- **docs:** remove hard-coded Cloud SQL project placeholder and unused migration script import ([29983da](https://github.com/equationalapplications/clanker/commit/29983daf6ed19e09c92842bd7bdfe23ad0d521d8))
 
 # [29.13.0](https://github.com/equationalapplications/clanker/compare/v29.12.0...v29.13.0) (2026-05-22)
 
-
 ### Bug Fixes
 
-* **credits:** address Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([f9087a0](https://github.com/equationalapplications/clanker/commit/f9087a073fe1f973bd3a4714b51aae81718308bc))
-* **credits:** address fifth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([7f7893d](https://github.com/equationalapplications/clanker/commit/7f7893ddbd742ad1f8df1d330e1ece7520d469bf))
-* **credits:** address fourth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([88b28f4](https://github.com/equationalapplications/clanker/commit/88b28f4ecbf89e57a46eb1df122d81034a7b125d))
-* **credits:** address second-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([08785f3](https://github.com/equationalapplications/clanker/commit/08785f3579ce15d24c7fda28cc1405fe0a505f18))
-* **credits:** address sixth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([bc3b19d](https://github.com/equationalapplications/clanker/commit/bc3b19d3e4e44382cef84ac0c1215373c0f1b47d))
-* **credits:** address third-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([fdbb460](https://github.com/equationalapplications/clanker/commit/fdbb46092df6ce8e2c727ab826b55ad98cc61052))
-* **credits:** align callable response contract and docs with plan metadata ([2f2cfae](https://github.com/equationalapplications/clanker/commit/2f2cfaee49ec4cda680b23866c5c77a83b85511f))
-* **credits:** align spendCredits return type with redesign spec ([9e69c2c](https://github.com/equationalapplications/clanker/commit/9e69c2c3f46f36acf01f58112d92ebb7e547de53))
-* **credits:** align verifiedAt generation with usage snapshot build timing ([e9f721b](https://github.com/equationalapplications/clanker/commit/e9f721be1b40ab5fbf8048b5154626c0a592bc78))
-* **credits:** align voice gating and credit counter UI with Phase 4 credit model ([52b432c](https://github.com/equationalapplications/clanker/commit/52b432c40a416afbfdf342b69143f45ff8f0f508))
-* **credits:** avoid duplicate signup grant when subscription exists ([b9aa174](https://github.com/equationalapplications/clanker/commit/b9aa174f82edfae1f7e7d993304b1be29b7d8db5))
-* **credits:** avoid unnecessary subscription cache writes and align Phase 2 spendCredits signature docs ([152f4ac](https://github.com/equationalapplications/clanker/commit/152f4ac9544a231febd32624eaca2f207f47cdff))
-* **credits:** capture verifiedAt immediately after charge and pass through usage snapshot ([97cda5a](https://github.com/equationalapplications/clanker/commit/97cda5aa1f6b0c0f63ac3d24a0903d3763552072))
-* **credits:** extract CREDIT_PACK_EXPIRY_MS to shared constants/credits.ts ([4f2d26b](https://github.com/equationalapplications/clanker/commit/4f2d26bc9f8ae62b0cdfc5332752337c0af52c1c))
-* **credits:** fully inject creditService into generate callables for testability ([588c01a](https://github.com/equationalapplications/clanker/commit/588c01ac08fd06349232d4e8d2431efa49728b34))
-* **credits:** harden refundCredit and spendCredits against concurrency ([6012d45](https://github.com/equationalapplications/clanker/commit/6012d45488c28730721dcf1fddbabf7d675a7bf9))
-* **credits:** lock subscription row before spendCredits FOR UPDATE ([619ca80](https://github.com/equationalapplications/clanker/commit/619ca8092441901afe6754222384287a8c6b349d))
-* **credits:** remove stale referenceId spending contract and guard signup grant ([8d11f23](https://github.com/equationalapplications/clanker/commit/8d11f239d0aaff14d05851718f5f5aecd2a74c3d))
-* **credits:** resolve credit display and voice-chat subscriber handling ([c2164e1](https://github.com/equationalapplications/clanker/commit/c2164e16041524ff7812945bd09ed4554e5831be))
-* **credits:** resolve lint errors — replace explicit any with proper types ([687e569](https://github.com/equationalapplications/clanker/commit/687e569fe1c98d57c4f40e039a039e0dd96b8b82))
-* **credits:** tighten signup credit bootstrap and make spendCredits description optional ([a88be66](https://github.com/equationalapplications/clanker/commit/a88be66ff37028ccc77f4667c3a94b1f89821021))
-* **credits:** type usageSnapshot explicitly in callable handlers ([35a8a6c](https://github.com/equationalapplications/clanker/commit/35a8a6cf3e54dfcdb1d3df55a9dc24bbe18f9523))
-* **credits:** unify documentExtract credit error and add signup trigger migration ([07969b5](https://github.com/equationalapplications/clanker/commit/07969b5bdf35bcbc6b0c9886b3846051eb58926c))
-* **deps:** bump postcss to 8.5.15 and ws to 8.20.1 ([63c40a0](https://github.com/equationalapplications/clanker/commit/63c40a09090878cd8f56795899ff1235f759c7dc))
-* **docs:** resolve remaining PR review threads for phase 5 credits redesign ([e135ff3](https://github.com/equationalapplications/clanker/commit/e135ff357535d0812e399f291ae500f038f04520))
-* **frontend:** remove legacy credit deduction helpers and update remaining unlimited copy ([49ba328](https://github.com/equationalapplications/clanker/commit/49ba3280645e5b90b156928d92ee0d06513b774c))
-* **frontend:** remove subscriber infinite badge and enforce 2-credit voice requirement ([1af2b79](https://github.com/equationalapplications/clanker/commit/1af2b79c9d05c4259e0874cc50f808ecd8bf2f40))
-* **functions:** add phase 1 credits schema migration ([1c66122](https://github.com/equationalapplications/clanker/commit/1c66122ea24499a583739cb42715fb992cbfe259))
-* **functions:** centralize usage snapshot fetching for generator endpoints ([1ed9189](https://github.com/equationalapplications/clanker/commit/1ed9189316586ac9ae824da394ebe78975120e97))
-* **functions:** complete phase 3 callable credit gating for wiki callables ([624e490](https://github.com/equationalapplications/clanker/commit/624e490fa02b312dc78815233ca1f046348d8b4a))
-* **functions:** remove unsupported referenceId handling from generateReply ([7b75e3b](https://github.com/equationalapplications/clanker/commit/7b75e3b5341f5d26bac18c1dd323682ea50ae3cb))
-* **functions:** remove unused buildUsageSnapshot imports ([864c923](https://github.com/equationalapplications/clanker/commit/864c9230a58b7dcf3417042a0fa0e7082b31650c))
-* **functions:** update phase 3 callable credits flow and refund behavior ([92aa967](https://github.com/equationalapplications/clanker/commit/92aa9673634561d2a43881b58e860efc6fb637b6))
-* **functions:** update Phase 3 credit flow tests and character handler deps ([3519b9e](https://github.com/equationalapplications/clanker/commit/3519b9ed595b76b792f93746ff80a58a96663779))
-* **review:** address Copilot PR review feedback ([9e13809](https://github.com/equationalapplications/clanker/commit/9e13809a3f8be04e68664cf50c5f8bc290342e79))
-* **test:** increase timeout for checkout success refresh suite ([a7d5fb4](https://github.com/equationalapplications/clanker/commit/a7d5fb46665323f1bf024438d5990d7959a2679a))
-* **test:** remove duplicate nextExpiryDate fields in spendCredits tests ([0f34a04](https://github.com/equationalapplications/clanker/commit/0f34a0426d8ca4471d27c20d6c681933c61152aa))
-* **tests:** remove duplicate subscription fields in phase 2 test fixtures ([5b65c6d](https://github.com/equationalapplications/clanker/commit/5b65c6d52e8334f87a80d7af1b9f67fc894cb5aa))
-* **ui:** update credit badge and subscriber voice chat behavior ([cf16d97](https://github.com/equationalapplications/clanker/commit/cf16d97b040c96496efea6164d02bfe3ea270b4c))
-* update root package-lock.json to match staging package.json ([63db530](https://github.com/equationalapplications/clanker/commit/63db530448ecc6564e2647fac703825bb7666dd9))
-* **voice-chat/credits:** respect subscriber status and render credit badge correctly ([470e9d0](https://github.com/equationalapplications/clanker/commit/470e9d0dfa4a8ebb99268caee45b8dc14d75f5ff))
-* **voice-reply:** spend credits before generation and refund on failure ([382b738](https://github.com/equationalapplications/clanker/commit/382b738c80619387e6ea18e143fb7110eac261f9))
-
+- **credits:** address Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([f9087a0](https://github.com/equationalapplications/clanker/commit/f9087a073fe1f973bd3a4714b51aae81718308bc))
+- **credits:** address fifth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([7f7893d](https://github.com/equationalapplications/clanker/commit/7f7893ddbd742ad1f8df1d330e1ece7520d469bf))
+- **credits:** address fourth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([88b28f4](https://github.com/equationalapplications/clanker/commit/88b28f4ecbf89e57a46eb1df122d81034a7b125d))
+- **credits:** address second-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([08785f3](https://github.com/equationalapplications/clanker/commit/08785f3579ce15d24c7fda28cc1405fe0a505f18))
+- **credits:** address sixth-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([bc3b19d](https://github.com/equationalapplications/clanker/commit/bc3b19d3e4e44382cef84ac0c1215373c0f1b47d))
+- **credits:** address third-round Copilot review issues from PR [#394](https://github.com/equationalapplications/clanker/issues/394) ([fdbb460](https://github.com/equationalapplications/clanker/commit/fdbb46092df6ce8e2c727ab826b55ad98cc61052))
+- **credits:** align callable response contract and docs with plan metadata ([2f2cfae](https://github.com/equationalapplications/clanker/commit/2f2cfaee49ec4cda680b23866c5c77a83b85511f))
+- **credits:** align spendCredits return type with redesign spec ([9e69c2c](https://github.com/equationalapplications/clanker/commit/9e69c2c3f46f36acf01f58112d92ebb7e547de53))
+- **credits:** align verifiedAt generation with usage snapshot build timing ([e9f721b](https://github.com/equationalapplications/clanker/commit/e9f721be1b40ab5fbf8048b5154626c0a592bc78))
+- **credits:** align voice gating and credit counter UI with Phase 4 credit model ([52b432c](https://github.com/equationalapplications/clanker/commit/52b432c40a416afbfdf342b69143f45ff8f0f508))
+- **credits:** avoid duplicate signup grant when subscription exists ([b9aa174](https://github.com/equationalapplications/clanker/commit/b9aa174f82edfae1f7e7d993304b1be29b7d8db5))
+- **credits:** avoid unnecessary subscription cache writes and align Phase 2 spendCredits signature docs ([152f4ac](https://github.com/equationalapplications/clanker/commit/152f4ac9544a231febd32624eaca2f207f47cdff))
+- **credits:** capture verifiedAt immediately after charge and pass through usage snapshot ([97cda5a](https://github.com/equationalapplications/clanker/commit/97cda5aa1f6b0c0f63ac3d24a0903d3763552072))
+- **credits:** extract CREDIT_PACK_EXPIRY_MS to shared constants/credits.ts ([4f2d26b](https://github.com/equationalapplications/clanker/commit/4f2d26bc9f8ae62b0cdfc5332752337c0af52c1c))
+- **credits:** fully inject creditService into generate callables for testability ([588c01a](https://github.com/equationalapplications/clanker/commit/588c01ac08fd06349232d4e8d2431efa49728b34))
+- **credits:** harden refundCredit and spendCredits against concurrency ([6012d45](https://github.com/equationalapplications/clanker/commit/6012d45488c28730721dcf1fddbabf7d675a7bf9))
+- **credits:** lock subscription row before spendCredits FOR UPDATE ([619ca80](https://github.com/equationalapplications/clanker/commit/619ca8092441901afe6754222384287a8c6b349d))
+- **credits:** remove stale referenceId spending contract and guard signup grant ([8d11f23](https://github.com/equationalapplications/clanker/commit/8d11f239d0aaff14d05851718f5f5aecd2a74c3d))
+- **credits:** resolve credit display and voice-chat subscriber handling ([c2164e1](https://github.com/equationalapplications/clanker/commit/c2164e16041524ff7812945bd09ed4554e5831be))
+- **credits:** resolve lint errors — replace explicit any with proper types ([687e569](https://github.com/equationalapplications/clanker/commit/687e569fe1c98d57c4f40e039a039e0dd96b8b82))
+- **credits:** tighten signup credit bootstrap and make spendCredits description optional ([a88be66](https://github.com/equationalapplications/clanker/commit/a88be66ff37028ccc77f4667c3a94b1f89821021))
+- **credits:** type usageSnapshot explicitly in callable handlers ([35a8a6c](https://github.com/equationalapplications/clanker/commit/35a8a6cf3e54dfcdb1d3df55a9dc24bbe18f9523))
+- **credits:** unify documentExtract credit error and add signup trigger migration ([07969b5](https://github.com/equationalapplications/clanker/commit/07969b5bdf35bcbc6b0c9886b3846051eb58926c))
+- **deps:** bump postcss to 8.5.15 and ws to 8.20.1 ([63c40a0](https://github.com/equationalapplications/clanker/commit/63c40a09090878cd8f56795899ff1235f759c7dc))
+- **docs:** resolve remaining PR review threads for phase 5 credits redesign ([e135ff3](https://github.com/equationalapplications/clanker/commit/e135ff357535d0812e399f291ae500f038f04520))
+- **frontend:** remove legacy credit deduction helpers and update remaining unlimited copy ([49ba328](https://github.com/equationalapplications/clanker/commit/49ba3280645e5b90b156928d92ee0d06513b774c))
+- **frontend:** remove subscriber infinite badge and enforce 2-credit voice requirement ([1af2b79](https://github.com/equationalapplications/clanker/commit/1af2b79c9d05c4259e0874cc50f808ecd8bf2f40))
+- **functions:** add phase 1 credits schema migration ([1c66122](https://github.com/equationalapplications/clanker/commit/1c66122ea24499a583739cb42715fb992cbfe259))
+- **functions:** centralize usage snapshot fetching for generator endpoints ([1ed9189](https://github.com/equationalapplications/clanker/commit/1ed9189316586ac9ae824da394ebe78975120e97))
+- **functions:** complete phase 3 callable credit gating for wiki callables ([624e490](https://github.com/equationalapplications/clanker/commit/624e490fa02b312dc78815233ca1f046348d8b4a))
+- **functions:** remove unsupported referenceId handling from generateReply ([7b75e3b](https://github.com/equationalapplications/clanker/commit/7b75e3b5341f5d26bac18c1dd323682ea50ae3cb))
+- **functions:** remove unused buildUsageSnapshot imports ([864c923](https://github.com/equationalapplications/clanker/commit/864c9230a58b7dcf3417042a0fa0e7082b31650c))
+- **functions:** update phase 3 callable credits flow and refund behavior ([92aa967](https://github.com/equationalapplications/clanker/commit/92aa9673634561d2a43881b58e860efc6fb637b6))
+- **functions:** update Phase 3 credit flow tests and character handler deps ([3519b9e](https://github.com/equationalapplications/clanker/commit/3519b9ed595b76b792f93746ff80a58a96663779))
+- **review:** address Copilot PR review feedback ([9e13809](https://github.com/equationalapplications/clanker/commit/9e13809a3f8be04e68664cf50c5f8bc290342e79))
+- **test:** increase timeout for checkout success refresh suite ([a7d5fb4](https://github.com/equationalapplications/clanker/commit/a7d5fb46665323f1bf024438d5990d7959a2679a))
+- **test:** remove duplicate nextExpiryDate fields in spendCredits tests ([0f34a04](https://github.com/equationalapplications/clanker/commit/0f34a0426d8ca4471d27c20d6c681933c61152aa))
+- **tests:** remove duplicate subscription fields in phase 2 test fixtures ([5b65c6d](https://github.com/equationalapplications/clanker/commit/5b65c6d52e8334f87a80d7af1b9f67fc894cb5aa))
+- **ui:** update credit badge and subscriber voice chat behavior ([cf16d97](https://github.com/equationalapplications/clanker/commit/cf16d97b040c96496efea6164d02bfe3ea270b4c))
+- update root package-lock.json to match staging package.json ([63db530](https://github.com/equationalapplications/clanker/commit/63db530448ecc6564e2647fac703825bb7666dd9))
+- **voice-chat/credits:** respect subscriber status and render credit badge correctly ([470e9d0](https://github.com/equationalapplications/clanker/commit/470e9d0dfa4a8ebb99268caee45b8dc14d75f5ff))
+- **voice-reply:** spend credits before generation and refund on failure ([382b738](https://github.com/equationalapplications/clanker/commit/382b738c80619387e6ea18e143fb7110eac261f9))
 
 ### Features
 
-* **credits:** implement credit transactions balance model and webhook renewals ([89b4bd9](https://github.com/equationalapplications/clanker/commit/89b4bd9aa5226462b24f1cfaf54bbb85b8e88aee))
-* **credits:** merge phase 2 credit service branch ([05ecb45](https://github.com/equationalapplications/clanker/commit/05ecb451bd2401a479dadaf2402c541316737162))
-* **db:** add phase 1 credits redesign schema + migration ([c5e636d](https://github.com/equationalapplications/clanker/commit/c5e636d92e69b0156fd1a0f265dfa09ac04106b3))
-* **frontend:** phase 4 credits redesign — remove unlimited logic and show expiry dates ([890edb7](https://github.com/equationalapplications/clanker/commit/890edb7f2a742803ba6c76e82f9ee2b07a8ef85e))
+- **credits:** implement credit transactions balance model and webhook renewals ([89b4bd9](https://github.com/equationalapplications/clanker/commit/89b4bd9aa5226462b24f1cfaf54bbb85b8e88aee))
+- **credits:** merge phase 2 credit service branch ([05ecb45](https://github.com/equationalapplications/clanker/commit/05ecb451bd2401a479dadaf2402c541316737162))
+- **db:** add phase 1 credits redesign schema + migration ([c5e636d](https://github.com/equationalapplications/clanker/commit/c5e636d92e69b0156fd1a0f265dfa09ac04106b3))
+- **frontend:** phase 4 credits redesign — remove unlimited logic and show expiry dates ([890edb7](https://github.com/equationalapplications/clanker/commit/890edb7f2a742803ba6c76e82f9ee2b07a8ef85e))
 
 # [29.12.0](https://github.com/equationalapplications/clanker/compare/v29.11.0...v29.12.0) (2026-05-20)
 
-
 ### Bug Fixes
 
-* **aiChatService:** apply latest update ([8b744f7](https://github.com/equationalapplications/clanker/commit/8b744f79854ca5412225f77d4883b0576acb7176))
-* **aiChatService:** include AI response in observation history for correct memory ordering ([5a92902](https://github.com/equationalapplications/clanker/commit/5a92902085b764a92b34ec0de74ba36331658af5))
-* **auth/wiki:** improve Apple web sign-in error handling and wiki read fallback ([0ee4673](https://github.com/equationalapplications/clanker/commit/0ee467366ebaf9ce01f5bd6981ed1e0bea5627f5))
-* **auth:** cleanup Apple web init on unmount and improve wiki migration/cache behavior ([9471391](https://github.com/equationalapplications/clanker/commit/9471391d4c28c1a850c37ddb2b7dc7b99391f25e))
-* **auth:** regenerate Apple web nonce per event and add init tests ([c4c8b28](https://github.com/equationalapplications/clanker/commit/c4c8b28285929b1807f0d3f161bab2834b6c55a0))
-* **auth:** skip Apple Sign-In reinit when session no longer exists ([7a9b7d1](https://github.com/equationalapplications/clanker/commit/7a9b7d1047c0f46033bdcf7a81a23054ba78071d))
-* **auth:** use expo-crypto randomUUID for Apple Sign-In session IDs ([b641142](https://github.com/equationalapplications/clanker/commit/b641142780869429f94dce7f95c41721d0966016))
-* **chat-composer:** update composer behavior and tests ([41b7fe2](https://github.com/equationalapplications/clanker/commit/41b7fe28b842ecfc9b315dca891b843d863096ef))
-* **chat/native:** add gap between text input bubble and send button ([d12f0f9](https://github.com/equationalapplications/clanker/commit/d12f0f94b146305a9d6dd857a6c65145bda341e0))
-* **chat/web:** remove web text input focus rectangle and balance composer margin ([cd7ea27](https://github.com/equationalapplications/clanker/commit/cd7ea2752429d4c43754029c3ec14e75ca42c08c))
-* **chat:** restore native mule composer multiline view and preserve composer wrapper layout ([1402cb0](https://github.com/equationalapplications/clanker/commit/1402cb0f7102cc4b7c3ef3476799fcf590280f97))
-* **ci:** mock RN Firebase modules in Jest and support Firebase ESM in tests ([403e548](https://github.com/equationalapplications/clanker/commit/403e548b3373ae0adf139c8625f2852335596de6))
-* **functions:** address code quality issues in generateEmbedding ([8536d39](https://github.com/equationalapplications/clanker/commit/8536d39c7019c5c291caeccf4e60532e49fd0969))
-* **functions:** reduce Vertex AI unexpected-shape log payload ([ee10547](https://github.com/equationalapplications/clanker/commit/ee105475b30ceb31c1cd23474ef88d4218f779ca))
-* **functions:** update wiki LLM integration ([36c9100](https://github.com/equationalapplications/clanker/commit/36c910056cd9b6f7174bc3bcbe3efdb2df131f8f))
-* **functions:** update wikiLlm.ts ([fa74807](https://github.com/equationalapplications/clanker/commit/fa748077d2435a3cb5c3e54f6851423e3048cd13))
-* **ingest/signin:** invalidate wiki no-result cache on writes and fix Apple sign-in cleanup mock ([2080f47](https://github.com/equationalapplications/clanker/commit/2080f47a73960785755d28a80f6ff0db4e10af78))
-* **ingest/signin:** preserve Apple web nonce and unify ChatComposer ingest prompt ([9e1315a](https://github.com/equationalapplications/clanker/commit/9e1315a82234fe7454a36524d94df4ec4c2220f8))
-* **ingest/wiki:** preserve cache eviction for falsy entity ids ([80d2a3e](https://github.com/equationalapplications/clanker/commit/80d2a3ea540bc49794268cc047fd887ad709c203))
-* **pr:** resolve wiki embedding provider and related review feedback ([84add85](https://github.com/equationalapplications/clanker/commit/84add85fee3b957cd39a6903440b26d1ea5343c3))
-* **review:** remove debug logs and update wikiLlm test thresholds ([8cc867b](https://github.com/equationalapplications/clanker/commit/8cc867ba54966a280ea54709c682ab8cdf3e964d))
-* **review:** reuse saveAIMessage return, trim prompts once, fix test mock ([1f9654b](https://github.com/equationalapplications/clanker/commit/1f9654b6d4cbff5e0854e7bc0fefab6b200ac72a))
-* **wiki,apple-signin:** correct wiki no-result cache and make web Apple init session-safe ([7fb52a9](https://github.com/equationalapplications/clanker/commit/7fb52a9ca7546c1db901dc75abced5869baaeb75))
-* **wiki,apple:** avoid stale migration and strengthen session IDs ([f3d7d54](https://github.com/equationalapplications/clanker/commit/f3d7d5453e29e6292308cf1e1d78162511bcdea8))
-* **wiki/apple-signin:** background wiki embedding migration and harden Apple web init ([684a24e](https://github.com/equationalapplications/clanker/commit/684a24e3c3b11dce1c9f61255bb93d613423da84))
-* **wiki:** clear stale no-result cache during embedding migration and harden Apple session id ([33ad91a](https://github.com/equationalapplications/clanker/commit/33ad91a03b3c4095562e471d34f397abd28805e8))
-* **wiki:** normalize readFromWiki return type and add one-time embedding migration ([bc15f33](https://github.com/equationalapplications/clanker/commit/bc15f33150fed170980cf3e56ce7c975134ffe03))
-* **wiki:** normalize whitespace-only wiki queries and avoid unnecessary reads ([53f43d9](https://github.com/equationalapplications/clanker/commit/53f43d95079f7cabfacc1fdce52bac7b3c597218))
-* **wiki:** preserve empty-string entity ids when clearing no-result cache ([d8689a0](https://github.com/equationalapplications/clanker/commit/d8689a02836123aca5cde857b00d2fa8c33a67a5))
-* **wiki:** update initWiki test to assert metadata runAsync insert ([c10988f](https://github.com/equationalapplications/clanker/commit/c10988f4cecdc075c2c51e643d802d025d837b37))
-* **wiki:** update wiki embedding migration failure test expectation ([c617b96](https://github.com/equationalapplications/clanker/commit/c617b962e7f608409455abc7ffa3a5807a74cbb5))
-* **wiki:** use runAsync for migration marker insert in initWiki ([1badd0f](https://github.com/equationalapplications/clanker/commit/1badd0f7c9b676a782d006b31425fa68ac46c693))
-* **wiki:** use semantic similarity embeddings and pure vector retrieval ([0604885](https://github.com/equationalapplications/clanker/commit/06048850b2c2ce85c1f87b501da29df5c89f7154))
-
+- **aiChatService:** apply latest update ([8b744f7](https://github.com/equationalapplications/clanker/commit/8b744f79854ca5412225f77d4883b0576acb7176))
+- **aiChatService:** include AI response in observation history for correct memory ordering ([5a92902](https://github.com/equationalapplications/clanker/commit/5a92902085b764a92b34ec0de74ba36331658af5))
+- **auth/wiki:** improve Apple web sign-in error handling and wiki read fallback ([0ee4673](https://github.com/equationalapplications/clanker/commit/0ee467366ebaf9ce01f5bd6981ed1e0bea5627f5))
+- **auth:** cleanup Apple web init on unmount and improve wiki migration/cache behavior ([9471391](https://github.com/equationalapplications/clanker/commit/9471391d4c28c1a850c37ddb2b7dc7b99391f25e))
+- **auth:** regenerate Apple web nonce per event and add init tests ([c4c8b28](https://github.com/equationalapplications/clanker/commit/c4c8b28285929b1807f0d3f161bab2834b6c55a0))
+- **auth:** skip Apple Sign-In reinit when session no longer exists ([7a9b7d1](https://github.com/equationalapplications/clanker/commit/7a9b7d1047c0f46033bdcf7a81a23054ba78071d))
+- **auth:** use expo-crypto randomUUID for Apple Sign-In session IDs ([b641142](https://github.com/equationalapplications/clanker/commit/b641142780869429f94dce7f95c41721d0966016))
+- **chat-composer:** update composer behavior and tests ([41b7fe2](https://github.com/equationalapplications/clanker/commit/41b7fe28b842ecfc9b315dca891b843d863096ef))
+- **chat/native:** add gap between text input bubble and send button ([d12f0f9](https://github.com/equationalapplications/clanker/commit/d12f0f94b146305a9d6dd857a6c65145bda341e0))
+- **chat/web:** remove web text input focus rectangle and balance composer margin ([cd7ea27](https://github.com/equationalapplications/clanker/commit/cd7ea2752429d4c43754029c3ec14e75ca42c08c))
+- **chat:** restore native mule composer multiline view and preserve composer wrapper layout ([1402cb0](https://github.com/equationalapplications/clanker/commit/1402cb0f7102cc4b7c3ef3476799fcf590280f97))
+- **ci:** mock RN Firebase modules in Jest and support Firebase ESM in tests ([403e548](https://github.com/equationalapplications/clanker/commit/403e548b3373ae0adf139c8625f2852335596de6))
+- **functions:** address code quality issues in generateEmbedding ([8536d39](https://github.com/equationalapplications/clanker/commit/8536d39c7019c5c291caeccf4e60532e49fd0969))
+- **functions:** reduce Vertex AI unexpected-shape log payload ([ee10547](https://github.com/equationalapplications/clanker/commit/ee105475b30ceb31c1cd23474ef88d4218f779ca))
+- **functions:** update wiki LLM integration ([36c9100](https://github.com/equationalapplications/clanker/commit/36c910056cd9b6f7174bc3bcbe3efdb2df131f8f))
+- **functions:** update wikiLlm.ts ([fa74807](https://github.com/equationalapplications/clanker/commit/fa748077d2435a3cb5c3e54f6851423e3048cd13))
+- **ingest/signin:** invalidate wiki no-result cache on writes and fix Apple sign-in cleanup mock ([2080f47](https://github.com/equationalapplications/clanker/commit/2080f47a73960785755d28a80f6ff0db4e10af78))
+- **ingest/signin:** preserve Apple web nonce and unify ChatComposer ingest prompt ([9e1315a](https://github.com/equationalapplications/clanker/commit/9e1315a82234fe7454a36524d94df4ec4c2220f8))
+- **ingest/wiki:** preserve cache eviction for falsy entity ids ([80d2a3e](https://github.com/equationalapplications/clanker/commit/80d2a3ea540bc49794268cc047fd887ad709c203))
+- **pr:** resolve wiki embedding provider and related review feedback ([84add85](https://github.com/equationalapplications/clanker/commit/84add85fee3b957cd39a6903440b26d1ea5343c3))
+- **review:** remove debug logs and update wikiLlm test thresholds ([8cc867b](https://github.com/equationalapplications/clanker/commit/8cc867ba54966a280ea54709c682ab8cdf3e964d))
+- **review:** reuse saveAIMessage return, trim prompts once, fix test mock ([1f9654b](https://github.com/equationalapplications/clanker/commit/1f9654b6d4cbff5e0854e7bc0fefab6b200ac72a))
+- **wiki,apple-signin:** correct wiki no-result cache and make web Apple init session-safe ([7fb52a9](https://github.com/equationalapplications/clanker/commit/7fb52a9ca7546c1db901dc75abced5869baaeb75))
+- **wiki,apple:** avoid stale migration and strengthen session IDs ([f3d7d54](https://github.com/equationalapplications/clanker/commit/f3d7d5453e29e6292308cf1e1d78162511bcdea8))
+- **wiki/apple-signin:** background wiki embedding migration and harden Apple web init ([684a24e](https://github.com/equationalapplications/clanker/commit/684a24e3c3b11dce1c9f61255bb93d613423da84))
+- **wiki:** clear stale no-result cache during embedding migration and harden Apple session id ([33ad91a](https://github.com/equationalapplications/clanker/commit/33ad91a03b3c4095562e471d34f397abd28805e8))
+- **wiki:** normalize readFromWiki return type and add one-time embedding migration ([bc15f33](https://github.com/equationalapplications/clanker/commit/bc15f33150fed170980cf3e56ce7c975134ffe03))
+- **wiki:** normalize whitespace-only wiki queries and avoid unnecessary reads ([53f43d9](https://github.com/equationalapplications/clanker/commit/53f43d95079f7cabfacc1fdce52bac7b3c597218))
+- **wiki:** preserve empty-string entity ids when clearing no-result cache ([d8689a0](https://github.com/equationalapplications/clanker/commit/d8689a02836123aca5cde857b00d2fa8c33a67a5))
+- **wiki:** update initWiki test to assert metadata runAsync insert ([c10988f](https://github.com/equationalapplications/clanker/commit/c10988f4cecdc075c2c51e643d802d025d837b37))
+- **wiki:** update wiki embedding migration failure test expectation ([c617b96](https://github.com/equationalapplications/clanker/commit/c617b962e7f608409455abc7ffa3a5807a74cbb5))
+- **wiki:** use runAsync for migration marker insert in initWiki ([1badd0f](https://github.com/equationalapplications/clanker/commit/1badd0f7c9b676a782d006b31425fa68ac46c693))
+- **wiki:** use semantic similarity embeddings and pure vector retrieval ([0604885](https://github.com/equationalapplications/clanker/commit/06048850b2c2ce85c1f87b501da29df5c89f7154))
 
 ### Features
 
-* **apiClient:** add generateEmbedding callable with AppCheck wrapper ([41310d4](https://github.com/equationalapplications/clanker/commit/41310d4f5f6072b40775714ae58e2b40cc966113))
-* **auth:** add Apple sign-in web support and update sign-in flow ([7aa7a85](https://github.com/equationalapplications/clanker/commit/7aa7a85deec61bd7bd5577a0d67b9684590f5a4f))
-* **config:** add generateEmbeddingFn httpsCallable to firebase config ([9891fc2](https://github.com/equationalapplications/clanker/commit/9891fc2871547697af92dec851409e74c5a9d11b))
-* **functions:** add generateEmbedding callable using text-embedding-004 ([643d821](https://github.com/equationalapplications/clanker/commit/643d821293fd2995a610b23e7cf16125d4e666c8))
-* **functions:** export generateEmbedding from index ([3a91496](https://github.com/equationalapplications/clanker/commit/3a914965270e8e6b851760f7ddb5ee3b0c9598e2))
-* **wiki:** add embed to wikiLlmProvider using generateEmbedding callable ([46827cc](https://github.com/equationalapplications/clanker/commit/46827cc92efef54a8b9ada49966695b2291913ab))
-* **wiki:** add wiki embedding provider support and related tests ([180ff6d](https://github.com/equationalapplications/clanker/commit/180ff6d864637eb92a481748de74b3322189344d))
-* **wiki:** add wiki embedding provider support and related tests ([0409ae9](https://github.com/equationalapplications/clanker/commit/0409ae940f15ae5a542e6a73540da2e064a8f7ce))
+- **apiClient:** add generateEmbedding callable with AppCheck wrapper ([41310d4](https://github.com/equationalapplications/clanker/commit/41310d4f5f6072b40775714ae58e2b40cc966113))
+- **auth:** add Apple sign-in web support and update sign-in flow ([7aa7a85](https://github.com/equationalapplications/clanker/commit/7aa7a85deec61bd7bd5577a0d67b9684590f5a4f))
+- **config:** add generateEmbeddingFn httpsCallable to firebase config ([9891fc2](https://github.com/equationalapplications/clanker/commit/9891fc2871547697af92dec851409e74c5a9d11b))
+- **functions:** add generateEmbedding callable using text-embedding-004 ([643d821](https://github.com/equationalapplications/clanker/commit/643d821293fd2995a610b23e7cf16125d4e666c8))
+- **functions:** export generateEmbedding from index ([3a91496](https://github.com/equationalapplications/clanker/commit/3a914965270e8e6b851760f7ddb5ee3b0c9598e2))
+- **wiki:** add embed to wikiLlmProvider using generateEmbedding callable ([46827cc](https://github.com/equationalapplications/clanker/commit/46827cc92efef54a8b9ada49966695b2291913ab))
+- **wiki:** add wiki embedding provider support and related tests ([180ff6d](https://github.com/equationalapplications/clanker/commit/180ff6d864637eb92a481748de74b3322189344d))
+- **wiki:** add wiki embedding provider support and related tests ([0409ae9](https://github.com/equationalapplications/clanker/commit/0409ae940f15ae5a542e6a73540da2e064a8f7ce))
 
 # [29.11.0](https://github.com/equationalapplications/clanker/compare/v29.10.1...v29.11.0) (2026-05-12)
 
-
 ### Bug Fixes
 
-* **auth:** add cancelled flag to Apple sign-in results ([4d26891](https://github.com/equationalapplications/clanker/commit/4d2689180b5d1cdc384f1870b3c5d96589999faa))
-* **auth:** address Copilot review on FedCM Google sign-in PR ([4de80f1](https://github.com/equationalapplications/clanker/commit/4de80f1a4b0b5a033558890b25dac5005d894e58))
-* **auth:** handle v16 discriminated union response in GoogleSignin.signIn ([eb34d8b](https://github.com/equationalapplications/clanker/commit/eb34d8bbfcd79fba1d20445ffe6f850f3bd49abe))
-* **auth:** pass style to fallback ProviderButton in GoogleSignInButton.web ([f7b2252](https://github.com/equationalapplications/clanker/commit/f7b2252eb668bffbc26c14c7cb8e35fb21a885bb))
-* **auth:** remove duplicate console.warn from handleCredential ([175d5f4](https://github.com/equationalapplications/clanker/commit/175d5f47fb829e38acb60c59eaf8b3f208dca6c2))
-* **auth:** restore console.error in filter reset and snapshot env var ([33c3b04](https://github.com/equationalapplications/clanker/commit/33c3b04373bd14b23bdcb072fcc6beacb95e695f))
-* **auth:** use || for googleDisplayName fallback; sync spec with implementation ([c29ca8b](https://github.com/equationalapplications/clanker/commit/c29ca8bf2ff65d70c0b18b3ea839d46dfc0b74d3))
-* **auth:** web Google busy overlay and renderButton guard ([5c1fa26](https://github.com/equationalapplications/clanker/commit/5c1fa2622ddd89b6767d38771c67ffedbbccc13c))
-
+- **auth:** add cancelled flag to Apple sign-in results ([4d26891](https://github.com/equationalapplications/clanker/commit/4d2689180b5d1cdc384f1870b3c5d96589999faa))
+- **auth:** address Copilot review on FedCM Google sign-in PR ([4de80f1](https://github.com/equationalapplications/clanker/commit/4de80f1a4b0b5a033558890b25dac5005d894e58))
+- **auth:** handle v16 discriminated union response in GoogleSignin.signIn ([eb34d8b](https://github.com/equationalapplications/clanker/commit/eb34d8bbfcd79fba1d20445ffe6f850f3bd49abe))
+- **auth:** pass style to fallback ProviderButton in GoogleSignInButton.web ([f7b2252](https://github.com/equationalapplications/clanker/commit/f7b2252eb668bffbc26c14c7cb8e35fb21a885bb))
+- **auth:** remove duplicate console.warn from handleCredential ([175d5f4](https://github.com/equationalapplications/clanker/commit/175d5f47fb829e38acb60c59eaf8b3f208dca6c2))
+- **auth:** restore console.error in filter reset and snapshot env var ([33c3b04](https://github.com/equationalapplications/clanker/commit/33c3b04373bd14b23bdcb072fcc6beacb95e695f))
+- **auth:** use || for googleDisplayName fallback; sync spec with implementation ([c29ca8b](https://github.com/equationalapplications/clanker/commit/c29ca8bf2ff65d70c0b18b3ea839d46dfc0b74d3))
+- **auth:** web Google busy overlay and renderButton guard ([5c1fa26](https://github.com/equationalapplications/clanker/commit/5c1fa2622ddd89b6767d38771c67ffedbbccc13c))
 
 ### Features
 
-* **auth:** fedcm gis button migration phase 1 ([e1eb76a](https://github.com/equationalapplications/clanker/commit/e1eb76a42a9289b5743ee36688781a3a94926130))
+- **auth:** fedcm gis button migration phase 1 ([e1eb76a](https://github.com/equationalapplications/clanker/commit/e1eb76a42a9289b5743ee36688781a3a94926130))
 
 ## [29.10.1](https://github.com/equationalapplications/clanker/compare/v29.10.0...v29.10.1) (2026-05-11)
 
-
 ### Bug Fixes
 
-* **charts:** address Copilot review comments on generator robustness ([50791e5](https://github.com/equationalapplications/clanker/commit/50791e5d1b8fc17280f44ffe9c08b51c46e5501b))
-* **charts:** hybrid call+import fallback per file in generator ([346f9ee](https://github.com/equationalapplications/clanker/commit/346f9eecf11bee5b78348726c6d0bb8603f5da04))
-* **charts:** hybrid titles and neutral empty-state copy ([b0e55b6](https://github.com/equationalapplications/clanker/commit/b0e55b6d6e32b8670b094f7913dd5cb0ebc2ea26))
+- **charts:** address Copilot review comments on generator robustness ([50791e5](https://github.com/equationalapplications/clanker/commit/50791e5d1b8fc17280f44ffe9c08b51c46e5501b))
+- **charts:** hybrid call+import fallback per file in generator ([346f9ee](https://github.com/equationalapplications/clanker/commit/346f9eecf11bee5b78348726c6d0bb8603f5da04))
+- **charts:** hybrid titles and neutral empty-state copy ([b0e55b6](https://github.com/equationalapplications/clanker/commit/b0e55b6d6e32b8670b094f7913dd5cb0ebc2ea26))
 
 # [29.10.0](https://github.com/equationalapplications/clanker/compare/v29.9.0...v29.10.0) (2026-05-11)
 
-
 ### Bug Fixes
 
-* address code review suggestions ([322f307](https://github.com/equationalapplications/clanker/commit/322f30792ad6b3c5c9396281f768f2ffa64a758c))
-* address final PR review comments ([4b24c53](https://github.com/equationalapplications/clanker/commit/4b24c5310f1ffcd221667d63e342afad51d0e035))
-* address final PR review comments ([b64bf24](https://github.com/equationalapplications/clanker/commit/b64bf242796247d15a13f6ac207ed41fcd393e26))
-* address final PR review comments ([70a9c7e](https://github.com/equationalapplications/clanker/commit/70a9c7e2252433b31c7b316aa9493ad75a4dee9e))
-* address final PR review comments ([63b7c07](https://github.com/equationalapplications/clanker/commit/63b7c07cd22445af77b678d036c7d75b0ffffb87))
-* address PR review feedback ([3e0197d](https://github.com/equationalapplications/clanker/commit/3e0197d48a72bc82bb7271da54b7bc4fddf4aa09))
-* address review feedback on syncAll, busyRetry, and error recovery ([9f81237](https://github.com/equationalapplications/clanker/commit/9f812372dfc18b3eb7bf1d8ad7d120ce4926f19f))
-* address review feedback on wikiMachine ([f70baa9](https://github.com/equationalapplications/clanker/commit/f70baa9fc48b8acb8e8af325a7b8346ceccc3b4c))
-* **auth:** address Copilot review issues on Google Sign-In web ([38c3d17](https://github.com/equationalapplications/clanker/commit/38c3d175e5e4a0686436db8a6a42a14ba3ef4f95)), closes [#2](https://github.com/equationalapplications/clanker/issues/2) [#4](https://github.com/equationalapplications/clanker/issues/4) [#3](https://github.com/equationalapplications/clanker/issues/3)
-* **chat:** stabilize handlePlusPress deps for character wiki ([fd1f5cc](https://github.com/equationalapplications/clanker/commit/fd1f5cca25451283a863d18bf08123e4b9a9133c))
-* ensure syncAll waits for SYNC to complete ([a479b14](https://github.com/equationalapplications/clanker/commit/a479b145f8365236d8df4a5447290272a3279828))
-* normalize errors and correct documentation version refs ([4d9b5be](https://github.com/equationalapplications/clanker/commit/4d9b5beeac7ec7ed83060e6fd1da60fe689c34b9))
-* optimize syncAll queue, add timeout, and send initial status ([0b4b4ff](https://github.com/equationalapplications/clanker/commit/0b4b4ff93cb846d1311eea151e9597a9930fdb5d))
-* **pr:** address review feedback ([3bb41b1](https://github.com/equationalapplications/clanker/commit/3bb41b1b59fd990209bce553aad2f9aa975dee4e))
-* resolve merge conflict in wiki state machine design doc ([a78fa42](https://github.com/equationalapplications/clanker/commit/a78fa42ca9bc17ade51b3e9ee82070e79a3382ef))
-* **test:** address PR review feedback ([dcf8d7e](https://github.com/equationalapplications/clanker/commit/dcf8d7e0a4d28ba7a12bdcc006bbccd58fb2e2d2))
-* **test:** address PR review feedback ([bda5eb5](https://github.com/equationalapplications/clanker/commit/bda5eb5795ecdac65b43e30b9b6891be70199205))
-* **test:** address PR review feedback for wiki migration test ([076d4b3](https://github.com/equationalapplications/clanker/commit/076d4b3cb9c97d1da5240ef966dc4b0253068ba8))
-* **test:** resolve invalid Jest assertion in wikiServiceMigration.test ([09df171](https://github.com/equationalapplications/clanker/commit/09df171605bd5bba79917ed53e14b70362c3ba36))
-* **tests:** address PR review feedback in wiki gating tests ([24441ea](https://github.com/equationalapplications/clanker/commit/24441eaf0b6af62b08b0f30c6b3c4348a28c29e7))
-* **test:** support nested transactions in expo-sqlite mock ([6ba6fcb](https://github.com/equationalapplications/clanker/commit/6ba6fcb13777e098e2b1e40b9b1c50235dbbf622))
-* **wiki,auth:** address PR 366 final review comments ([3bbb859](https://github.com/equationalapplications/clanker/commit/3bbb85943eb6a8e3e1fed3942753963caf654911))
-* **wiki:** abortable sync retries and review follow-ups ([0ac091d](https://github.com/equationalapplications/clanker/commit/0ac091df88ab8cb48cc306ed2e454a15433aface))
-* **wiki:** address final PR review comments ([2229eac](https://github.com/equationalapplications/clanker/commit/2229eac42f3bf53a95b7518921e24183e2849767))
-* **wiki:** address PR 369 review on status fallback and syncAll ([af62f48](https://github.com/equationalapplications/clanker/commit/af62f4826ca121ddfe9a63be37aa7cab70f5eb60))
-* **wiki:** align phase 3 spec error handling and sync flow ([dbba616](https://github.com/equationalapplications/clanker/commit/dbba61685307858a7568e12fe58cf1940dc2c9dd))
-* **wiki:** align phase 3 with spec error context and add timeout guard ([3a90186](https://github.com/equationalapplications/clanker/commit/3a9018614ea3a9bd3db8b3c881b6e8f3abe58484))
-* **wiki:** avoid premature op completion across busy retry ([2494112](https://github.com/equationalapplications/clanker/commit/24941128941cb0763999b9db7f5a3f0289f6616b))
-* **wiki:** convert initWiki to async DB APIs and improve test coverage ([f2c1918](https://github.com/equationalapplications/clanker/commit/f2c19186c1dd6e3fb588c7994f9eb95db91e0900))
-* **wiki:** cover real reportError callsites and sync contexts ([59ce2d1](https://github.com/equationalapplications/clanker/commit/59ce2d1733cfe9b79ea14c705f81c8a831e95192))
-* **wiki:** deduplicate sync error reporting ([3ac6ba5](https://github.com/equationalapplications/clanker/commit/3ac6ba56acdaa5dc27f6dbf6ec4612280b701029))
-* **wiki:** end syncAll wait on error without syncing snapshot ([2706b38](https://github.com/equationalapplications/clanker/commit/2706b38873076b336a718f53346fc848cda1dcd0))
-* **wiki:** fail-fast syncAll when error precedes syncing ([1e5144a](https://github.com/equationalapplications/clanker/commit/1e5144a5da21c111364a599f79c86175b096fe85))
-* **wiki:** fallback catch in useCharacterWikiSync; tighten busy read test ([7a853c2](https://github.com/equationalapplications/clanker/commit/7a853c2742e7caa0c4dc87e2d6fc3d30e988cebc))
-* **wiki:** handle fresh installs and centralize table prefix ([f5f67aa](https://github.com/equationalapplications/clanker/commit/f5f67aa7969c40b47887bb1ee06bf3fe8e35ae2b)), closes [#366](https://github.com/equationalapplications/clanker/issues/366)
-* **wiki:** handle memory delete failures in inspector ([ff548db](https://github.com/equationalapplications/clanker/commit/ff548dbee62506cada50e5b66b3f802b602086fd))
-* **wiki:** ignore superseded memory fetches; dedupe sync tests ([2089adb](https://github.com/equationalapplications/clanker/commit/2089adbd2405a05045625222d2f4d912f312763d))
-* **wiki:** invalidate memory bundle fetch gen on wiki/entity change ([b629d40](https://github.com/equationalapplications/clanker/commit/b629d40908f0d3faf9c7d734a9b433c5fd98f3fb))
-* **wiki:** isolate sync pipeline errors, drop dead syncSucceeded ([a03ca3c](https://github.com/equationalapplications/clanker/commit/a03ca3c50998c9046fd1b84903aa8c9e1990444d))
-* **wiki:** per-entity op queues and restore-path sync error tags ([aabd786](https://github.com/equationalapplications/clanker/commit/aabd7862496ac59f39241564dabeacfb0c755bf2))
-* **wiki:** per-op reportError in useCharacterWikiSync; test busy wikiSync ([fe170e6](https://github.com/equationalapplications/clanker/commit/fe170e64315e3f941164a3dd7409c72d99d1e211))
-* **wiki:** preserve ingest output in machine state ([5d6d3cf](https://github.com/equationalapplications/clanker/commit/5d6d3cf70d957ba2b797d00686770ac96bacada6))
-* **wiki:** preserve op stack in reportWikiOpForCharacter ([23cbb83](https://github.com/equationalapplications/clanker/commit/23cbb83dac00581cbe8d310135863810f524aae3))
-* **wiki:** rename serialized queue type; retry import/prune on busy ([8f85920](https://github.com/equationalapplications/clanker/commit/8f85920077330f7546217a4b4f97ab80fe722d94))
-* **wiki:** report missing wikiSync remoteDump ([7a500db](https://github.com/equationalapplications/clanker/commit/7a500db449795ad1f470a649e6a5501e2adc923e))
-* **wiki:** reset memory bundle on entityId change ([5d1857f](https://github.com/equationalapplications/clanker/commit/5d1857f2a6243afccbba4145e9fb63617c348b6d))
-* **wiki:** reset memory bundle sync on entity/wiki change ([85e0d16](https://github.com/equationalapplications/clanker/commit/85e0d16532c52c4ae5659e5c87a3e0914d83f7c6))
-* **wiki:** reset operation queues on actor change in useCharacterWiki ([c157ea6](https://github.com/equationalapplications/clanker/commit/c157ea6abecc5d3a24f7d53aca6910b797f206d9))
-* **wiki:** reset useMemoryBundle in effect; mock icons in tests ([7c091c1](https://github.com/equationalapplications/clanker/commit/7c091c1557d468040a6542006fd5760ee3a5d8f3))
-* **wiki:** resolve PR 370 merge conflicts with staging ([18f3fca](https://github.com/equationalapplications/clanker/commit/18f3fca580d7106e8518ea2e1fc34a51be8c3de2))
-* **wiki:** resolve PR review follow-ups ([70c0c11](https://github.com/equationalapplications/clanker/commit/70c0c1199c379167910e29aad42a9a338cf60cfc))
-* **wiki:** resolve remaining PR [#369](https://github.com/equationalapplications/clanker/issues/369) review items ([552443d](https://github.com/equationalapplications/clanker/commit/552443da85df7036fb416f00ed923a92f36c35cd))
-* **wiki:** resolve review-thread regressions ([808634b](https://github.com/equationalapplications/clanker/commit/808634bc7323d8ff1275a26fdafc07e7523ccd16))
-* **wiki:** route characterSyncService wiki warnings through reportError ([20db1d8](https://github.com/equationalapplications/clanker/commit/20db1d8a5d6912a9e607d8fba66ee3afcad3463a))
-* **wiki:** route useAIChat memory errors through reportError ([c21c6c5](https://github.com/equationalapplications/clanker/commit/c21c6c55abf5c0094fd105c2f6ade03064aed5f7))
-* **wiki:** route useCharacterWiki sync errors through reportError, swallow WikiBusyError ([481a880](https://github.com/equationalapplications/clanker/commit/481a88040982a8c91401edf0cae98903f275df4e))
-* **wiki:** scope syncWikiForCloud export catch to exportDump only ([d316647](https://github.com/equationalapplications/clanker/commit/d3166472c05eb8bce1a717ad91e98ff36fa186c7))
-* **wiki:** serialize same-type character wiki operations ([cc29039](https://github.com/equationalapplications/clanker/commit/cc29039f3684f7171b3ffea014a1155b12291809))
-* **wiki:** skip reportError when wiki singleton unavailable ([75c147b](https://github.com/equationalapplications/clanker/commit/75c147b7fba8dcf45b00ccd9d5c132f963ac73cc))
-* **wiki:** skip sparse syncAll items without stopping workers ([1f7830f](https://github.com/equationalapplications/clanker/commit/1f7830f8f3b24cf5b1a7bb936c981d3f9a6f1a24))
-* **wiki:** split SYNC busy retries; reject syncAll on sync error ([b513167](https://github.com/equationalapplications/clanker/commit/b5131678cd294a2c956850c82c75e680c13710f1))
-* **wiki:** split syncWikiForCloud error contexts by operation ([d7cfa4f](https://github.com/equationalapplications/clanker/commit/d7cfa4f934e338b58d77c55a29e5e084625122a1))
-* **wiki:** stop batch actors on syncAll rejection ([f4067e8](https://github.com/equationalapplications/clanker/commit/f4067e8a1df3619fd024a6caad6e966c8875c0ea))
-* **wiki:** syncAll waits for idle after RETRY before SYNC wait ([940dea9](https://github.com/equationalapplications/clanker/commit/940dea90fe0aab39c03a8a0e831b54c82020aed9))
-* **wiki:** syncAll when actor already syncing ([921c24d](https://github.com/equationalapplications/clanker/commit/921c24d292f177f46e3c51055f78bacdabd7174e))
-* **wiki:** throw error on sync failure instead of returning local data ([6482b33](https://github.com/equationalapplications/clanker/commit/6482b3339da9e98a9e4c895acf988a7f9e1acc82))
-* **wiki:** typed wikiSync result and scope per-character reportError ([3063370](https://github.com/equationalapplications/clanker/commit/3063370fe38670cb4ef9a8f315db4177c90d7c80))
-* **wiki:** use parameter binding, minimize transaction scope, export TABLE_PREFIX ([24ed992](https://github.com/equationalapplications/clanker/commit/24ed992fcf4ea14a973807b15c6df83116131862)), closes [#366](https://github.com/equationalapplications/clanker/issues/366)
-* **wiki:** waitForActorOperation handles batched idle; trim test import ([077683b](https://github.com/equationalapplications/clanker/commit/077683b59d87f23a008072d5003907025108a47e))
-
+- address code review suggestions ([322f307](https://github.com/equationalapplications/clanker/commit/322f30792ad6b3c5c9396281f768f2ffa64a758c))
+- address final PR review comments ([4b24c53](https://github.com/equationalapplications/clanker/commit/4b24c5310f1ffcd221667d63e342afad51d0e035))
+- address final PR review comments ([b64bf24](https://github.com/equationalapplications/clanker/commit/b64bf242796247d15a13f6ac207ed41fcd393e26))
+- address final PR review comments ([70a9c7e](https://github.com/equationalapplications/clanker/commit/70a9c7e2252433b31c7b316aa9493ad75a4dee9e))
+- address final PR review comments ([63b7c07](https://github.com/equationalapplications/clanker/commit/63b7c07cd22445af77b678d036c7d75b0ffffb87))
+- address PR review feedback ([3e0197d](https://github.com/equationalapplications/clanker/commit/3e0197d48a72bc82bb7271da54b7bc4fddf4aa09))
+- address review feedback on syncAll, busyRetry, and error recovery ([9f81237](https://github.com/equationalapplications/clanker/commit/9f812372dfc18b3eb7bf1d8ad7d120ce4926f19f))
+- address review feedback on wikiMachine ([f70baa9](https://github.com/equationalapplications/clanker/commit/f70baa9fc48b8acb8e8af325a7b8346ceccc3b4c))
+- **auth:** address Copilot review issues on Google Sign-In web ([38c3d17](https://github.com/equationalapplications/clanker/commit/38c3d175e5e4a0686436db8a6a42a14ba3ef4f95)), closes [#2](https://github.com/equationalapplications/clanker/issues/2) [#4](https://github.com/equationalapplications/clanker/issues/4) [#3](https://github.com/equationalapplications/clanker/issues/3)
+- **chat:** stabilize handlePlusPress deps for character wiki ([fd1f5cc](https://github.com/equationalapplications/clanker/commit/fd1f5cca25451283a863d18bf08123e4b9a9133c))
+- ensure syncAll waits for SYNC to complete ([a479b14](https://github.com/equationalapplications/clanker/commit/a479b145f8365236d8df4a5447290272a3279828))
+- normalize errors and correct documentation version refs ([4d9b5be](https://github.com/equationalapplications/clanker/commit/4d9b5beeac7ec7ed83060e6fd1da60fe689c34b9))
+- optimize syncAll queue, add timeout, and send initial status ([0b4b4ff](https://github.com/equationalapplications/clanker/commit/0b4b4ff93cb846d1311eea151e9597a9930fdb5d))
+- **pr:** address review feedback ([3bb41b1](https://github.com/equationalapplications/clanker/commit/3bb41b1b59fd990209bce553aad2f9aa975dee4e))
+- resolve merge conflict in wiki state machine design doc ([a78fa42](https://github.com/equationalapplications/clanker/commit/a78fa42ca9bc17ade51b3e9ee82070e79a3382ef))
+- **test:** address PR review feedback ([dcf8d7e](https://github.com/equationalapplications/clanker/commit/dcf8d7e0a4d28ba7a12bdcc006bbccd58fb2e2d2))
+- **test:** address PR review feedback ([bda5eb5](https://github.com/equationalapplications/clanker/commit/bda5eb5795ecdac65b43e30b9b6891be70199205))
+- **test:** address PR review feedback for wiki migration test ([076d4b3](https://github.com/equationalapplications/clanker/commit/076d4b3cb9c97d1da5240ef966dc4b0253068ba8))
+- **test:** resolve invalid Jest assertion in wikiServiceMigration.test ([09df171](https://github.com/equationalapplications/clanker/commit/09df171605bd5bba79917ed53e14b70362c3ba36))
+- **tests:** address PR review feedback in wiki gating tests ([24441ea](https://github.com/equationalapplications/clanker/commit/24441eaf0b6af62b08b0f30c6b3c4348a28c29e7))
+- **test:** support nested transactions in expo-sqlite mock ([6ba6fcb](https://github.com/equationalapplications/clanker/commit/6ba6fcb13777e098e2b1e40b9b1c50235dbbf622))
+- **wiki,auth:** address PR 366 final review comments ([3bbb859](https://github.com/equationalapplications/clanker/commit/3bbb85943eb6a8e3e1fed3942753963caf654911))
+- **wiki:** abortable sync retries and review follow-ups ([0ac091d](https://github.com/equationalapplications/clanker/commit/0ac091df88ab8cb48cc306ed2e454a15433aface))
+- **wiki:** address final PR review comments ([2229eac](https://github.com/equationalapplications/clanker/commit/2229eac42f3bf53a95b7518921e24183e2849767))
+- **wiki:** address PR 369 review on status fallback and syncAll ([af62f48](https://github.com/equationalapplications/clanker/commit/af62f4826ca121ddfe9a63be37aa7cab70f5eb60))
+- **wiki:** align phase 3 spec error handling and sync flow ([dbba616](https://github.com/equationalapplications/clanker/commit/dbba61685307858a7568e12fe58cf1940dc2c9dd))
+- **wiki:** align phase 3 with spec error context and add timeout guard ([3a90186](https://github.com/equationalapplications/clanker/commit/3a9018614ea3a9bd3db8b3c881b6e8f3abe58484))
+- **wiki:** avoid premature op completion across busy retry ([2494112](https://github.com/equationalapplications/clanker/commit/24941128941cb0763999b9db7f5a3f0289f6616b))
+- **wiki:** convert initWiki to async DB APIs and improve test coverage ([f2c1918](https://github.com/equationalapplications/clanker/commit/f2c19186c1dd6e3fb588c7994f9eb95db91e0900))
+- **wiki:** cover real reportError callsites and sync contexts ([59ce2d1](https://github.com/equationalapplications/clanker/commit/59ce2d1733cfe9b79ea14c705f81c8a831e95192))
+- **wiki:** deduplicate sync error reporting ([3ac6ba5](https://github.com/equationalapplications/clanker/commit/3ac6ba56acdaa5dc27f6dbf6ec4612280b701029))
+- **wiki:** end syncAll wait on error without syncing snapshot ([2706b38](https://github.com/equationalapplications/clanker/commit/2706b38873076b336a718f53346fc848cda1dcd0))
+- **wiki:** fail-fast syncAll when error precedes syncing ([1e5144a](https://github.com/equationalapplications/clanker/commit/1e5144a5da21c111364a599f79c86175b096fe85))
+- **wiki:** fallback catch in useCharacterWikiSync; tighten busy read test ([7a853c2](https://github.com/equationalapplications/clanker/commit/7a853c2742e7caa0c4dc87e2d6fc3d30e988cebc))
+- **wiki:** handle fresh installs and centralize table prefix ([f5f67aa](https://github.com/equationalapplications/clanker/commit/f5f67aa7969c40b47887bb1ee06bf3fe8e35ae2b)), closes [#366](https://github.com/equationalapplications/clanker/issues/366)
+- **wiki:** handle memory delete failures in inspector ([ff548db](https://github.com/equationalapplications/clanker/commit/ff548dbee62506cada50e5b66b3f802b602086fd))
+- **wiki:** ignore superseded memory fetches; dedupe sync tests ([2089adb](https://github.com/equationalapplications/clanker/commit/2089adbd2405a05045625222d2f4d912f312763d))
+- **wiki:** invalidate memory bundle fetch gen on wiki/entity change ([b629d40](https://github.com/equationalapplications/clanker/commit/b629d40908f0d3faf9c7d734a9b433c5fd98f3fb))
+- **wiki:** isolate sync pipeline errors, drop dead syncSucceeded ([a03ca3c](https://github.com/equationalapplications/clanker/commit/a03ca3c50998c9046fd1b84903aa8c9e1990444d))
+- **wiki:** per-entity op queues and restore-path sync error tags ([aabd786](https://github.com/equationalapplications/clanker/commit/aabd7862496ac59f39241564dabeacfb0c755bf2))
+- **wiki:** per-op reportError in useCharacterWikiSync; test busy wikiSync ([fe170e6](https://github.com/equationalapplications/clanker/commit/fe170e64315e3f941164a3dd7409c72d99d1e211))
+- **wiki:** preserve ingest output in machine state ([5d6d3cf](https://github.com/equationalapplications/clanker/commit/5d6d3cf70d957ba2b797d00686770ac96bacada6))
+- **wiki:** preserve op stack in reportWikiOpForCharacter ([23cbb83](https://github.com/equationalapplications/clanker/commit/23cbb83dac00581cbe8d310135863810f524aae3))
+- **wiki:** rename serialized queue type; retry import/prune on busy ([8f85920](https://github.com/equationalapplications/clanker/commit/8f85920077330f7546217a4b4f97ab80fe722d94))
+- **wiki:** report missing wikiSync remoteDump ([7a500db](https://github.com/equationalapplications/clanker/commit/7a500db449795ad1f470a649e6a5501e2adc923e))
+- **wiki:** reset memory bundle on entityId change ([5d1857f](https://github.com/equationalapplications/clanker/commit/5d1857f2a6243afccbba4145e9fb63617c348b6d))
+- **wiki:** reset memory bundle sync on entity/wiki change ([85e0d16](https://github.com/equationalapplications/clanker/commit/85e0d16532c52c4ae5659e5c87a3e0914d83f7c6))
+- **wiki:** reset operation queues on actor change in useCharacterWiki ([c157ea6](https://github.com/equationalapplications/clanker/commit/c157ea6abecc5d3a24f7d53aca6910b797f206d9))
+- **wiki:** reset useMemoryBundle in effect; mock icons in tests ([7c091c1](https://github.com/equationalapplications/clanker/commit/7c091c1557d468040a6542006fd5760ee3a5d8f3))
+- **wiki:** resolve PR 370 merge conflicts with staging ([18f3fca](https://github.com/equationalapplications/clanker/commit/18f3fca580d7106e8518ea2e1fc34a51be8c3de2))
+- **wiki:** resolve PR review follow-ups ([70c0c11](https://github.com/equationalapplications/clanker/commit/70c0c1199c379167910e29aad42a9a338cf60cfc))
+- **wiki:** resolve remaining PR [#369](https://github.com/equationalapplications/clanker/issues/369) review items ([552443d](https://github.com/equationalapplications/clanker/commit/552443da85df7036fb416f00ed923a92f36c35cd))
+- **wiki:** resolve review-thread regressions ([808634b](https://github.com/equationalapplications/clanker/commit/808634bc7323d8ff1275a26fdafc07e7523ccd16))
+- **wiki:** route characterSyncService wiki warnings through reportError ([20db1d8](https://github.com/equationalapplications/clanker/commit/20db1d8a5d6912a9e607d8fba66ee3afcad3463a))
+- **wiki:** route useAIChat memory errors through reportError ([c21c6c5](https://github.com/equationalapplications/clanker/commit/c21c6c55abf5c0094fd105c2f6ade03064aed5f7))
+- **wiki:** route useCharacterWiki sync errors through reportError, swallow WikiBusyError ([481a880](https://github.com/equationalapplications/clanker/commit/481a88040982a8c91401edf0cae98903f275df4e))
+- **wiki:** scope syncWikiForCloud export catch to exportDump only ([d316647](https://github.com/equationalapplications/clanker/commit/d3166472c05eb8bce1a717ad91e98ff36fa186c7))
+- **wiki:** serialize same-type character wiki operations ([cc29039](https://github.com/equationalapplications/clanker/commit/cc29039f3684f7171b3ffea014a1155b12291809))
+- **wiki:** skip reportError when wiki singleton unavailable ([75c147b](https://github.com/equationalapplications/clanker/commit/75c147b7fba8dcf45b00ccd9d5c132f963ac73cc))
+- **wiki:** skip sparse syncAll items without stopping workers ([1f7830f](https://github.com/equationalapplications/clanker/commit/1f7830f8f3b24cf5b1a7bb936c981d3f9a6f1a24))
+- **wiki:** split SYNC busy retries; reject syncAll on sync error ([b513167](https://github.com/equationalapplications/clanker/commit/b5131678cd294a2c956850c82c75e680c13710f1))
+- **wiki:** split syncWikiForCloud error contexts by operation ([d7cfa4f](https://github.com/equationalapplications/clanker/commit/d7cfa4f934e338b58d77c55a29e5e084625122a1))
+- **wiki:** stop batch actors on syncAll rejection ([f4067e8](https://github.com/equationalapplications/clanker/commit/f4067e8a1df3619fd024a6caad6e966c8875c0ea))
+- **wiki:** syncAll waits for idle after RETRY before SYNC wait ([940dea9](https://github.com/equationalapplications/clanker/commit/940dea90fe0aab39c03a8a0e831b54c82020aed9))
+- **wiki:** syncAll when actor already syncing ([921c24d](https://github.com/equationalapplications/clanker/commit/921c24d292f177f46e3c51055f78bacdabd7174e))
+- **wiki:** throw error on sync failure instead of returning local data ([6482b33](https://github.com/equationalapplications/clanker/commit/6482b3339da9e98a9e4c895acf988a7f9e1acc82))
+- **wiki:** typed wikiSync result and scope per-character reportError ([3063370](https://github.com/equationalapplications/clanker/commit/3063370fe38670cb4ef9a8f315db4177c90d7c80))
+- **wiki:** use parameter binding, minimize transaction scope, export TABLE_PREFIX ([24ed992](https://github.com/equationalapplications/clanker/commit/24ed992fcf4ea14a973807b15c6df83116131862)), closes [#366](https://github.com/equationalapplications/clanker/issues/366)
+- **wiki:** waitForActorOperation handles batched idle; trim test import ([077683b](https://github.com/equationalapplications/clanker/commit/077683b59d87f23a008072d5003907025108a47e))
 
 ### Features
 
-* **wiki:** add memory inspector screen ([30e802e](https://github.com/equationalapplications/clanker/commit/30e802e63a361f4c5072855c3a13c94e24c371af))
-* **wiki:** add useMemoryBundle hook ([bc070b9](https://github.com/equationalapplications/clanker/commit/bc070b9436794454afc3499e9ae9aadfa91e0f42))
-* **wiki:** add View Memory button to edit screen ([ded35a4](https://github.com/equationalapplications/clanker/commit/ded35a43f79f9ada4d23f199d14a592a96331da1))
-* **wiki:** add wikiMachine skeleton with status subscription ([dbc5c73](https://github.com/equationalapplications/clanker/commit/dbc5c737d2dac0890ff0d463096805a78905ac87))
-* **wiki:** add wikiOrchestrator singleton with bounded syncAll ([8fcd394](https://github.com/equationalapplications/clanker/commit/8fcd39460f641f157ece9ec836c0f9a17ec478fb))
-* **wiki:** apply mobile-first prune/librarian/heal defaults ([7c845d0](https://github.com/equationalapplications/clanker/commit/7c845d0b99542829b587a4f35c2e5459f1629179))
-* **wiki:** batch sync with concurrency=2 ([5c922c5](https://github.com/equationalapplications/clanker/commit/5c922c5077e1803b0dd9466c8c7956f1d7d11f4e))
-* **wiki:** drop hasUnlimited gate on document ingest button ([b761a05](https://github.com/equationalapplications/clanker/commit/b761a052088ebc6053b1af2eb9770bc690c88e25))
-* **wiki:** drop hasUnlimited gate on memory read/write in useAIChat ([96fa035](https://github.com/equationalapplications/clanker/commit/96fa0355373a6104f2dde23d4f54e7c8fcbdf1a2))
-* **wiki:** drop hasUnlimited gate on wiki status banner in ChatView ([fb90279](https://github.com/equationalapplications/clanker/commit/fb902797ba82661673fd6b7d1b983df43fcafecc))
-* **wiki:** implement wikiMachine operation states with busy-error retry ([f94164c](https://github.com/equationalapplications/clanker/commit/f94164c168c0cf73420b7ac5bb23e5d913e4b6e0))
-* **wiki:** scaffold wikiMachine types ([33f2013](https://github.com/equationalapplications/clanker/commit/33f201367ec65910068b126f5af1b20fad2f17e3))
-* **wiki:** stop wiki actor on character soft-delete ([b4fa2c6](https://github.com/equationalapplications/clanker/commit/b4fa2c66434c168c2a4e21782f049d9393a84266))
+- **wiki:** add memory inspector screen ([30e802e](https://github.com/equationalapplications/clanker/commit/30e802e63a361f4c5072855c3a13c94e24c371af))
+- **wiki:** add useMemoryBundle hook ([bc070b9](https://github.com/equationalapplications/clanker/commit/bc070b9436794454afc3499e9ae9aadfa91e0f42))
+- **wiki:** add View Memory button to edit screen ([ded35a4](https://github.com/equationalapplications/clanker/commit/ded35a43f79f9ada4d23f199d14a592a96331da1))
+- **wiki:** add wikiMachine skeleton with status subscription ([dbc5c73](https://github.com/equationalapplications/clanker/commit/dbc5c737d2dac0890ff0d463096805a78905ac87))
+- **wiki:** add wikiOrchestrator singleton with bounded syncAll ([8fcd394](https://github.com/equationalapplications/clanker/commit/8fcd39460f641f157ece9ec836c0f9a17ec478fb))
+- **wiki:** apply mobile-first prune/librarian/heal defaults ([7c845d0](https://github.com/equationalapplications/clanker/commit/7c845d0b99542829b587a4f35c2e5459f1629179))
+- **wiki:** batch sync with concurrency=2 ([5c922c5](https://github.com/equationalapplications/clanker/commit/5c922c5077e1803b0dd9466c8c7956f1d7d11f4e))
+- **wiki:** drop hasUnlimited gate on document ingest button ([b761a05](https://github.com/equationalapplications/clanker/commit/b761a052088ebc6053b1af2eb9770bc690c88e25))
+- **wiki:** drop hasUnlimited gate on memory read/write in useAIChat ([96fa035](https://github.com/equationalapplications/clanker/commit/96fa0355373a6104f2dde23d4f54e7c8fcbdf1a2))
+- **wiki:** drop hasUnlimited gate on wiki status banner in ChatView ([fb90279](https://github.com/equationalapplications/clanker/commit/fb902797ba82661673fd6b7d1b983df43fcafecc))
+- **wiki:** implement wikiMachine operation states with busy-error retry ([f94164c](https://github.com/equationalapplications/clanker/commit/f94164c168c0cf73420b7ac5bb23e5d913e4b6e0))
+- **wiki:** scaffold wikiMachine types ([33f2013](https://github.com/equationalapplications/clanker/commit/33f201367ec65910068b126f5af1b20fad2f17e3))
+- **wiki:** stop wiki actor on character soft-delete ([b4fa2c6](https://github.com/equationalapplications/clanker/commit/b4fa2c66434c168c2a4e21782f049d9393a84266))
 
 # [29.9.0](https://github.com/equationalapplications/clanker/compare/v29.8.0...v29.9.0) (2026-05-09)
 
-
 ### Bug Fixes
 
-* **auth:** best-effort sign-out cleanup and isolate web auth tests ([48edd8f](https://github.com/equationalapplications/clanker/commit/48edd8f8377a2ba5f153a479d4ef5ded9f3a2e42)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
-* **auth:** clear GIS prompt timeout on credential; fix Apple test env teardown ([e81cfa1](https://github.com/equationalapplications/clanker/commit/e81cfa19d1d239c8f9a35ebec18fd96d5c63ba14))
-* **auth:** fail GIS/Apple script load when globals missing ([e6d2828](https://github.com/equationalapplications/clanker/commit/e6d2828ca545ceb784b4543fc9836b5091f54b8d))
-* **auth:** finish sign-out cleanup if Firebase fails ([993b247](https://github.com/equationalapplications/clanker/commit/993b247a72bec6f5fe5f748a76d2b06525eaf01a))
-* **auth:** gis dismiss race, script retry, and web test isolation ([f3e9288](https://github.com/equationalapplications/clanker/commit/f3e92882059ad3afc40a1d7de63a299f7b589756))
-* **auth:** isolate mobile display name sync errors post-credential ([29c68b9](https://github.com/equationalapplications/clanker/commit/29c68b99f900feb32b9bd6476c5aea1f933311a6))
-* **auth:** order RevenueCat logout before Firebase sign-out; drop web provider sign-out ([64c9b62](https://github.com/equationalapplications/clanker/commit/64c9b62f0a3f552357038acc31b09214b3f8eaae))
-* **auth:** require google.accounts.id before skipping GIS script load ([b51ad6d](https://github.com/equationalapplications/clanker/commit/b51ad6dee74b898b11d7ffc354b6eebf49590194))
-* **auth:** resolve PR 364 review threads ([177b7af](https://github.com/equationalapplications/clanker/commit/177b7af857c2b7072221a246bba9fb1c53152a9b))
-* **auth:** settle GIS prompt on dismiss and harden web display sync ([4a79edf](https://github.com/equationalapplications/clanker/commit/4a79edfdac785fcc0b966db92040e111939c0567)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
-* **auth:** treat web display name sync as best-effort ([b972895](https://github.com/equationalapplications/clanker/commit/b9728959f747a2077fd9181c7e45e75bc1c42e00))
-* **auth:** type-safe web display sync and test script cache reset ([32ee613](https://github.com/equationalapplications/clanker/commit/32ee61380d20dab0ab4e5b5ce1527c2da5c4bd69))
-
+- **auth:** best-effort sign-out cleanup and isolate web auth tests ([48edd8f](https://github.com/equationalapplications/clanker/commit/48edd8f8377a2ba5f153a479d4ef5ded9f3a2e42)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
+- **auth:** clear GIS prompt timeout on credential; fix Apple test env teardown ([e81cfa1](https://github.com/equationalapplications/clanker/commit/e81cfa19d1d239c8f9a35ebec18fd96d5c63ba14))
+- **auth:** fail GIS/Apple script load when globals missing ([e6d2828](https://github.com/equationalapplications/clanker/commit/e6d2828ca545ceb784b4543fc9836b5091f54b8d))
+- **auth:** finish sign-out cleanup if Firebase fails ([993b247](https://github.com/equationalapplications/clanker/commit/993b247a72bec6f5fe5f748a76d2b06525eaf01a))
+- **auth:** gis dismiss race, script retry, and web test isolation ([f3e9288](https://github.com/equationalapplications/clanker/commit/f3e92882059ad3afc40a1d7de63a299f7b589756))
+- **auth:** isolate mobile display name sync errors post-credential ([29c68b9](https://github.com/equationalapplications/clanker/commit/29c68b99f900feb32b9bd6476c5aea1f933311a6))
+- **auth:** order RevenueCat logout before Firebase sign-out; drop web provider sign-out ([64c9b62](https://github.com/equationalapplications/clanker/commit/64c9b62f0a3f552357038acc31b09214b3f8eaae))
+- **auth:** require google.accounts.id before skipping GIS script load ([b51ad6d](https://github.com/equationalapplications/clanker/commit/b51ad6dee74b898b11d7ffc354b6eebf49590194))
+- **auth:** resolve PR 364 review threads ([177b7af](https://github.com/equationalapplications/clanker/commit/177b7af857c2b7072221a246bba9fb1c53152a9b))
+- **auth:** settle GIS prompt on dismiss and harden web display sync ([4a79edf](https://github.com/equationalapplications/clanker/commit/4a79edfdac785fcc0b966db92040e111939c0567)), closes [#364](https://github.com/equationalapplications/clanker/issues/364)
+- **auth:** treat web display name sync as best-effort ([b972895](https://github.com/equationalapplications/clanker/commit/b9728959f747a2077fd9181c7e45e75bc1c42e00))
+- **auth:** type-safe web display sync and test script cache reset ([32ee613](https://github.com/equationalapplications/clanker/commit/32ee61380d20dab0ab4e5b5ce1527c2da5c4bd69))
 
 ### Features
 
-* **auth:** add syncDisplayNameFromCredential helper ([ba7ac26](https://github.com/equationalapplications/clanker/commit/ba7ac26dbe4f8f546862a1860715619a2d28ee59))
-* **auth:** add web nonce helper using Web Crypto ([fe0bb23](https://github.com/equationalapplications/clanker/commit/fe0bb233b0c22455db061dbf58774bec2943f2e1))
-* **auth:** rewrite web Apple sign-in to AppleID JS with nonce ([dc66c0a](https://github.com/equationalapplications/clanker/commit/dc66c0a9740890cc82f8e2ff90ba57433b9dc1a0))
-* **auth:** rewrite web Google sign-in to GIS-only ID token flow ([b9f4d85](https://github.com/equationalapplications/clanker/commit/b9f4d85e06c2d6058e830582e46fe5c7e314ee18))
+- **auth:** add syncDisplayNameFromCredential helper ([ba7ac26](https://github.com/equationalapplications/clanker/commit/ba7ac26dbe4f8f546862a1860715619a2d28ee59))
+- **auth:** add web nonce helper using Web Crypto ([fe0bb23](https://github.com/equationalapplications/clanker/commit/fe0bb233b0c22455db061dbf58774bec2943f2e1))
+- **auth:** rewrite web Apple sign-in to AppleID JS with nonce ([dc66c0a](https://github.com/equationalapplications/clanker/commit/dc66c0a9740890cc82f8e2ff90ba57433b9dc1a0))
+- **auth:** rewrite web Google sign-in to GIS-only ID token flow ([b9f4d85](https://github.com/equationalapplications/clanker/commit/b9f4d85e06c2d6058e830582e46fe5c7e314ee18))
 
 # [29.8.0](https://github.com/equationalapplications/clanker/compare/v29.7.0...v29.8.0) (2026-05-06)
 
-
 ### Bug Fixes
 
-* **firebase-config:** register documentExtract callable function ([462965d](https://github.com/equationalapplications/clanker/commit/462965d0b1a232e54606bd956469a0fd5755582f))
-* resolve navigation trap and wikiSync PostgreSQL array error ([0cb7d75](https://github.com/equationalapplications/clanker/commit/0cb7d7563c5a0b7f1d099a4edc395a203382a84d))
-* **tabs:** guard list navigation with usePathname to prevent redundant navigation ([f16fe1e](https://github.com/equationalapplications/clanker/commit/f16fe1e0ae6fd1394518cbedf646a80ce37e6d72))
-* **test:** add usePathname mock to tabsHeaderTitle test ([f6016c9](https://github.com/equationalapplications/clanker/commit/f6016c9dbc32321fc5b3f1712beefd585b6f0fbe))
-* **wiki-llm:** add Cloud SQL secrets to wikiLlm onCall config ([d6d118a](https://github.com/equationalapplications/clanker/commit/d6d118a679d985f93f53f3da25ea7c55f0749f56))
-* **wiki:** gate onWriteObservation on wiki non-null to match read-path guard ([edeb4af](https://github.com/equationalapplications/clanker/commit/edeb4afc1184eaab74a64c4345c539f98abb9a72))
-* **wiki:** gate runPrune on import success, add isSyncing state, remove dead wikiService mock ([b0f34e9](https://github.com/equationalapplications/clanker/commit/b0f34e98ba6d3500eb57b30a55210eb7c1685c73))
-* **wiki:** guard fetch response.ok, user-friendly error messages, remove unused synonymMapBase ([713b21e](https://github.com/equationalapplications/clanker/commit/713b21e35f577761c6c75d2dca9ebc0edb7bd316))
-* **wiki:** remove deprecated synonymMap from v2.5.0 WikiConfig ([0114de9](https://github.com/equationalapplications/clanker/commit/0114de9a02f56f8d81231d0871315297c387174f))
-* **wiki:** restore web wiki support ([0d0fca6](https://github.com/equationalapplications/clanker/commit/0d0fca6ca9e540499501812e022e93137ef2f1ab))
-* **wiki:** update package-lock.json for expo-llm-wiki@2.5.0 and rename misleading test descriptions ([20e6a0f](https://github.com/equationalapplications/clanker/commit/20e6a0f08f4a9088deb92c23b2eaf5377f4c7353))
-
+- **firebase-config:** register documentExtract callable function ([462965d](https://github.com/equationalapplications/clanker/commit/462965d0b1a232e54606bd956469a0fd5755582f))
+- resolve navigation trap and wikiSync PostgreSQL array error ([0cb7d75](https://github.com/equationalapplications/clanker/commit/0cb7d7563c5a0b7f1d099a4edc395a203382a84d))
+- **tabs:** guard list navigation with usePathname to prevent redundant navigation ([f16fe1e](https://github.com/equationalapplications/clanker/commit/f16fe1e0ae6fd1394518cbedf646a80ce37e6d72))
+- **test:** add usePathname mock to tabsHeaderTitle test ([f6016c9](https://github.com/equationalapplications/clanker/commit/f6016c9dbc32321fc5b3f1712beefd585b6f0fbe))
+- **wiki-llm:** add Cloud SQL secrets to wikiLlm onCall config ([d6d118a](https://github.com/equationalapplications/clanker/commit/d6d118a679d985f93f53f3da25ea7c55f0749f56))
+- **wiki:** gate onWriteObservation on wiki non-null to match read-path guard ([edeb4af](https://github.com/equationalapplications/clanker/commit/edeb4afc1184eaab74a64c4345c539f98abb9a72))
+- **wiki:** gate runPrune on import success, add isSyncing state, remove dead wikiService mock ([b0f34e9](https://github.com/equationalapplications/clanker/commit/b0f34e98ba6d3500eb57b30a55210eb7c1685c73))
+- **wiki:** guard fetch response.ok, user-friendly error messages, remove unused synonymMapBase ([713b21e](https://github.com/equationalapplications/clanker/commit/713b21e35f577761c6c75d2dca9ebc0edb7bd316))
+- **wiki:** remove deprecated synonymMap from v2.5.0 WikiConfig ([0114de9](https://github.com/equationalapplications/clanker/commit/0114de9a02f56f8d81231d0871315297c387174f))
+- **wiki:** restore web wiki support ([0d0fca6](https://github.com/equationalapplications/clanker/commit/0d0fca6ca9e540499501812e022e93137ef2f1ab))
+- **wiki:** update package-lock.json for expo-llm-wiki@2.5.0 and rename misleading test descriptions ([20e6a0f](https://github.com/equationalapplications/clanker/commit/20e6a0f08f4a9088deb92c23b2eaf5377f4c7353))
 
 ### Features
 
-* **sync:** remap entity IDs for cloud-linked character wiki ([4988cee](https://github.com/equationalapplications/clanker/commit/4988ceefb617c52df85bc558b16d56f4d11979ea))
-* **wiki:** add retrieval tuning configuration ([bf15b4e](https://github.com/equationalapplications/clanker/commit/bf15b4e6c861c5eea75120b9021db8080e3a9b28))
-* **wiki:** complete hooks-first refactor for expo-llm-wiki v2.5.0 upgrade ([169e207](https://github.com/equationalapplications/clanker/commit/169e2072cfd74d5a42da8f47f541a0fedda02900))
-* **wiki:** create hooks-first refactor for character wiki sync ([4c787e4](https://github.com/equationalapplications/clanker/commit/4c787e4a035787991194bbd0746594f335fa88bf))
+- **sync:** remap entity IDs for cloud-linked character wiki ([4988cee](https://github.com/equationalapplications/clanker/commit/4988ceefb617c52df85bc558b16d56f4d11979ea))
+- **wiki:** add retrieval tuning configuration ([bf15b4e](https://github.com/equationalapplications/clanker/commit/bf15b4e6c861c5eea75120b9021db8080e3a9b28))
+- **wiki:** complete hooks-first refactor for expo-llm-wiki v2.5.0 upgrade ([169e207](https://github.com/equationalapplications/clanker/commit/169e2072cfd74d5a42da8f47f541a0fedda02900))
+- **wiki:** create hooks-first refactor for character wiki sync ([4c787e4](https://github.com/equationalapplications/clanker/commit/4c787e4a035787991194bbd0746594f335fa88bf))
 
 # [29.7.0](https://github.com/equationalapplications/clanker/compare/v29.6.1...v29.7.0) (2026-05-04)
 
-
 ### Bug Fixes
 
-* add missing accessibility labels, roles, and live regions to chat screen ([e973dcc](https://github.com/equationalapplications/clanker/commit/e973dcc3b2e5583d113924226d103505918c8025))
-* address PR review — dead snackbar, broken a11y role, missing tests ([26ec332](https://github.com/equationalapplications/clanker/commit/26ec33246b14f07c2ec883c64bcc5d002682132a))
-* apply themed rounded input to web composer, cherry-pick FTS5 web guard ([90bd824](https://github.com/equationalapplications/clanker/commit/90bd824d04f93f0b13518d0ee2a0b82c3f8c0a6f))
-* **chat:** fix send button pill and input text vertical alignment on Android ([470929c](https://github.com/equationalapplications/clanker/commit/470929c9dda539108e20c0a4fca48a909e486066))
-* disable wiki on web platform due to FTS5 unavailability in expo-sqlite ([3a269ec](https://github.com/equationalapplications/clanker/commit/3a269ec43f7e970b35e66f2675031636249ebf97))
-* document CTE deduplication behavior and tighten queryModuleEdges test ([3a56f62](https://github.com/equationalapplications/clanker/commit/3a56f627e79b0aefa9792e14afc0b6bac75219f2))
-* ensure db handle is closed on error path in main() ([0beb4ed](https://github.com/equationalapplications/clanker/commit/0beb4ed7961a78dca46fb1e6d428458c13eeba21))
-* escape full mermaid label string not just function name ([37cd5ee](https://github.com/equationalapplications/clanker/commit/37cd5ee11fb87bfe0ac61281922855cdade805b4))
-* fix chat screen layout on mobile — keyboard whitespace, input padding, rounded corners ([7b583c9](https://github.com/equationalapplications/clanker/commit/7b583c9b3da5e68974ef59e2ccb43512e53dad2a))
-* guard wiki sync behind Platform.OS check and label chat container ([79fcdc6](https://github.com/equationalapplications/clanker/commit/79fcdc6fc37ab6e966d1cdba52be74173be9f5d1))
-* harden node ID generation and label escaping in chart generator ([68d3132](https://github.com/equationalapplications/clanker/commit/68d3132c91ddfcec69427eba7ad85cf09ff0e80b))
-* reduce call graph depth to 2 for cleaner charts ([0cdb343](https://github.com/equationalapplications/clanker/commit/0cdb3432744c4407815d50b21e83f941237be00e))
-* remove dead web Snackbar, fix accessible container, add web Sync Memory test ([2687129](https://github.com/equationalapplications/clanker/commit/2687129b35ccf90b4c868f30c7243fba3cc7fabe))
-* remove extra whitespace before comma in _layout.tsx import ([2560171](https://github.com/equationalapplications/clanker/commit/256017114599170da87b9107ae33926f39b2e775))
-* remove wiki hooks from ChatComposer.web.tsx to fix WikiProvider crash on web ([7882071](https://github.com/equationalapplications/clanker/commit/78820713b8f050df8fab1c26d1554e603bc86094))
-* restore web Snackbar, fix avatar a11y, add web-mode and snackbar tests ([9cfa46a](https://github.com/equationalapplications/clanker/commit/9cfa46a9ead9263787195eb9e4ca48a5dc7ee6c5))
-* restore web Snackbar/toast state, remove ineffective container label ([cb14f94](https://github.com/equationalapplications/clanker/commit/cb14f94e57739fd8c9bde332fbe73156fb2b293b))
-* strengthen container test and guard useWikiExport against web ([f3dc4df](https://github.com/equationalapplications/clanker/commit/f3dc4df5d7b2d9f892520b213055f459dda04c41))
-* strip custom props in ChatComposer.web, improve web hook test coverage ([ddc2ede](https://github.com/equationalapplications/clanker/commit/ddc2ede61f1f21be395b96039cf5fd732e147efb))
-* style send button with rounded corners, padding, and theme colors ([7ec6a68](https://github.com/equationalapplications/clanker/commit/7ec6a68aff8cc2c3e4dc34c0efb756d24dd1cae6))
-* surface wiki unavailability explicitly, guard poller, add GiftedChat layout tests ([8e0d2e7](https://github.com/equationalapplications/clanker/commit/8e0d2e724ef9421584d66ad270ef411c77a40dc5))
-* switch mermaid layout to graph LR for vertical node stacking ([0e41419](https://github.com/equationalapplications/clanker/commit/0e414192acc9361ec3fba615d9e9d4de77dfae15))
-* **ui:** refine ChatComposer wrapper styling for surface variant and rounded input ([547b8a6](https://github.com/equationalapplications/clanker/commit/547b8a6ef681cd330ef3ca79c402df7a11c0e962))
-
+- add missing accessibility labels, roles, and live regions to chat screen ([e973dcc](https://github.com/equationalapplications/clanker/commit/e973dcc3b2e5583d113924226d103505918c8025))
+- address PR review — dead snackbar, broken a11y role, missing tests ([26ec332](https://github.com/equationalapplications/clanker/commit/26ec33246b14f07c2ec883c64bcc5d002682132a))
+- apply themed rounded input to web composer, cherry-pick FTS5 web guard ([90bd824](https://github.com/equationalapplications/clanker/commit/90bd824d04f93f0b13518d0ee2a0b82c3f8c0a6f))
+- **chat:** fix send button pill and input text vertical alignment on Android ([470929c](https://github.com/equationalapplications/clanker/commit/470929c9dda539108e20c0a4fca48a909e486066))
+- disable wiki on web platform due to FTS5 unavailability in expo-sqlite ([3a269ec](https://github.com/equationalapplications/clanker/commit/3a269ec43f7e970b35e66f2675031636249ebf97))
+- document CTE deduplication behavior and tighten queryModuleEdges test ([3a56f62](https://github.com/equationalapplications/clanker/commit/3a56f627e79b0aefa9792e14afc0b6bac75219f2))
+- ensure db handle is closed on error path in main() ([0beb4ed](https://github.com/equationalapplications/clanker/commit/0beb4ed7961a78dca46fb1e6d428458c13eeba21))
+- escape full mermaid label string not just function name ([37cd5ee](https://github.com/equationalapplications/clanker/commit/37cd5ee11fb87bfe0ac61281922855cdade805b4))
+- fix chat screen layout on mobile — keyboard whitespace, input padding, rounded corners ([7b583c9](https://github.com/equationalapplications/clanker/commit/7b583c9b3da5e68974ef59e2ccb43512e53dad2a))
+- guard wiki sync behind Platform.OS check and label chat container ([79fcdc6](https://github.com/equationalapplications/clanker/commit/79fcdc6fc37ab6e966d1cdba52be74173be9f5d1))
+- harden node ID generation and label escaping in chart generator ([68d3132](https://github.com/equationalapplications/clanker/commit/68d3132c91ddfcec69427eba7ad85cf09ff0e80b))
+- reduce call graph depth to 2 for cleaner charts ([0cdb343](https://github.com/equationalapplications/clanker/commit/0cdb3432744c4407815d50b21e83f941237be00e))
+- remove dead web Snackbar, fix accessible container, add web Sync Memory test ([2687129](https://github.com/equationalapplications/clanker/commit/2687129b35ccf90b4c868f30c7243fba3cc7fabe))
+- remove extra whitespace before comma in _layout.tsx import ([2560171](https://github.com/equationalapplications/clanker/commit/256017114599170da87b9107ae33926f39b2e775))
+- remove wiki hooks from ChatComposer.web.tsx to fix WikiProvider crash on web ([7882071](https://github.com/equationalapplications/clanker/commit/78820713b8f050df8fab1c26d1554e603bc86094))
+- restore web Snackbar, fix avatar a11y, add web-mode and snackbar tests ([9cfa46a](https://github.com/equationalapplications/clanker/commit/9cfa46a9ead9263787195eb9e4ca48a5dc7ee6c5))
+- restore web Snackbar/toast state, remove ineffective container label ([cb14f94](https://github.com/equationalapplications/clanker/commit/cb14f94e57739fd8c9bde332fbe73156fb2b293b))
+- strengthen container test and guard useWikiExport against web ([f3dc4df](https://github.com/equationalapplications/clanker/commit/f3dc4df5d7b2d9f892520b213055f459dda04c41))
+- strip custom props in ChatComposer.web, improve web hook test coverage ([ddc2ede](https://github.com/equationalapplications/clanker/commit/ddc2ede61f1f21be395b96039cf5fd732e147efb))
+- style send button with rounded corners, padding, and theme colors ([7ec6a68](https://github.com/equationalapplications/clanker/commit/7ec6a68aff8cc2c3e4dc34c0efb756d24dd1cae6))
+- surface wiki unavailability explicitly, guard poller, add GiftedChat layout tests ([8e0d2e7](https://github.com/equationalapplications/clanker/commit/8e0d2e724ef9421584d66ad270ef411c77a40dc5))
+- switch mermaid layout to graph LR for vertical node stacking ([0e41419](https://github.com/equationalapplications/clanker/commit/0e414192acc9361ec3fba615d9e9d4de77dfae15))
+- **ui:** refine ChatComposer wrapper styling for surface variant and rounded input ([547b8a6](https://github.com/equationalapplications/clanker/commit/547b8a6ef681cd330ef3ca79c402df7a11c0e962))
 
 ### Features
 
-* add BFS query for module call edges via recursive CTE ([7e98317](https://github.com/equationalapplications/clanker/commit/7e98317588d6da14968b98abe600ba0517786b93))
-* add main() entrypoint and docs:charts npm script ([b399d49](https://github.com/equationalapplications/clanker/commit/b399d491c1fc5a2e691ed93dfa67e537a96a5d70))
-* add pure functions for mermaid chart generation with tests ([cf175ab](https://github.com/equationalapplications/clanker/commit/cf175aba008c84fdb64e5abbe88dfdb544c3021d))
-* **ChatView:** improve accessibility ([d79565d](https://github.com/equationalapplications/clanker/commit/d79565dae71baf39fd873c62737d7714797f9b6e))
-* fallback to import-dependency graph for modules with no call edges ([64e8dd0](https://github.com/equationalapplications/clanker/commit/64e8dd01d9bdc4a966705dd63dde562e27d17d5f))
+- add BFS query for module call edges via recursive CTE ([7e98317](https://github.com/equationalapplications/clanker/commit/7e98317588d6da14968b98abe600ba0517786b93))
+- add main() entrypoint and docs:charts npm script ([b399d49](https://github.com/equationalapplications/clanker/commit/b399d491c1fc5a2e691ed93dfa67e537a96a5d70))
+- add pure functions for mermaid chart generation with tests ([cf175ab](https://github.com/equationalapplications/clanker/commit/cf175aba008c84fdb64e5abbe88dfdb544c3021d))
+- **ChatView:** improve accessibility ([d79565d](https://github.com/equationalapplications/clanker/commit/d79565dae71baf39fd873c62737d7714797f9b6e))
+- fallback to import-dependency graph for modules with no call edges ([64e8dd0](https://github.com/equationalapplications/clanker/commit/64e8dd01d9bdc4a966705dd63dde562e27d17d5f))
 
 ## [29.6.1](https://github.com/equationalapplications/clanker/compare/v29.6.0...v29.6.1) (2026-05-03)
 
-
 ### Bug Fixes
 
-* correct tags null coalescing order and remove trailing blank lines ([d8bbf1b](https://github.com/equationalapplications/clanker/commit/d8bbf1b2fce0c8ea398b8cf9c521bfca927d9a1f))
-* expand FactRow/TaskRow/EventRow type formatting and fix access_count nullish check ([73c6104](https://github.com/equationalapplications/clanker/commit/73c61045b076d06188b95d36b3f9fce12b07f526))
-* **functions:** add missing source_type_check constraint to drizzle snapshot ([96ecf19](https://github.com/equationalapplications/clanker/commit/96ecf1926d8d45c79ddfb729d4c115703f0af772))
-* **migrations:** revert 0009 in-place edit; add 0010 migration to fix source_type CHECK constraint ([5eebcf8](https://github.com/equationalapplications/clanker/commit/5eebcf8b6010da7b07515a9a6aea5be1244a8f31))
-* replace batch queries with SQL window functions for true per-entity caps ([82ccb41](https://github.com/equationalapplications/clanker/commit/82ccb411b905b7ff47f04f575a36461d4846c2f4))
-* **wikiSync:** add SQL LIMIT bounds per batch in fetchMergedDump ([93deb47](https://github.com/equationalapplications/clanker/commit/93deb47b34fcbdf983309dfc50460efea3a4e334))
-* **wikiSync:** tighten integer validation and bound DB queries with orderBy+limit ([618e42d](https://github.com/equationalapplications/clanker/commit/618e42dd67cdb82c4c55a9f51d1ce2038f1a5a9e))
-* **wikiSync:** tombstone-priority ordering, batched queries, generatedAt tests ([99f1a90](https://github.com/equationalapplications/clanker/commit/99f1a9045cfef8c7b4bfcba8f42f773c3b4c77a2))
-* **wikiSync:** true per-entity caps via per-entity queries; add validation unit tests ([cfa4ce2](https://github.com/equationalapplications/clanker/commit/cfa4ce2ced2cfa338c98592a5309ad9ab48458b0))
-* **wikiSync:** validate generatedAt, confidence, source_type, last_accessed_at, access_count ([8539ca9](https://github.com/equationalapplications/clanker/commit/8539ca9199c24fc54b5df2e522937da438d2bba8))
+- correct tags null coalescing order and remove trailing blank lines ([d8bbf1b](https://github.com/equationalapplications/clanker/commit/d8bbf1b2fce0c8ea398b8cf9c521bfca927d9a1f))
+- expand FactRow/TaskRow/EventRow type formatting and fix access_count nullish check ([73c6104](https://github.com/equationalapplications/clanker/commit/73c61045b076d06188b95d36b3f9fce12b07f526))
+- **functions:** add missing source_type_check constraint to drizzle snapshot ([96ecf19](https://github.com/equationalapplications/clanker/commit/96ecf1926d8d45c79ddfb729d4c115703f0af772))
+- **migrations:** revert 0009 in-place edit; add 0010 migration to fix source_type CHECK constraint ([5eebcf8](https://github.com/equationalapplications/clanker/commit/5eebcf8b6010da7b07515a9a6aea5be1244a8f31))
+- replace batch queries with SQL window functions for true per-entity caps ([82ccb41](https://github.com/equationalapplications/clanker/commit/82ccb411b905b7ff47f04f575a36461d4846c2f4))
+- **wikiSync:** add SQL LIMIT bounds per batch in fetchMergedDump ([93deb47](https://github.com/equationalapplications/clanker/commit/93deb47b34fcbdf983309dfc50460efea3a4e334))
+- **wikiSync:** tighten integer validation and bound DB queries with orderBy+limit ([618e42d](https://github.com/equationalapplications/clanker/commit/618e42dd67cdb82c4c55a9f51d1ce2038f1a5a9e))
+- **wikiSync:** tombstone-priority ordering, batched queries, generatedAt tests ([99f1a90](https://github.com/equationalapplications/clanker/commit/99f1a9045cfef8c7b4bfcba8f42f773c3b4c77a2))
+- **wikiSync:** true per-entity caps via per-entity queries; add validation unit tests ([cfa4ce2](https://github.com/equationalapplications/clanker/commit/cfa4ce2ced2cfa338c98592a5309ad9ab48458b0))
+- **wikiSync:** validate generatedAt, confidence, source_type, last_accessed_at, access_count ([8539ca9](https://github.com/equationalapplications/clanker/commit/8539ca9199c24fc54b5df2e522937da438d2bba8))
 
 # [29.6.0](https://github.com/equationalapplications/clanker/compare/v29.5.0...v29.6.0) (2026-05-02)
 
-
 ### Bug Fixes
 
-* **a11y:** remove accessible={false} from wiki status live region; add accessibilityRole=status on web ([7439443](https://github.com/equationalapplications/clanker/commit/7439443473571ff68a2ee39f55f939764287a78a))
-* add picker error handling and fix event limit ([589aa88](https://github.com/equationalapplications/clanker/commit/589aa887d4b072c147cf74a794a0f8e6f6f13788))
-* add type filter to document picker; fix composite PK in wiki tables schema/migration ([74c7955](https://github.com/equationalapplications/clanker/commit/74c79553df7ea244c163c3a2a8acb9bc2372ef6c))
-* add type filter to document picker; fix stray whitespace in ChatView live region ([122e70b](https://github.com/equationalapplications/clanker/commit/122e70bf4894ac245e4aafbe50150818a6c0e87e))
-* **db:** change entity_id to uuid with FK to characters.id on wiki tables ([83c1b4a](https://github.com/equationalapplications/clanker/commit/83c1b4a466b0f92415b7444302a3c1b19672857f))
-* **db:** composite PK on wiki tables matches upsert target ([df25a68](https://github.com/equationalapplications/clanker/commit/df25a681bb090e1bf450a6fb2365a795befb3a53))
-* **functions:** add prompt length limits, GCLOUD_PROJECT guard, and tag/source field validation ([628680c](https://github.com/equationalapplications/clanker/commit/628680cf21c21f1a515c4c1531e0a232f325382b))
-* **functions:** restore memoryRead/Write/Heal/Forget/syncCharacterMemory exports per spec ([b8c1971](https://github.com/equationalapplications/clanker/commit/b8c1971ec01fe2915c81698d35da8b053b8c7241))
-* **functions:** restore old schema exports; keep memoryFunctions.ts unchanged ([8f5ec31](https://github.com/equationalapplications/clanker/commit/8f5ec31b4e48cba2fd9ce676a255fe9def2a57cf))
-* include tombstones in remoteDump for deletion propagation ([01bfd8b](https://github.com/equationalapplications/clanker/commit/01bfd8ba37e3bbf044669d74e2f08f34e6cb1160))
-* regenerate package-lock.json to include missing transitive dependencies ([a2f779e](https://github.com/equationalapplications/clanker/commit/a2f779e8f37d384b90cb9d9757eabb01895d3e54))
-* **wiki:** 2s poll interval, fix duplicate deleted_at check, bound events query, add Sync Memory tests ([4d4a033](https://github.com/equationalapplications/clanker/commit/4d4a033b87fa8a7731542a739e23b9574fb1b47b))
-* **wiki:** add formatContext limits, row-level validation in parseInput, restore memoryFunctions.ts ([966fb93](https://github.com/equationalapplications/clanker/commit/966fb9382991a41a30eaf4690145eedc9e24fc29))
-* **wiki:** address PR review - response.ok, entity_id validation, fetchMergedDump O(n*m) ([62c81a7](https://github.com/equationalapplications/clanker/commit/62c81a79e461ffa059c570338ed595fa7e7e1ae0))
-* **wiki:** address review thread 4214155814 - tombstones, validation, LWW test, BOM/NFC, backfill ([9b02a38](https://github.com/equationalapplications/clanker/commit/9b02a380cc074e03dfcdcb1dbfcd30b44dfa8232))
-* **wiki:** batch upserts in db.transaction, use DEFAULT_REGION, restore 5s poll interval ([4fab71d](https://github.com/equationalapplications/clanker/commit/4fab71d774511cfe1ea2606a4c64175f42d933f0))
-* **wiki:** clarify comment on deferred importDump after WikiBusyError ([551b44a](https://github.com/equationalapplications/clanker/commit/551b44ac03dbeb98e64743be1f310d6cd185161d))
-* **wiki:** DI for test mocks, migration skip guards for missing wiki_entries, input validation, batch fetchMergedDump ([5ea46b7](https://github.com/equationalapplications/clanker/commit/5ea46b71c37b673974d64d5ddccfe5c606b7a786))
-* **wiki:** exclude deleted, add enum checks, enable refresh ([44c9258](https://github.com/equationalapplications/clanker/commit/44c9258f5ba4b4bf648394b6a4bda98a762d6d1f))
-* **wiki:** export MemoryDump type, clean up LWW test typing, document upsertData vs upsertEntries ([138de8b](https://github.com/equationalapplications/clanker/commit/138de8b958eec862cdf69a21934786d8f3a9f227))
-* **wiki:** handle WikiBusyError in importDump, clear wiki status on premium loss, remove dedupe bypass ([363a199](https://github.com/equationalapplications/clanker/commit/363a199f2e9491cc87b059ea7d3bee039e81e541))
-* **wikiLlm:** remove CLOUD_SQL_SECRETS from wikiLlm onCall config ([a1278d8](https://github.com/equationalapplications/clanker/commit/a1278d834a7e0675a3dc8718f34607891624314c))
-* **wiki:** return remoteDump and complete sync merge ([8660bb1](https://github.com/equationalapplications/clanker/commit/8660bb1ea7bb1f3415c2ba6e0d535e530c7eccd4))
-* **wikiSync:** rename UUID_RE to UUID_PATTERN; tighten non-UUID test assertion ([cf0d02b](https://github.com/equationalapplications/clanker/commit/cf0d02b955c4b18f41933ed426d4486196ce4a18))
-* **wikiSync:** validate entity IDs are UUIDs before ownership/inArray queries ([205f767](https://github.com/equationalapplications/clanker/commit/205f7676dae4b7b658c323f82ecc596a0d21e251))
-* **wikiSync:** write saveToCloud=true in syncCharacterHandler to unblock ownership gate ([6a27293](https://github.com/equationalapplications/clanker/commit/6a27293bd24a572e545716857bcc824d5df52b2a))
-* **wiki:** WikiBusyError handling, runPrune in edit.tsx, type cast safety, ChatView try-catch, log context ([f626436](https://github.com/equationalapplications/clanker/commit/f626436587fedec773ec15ec2b9a4b963e084c45))
-
+- **a11y:** remove accessible={false} from wiki status live region; add accessibilityRole=status on web ([7439443](https://github.com/equationalapplications/clanker/commit/7439443473571ff68a2ee39f55f939764287a78a))
+- add picker error handling and fix event limit ([589aa88](https://github.com/equationalapplications/clanker/commit/589aa887d4b072c147cf74a794a0f8e6f6f13788))
+- add type filter to document picker; fix composite PK in wiki tables schema/migration ([74c7955](https://github.com/equationalapplications/clanker/commit/74c79553df7ea244c163c3a2a8acb9bc2372ef6c))
+- add type filter to document picker; fix stray whitespace in ChatView live region ([122e70b](https://github.com/equationalapplications/clanker/commit/122e70bf4894ac245e4aafbe50150818a6c0e87e))
+- **db:** change entity_id to uuid with FK to characters.id on wiki tables ([83c1b4a](https://github.com/equationalapplications/clanker/commit/83c1b4a466b0f92415b7444302a3c1b19672857f))
+- **db:** composite PK on wiki tables matches upsert target ([df25a68](https://github.com/equationalapplications/clanker/commit/df25a681bb090e1bf450a6fb2365a795befb3a53))
+- **functions:** add prompt length limits, GCLOUD_PROJECT guard, and tag/source field validation ([628680c](https://github.com/equationalapplications/clanker/commit/628680cf21c21f1a515c4c1531e0a232f325382b))
+- **functions:** restore memoryRead/Write/Heal/Forget/syncCharacterMemory exports per spec ([b8c1971](https://github.com/equationalapplications/clanker/commit/b8c1971ec01fe2915c81698d35da8b053b8c7241))
+- **functions:** restore old schema exports; keep memoryFunctions.ts unchanged ([8f5ec31](https://github.com/equationalapplications/clanker/commit/8f5ec31b4e48cba2fd9ce676a255fe9def2a57cf))
+- include tombstones in remoteDump for deletion propagation ([01bfd8b](https://github.com/equationalapplications/clanker/commit/01bfd8ba37e3bbf044669d74e2f08f34e6cb1160))
+- regenerate package-lock.json to include missing transitive dependencies ([a2f779e](https://github.com/equationalapplications/clanker/commit/a2f779e8f37d384b90cb9d9757eabb01895d3e54))
+- **wiki:** 2s poll interval, fix duplicate deleted_at check, bound events query, add Sync Memory tests ([4d4a033](https://github.com/equationalapplications/clanker/commit/4d4a033b87fa8a7731542a739e23b9574fb1b47b))
+- **wiki:** add formatContext limits, row-level validation in parseInput, restore memoryFunctions.ts ([966fb93](https://github.com/equationalapplications/clanker/commit/966fb9382991a41a30eaf4690145eedc9e24fc29))
+- **wiki:** address PR review - response.ok, entity_id validation, fetchMergedDump O(n*m) ([62c81a7](https://github.com/equationalapplications/clanker/commit/62c81a79e461ffa059c570338ed595fa7e7e1ae0))
+- **wiki:** address review thread 4214155814 - tombstones, validation, LWW test, BOM/NFC, backfill ([9b02a38](https://github.com/equationalapplications/clanker/commit/9b02a380cc074e03dfcdcb1dbfcd30b44dfa8232))
+- **wiki:** batch upserts in db.transaction, use DEFAULT_REGION, restore 5s poll interval ([4fab71d](https://github.com/equationalapplications/clanker/commit/4fab71d774511cfe1ea2606a4c64175f42d933f0))
+- **wiki:** clarify comment on deferred importDump after WikiBusyError ([551b44a](https://github.com/equationalapplications/clanker/commit/551b44ac03dbeb98e64743be1f310d6cd185161d))
+- **wiki:** DI for test mocks, migration skip guards for missing wiki_entries, input validation, batch fetchMergedDump ([5ea46b7](https://github.com/equationalapplications/clanker/commit/5ea46b71c37b673974d64d5ddccfe5c606b7a786))
+- **wiki:** exclude deleted, add enum checks, enable refresh ([44c9258](https://github.com/equationalapplications/clanker/commit/44c9258f5ba4b4bf648394b6a4bda98a762d6d1f))
+- **wiki:** export MemoryDump type, clean up LWW test typing, document upsertData vs upsertEntries ([138de8b](https://github.com/equationalapplications/clanker/commit/138de8b958eec862cdf69a21934786d8f3a9f227))
+- **wiki:** handle WikiBusyError in importDump, clear wiki status on premium loss, remove dedupe bypass ([363a199](https://github.com/equationalapplications/clanker/commit/363a199f2e9491cc87b059ea7d3bee039e81e541))
+- **wikiLlm:** remove CLOUD_SQL_SECRETS from wikiLlm onCall config ([a1278d8](https://github.com/equationalapplications/clanker/commit/a1278d834a7e0675a3dc8718f34607891624314c))
+- **wiki:** return remoteDump and complete sync merge ([8660bb1](https://github.com/equationalapplications/clanker/commit/8660bb1ea7bb1f3415c2ba6e0d535e530c7eccd4))
+- **wikiSync:** rename UUID_RE to UUID_PATTERN; tighten non-UUID test assertion ([cf0d02b](https://github.com/equationalapplications/clanker/commit/cf0d02b955c4b18f41933ed426d4486196ce4a18))
+- **wikiSync:** validate entity IDs are UUIDs before ownership/inArray queries ([205f767](https://github.com/equationalapplications/clanker/commit/205f7676dae4b7b658c323f82ecc596a0d21e251))
+- **wikiSync:** write saveToCloud=true in syncCharacterHandler to unblock ownership gate ([6a27293](https://github.com/equationalapplications/clanker/commit/6a27293bd24a572e545716857bcc824d5df52b2a))
+- **wiki:** WikiBusyError handling, runPrune in edit.tsx, type cast safety, ChatView try-catch, log context ([f626436](https://github.com/equationalapplications/clanker/commit/f626436587fedec773ec15ec2b9a4b963e084c45))
 
 ### Features
 
-* **wiki:** replace custom wiki infrastructure with expo-llm-wiki v2.3.0 ([7df7365](https://github.com/equationalapplications/clanker/commit/7df7365666680e86f705db453c3361bd5b60d87e))
-* **wikiSync:** add deleted_at propagation + fresh restore sync ([2997171](https://github.com/equationalapplications/clanker/commit/29971717eb8b0a65469fcd9f212a8f36464f3272))
+- **wiki:** replace custom wiki infrastructure with expo-llm-wiki v2.3.0 ([7df7365](https://github.com/equationalapplications/clanker/commit/7df7365666680e86f705db453c3361bd5b60d87e))
+- **wikiSync:** add deleted_at propagation + fresh restore sync ([2997171](https://github.com/equationalapplications/clanker/commit/29971717eb8b0a65469fcd9f212a8f36464f3272))
 
 # [29.5.0](https://github.com/equationalapplications/clanker/compare/v29.4.1...v29.5.0) (2026-05-02)
 
-
 ### Bug Fixes
 
-* **landing:** add accessibilityRole="text" to Coming Soon badge and assert in test ([3e2eb68](https://github.com/equationalapplications/clanker/commit/3e2eb684bd786253baa348c89ca48815d835439c))
-* **landing:** fix dark mode card visibility and chip vertical centering ([62c1cb2](https://github.com/equationalapplications/clanker/commit/62c1cb2857d3ddb1a75fd030fea7125b2f696427))
-* **landing:** fix dark mode tile visibility and Coming Soon chip alignment ([389430f](https://github.com/equationalapplications/clanker/commit/389430f875ebab39f51b14f95555d53105920735))
-
+- **landing:** add accessibilityRole="text" to Coming Soon badge and assert in test ([3e2eb68](https://github.com/equationalapplications/clanker/commit/3e2eb684bd786253baa348c89ca48815d835439c))
+- **landing:** fix dark mode card visibility and chip vertical centering ([62c1cb2](https://github.com/equationalapplications/clanker/commit/62c1cb2857d3ddb1a75fd030fea7125b2f696427))
+- **landing:** fix dark mode tile visibility and Coming Soon chip alignment ([389430f](https://github.com/equationalapplications/clanker/commit/389430f875ebab39f51b14f95555d53105920735))
 
 ### Features
 
-* **landing:** add Coming Soon section and revise feature copy ([1bc782a](https://github.com/equationalapplications/clanker/commit/1bc782aaf2b3ee852627eff2901c062974cd2c3f))
+- **landing:** add Coming Soon section and revise feature copy ([1bc782a](https://github.com/equationalapplications/clanker/commit/1bc782aaf2b3ee852627eff2901c062974cd2c3f))
 
 ## [29.4.1](https://github.com/equationalapplications/clanker/compare/v29.4.0...v29.4.1) (2026-05-01)
 
-
 ### Bug Fixes
 
-* **a11y:** extract MAIN_CONTENT_ID constant and add onClick handler test ([977f919](https://github.com/equationalapplications/clanker/commit/977f919164986ca2039c1afff859ef7ab1169b6b))
-* **a11y:** skip link programmatically focuses target with tabIndex=-1 ([4d82292](https://github.com/equationalapplications/clanker/commit/4d82292509953b84107284c2013db8c4ddfcfc05))
+- **a11y:** extract MAIN_CONTENT_ID constant and add onClick handler test ([977f919](https://github.com/equationalapplications/clanker/commit/977f919164986ca2039c1afff859ef7ab1169b6b))
+- **a11y:** skip link programmatically focuses target with tabIndex=-1 ([4d82292](https://github.com/equationalapplications/clanker/commit/4d82292509953b84107284c2013db8c4ddfcfc05))
 
 # [29.4.0](https://github.com/equationalapplications/clanker/compare/v29.3.4...v29.4.0) (2026-04-30)
 
-
 ### Bug Fixes
 
-* **a11y:** add labels and hints for character cards, avatars, features, admin renewal ([328a8da](https://github.com/equationalapplications/clanker/commit/328a8da7152b08daa01e250b0ba4dc492d808fb5))
-* **a11y:** add labels and roles for critical images and credit counter ([db2ca1c](https://github.com/equationalapplications/clanker/commit/db2ca1cd6662fb4752e8802e760f855a829ed337))
-* **a11y:** address PR 342 review feedback ([df4ad9c](https://github.com/equationalapplications/clanker/commit/df4ad9c916bae41a5dc731b640ce05d3ca7507c1))
-* **a11y:** address PR review comments — skip link, CharacterCard, CharacterAvatar ([5bf668e](https://github.com/equationalapplications/clanker/commit/5bf668e1f2eee84821f238338e40683df735eb99))
-* **a11y:** align native status region guidance ([4750df0](https://github.com/equationalapplications/clanker/commit/4750df09b68eddb9100977b7b32116738cd4cc5d))
-* **a11y:** apply second round of PR review feedback ([81f20c5](https://github.com/equationalapplications/clanker/commit/81f20c5564516c391b67a2497273018f592504e1))
-* **a11y:** apply third round of PR review feedback ([79657dd](https://github.com/equationalapplications/clanker/commit/79657ddff3f6b76254ec1583b1ca1fd072f23a86))
-* **a11y:** replace non-functional skip-link View with <a href="#main-content"> ([7f1c3c1](https://github.com/equationalapplications/clanker/commit/7f1c3c13bc86bf4ab7ccbb11c20179fa25ef2820))
-* **chat-composer:** remove unused progress state and add spinner accessibility ([1ee40bf](https://github.com/equationalapplications/clanker/commit/1ee40bf059e2115e6dd2b99f913f3c2963f88441))
-* remove progress state, setProgress calls, and progressResetTimer entirely ([23ac090](https://github.com/equationalapplications/clanker/commit/23ac0900ce2ae3e77d12692ab9083913a860082e))
-
+- **a11y:** add labels and hints for character cards, avatars, features, admin renewal ([328a8da](https://github.com/equationalapplications/clanker/commit/328a8da7152b08daa01e250b0ba4dc492d808fb5))
+- **a11y:** add labels and roles for critical images and credit counter ([db2ca1c](https://github.com/equationalapplications/clanker/commit/db2ca1cd6662fb4752e8802e760f855a829ed337))
+- **a11y:** address PR 342 review feedback ([df4ad9c](https://github.com/equationalapplications/clanker/commit/df4ad9c916bae41a5dc731b640ce05d3ca7507c1))
+- **a11y:** address PR review comments — skip link, CharacterCard, CharacterAvatar ([5bf668e](https://github.com/equationalapplications/clanker/commit/5bf668e1f2eee84821f238338e40683df735eb99))
+- **a11y:** align native status region guidance ([4750df0](https://github.com/equationalapplications/clanker/commit/4750df09b68eddb9100977b7b32116738cd4cc5d))
+- **a11y:** apply second round of PR review feedback ([81f20c5](https://github.com/equationalapplications/clanker/commit/81f20c5564516c391b67a2497273018f592504e1))
+- **a11y:** apply third round of PR review feedback ([79657dd](https://github.com/equationalapplications/clanker/commit/79657ddff3f6b76254ec1583b1ca1fd072f23a86))
+- **a11y:** replace non-functional skip-link View with <a href="#main-content"> ([7f1c3c1](https://github.com/equationalapplications/clanker/commit/7f1c3c13bc86bf4ab7ccbb11c20179fa25ef2820))
+- **chat-composer:** remove unused progress state and add spinner accessibility ([1ee40bf](https://github.com/equationalapplications/clanker/commit/1ee40bf059e2115e6dd2b99f913f3c2963f88441))
+- remove progress state, setProgress calls, and progressResetTimer entirely ([23ac090](https://github.com/equationalapplications/clanker/commit/23ac0900ce2ae3e77d12692ab9083913a860082e))
 
 ### Features
 
-* **a11y:** add tab labels, status live region, footer label, skip link ([931f289](https://github.com/equationalapplications/clanker/commit/931f28939a314d57bbf72149f3c11e8d793ba7c2))
+- **a11y:** add tab labels, status live region, footer label, skip link ([931f289](https://github.com/equationalapplications/clanker/commit/931f28939a314d57bbf72149f3c11e8d793ba7c2))
 
 ## [29.3.4](https://github.com/equationalapplications/clanker/compare/v29.3.3...v29.3.4) (2026-04-30)
 
-
 ### Bug Fixes
 
-* **db:** move wiki partial indexes from CREATE_TABLES to post-migration ([5ee10b3](https://github.com/equationalapplications/clanker/commit/5ee10b3d5db4906737a2cad5d82cd6822eee1157))
-* **ui:** remove Dialog/Alert confirmation from ChatComposer plus button ([855e9e5](https://github.com/equationalapplications/clanker/commit/855e9e5e4fb7b46e8ce9372c3b95ad2f32d22a6e))
-* **web:** enable document ingest with improved UI and Firebase export ([a2ce936](https://github.com/equationalapplications/clanker/commit/a2ce936885ae6118810e9e5ddfe8ab1d9edaffc2))
+- **db:** move wiki partial indexes from CREATE_TABLES to post-migration ([5ee10b3](https://github.com/equationalapplications/clanker/commit/5ee10b3d5db4906737a2cad5d82cd6822eee1157))
+- **ui:** remove Dialog/Alert confirmation from ChatComposer plus button ([855e9e5](https://github.com/equationalapplications/clanker/commit/855e9e5e4fb7b46e8ce9372c3b95ad2f32d22a6e))
+- **web:** enable document ingest with improved UI and Firebase export ([a2ce936](https://github.com/equationalapplications/clanker/commit/a2ce936885ae6118810e9e5ddfe8ab1d9edaffc2))
 
 ## [29.3.3](https://github.com/equationalapplications/clanker/compare/v29.3.2...v29.3.3) (2026-04-29)
 
-
 ### Bug Fixes
 
-* **document-ingest:** move UUID_REGEX/isUuid to module scope, fix syntax error ([2f317dc](https://github.com/equationalapplications/clanker/commit/2f317dce6a60d805b05c23324caf6899dfc980db))
-* **document-ingest:** remove cloud-sync gate from premium button ([753e9c5](https://github.com/equationalapplications/clanker/commit/753e9c5dfc98e4b66f4fce297d855dfb935d3e6d))
-* **document-ingest:** support local-only characters in document ingest flow ([c8be7f9](https://github.com/equationalapplications/clanker/commit/c8be7f92eda4a69c5abed0ed2e6638e85399a223))
-* **documentExtract:** consolidate UUID guard and explain two-block split ([cc35c37](https://github.com/equationalapplications/clanker/commit/cc35c379ca319bf43dc589c40e6f3f27cd9ba91d))
-* **documentExtract:** validate UUID before getDb() to avoid unnecessary connection ([700f7b6](https://github.com/equationalapplications/clanker/commit/700f7b644d21b2578e9faf06abdd9eab910da90e))
-* **documentIngestMachine:** use permissive UUID regex matching rest of codebase ([19c4f9f](https://github.com/equationalapplications/clanker/commit/19c4f9f9beecaa01b63939b5ee432ef2c8c1d006))
+- **document-ingest:** move UUID_REGEX/isUuid to module scope, fix syntax error ([2f317dc](https://github.com/equationalapplications/clanker/commit/2f317dce6a60d805b05c23324caf6899dfc980db))
+- **document-ingest:** remove cloud-sync gate from premium button ([753e9c5](https://github.com/equationalapplications/clanker/commit/753e9c5dfc98e4b66f4fce297d855dfb935d3e6d))
+- **document-ingest:** support local-only characters in document ingest flow ([c8be7f9](https://github.com/equationalapplications/clanker/commit/c8be7f92eda4a69c5abed0ed2e6638e85399a223))
+- **documentExtract:** consolidate UUID guard and explain two-block split ([cc35c37](https://github.com/equationalapplications/clanker/commit/cc35c379ca319bf43dc589c40e6f3f27cd9ba91d))
+- **documentExtract:** validate UUID before getDb() to avoid unnecessary connection ([700f7b6](https://github.com/equationalapplications/clanker/commit/700f7b644d21b2578e9faf06abdd9eab910da90e))
+- **documentIngestMachine:** use permissive UUID regex matching rest of codebase ([19c4f9f](https://github.com/equationalapplications/clanker/commit/19c4f9f9beecaa01b63939b5ee432ef2c8c1d006))
 
 ## [29.3.2](https://github.com/equationalapplications/clanker/compare/v29.3.1...v29.3.2) (2026-04-29)
 
-
 ### Bug Fixes
 
-* restore mocks after each test + await pool end in migration script ([e13d821](https://github.com/equationalapplications/clanker/commit/e13d821e4266228a7b820a53bc331aa12aafcf08))
-* suppress warn in test + improve Cloud SQL migration safety ([9a7c0d7](https://github.com/equationalapplications/clanker/commit/9a7c0d71beb4def66b4a14dc47fa33cd78b58bde))
+- restore mocks after each test + await pool end in migration script ([e13d821](https://github.com/equationalapplications/clanker/commit/e13d821e4266228a7b820a53bc331aa12aafcf08))
+- suppress warn in test + improve Cloud SQL migration safety ([9a7c0d7](https://github.com/equationalapplications/clanker/commit/9a7c0d71beb4def66b4a14dc47fa33cd78b58bde))
 
 ## [29.3.1](https://github.com/equationalapplications/clanker/compare/v29.3.0...v29.3.1) (2026-04-29)
 
-
 ### Bug Fixes
 
-* **web,docs:** allow OAuth popups and document Cloud SQL migrations ([2df333a](https://github.com/equationalapplications/clanker/commit/2df333a4d75a7a2c55e82a00cdcbe28587cac83e))
+- **web,docs:** allow OAuth popups and document Cloud SQL migrations ([2df333a](https://github.com/equationalapplications/clanker/commit/2df333a4d75a7a2c55e82a00cdcbe28587cac83e))
 
 # [29.3.0](https://github.com/equationalapplications/clanker/compare/v29.2.1...v29.3.0) (2026-04-29)
 
-
 ### Bug Fixes
 
-* **database:** bootstrap check validates all LATEST_SCHEMA_REQUIRED_COLUMNS tables; add sourceHash tests ([26f7244](https://github.com/equationalapplications/clanker/commit/26f72444c8c894f1ffa53eb034c95119b81260d1))
-* **document-ingest:** address code review findings ([4402261](https://github.com/equationalapplications/clanker/commit/4402261b3c9f083f791bcb773036d2a22789aab3))
-* **document-ingest:** address PR 330 code review findings ([0da410a](https://github.com/equationalapplications/clanker/commit/0da410a5edd351e026c7450aacb6417cbe061637))
-* **document-ingest:** address remaining code review findings ([9c0923c](https://github.com/equationalapplications/clanker/commit/9c0923c1e20f2abd41d2d325d183d51d0e91a334))
-* **document-ingest:** address review findings ([0d42419](https://github.com/equationalapplications/clanker/commit/0d4241995c16b89ca1937d6eadd8b468057db3e3))
-* **document-ingest:** check response.ok before reading fetch response text on web ([4d2bf21](https://github.com/equationalapplications/clanker/commit/4d2bf2130fdbdba8a6cd2b91511378d7c378bed7))
-* **document-ingest:** composite partial index in CREATE_TABLES, spec hash clarification, client filename allowlist ([b29305b](https://github.com/equationalapplications/clanker/commit/b29305b1f76fca28b75f4003a7c0a13c4c7bd2a1))
-* **document-ingest:** deduplicate bulkInsertEntries SQL and fix memoryBundle query key ([fac5bbf](https://github.com/equationalapplications/clanker/commit/fac5bbf43bed0a7ac308104470b172907801120a))
-* **document-ingest:** enforce raw content length cap in parseInput before normalization/hashing ([19d0a66](https://github.com/equationalapplications/clanker/commit/19d0a6674e9bffb77a28a082cbd9aa87dae65420))
-* **document-ingest:** hash, guards, purge by hash, dup alert, web ([b267c4d](https://github.com/equationalapplications/clanker/commit/b267c4dadda3441e5c5a4524dd8090dc420b085b))
-* **document-ingest:** match server ID convention for entries and events ([39fdc43](https://github.com/equationalapplications/clanker/commit/39fdc433faa73d943712a10c1c439957e27a3f02))
-* **document-ingest:** merge duplicate xstate import; update non-UUID characterId test ([ea64d33](https://github.com/equationalapplications/clanker/commit/ea64d337947269881a5546d36e21b390f9f70f4c))
-* **document-ingest:** migration retry safety and trailing whitespace ([08edf22](https://github.com/equationalapplications/clanker/commit/08edf2216e8f6f1774dc932f4a4ec326b065ce94))
-* **document-ingest:** remove redundant deleted_at filter and empty subscription handler ([5df29a1](https://github.com/equationalapplications/clanker/commit/5df29a17e8b0fcd18bff5820f6bf0239f1c5ecc3))
-* **document-ingest:** resolve cloud_id in extractDocumentActor; grammar fix in migration log ([1321c43](https://github.com/equationalapplications/clanker/commit/1321c438b7c1aa9759481895558ef9200983ec00))
-* **document-ingest:** standardize warn prefix and add factIndex to parseExtractedFact logs ([36df1d1](https://github.com/equationalapplications/clanker/commit/36df1d1ed481aaaaf2f6402924ef14273e8a17ab))
-* **document-ingest:** UUID validation before Cloud SQL query, partial index in CREATE_TABLES ([54edd09](https://github.com/equationalapplications/clanker/commit/54edd095ee1bd7c99bc4fd02943558465e05b0d3))
-* **ingest:** construct extractDocument payload explicitly instead of spreading input ([8204032](https://github.com/equationalapplications/clanker/commit/8204032aaaf67d2a4ec449bbdb3b37d55697ccfb))
-* **ingest:** make memory event append non-fatal in applyFacts ([93996dc](https://github.com/equationalapplications/clanker/commit/93996dc4936f9b7cc2b2ef7a9e92a1ffb1c6e161))
-* **memory:** add snake_case fallbacks for sourceHash/sourceRef in toWikiEntryUpserts ([5a8314d](https://github.com/equationalapplications/clanker/commit/5a8314d539da27aaaef650a418bc572400b211d7))
-* **memory:** normalize sourceRef/sourceHash in forgetMemory before local/cloud ops ([01dbc28](https://github.com/equationalapplications/clanker/commit/01dbc28d374352c6eb21ea8e8e8c50d2abd8b702))
-* **schema:** add missing source_ref partial index migration for Cloud SQL ([69d6d10](https://github.com/equationalapplications/clanker/commit/69d6d1008b19b98e1b0af83ebfcbaf974229a9c1))
-* **test:** add mocks for documentIngestMachine imports in chatComposer test ([b7e76d6](https://github.com/equationalapplications/clanker/commit/b7e76d6acd0a365eaaedb72b9dfcb43c63b7df7d))
-* **wiki-db:** preserve source_hash/source_ref on upsert with COALESCE ([6e57ab5](https://github.com/equationalapplications/clanker/commit/6e57ab5bb3e0a7cf43641737974d0945ce8c9c1a))
-
+- **database:** bootstrap check validates all LATEST_SCHEMA_REQUIRED_COLUMNS tables; add sourceHash tests ([26f7244](https://github.com/equationalapplications/clanker/commit/26f72444c8c894f1ffa53eb034c95119b81260d1))
+- **document-ingest:** address code review findings ([4402261](https://github.com/equationalapplications/clanker/commit/4402261b3c9f083f791bcb773036d2a22789aab3))
+- **document-ingest:** address PR 330 code review findings ([0da410a](https://github.com/equationalapplications/clanker/commit/0da410a5edd351e026c7450aacb6417cbe061637))
+- **document-ingest:** address remaining code review findings ([9c0923c](https://github.com/equationalapplications/clanker/commit/9c0923c1e20f2abd41d2d325d183d51d0e91a334))
+- **document-ingest:** address review findings ([0d42419](https://github.com/equationalapplications/clanker/commit/0d4241995c16b89ca1937d6eadd8b468057db3e3))
+- **document-ingest:** check response.ok before reading fetch response text on web ([4d2bf21](https://github.com/equationalapplications/clanker/commit/4d2bf2130fdbdba8a6cd2b91511378d7c378bed7))
+- **document-ingest:** composite partial index in CREATE_TABLES, spec hash clarification, client filename allowlist ([b29305b](https://github.com/equationalapplications/clanker/commit/b29305b1f76fca28b75f4003a7c0a13c4c7bd2a1))
+- **document-ingest:** deduplicate bulkInsertEntries SQL and fix memoryBundle query key ([fac5bbf](https://github.com/equationalapplications/clanker/commit/fac5bbf43bed0a7ac308104470b172907801120a))
+- **document-ingest:** enforce raw content length cap in parseInput before normalization/hashing ([19d0a66](https://github.com/equationalapplications/clanker/commit/19d0a6674e9bffb77a28a082cbd9aa87dae65420))
+- **document-ingest:** hash, guards, purge by hash, dup alert, web ([b267c4d](https://github.com/equationalapplications/clanker/commit/b267c4dadda3441e5c5a4524dd8090dc420b085b))
+- **document-ingest:** match server ID convention for entries and events ([39fdc43](https://github.com/equationalapplications/clanker/commit/39fdc433faa73d943712a10c1c439957e27a3f02))
+- **document-ingest:** merge duplicate xstate import; update non-UUID characterId test ([ea64d33](https://github.com/equationalapplications/clanker/commit/ea64d337947269881a5546d36e21b390f9f70f4c))
+- **document-ingest:** migration retry safety and trailing whitespace ([08edf22](https://github.com/equationalapplications/clanker/commit/08edf2216e8f6f1774dc932f4a4ec326b065ce94))
+- **document-ingest:** remove redundant deleted_at filter and empty subscription handler ([5df29a1](https://github.com/equationalapplications/clanker/commit/5df29a17e8b0fcd18bff5820f6bf0239f1c5ecc3))
+- **document-ingest:** resolve cloud_id in extractDocumentActor; grammar fix in migration log ([1321c43](https://github.com/equationalapplications/clanker/commit/1321c438b7c1aa9759481895558ef9200983ec00))
+- **document-ingest:** standardize warn prefix and add factIndex to parseExtractedFact logs ([36df1d1](https://github.com/equationalapplications/clanker/commit/36df1d1ed481aaaaf2f6402924ef14273e8a17ab))
+- **document-ingest:** UUID validation before Cloud SQL query, partial index in CREATE_TABLES ([54edd09](https://github.com/equationalapplications/clanker/commit/54edd095ee1bd7c99bc4fd02943558465e05b0d3))
+- **ingest:** construct extractDocument payload explicitly instead of spreading input ([8204032](https://github.com/equationalapplications/clanker/commit/8204032aaaf67d2a4ec449bbdb3b37d55697ccfb))
+- **ingest:** make memory event append non-fatal in applyFacts ([93996dc](https://github.com/equationalapplications/clanker/commit/93996dc4936f9b7cc2b2ef7a9e92a1ffb1c6e161))
+- **memory:** add snake_case fallbacks for sourceHash/sourceRef in toWikiEntryUpserts ([5a8314d](https://github.com/equationalapplications/clanker/commit/5a8314d539da27aaaef650a418bc572400b211d7))
+- **memory:** normalize sourceRef/sourceHash in forgetMemory before local/cloud ops ([01dbc28](https://github.com/equationalapplications/clanker/commit/01dbc28d374352c6eb21ea8e8e8c50d2abd8b702))
+- **schema:** add missing source_ref partial index migration for Cloud SQL ([69d6d10](https://github.com/equationalapplications/clanker/commit/69d6d1008b19b98e1b0af83ebfcbaf974229a9c1))
+- **test:** add mocks for documentIngestMachine imports in chatComposer test ([b7e76d6](https://github.com/equationalapplications/clanker/commit/b7e76d6acd0a365eaaedb72b9dfcb43c63b7df7d))
+- **wiki-db:** preserve source_hash/source_ref on upsert with COALESCE ([6e57ab5](https://github.com/equationalapplications/clanker/commit/6e57ab5bb3e0a7cf43641737974d0945ce8c9c1a))
 
 ### Features
 
-* **db:** add source_hash/source_ref to Cloud SQL wiki_entries, update source_type constraint ([d830978](https://github.com/equationalapplications/clanker/commit/d830978d977e4a4ea08e44449994a3ed13225c4a))
-* **db:** extend wikiDatabase with source_hash/source_ref, add bulk insert and find-by-hash/ref ([0a8605c](https://github.com/equationalapplications/clanker/commit/0a8605c3459e967b6942da48ecb3c7957a461da4))
-* **document-ingest:** add ChatComposer + button, progress bar, toast, IngestProgressBar ([82320eb](https://github.com/equationalapplications/clanker/commit/82320eb7f52518196dfd1298f78c87b7f64f1d2c))
-* **document-ingest:** add documentExtract Firebase callable with LLM extraction ([7e20760](https://github.com/equationalapplications/clanker/commit/7e207600c35dab75394473f8ba89381d805461c7))
-* **document-ingest:** add documentIngestMachine XState v5 machine with tests ([b36180b](https://github.com/equationalapplications/clanker/commit/b36180b075a859143d742ceb546863169804309f))
-* **document-ingest:** extend forgetMemory with sourceRef; add documentIngestService ([3c8c066](https://github.com/equationalapplications/clanker/commit/3c8c066edc69ec524ee1cb3f3962feb6b8247035))
-* **memory:** extend forgetMemory with sourceRef target; heal skips user_document entries ([b101f00](https://github.com/equationalapplications/clanker/commit/b101f000ca8b34433c8eb99dd16d27f598304939))
-* **schema:** bump SCHEMA_VERSION to 13, add source_hash/source_ref to wiki_entries ([e53743d](https://github.com/equationalapplications/clanker/commit/e53743dc08b630c8ca3f44c19f09cb9041482bb2))
+- **db:** add source_hash/source_ref to Cloud SQL wiki_entries, update source_type constraint ([d830978](https://github.com/equationalapplications/clanker/commit/d830978d977e4a4ea08e44449994a3ed13225c4a))
+- **db:** extend wikiDatabase with source_hash/source_ref, add bulk insert and find-by-hash/ref ([0a8605c](https://github.com/equationalapplications/clanker/commit/0a8605c3459e967b6942da48ecb3c7957a461da4))
+- **document-ingest:** add ChatComposer + button, progress bar, toast, IngestProgressBar ([82320eb](https://github.com/equationalapplications/clanker/commit/82320eb7f52518196dfd1298f78c87b7f64f1d2c))
+- **document-ingest:** add documentExtract Firebase callable with LLM extraction ([7e20760](https://github.com/equationalapplications/clanker/commit/7e207600c35dab75394473f8ba89381d805461c7))
+- **document-ingest:** add documentIngestMachine XState v5 machine with tests ([b36180b](https://github.com/equationalapplications/clanker/commit/b36180b075a859143d742ceb546863169804309f))
+- **document-ingest:** extend forgetMemory with sourceRef; add documentIngestService ([3c8c066](https://github.com/equationalapplications/clanker/commit/3c8c066edc69ec524ee1cb3f3962feb6b8247035))
+- **memory:** extend forgetMemory with sourceRef target; heal skips user_document entries ([b101f00](https://github.com/equationalapplications/clanker/commit/b101f000ca8b34433c8eb99dd16d27f598304939))
+- **schema:** bump SCHEMA_VERSION to 13, add source_hash/source_ref to wiki_entries ([e53743d](https://github.com/equationalapplications/clanker/commit/e53743dc08b630c8ca3f44c19f09cb9041482bb2))
 
 ## [29.2.1](https://github.com/equationalapplications/clanker/compare/v29.2.0...v29.2.1) (2026-04-28)
 
-
 ### Bug Fixes
 
-* **aiChatService:** use latest stored character context before building prompt ([c7d6f56](https://github.com/equationalapplications/clanker/commit/c7d6f5626f03520774d164f9df371376903a1078))
-* **auth:** retry bootstrap up to 3x before signing out ([ae0e960](https://github.com/equationalapplications/clanker/commit/ae0e9600ddcbd635323e7e9dab90e567d0976252))
-* **database:** fallback to LIKE when FTS5 missing on web ([190c008](https://github.com/equationalapplications/clanker/commit/190c008a8d045273dd11fac9858fc6fe1a735aaf))
-* **database:** gracefully handle missing FTS5 on web ([a45d7f8](https://github.com/equationalapplications/clanker/commit/a45d7f8177493620c586b8a4d19e22049ad5aeba))
-* enforce prompt budget and split multi-column migration ([e6c0660](https://github.com/equationalapplications/clanker/commit/e6c06606163434540920f85da675d748f958be09))
-* **fts:** handle missing compromise module on web platform ([3be9acc](https://github.com/equationalapplications/clanker/commit/3be9acc86ae62f2c27677ff60c58750495922785))
-* **memory:** address review findings from PR 328 ([505505b](https://github.com/equationalapplications/clanker/commit/505505b4a192e2291af0657d6b7fb4f382a0ab28))
-* **memory:** don't fall back to heuristic when LLM returns valid empty result ([05f34e5](https://github.com/equationalapplications/clanker/commit/05f34e53076e0b4eed68da8f8d90bb4b97ab65c4))
-* **memory:** pass conversation history as wiki write chunk ([a2ed746](https://github.com/equationalapplications/clanker/commit/a2ed746fed413d83716cc552525ce7200d07423f))
-* **ui:** replace fragment with array in ConfirmationModal actions ([10963e2](https://github.com/equationalapplications/clanker/commit/10963e27a4cb38e06159322e37db2dfe4b33d389))
+- **aiChatService:** use latest stored character context before building prompt ([c7d6f56](https://github.com/equationalapplications/clanker/commit/c7d6f5626f03520774d164f9df371376903a1078))
+- **auth:** retry bootstrap up to 3x before signing out ([ae0e960](https://github.com/equationalapplications/clanker/commit/ae0e9600ddcbd635323e7e9dab90e567d0976252))
+- **database:** fallback to LIKE when FTS5 missing on web ([190c008](https://github.com/equationalapplications/clanker/commit/190c008a8d045273dd11fac9858fc6fe1a735aaf))
+- **database:** gracefully handle missing FTS5 on web ([a45d7f8](https://github.com/equationalapplications/clanker/commit/a45d7f8177493620c586b8a4d19e22049ad5aeba))
+- enforce prompt budget and split multi-column migration ([e6c0660](https://github.com/equationalapplications/clanker/commit/e6c06606163434540920f85da675d748f958be09))
+- **fts:** handle missing compromise module on web platform ([3be9acc](https://github.com/equationalapplications/clanker/commit/3be9acc86ae62f2c27677ff60c58750495922785))
+- **memory:** address review findings from PR 328 ([505505b](https://github.com/equationalapplications/clanker/commit/505505b4a192e2291af0657d6b7fb4f382a0ab28))
+- **memory:** don't fall back to heuristic when LLM returns valid empty result ([05f34e5](https://github.com/equationalapplications/clanker/commit/05f34e53076e0b4eed68da8f8d90bb4b97ab65c4))
+- **memory:** pass conversation history as wiki write chunk ([a2ed746](https://github.com/equationalapplications/clanker/commit/a2ed746fed413d83716cc552525ce7200d07423f))
+- **ui:** replace fragment with array in ConfirmationModal actions ([10963e2](https://github.com/equationalapplications/clanker/commit/10963e27a4cb38e06159322e37db2dfe4b33d389))
 
 # [29.2.0](https://github.com/equationalapplications/clanker/compare/v29.1.1...v29.2.0) (2026-04-27)
 
-
 ### Bug Fixes
 
-* **aiChatService:** increase MAX_CHAT_PROMPT_LENGTH to 12,000 and implement looping history trim ([15bbfa9](https://github.com/equationalapplications/clanker/commit/15bbfa96c1f3ad803fc85124f7edf2eafd500c34))
-* **aiChatService:** remove unused MAX_HISTORY_CHARS constant ([5f7fa90](https://github.com/equationalapplications/clanker/commit/5f7fa90567dec91c57ddacf7eaeb588e1659c79f))
-* **chat:** budget conversation history to preserve user message tail ([acf5e40](https://github.com/equationalapplications/clanker/commit/acf5e4011d2bb5f9d359ef91f438869fe2da1d5c))
-* **memory:** address PR 325 review feedback ([ddb6b06](https://github.com/equationalapplications/clanker/commit/ddb6b06d1b742ce308e0a6f26654dbb53aa25a2c))
-* **memory:** address PR review feedback ([684a757](https://github.com/equationalapplications/clanker/commit/684a757b9c7ea50cedbbb2e86b339084167bd112))
-* **memory:** run buildHealDiff for all premium users, only persist if cloud-synced ([8659143](https://github.com/equationalapplications/clanker/commit/865914366628771cdbfb3b5b4063757fdfd7d914))
-* **memory:** scope cache keys to userId and validate bootstrap UUID ([17130f5](https://github.com/equationalapplications/clanker/commit/17130f50d445b44a8e98b0a151177bf478e9723b))
-* migration guard and update memory limitation docs ([08ea542](https://github.com/equationalapplications/clanker/commit/08ea54203eae264cb4cb70950e835bb553b0f6c3))
-* **wiki-memory:** add user_id isolation and batch query updates ([ceeadd6](https://github.com/equationalapplications/clanker/commit/ceeadd65ccac7d64c3d482bc4791482880fe5d70))
-* **wiki-memory:** apply code review fixes for lazy loading and user isolation ([3d3ff6e](https://github.com/equationalapplications/clanker/commit/3d3ff6e2141648d9ea206f303e79b8dd827002a5))
-* **wiki-memory:** atomicity and cloud ID resolution ([37146ea](https://github.com/equationalapplications/clanker/commit/37146ea3a191efad29a964bd6048f0cc4ad3c8c3))
-* **wiki-memory:** characterId mapping, search scope, budgeting, bootstrap ([ca5864d](https://github.com/equationalapplications/clanker/commit/ca5864d5bc380018dfb0b9ea4e98d425620f0a3c))
-* **wiki-memory:** gate heal on cloud chars, stable ids for local writes ([a295f70](https://github.com/equationalapplications/clanker/commit/a295f70335a9728fedfe3a24da946ef5270b11e5))
-* **wiki-memory:** preserve access stats on upsert, guard bootstrap to once per session ([e5c4f75](https://github.com/equationalapplications/clanker/commit/e5c4f7586eaf7bf286f47b499ae3e5fd983515db))
-* **wiki-memory:** uuid validation, collisions, bootstrap read ([7cdeb1e](https://github.com/equationalapplications/clanker/commit/7cdeb1e39482d8ba79a7aac2560201fe2737a52d))
-
+- **aiChatService:** increase MAX_CHAT_PROMPT_LENGTH to 12,000 and implement looping history trim ([15bbfa9](https://github.com/equationalapplications/clanker/commit/15bbfa96c1f3ad803fc85124f7edf2eafd500c34))
+- **aiChatService:** remove unused MAX_HISTORY_CHARS constant ([5f7fa90](https://github.com/equationalapplications/clanker/commit/5f7fa90567dec91c57ddacf7eaeb588e1659c79f))
+- **chat:** budget conversation history to preserve user message tail ([acf5e40](https://github.com/equationalapplications/clanker/commit/acf5e4011d2bb5f9d359ef91f438869fe2da1d5c))
+- **memory:** address PR 325 review feedback ([ddb6b06](https://github.com/equationalapplications/clanker/commit/ddb6b06d1b742ce308e0a6f26654dbb53aa25a2c))
+- **memory:** address PR review feedback ([684a757](https://github.com/equationalapplications/clanker/commit/684a757b9c7ea50cedbbb2e86b339084167bd112))
+- **memory:** run buildHealDiff for all premium users, only persist if cloud-synced ([8659143](https://github.com/equationalapplications/clanker/commit/865914366628771cdbfb3b5b4063757fdfd7d914))
+- **memory:** scope cache keys to userId and validate bootstrap UUID ([17130f5](https://github.com/equationalapplications/clanker/commit/17130f50d445b44a8e98b0a151177bf478e9723b))
+- migration guard and update memory limitation docs ([08ea542](https://github.com/equationalapplications/clanker/commit/08ea54203eae264cb4cb70950e835bb553b0f6c3))
+- **wiki-memory:** add user_id isolation and batch query updates ([ceeadd6](https://github.com/equationalapplications/clanker/commit/ceeadd65ccac7d64c3d482bc4791482880fe5d70))
+- **wiki-memory:** apply code review fixes for lazy loading and user isolation ([3d3ff6e](https://github.com/equationalapplications/clanker/commit/3d3ff6e2141648d9ea206f303e79b8dd827002a5))
+- **wiki-memory:** atomicity and cloud ID resolution ([37146ea](https://github.com/equationalapplications/clanker/commit/37146ea3a191efad29a964bd6048f0cc4ad3c8c3))
+- **wiki-memory:** characterId mapping, search scope, budgeting, bootstrap ([ca5864d](https://github.com/equationalapplications/clanker/commit/ca5864d5bc380018dfb0b9ea4e98d425620f0a3c))
+- **wiki-memory:** gate heal on cloud chars, stable ids for local writes ([a295f70](https://github.com/equationalapplications/clanker/commit/a295f70335a9728fedfe3a24da946ef5270b11e5))
+- **wiki-memory:** preserve access stats on upsert, guard bootstrap to once per session ([e5c4f75](https://github.com/equationalapplications/clanker/commit/e5c4f7586eaf7bf286f47b499ae3e5fd983515db))
+- **wiki-memory:** uuid validation, collisions, bootstrap read ([7cdeb1e](https://github.com/equationalapplications/clanker/commit/7cdeb1e39482d8ba79a7aac2560201fe2737a52d))
 
 ### Features
 
-* **memory:** add cloud function callables for wiki memory operations ([2a2f393](https://github.com/equationalapplications/clanker/commit/2a2f393ead4288ea893b088a4124fb10859ce833))
-* **memory:** complete v1 LLM wiki memory — fact extraction, forget API, synonym expansion ([79f97db](https://github.com/equationalapplications/clanker/commit/79f97db531ec9d750f710307770af8efcd0b7e78))
-* **memory:** enable memoryHeal for premium local-only characters ([10f8fcb](https://github.com/equationalapplications/clanker/commit/10f8fcbbc85361a1671e30aacaf251ce065e2b47))
-* **wiki-memory:** complete v1 implementation with documentation ([185ec8d](https://github.com/equationalapplications/clanker/commit/185ec8dc271438b3db405b0a2d66dac6dfa03915))
+- **memory:** add cloud function callables for wiki memory operations ([2a2f393](https://github.com/equationalapplications/clanker/commit/2a2f393ead4288ea893b088a4124fb10859ce833))
+- **memory:** complete v1 LLM wiki memory — fact extraction, forget API, synonym expansion ([79f97db](https://github.com/equationalapplications/clanker/commit/79f97db531ec9d750f710307770af8efcd0b7e78))
+- **memory:** enable memoryHeal for premium local-only characters ([10f8fcb](https://github.com/equationalapplications/clanker/commit/10f8fcbbc85361a1671e30aacaf251ce065e2b47))
+- **wiki-memory:** complete v1 implementation with documentation ([185ec8d](https://github.com/equationalapplications/clanker/commit/185ec8dc271438b3db405b0a2d66dac6dfa03915))
 
 ## [29.1.1](https://github.com/equationalapplications/clanker/compare/v29.1.0...v29.1.1) (2026-04-27)
 
-
 ### Bug Fixes
 
-* **jest:** track Platform instance across resetModules ([430c8a5](https://github.com/equationalapplications/clanker/commit/430c8a597c2c753f182927f817becbfd822f583e))
-* **test:** lazy WeakMap Platform override helpers; migrate existing suites ([96698a7](https://github.com/equationalapplications/clanker/commit/96698a7bef81a518b49abe7d2329e2069006e62b))
-* **test:** preserve original OS descriptor fields when overriding Platform.OS ([64df583](https://github.com/equationalapplications/clanker/commit/64df583098545412e9ed72b6a9c9bc8dba8386eb))
+- **jest:** track Platform instance across resetModules ([430c8a5](https://github.com/equationalapplications/clanker/commit/430c8a597c2c753f182927f817becbfd822f583e))
+- **test:** lazy WeakMap Platform override helpers; migrate existing suites ([96698a7](https://github.com/equationalapplications/clanker/commit/96698a7bef81a518b49abe7d2329e2069006e62b))
+- **test:** preserve original OS descriptor fields when overriding Platform.OS ([64df583](https://github.com/equationalapplications/clanker/commit/64df583098545412e9ed72b6a9c9bc8dba8386eb))
 
 # [29.1.0](https://github.com/equationalapplications/clanker/compare/v29.0.0...v29.1.0) (2026-04-27)
 
-
 ### Bug Fixes
 
-* **voice:** address code review feedback for error handling and UI state ([3867e12](https://github.com/equationalapplications/clanker/commit/3867e12482a1f1810ff61c006567c7ed40ac5cfd))
-* **voice:** anchor parsePcmParam regex to parameter boundaries ([6c3c24d](https://github.com/equationalapplications/clanker/commit/6c3c24df91be7ae183c6509bca3930cff63bd503))
-* **voice:** handle nomatch + no-speech gracefully with friendly errors ([40dc4e8](https://github.com/equationalapplications/clanker/commit/40dc4e81d7d67865e53cd1488d217feb500b8977))
-* **voice:** platform-aware permission error message; trim whitespace in normalizeVoice ([b4955ca](https://github.com/equationalapplications/clanker/commit/b4955ca27e5f539a26fee0d4d948ca48158b5c66))
-* **voice:** resolve talk page re-entrancy and web audio playback ([6c04b6d](https://github.com/equationalapplications/clanker/commit/6c04b6d5ec5d9fa2a3bb0d1c2d7cd055df438ae2))
-* **voice:** validate PCM params before writing WAV header; deduplicate test ([78865f6](https://github.com/equationalapplications/clanker/commit/78865f61955dae7a086f36ab22b21b1c8d1156a2))
-
+- **voice:** address code review feedback for error handling and UI state ([3867e12](https://github.com/equationalapplications/clanker/commit/3867e12482a1f1810ff61c006567c7ed40ac5cfd))
+- **voice:** anchor parsePcmParam regex to parameter boundaries ([6c3c24d](https://github.com/equationalapplications/clanker/commit/6c3c24df91be7ae183c6509bca3930cff63bd503))
+- **voice:** handle nomatch + no-speech gracefully with friendly errors ([40dc4e8](https://github.com/equationalapplications/clanker/commit/40dc4e81d7d67865e53cd1488d217feb500b8977))
+- **voice:** platform-aware permission error message; trim whitespace in normalizeVoice ([b4955ca](https://github.com/equationalapplications/clanker/commit/b4955ca27e5f539a26fee0d4d948ca48158b5c66))
+- **voice:** resolve talk page re-entrancy and web audio playback ([6c04b6d](https://github.com/equationalapplications/clanker/commit/6c04b6d5ec5d9fa2a3bb0d1c2d7cd055df438ae2))
+- **voice:** validate PCM params before writing WAV header; deduplicate test ([78865f6](https://github.com/equationalapplications/clanker/commit/78865f61955dae7a086f36ab22b21b1c8d1156a2))
 
 ### Features
 
-* **voice:** complete voice selection with web support and modern FileSystem ([408f1d3](https://github.com/equationalapplications/clanker/commit/408f1d31a12c438a18aee8bd1d78e5ff8ca58ee0))
+- **voice:** complete voice selection with web support and modern FileSystem ([408f1d3](https://github.com/equationalapplications/clanker/commit/408f1d31a12c438a18aee8bd1d78e5ff8ca58ee0))
 
 # [29.0.0](https://github.com/equationalapplications/clanker/compare/v28.8.0...v29.0.0) (2026-04-26)
 
-
 ### Bug Fixes
 
-* **schema:** include voice in base table ([13ce108](https://github.com/equationalapplications/clanker/commit/13ce10803f57bc586af786e725ffa9d8d9add376))
-* **voice:** centralize app default voice constant ([1cd0380](https://github.com/equationalapplications/clanker/commit/1cd0380afade152128bc5346f12c4b2a8b30cb4e))
-* **voice:** centralize functions default and trim normalization ([c3c3f31](https://github.com/equationalapplications/clanker/commit/c3c3f312f6a2ae8441a77a82b167ff35a62a2382))
-* **voice:** default and backfill voice values ([22cf463](https://github.com/equationalapplications/clanker/commit/22cf463dea9e2b72ab50383f5938e8428f394a7e))
-* **voice:** enforce default and sync persist ([02a4dcc](https://github.com/equationalapplications/clanker/commit/02a4dcc140cd3298fc6b88593650eb904dc71ab6))
-* **voice:** enforce non-null voice writes ([f4b159f](https://github.com/equationalapplications/clanker/commit/f4b159f0b5f60310278441eceff4686cc2d4d764))
-* **voice:** migration guard and sync type safety ([d773543](https://github.com/equationalapplications/clanker/commit/d773543114041e7c4f7a33f7c7005d0223428778)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
-* **voice:** normalize whitespace across all layers ([0bacb51](https://github.com/equationalapplications/clanker/commit/0bacb5188a9f0108381383f0863219e5727cb03c)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
-* **voice:** preserve omitted voice and normalize blanks ([e9ea574](https://github.com/equationalapplications/clanker/commit/e9ea5743beb1318aad3215f77d82e7f79086f3d9)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
-* **voice:** split migration 9 backfill, trim whitespace in SQLite and Postgres ([7584773](https://github.com/equationalapplications/clanker/commit/7584773a7e0c27d8b17bdc504740c96fecd4dc5f))
-
+- **schema:** include voice in base table ([13ce108](https://github.com/equationalapplications/clanker/commit/13ce10803f57bc586af786e725ffa9d8d9add376))
+- **voice:** centralize app default voice constant ([1cd0380](https://github.com/equationalapplications/clanker/commit/1cd0380afade152128bc5346f12c4b2a8b30cb4e))
+- **voice:** centralize functions default and trim normalization ([c3c3f31](https://github.com/equationalapplications/clanker/commit/c3c3f312f6a2ae8441a77a82b167ff35a62a2382))
+- **voice:** default and backfill voice values ([22cf463](https://github.com/equationalapplications/clanker/commit/22cf463dea9e2b72ab50383f5938e8428f394a7e))
+- **voice:** enforce default and sync persist ([02a4dcc](https://github.com/equationalapplications/clanker/commit/02a4dcc140cd3298fc6b88593650eb904dc71ab6))
+- **voice:** enforce non-null voice writes ([f4b159f](https://github.com/equationalapplications/clanker/commit/f4b159f0b5f60310278441eceff4686cc2d4d764))
+- **voice:** migration guard and sync type safety ([d773543](https://github.com/equationalapplications/clanker/commit/d773543114041e7c4f7a33f7c7005d0223428778)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+- **voice:** normalize whitespace across all layers ([0bacb51](https://github.com/equationalapplications/clanker/commit/0bacb5188a9f0108381383f0863219e5727cb03c)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+- **voice:** preserve omitted voice and normalize blanks ([e9ea574](https://github.com/equationalapplications/clanker/commit/e9ea5743beb1318aad3215f77d82e7f79086f3d9)), closes [#318](https://github.com/equationalapplications/clanker/issues/318)
+- **voice:** split migration 9 backfill, trim whitespace in SQLite and Postgres ([7584773](https://github.com/equationalapplications/clanker/commit/7584773a7e0c27d8b17bdc504740c96fecd4dc5f))
 
 ### Features
 
-* **voice:** persist character voice end-to-end ([feca2db](https://github.com/equationalapplications/clanker/commit/feca2db373cfde69031bb3cf15c98ac742740bf9))
-
+- **voice:** persist character voice end-to-end ([feca2db](https://github.com/equationalapplications/clanker/commit/feca2db373cfde69031bb3cf15c98ac742740bf9))
 
 ### BREAKING CHANGES
 
-* **voice:** app.config.ts now includes expo-audio plugin.
-Native build required. Cannot OTA.
+- **voice:** app.config.ts now includes expo-audio plugin.
+  Native build required. Cannot OTA.
 
 # [28.8.0](https://github.com/equationalapplications/clanker/compare/v28.7.1...v28.8.0) (2026-04-25)
 
-
 ### Bug Fixes
 
-* **avatar:** use single File instance with try/finally for guaranteed cleanup ([707b33a](https://github.com/equationalapplications/clanker/commit/707b33a5db9680bee4fd86d4d99803b65418da19))
-* clean up temp webp files after avatar upload ([7c6eab6](https://github.com/equationalapplications/clanker/commit/7c6eab63eba7f87c8b208ebf3f22bb0cc18f2fb4))
-
+- **avatar:** use single File instance with try/finally for guaranteed cleanup ([707b33a](https://github.com/equationalapplications/clanker/commit/707b33a5db9680bee4fd86d4d99803b65418da19))
+- clean up temp webp files after avatar upload ([7c6eab6](https://github.com/equationalapplications/clanker/commit/7c6eab63eba7f87c8b208ebf3f22bb0cc18f2fb4))
 
 ### Features
 
-* **avatar:** migrate to File API and remove size constraints ([6fec4fd](https://github.com/equationalapplications/clanker/commit/6fec4fd538552b02c0343825ae8be54616020374))
-* **characters:** add photo library avatar upload ([37900a2](https://github.com/equationalapplications/clanker/commit/37900a2f6d3da2e01c99c4bae1baaf79dca9a8be))
+- **avatar:** migrate to File API and remove size constraints ([6fec4fd](https://github.com/equationalapplications/clanker/commit/6fec4fd538552b02c0343825ae8be54616020374))
+- **characters:** add photo library avatar upload ([37900a2](https://github.com/equationalapplications/clanker/commit/37900a2f6d3da2e01c99c4bae1baaf79dca9a8be))
 
 ## [28.7.1](https://github.com/equationalapplications/clanker/compare/v28.7.0...v28.7.1) (2026-04-24)
 
-
 ### Bug Fixes
 
-* **deeplinks:** replace clanker.app with clanker-ai.com across all platforms ([61e1916](https://github.com/equationalapplications/clanker/commit/61e1916e37342b40b3c51ac145578aa2640e0064))
+- **deeplinks:** replace clanker.app with clanker-ai.com across all platforms ([61e1916](https://github.com/equationalapplications/clanker/commit/61e1916e37342b40b3c51ac145578aa2640e0064))
 
 # [28.7.0](https://github.com/equationalapplications/clanker/compare/v28.6.1...v28.7.0) (2026-04-24)
 
-
 ### Bug Fixes
 
-* **deps:** add expo-file-system to package.json to fix CI lint failure ([3fc8f82](https://github.com/equationalapplications/clanker/commit/3fc8f823456b4d1bd5f6aee66cf4a58683fd70d4))
-* guard stale state in voice events and settings ([3eb2014](https://github.com/equationalapplications/clanker/commit/3eb2014e0aaf6903a9d70955cf87d00119181c2d))
-* **settings:** gate initial darkMode read on preferences consent on web ([8c7943c](https://github.com/equationalapplications/clanker/commit/8c7943c5654971a0cdc3f1de663e7735579a745b))
-* **settings:** narrow SettingKey types and gate darkMode consent web-only ([91ccace](https://github.com/equationalapplications/clanker/commit/91ccacea7865dd2764123ed27ed11444639e331c))
-* **tests:** mock crashlyticsService in failing test suites to fix CI ([c9973ab](https://github.com/equationalapplications/clanker/commit/c9973ab284f60a193e04788d5d4de1b82ffad82a))
-* **voice:** add clearListenTimer to startListening useCallback deps ([9706ef4](https://github.com/equationalapplications/clanker/commit/9706ef4088537ba2e21588a017e154a0764f5185))
-* **voice:** apply fourth review batch feedback ([9ba4cb6](https://github.com/equationalapplications/clanker/commit/9ba4cb6e39c0023f42d9f9174f95e3c276a3ee7f))
-* **voice:** apply review feedback from PR [#306](https://github.com/equationalapplications/clanker/issues/306) ([ec96ed8](https://github.com/equationalapplications/clanker/commit/ec96ed82a0104703b15dee9420d1326841e87e38))
-* **voice:** apply second review batch feedback ([fa70d66](https://github.com/equationalapplications/clanker/commit/fa70d66d71e8032273ed0f85bffcc0927113969a))
-* **voice:** apply third review batch feedback ([f74e959](https://github.com/equationalapplications/clanker/commit/f74e95910661add3b66e510327b42df8b09c1527))
-* **voice:** defensive filter for styleHints and clearer TTS instruction ([f8eedda](https://github.com/equationalapplications/clanker/commit/f8eedda3fd2a21d14e789eb8c06a3a0819c624e9))
-* **voice:** move credit spend to after successful text+TTS generation ([200c833](https://github.com/equationalapplications/clanker/commit/200c83340ae7c030cc694e6af7dd68a6b555e9c9))
-* **voice:** remove unawaited removeItem from clearSettings; drop misleading fallback message in voiceChatService catch block ([f34a158](https://github.com/equationalapplications/clanker/commit/f34a1585ed6528f3999e29892856054175af9078))
-* **voice:** use character.avatar (not appearance) for AI message avatar in voiceChatService ([63f3843](https://github.com/equationalapplications/clanker/commit/63f3843cf4b8fafc4307ab9c92e2d99ef6992fa7))
-* **voice:** use import type for UsageSnapshot/IMessage; fix settingsStorage indentation ([c684047](https://github.com/equationalapplications/clanker/commit/c684047bb1a254e32dd238058c7805079eba8f03))
-* **voice:** use MIME-to-extension lookup map for audio file path ([8a7e7fd](https://github.com/equationalapplications/clanker/commit/8a7e7fd80e83e06063e77959b9ba60dc14fde3a4))
-
+- **deps:** add expo-file-system to package.json to fix CI lint failure ([3fc8f82](https://github.com/equationalapplications/clanker/commit/3fc8f823456b4d1bd5f6aee66cf4a58683fd70d4))
+- guard stale state in voice events and settings ([3eb2014](https://github.com/equationalapplications/clanker/commit/3eb2014e0aaf6903a9d70955cf87d00119181c2d))
+- **settings:** gate initial darkMode read on preferences consent on web ([8c7943c](https://github.com/equationalapplications/clanker/commit/8c7943c5654971a0cdc3f1de663e7735579a745b))
+- **settings:** narrow SettingKey types and gate darkMode consent web-only ([91ccace](https://github.com/equationalapplications/clanker/commit/91ccacea7865dd2764123ed27ed11444639e331c))
+- **tests:** mock crashlyticsService in failing test suites to fix CI ([c9973ab](https://github.com/equationalapplications/clanker/commit/c9973ab284f60a193e04788d5d4de1b82ffad82a))
+- **voice:** add clearListenTimer to startListening useCallback deps ([9706ef4](https://github.com/equationalapplications/clanker/commit/9706ef4088537ba2e21588a017e154a0764f5185))
+- **voice:** apply fourth review batch feedback ([9ba4cb6](https://github.com/equationalapplications/clanker/commit/9ba4cb6e39c0023f42d9f9174f95e3c276a3ee7f))
+- **voice:** apply review feedback from PR [#306](https://github.com/equationalapplications/clanker/issues/306) ([ec96ed8](https://github.com/equationalapplications/clanker/commit/ec96ed82a0104703b15dee9420d1326841e87e38))
+- **voice:** apply second review batch feedback ([fa70d66](https://github.com/equationalapplications/clanker/commit/fa70d66d71e8032273ed0f85bffcc0927113969a))
+- **voice:** apply third review batch feedback ([f74e959](https://github.com/equationalapplications/clanker/commit/f74e95910661add3b66e510327b42df8b09c1527))
+- **voice:** defensive filter for styleHints and clearer TTS instruction ([f8eedda](https://github.com/equationalapplications/clanker/commit/f8eedda3fd2a21d14e789eb8c06a3a0819c624e9))
+- **voice:** move credit spend to after successful text+TTS generation ([200c833](https://github.com/equationalapplications/clanker/commit/200c83340ae7c030cc694e6af7dd68a6b555e9c9))
+- **voice:** remove unawaited removeItem from clearSettings; drop misleading fallback message in voiceChatService catch block ([f34a158](https://github.com/equationalapplications/clanker/commit/f34a1585ed6528f3999e29892856054175af9078))
+- **voice:** use character.avatar (not appearance) for AI message avatar in voiceChatService ([63f3843](https://github.com/equationalapplications/clanker/commit/63f3843cf4b8fafc4307ab9c92e2d99ef6992fa7))
+- **voice:** use import type for UsageSnapshot/IMessage; fix settingsStorage indentation ([c684047](https://github.com/equationalapplications/clanker/commit/c684047bb1a254e32dd238058c7805079eba8f03))
+- **voice:** use MIME-to-extension lookup map for audio file path ([8a7e7fd](https://github.com/equationalapplications/clanker/commit/8a7e7fd80e83e06063e77959b9ba60dc14fde3a4))
 
 ### Features
 
-* **cookies:** enforce consent rules for settings persistence and Crashlytics ([f2d946c](https://github.com/equationalapplications/clanker/commit/f2d946cc5672a1176f2d70243023f1202a3070a2))
-* **voice:** add Talk tab with voice conversation support ([53e32c3](https://github.com/equationalapplications/clanker/commit/53e32c3d2d6b156d119ad434d864754c93900c3f))
-
+- **cookies:** enforce consent rules for settings persistence and Crashlytics ([f2d946c](https://github.com/equationalapplications/clanker/commit/f2d946cc5672a1176f2d70243023f1202a3070a2))
+- **voice:** add Talk tab with voice conversation support ([53e32c3](https://github.com/equationalapplications/clanker/commit/53e32c3d2d6b156d119ad434d864754c93900c3f))
 
 ### Performance Improvements
 
-* **voice:** cache GoogleGenAI client at module level in generateVoiceReply ([8b0c333](https://github.com/equationalapplications/clanker/commit/8b0c3332faeda5edb5cc03cd1f51ec0dcd293fe7))
+- **voice:** cache GoogleGenAI client at module level in generateVoiceReply ([8b0c333](https://github.com/equationalapplications/clanker/commit/8b0c3332faeda5edb5cc03cd1f51ec0dcd293fe7))
 
 ## [28.6.1](https://github.com/equationalapplications/clanker/compare/v28.6.0...v28.6.1) (2026-04-24)
 
-
 ### Bug Fixes
 
-* **schema:** handle NULL owner_user_id/is_public in migration 8 backfill ([288b6b0](https://github.com/equationalapplications/clanker/commit/288b6b0c9ad3ffb922425aa22fed54f302200dfb))
+- **schema:** handle NULL owner_user_id/is_public in migration 8 backfill ([288b6b0](https://github.com/equationalapplications/clanker/commit/288b6b0c9ad3ffb922425aa22fed54f302200dfb))
 
 # [28.6.0](https://github.com/equationalapplications/clanker/compare/v28.5.1...v28.6.0) (2026-04-24)
 
-
 ### Bug Fixes
 
-* **consent:** enforce necessary=true at storage + canUse boundaries ([f30356c](https://github.com/equationalapplications/clanker/commit/f30356c179cd6660c5da4ae40112b601e0221286))
-* **CookieConsentBanner:** remove invalid accessibilityRole='dialog' from View ([51d3e2a](https://github.com/equationalapplications/clanker/commit/51d3e2a34b9f0c72f02c4bbe30d7f8652339e0a2))
-* **test:** apply code review feedback on jest setup and context perf ([af233a2](https://github.com/equationalapplications/clanker/commit/af233a2efc83502d6de323e39b1a24a796256084))
-* **test:** remove TS type annotation from plain JS jest.setup.js ([4d3136c](https://github.com/equationalapplications/clanker/commit/4d3136cda4c559a6c7a96d82af7bd1cf4ca5fb3c))
-* **test:** strip remaining TS annotations from plain JS jest.setup.js ([eda9e59](https://github.com/equationalapplications/clanker/commit/eda9e591589199b580016867e6fc32206270e17a))
-* **web:** address review feedback on gap, localStorage mock, and getStorage ([d121934](https://github.com/equationalapplications/clanker/commit/d121934276e4dd7244317e3f8ac8c532ef953905))
-* **web:** flatten style arrays in Link asChild children to resolve CSSStyleDeclaration crash ([6b909c4](https://github.com/equationalapplications/clanker/commit/6b909c4a1316bd4eec133a592955ad192172a67a))
-* **web:** remove animationType fade from Modal to fix useNativeDriver and CSSStyleDeclaration crash ([10580b7](https://github.com/equationalapplications/clanker/commit/10580b79911ab8bac387112c9776329071e0c705))
-* **web:** resolve CSSStyleDeclaration indexed setter error in cookie banner ([f08ec9b](https://github.com/equationalapplications/clanker/commit/f08ec9beb5890c36db1f664be70994c3c10bfaa8))
-
+- **consent:** enforce necessary=true at storage + canUse boundaries ([f30356c](https://github.com/equationalapplications/clanker/commit/f30356c179cd6660c5da4ae40112b601e0221286))
+- **CookieConsentBanner:** remove invalid accessibilityRole='dialog' from View ([51d3e2a](https://github.com/equationalapplications/clanker/commit/51d3e2a34b9f0c72f02c4bbe30d7f8652339e0a2))
+- **test:** apply code review feedback on jest setup and context perf ([af233a2](https://github.com/equationalapplications/clanker/commit/af233a2efc83502d6de323e39b1a24a796256084))
+- **test:** remove TS type annotation from plain JS jest.setup.js ([4d3136c](https://github.com/equationalapplications/clanker/commit/4d3136cda4c559a6c7a96d82af7bd1cf4ca5fb3c))
+- **test:** strip remaining TS annotations from plain JS jest.setup.js ([eda9e59](https://github.com/equationalapplications/clanker/commit/eda9e591589199b580016867e6fc32206270e17a))
+- **web:** address review feedback on gap, localStorage mock, and getStorage ([d121934](https://github.com/equationalapplications/clanker/commit/d121934276e4dd7244317e3f8ac8c532ef953905))
+- **web:** flatten style arrays in Link asChild children to resolve CSSStyleDeclaration crash ([6b909c4](https://github.com/equationalapplications/clanker/commit/6b909c4a1316bd4eec133a592955ad192172a67a))
+- **web:** remove animationType fade from Modal to fix useNativeDriver and CSSStyleDeclaration crash ([10580b7](https://github.com/equationalapplications/clanker/commit/10580b79911ab8bac387112c9776329071e0c705))
+- **web:** resolve CSSStyleDeclaration indexed setter error in cookie banner ([f08ec9b](https://github.com/equationalapplications/clanker/commit/f08ec9beb5890c36db1f664be70994c3c10bfaa8))
 
 ### Features
 
-* **web:** add cookie consent banner and preferences modal ([92b4efa](https://github.com/equationalapplications/clanker/commit/92b4efaf788452fb37d37a3dfcc5655cb1b27394))
-* **web:** add cookie consent provider and canUse gating ([369884b](https://github.com/equationalapplications/clanker/commit/369884b1552a0efeaf42df7e8e4575c80fa0e221))
-* **web:** add cookie consent storage and types ([c5dd97d](https://github.com/equationalapplications/clanker/commit/c5dd97d6c54d1863ec7eed51d073d27b1ad0c733))
-* **web:** integrate cookie consent provider and UI into app layout ([f1fddb5](https://github.com/equationalapplications/clanker/commit/f1fddb54b80ab926a60202e14afee06c5d9925b1))
+- **web:** add cookie consent banner and preferences modal ([92b4efa](https://github.com/equationalapplications/clanker/commit/92b4efaf788452fb37d37a3dfcc5655cb1b27394))
+- **web:** add cookie consent provider and canUse gating ([369884b](https://github.com/equationalapplications/clanker/commit/369884b1552a0efeaf42df7e8e4575c80fa0e221))
+- **web:** add cookie consent storage and types ([c5dd97d](https://github.com/equationalapplications/clanker/commit/c5dd97d6c54d1863ec7eed51d073d27b1ad0c733))
+- **web:** integrate cookie consent provider and UI into app layout ([f1fddb5](https://github.com/equationalapplications/clanker/commit/f1fddb54b80ab926a60202e14afee06c5d9925b1))
 
 ## [28.5.1](https://github.com/equationalapplications/clanker/compare/v28.5.0...v28.5.1) (2026-04-24)
 
-
 ### Bug Fixes
 
-* **db:** add migration 8 for owner backfill repair ([3505252](https://github.com/equationalapplications/clanker/commit/3505252aec6ea881fea7cfbfcd6c745456e97430))
-* **db:** backfill owner for local chars ([93928c7](https://github.com/equationalapplications/clanker/commit/93928c76eb72edcd5d343e96cb5fb3381fbdad56))
+- **db:** add migration 8 for owner backfill repair ([3505252](https://github.com/equationalapplications/clanker/commit/3505252aec6ea881fea7cfbfcd6c745456e97430))
+- **db:** backfill owner for local chars ([93928c7](https://github.com/equationalapplications/clanker/commit/93928c76eb72edcd5d343e96cb5fb3381fbdad56))
 
 # [28.5.0](https://github.com/equationalapplications/clanker/compare/v28.4.0...v28.5.0) (2026-04-23)
 
-
 ### Bug Fixes
 
-* **auth-redirect:** address code review feedback ([05bbd4c](https://github.com/equationalapplications/clanker/commit/05bbd4cf9c6db56c0b9d1f0eb15f168707411ab4))
-* **characters:** gate owner backfill and save flow ([452c0b4](https://github.com/equationalapplications/clanker/commit/452c0b49a6f430d616ab2ca21d44b6fec6b7b1b1))
-* **characters:** simplify subscription requirement message ([fcb6f0c](https://github.com/equationalapplications/clanker/commit/fcb6f0c5791f041aec2b10f53c89229b895a6631))
-* **database:** clear save_to_cloud when unsyncing character ([3545bc2](https://github.com/equationalapplications/clanker/commit/3545bc2847f02cfe5fef1d0570dda333be858041))
-* **data:** harden lock and ownership errors ([d9e4407](https://github.com/equationalapplications/clanker/commit/d9e44079ce66cbd65194a528924942f8409da220))
-* **functions:** map ownership errors consistently ([3cd685e](https://github.com/equationalapplications/clanker/commit/3cd685e333bd00da91a9fb0802d5530ef9128b39))
-* **functions:** use Firebase UID for ownerUserId, not internal user ID ([af82c93](https://github.com/equationalapplications/clanker/commit/af82c938277a07a9683af91a19b32ee46124acaa))
-* **landing:** remove JS timer from hero shiver ([fba23db](https://github.com/equationalapplications/clanker/commit/fba23db1b34d84937fb1521f91238442af8544f9))
-* **landing:** use internal router navigation to resolve sign-in loop on web ([7fe9a59](https://github.com/equationalapplications/clanker/commit/7fe9a59f181392fe2b0895428898bbd391504c9a))
-* **machine:** scope sync/unsync errors + eliminate public char owner round-trip ([2ccfd24](https://github.com/equationalapplications/clanker/commit/2ccfd245847cf72c484eb0e69ea5431f8e7377e5))
-* **sync:** prevent stale cloud unsync state and tighten cloud unlink logic ([d4f9ed9](https://github.com/equationalapplications/clanker/commit/d4f9ed9de3d03bfc20d31e8ceb58591b3b651950))
-* **sync:** tighten cloud update guard ([5f2466c](https://github.com/equationalapplications/clanker/commit/5f2466c69ed9e7a8c0f5d9d8a8686e1912ee4dc9))
-* **ui:** guard cloud sync button + block nav during cloudUnsyncing ([084f835](https://github.com/equationalapplications/clanker/commit/084f83503b187e7d37d57504209fbd48c1af94d1))
-* **ui:** scope cloud sync toast errors ([c77a4f9](https://github.com/equationalapplications/clanker/commit/c77a4f9c4c9700eb66bf987292c1fb54d50098a0))
-* **web:** reduce auth root re-renders by splitting useSelector state selectors ([5777430](https://github.com/equationalapplications/clanker/commit/57774308eab141ca970d9a2d6c87b4572c74c4c3))
-
+- **auth-redirect:** address code review feedback ([05bbd4c](https://github.com/equationalapplications/clanker/commit/05bbd4cf9c6db56c0b9d1f0eb15f168707411ab4))
+- **characters:** gate owner backfill and save flow ([452c0b4](https://github.com/equationalapplications/clanker/commit/452c0b49a6f430d616ab2ca21d44b6fec6b7b1b1))
+- **characters:** simplify subscription requirement message ([fcb6f0c](https://github.com/equationalapplications/clanker/commit/fcb6f0c5791f041aec2b10f53c89229b895a6631))
+- **database:** clear save_to_cloud when unsyncing character ([3545bc2](https://github.com/equationalapplications/clanker/commit/3545bc2847f02cfe5fef1d0570dda333be858041))
+- **data:** harden lock and ownership errors ([d9e4407](https://github.com/equationalapplications/clanker/commit/d9e44079ce66cbd65194a528924942f8409da220))
+- **functions:** map ownership errors consistently ([3cd685e](https://github.com/equationalapplications/clanker/commit/3cd685e333bd00da91a9fb0802d5530ef9128b39))
+- **functions:** use Firebase UID for ownerUserId, not internal user ID ([af82c93](https://github.com/equationalapplications/clanker/commit/af82c938277a07a9683af91a19b32ee46124acaa))
+- **landing:** remove JS timer from hero shiver ([fba23db](https://github.com/equationalapplications/clanker/commit/fba23db1b34d84937fb1521f91238442af8544f9))
+- **landing:** use internal router navigation to resolve sign-in loop on web ([7fe9a59](https://github.com/equationalapplications/clanker/commit/7fe9a59f181392fe2b0895428898bbd391504c9a))
+- **machine:** scope sync/unsync errors + eliminate public char owner round-trip ([2ccfd24](https://github.com/equationalapplications/clanker/commit/2ccfd245847cf72c484eb0e69ea5431f8e7377e5))
+- **sync:** prevent stale cloud unsync state and tighten cloud unlink logic ([d4f9ed9](https://github.com/equationalapplications/clanker/commit/d4f9ed9de3d03bfc20d31e8ceb58591b3b651950))
+- **sync:** tighten cloud update guard ([5f2466c](https://github.com/equationalapplications/clanker/commit/5f2466c69ed9e7a8c0f5d9d8a8686e1912ee4dc9))
+- **ui:** guard cloud sync button + block nav during cloudUnsyncing ([084f835](https://github.com/equationalapplications/clanker/commit/084f83503b187e7d37d57504209fbd48c1af94d1))
+- **ui:** scope cloud sync toast errors ([c77a4f9](https://github.com/equationalapplications/clanker/commit/c77a4f9c4c9700eb66bf987292c1fb54d50098a0))
+- **web:** reduce auth root re-renders by splitting useSelector state selectors ([5777430](https://github.com/equationalapplications/clanker/commit/57774308eab141ca970d9a2d6c87b4572c74c4c3))
 
 ### Features
 
-* **characters:** add owner_user_id column with backfill migration ([54d2161](https://github.com/equationalapplications/clanker/commit/54d2161bc157cde7172f9dabf4bb6fbc5f92785e))
-* **characters:** add useSyncCharacters and useUnsyncCharacter hooks ([e5683fe](https://github.com/equationalapplications/clanker/commit/e5683fe87fa5fe25e167adbbb7d4e9f79ce0fcc2))
-* **characters:** machine cloudSyncing and cloudUnsyncing with locking ([f6f639d](https://github.com/equationalapplications/clanker/commit/f6f639d6183882b394d36a51dc6527aedca480eb))
-* **characters:** ownership read-only mode and cloud removal confirm ([bbaa126](https://github.com/equationalapplications/clanker/commit/bbaa126d2e44014e72944b6a276d484231ee6485))
-* **characters:** support unsync from cloud preserving local copy ([0958acc](https://github.com/equationalapplications/clanker/commit/0958acc4cf8e3c83518b5fa8aa5ab8ebb241abad))
-* **functions:** expose owner and enforce owner-only character writes ([d4b0270](https://github.com/equationalapplications/clanker/commit/d4b027089b9396522f7fc49f53109fab75fbe10b))
+- **characters:** add owner_user_id column with backfill migration ([54d2161](https://github.com/equationalapplications/clanker/commit/54d2161bc157cde7172f9dabf4bb6fbc5f92785e))
+- **characters:** add useSyncCharacters and useUnsyncCharacter hooks ([e5683fe](https://github.com/equationalapplications/clanker/commit/e5683fe87fa5fe25e167adbbb7d4e9f79ce0fcc2))
+- **characters:** machine cloudSyncing and cloudUnsyncing with locking ([f6f639d](https://github.com/equationalapplications/clanker/commit/f6f639d6183882b394d36a51dc6527aedca480eb))
+- **characters:** ownership read-only mode and cloud removal confirm ([bbaa126](https://github.com/equationalapplications/clanker/commit/bbaa126d2e44014e72944b6a276d484231ee6485))
+- **characters:** support unsync from cloud preserving local copy ([0958acc](https://github.com/equationalapplications/clanker/commit/0958acc4cf8e3c83518b5fa8aa5ab8ebb241abad))
+- **functions:** expose owner and enforce owner-only character writes ([d4b0270](https://github.com/equationalapplications/clanker/commit/d4b027089b9396522f7fc49f53109fab75fbe10b))
 
 # [28.4.0](https://github.com/equationalapplications/clanker/compare/v28.3.4...v28.4.0) (2026-04-23)
 
-
 ### Bug Fixes
 
-* **landing:** address code review feedback ([b5a5ac1](https://github.com/equationalapplications/clanker/commit/b5a5ac1ef0bb21feb4f5dd6fb01403a14e829668))
-* **landing:** address code review feedback (round 2) ([ec53ae6](https://github.com/equationalapplications/clanker/commit/ec53ae6ecb2d274cc7b2d861bc1acefef467def6))
-* **landing:** improve SEO and link crawlability ([943004b](https://github.com/equationalapplications/clanker/commit/943004bac004267904d11b984e2d6fccaacb4f63))
-* **landing:** tighten hero section spacing ([2037f5c](https://github.com/equationalapplications/clanker/commit/2037f5cab1c3d7cec5b33fa75ed191beb7570533))
-
+- **landing:** address code review feedback ([b5a5ac1](https://github.com/equationalapplications/clanker/commit/b5a5ac1ef0bb21feb4f5dd6fb01403a14e829668))
+- **landing:** address code review feedback (round 2) ([ec53ae6](https://github.com/equationalapplications/clanker/commit/ec53ae6ecb2d274cc7b2d861bc1acefef467def6))
+- **landing:** improve SEO and link crawlability ([943004b](https://github.com/equationalapplications/clanker/commit/943004bac004267904d11b984e2d6fccaacb4f63))
+- **landing:** tighten hero section spacing ([2037f5c](https://github.com/equationalapplications/clanker/commit/2037f5cab1c3d7cec5b33fa75ed191beb7570533))
 
 ### Features
 
-* **landing:** web landing page with deep link auth redirect ([5ef3d82](https://github.com/equationalapplications/clanker/commit/5ef3d8257c50fef7635da0a8b93330c6313a9452))
+- **landing:** web landing page with deep link auth redirect ([5ef3d82](https://github.com/equationalapplications/clanker/commit/5ef3d8257c50fef7635da0a8b93330c6313a9452))
 
 ## [28.3.4](https://github.com/equationalapplications/clanker/compare/v28.3.3...v28.3.4) (2026-04-23)
 
-
 ### Bug Fixes
 
-* **auth:** explicitly set iOS client IDs for sign-in ([e56ad3a](https://github.com/equationalapplications/clanker/commit/e56ad3a83d11e098921e08d3ba9b19ac9b970487))
-* **payments:** harden RC product ID handling ([4faf8bf](https://github.com/equationalapplications/clanker/commit/4faf8bf8d98122cb9598a74189b363b3765bacb5))
+- **auth:** explicitly set iOS client IDs for sign-in ([e56ad3a](https://github.com/equationalapplications/clanker/commit/e56ad3a83d11e098921e08d3ba9b19ac9b970487))
+- **payments:** harden RC product ID handling ([4faf8bf](https://github.com/equationalapplications/clanker/commit/4faf8bf8d98122cb9598a74189b363b3765bacb5))
 
 ## [28.3.3](https://github.com/equationalapplications/clanker/compare/v28.3.2...v28.3.3) (2026-04-22)
 
-
 ### Bug Fixes
 
-* **purchases:** use base plan ID for Android subscription ([24dbdbe](https://github.com/equationalapplications/clanker/commit/24dbdbe09a8d5fc5dedceaf1b8e67992eb9231ff))
+- **purchases:** use base plan ID for Android subscription ([24dbdbe](https://github.com/equationalapplications/clanker/commit/24dbdbe09a8d5fc5dedceaf1b8e67992eb9231ff))
 
 ## [28.3.2](https://github.com/equationalapplications/clanker/compare/v28.3.1...v28.3.2) (2026-04-22)
 
-
 ### Bug Fixes
 
-* **auth:** address code review feedback ([8cd86ae](https://github.com/equationalapplications/clanker/commit/8cd86ae9b1fbbc90c434b97e86d3dc40b421b17a))
-* **auth:** validate env vars and cleanup on bootstrap failure ([aa70d22](https://github.com/equationalapplications/clanker/commit/aa70d220f54fa97f2d1bfd1ec56284e80783afc3))
+- **auth:** address code review feedback ([8cd86ae](https://github.com/equationalapplications/clanker/commit/8cd86ae9b1fbbc90c434b97e86d3dc40b421b17a))
+- **auth:** validate env vars and cleanup on bootstrap failure ([aa70d22](https://github.com/equationalapplications/clanker/commit/aa70d220f54fa97f2d1bfd1ec56284e80783afc3))
 
 ## [28.3.1](https://github.com/equationalapplications/clanker/compare/v28.3.0...v28.3.1) (2026-04-22)
 
-
 ### Bug Fixes
 
-* **auth:** consistent env var usage in googleSignin.web ([10a164a](https://github.com/equationalapplications/clanker/commit/10a164af014c2c9f03f85cd38a9bdcd42cff0fdb))
-* **auth:** reset failed bootstrap sessions ([bb26ded](https://github.com/equationalapplications/clanker/commit/bb26ded3f1eea62071679694fdb12fa0d3ac4066))
+- **auth:** consistent env var usage in googleSignin.web ([10a164a](https://github.com/equationalapplications/clanker/commit/10a164af014c2c9f03f85cd38a9bdcd42cff0fdb))
+- **auth:** reset failed bootstrap sessions ([bb26ded](https://github.com/equationalapplications/clanker/commit/bb26ded3f1eea62071679694fdb12fa0d3ac4066))
 
 # [28.3.0](https://github.com/equationalapplications/clanker/compare/v28.2.0...v28.3.0) (2026-04-22)
 
-
 ### Bug Fixes
 
-* **characters:** clarify cloud save subscription message ([01cb2d1](https://github.com/equationalapplications/clanker/commit/01cb2d1abf7882c7cf4106bf5a5643b4f09c8c29))
-* **characters:** use theme color in share modal; fix schema version doc ([447396a](https://github.com/equationalapplications/clanker/commit/447396a7a9a1ee03994f03e58da72dead706362c))
-* **checkout:** address PR review feedback for web checkout sync ([1735acd](https://github.com/equationalapplications/clanker/commit/1735acde71bb41284117a2a3c4ba7c4d0e05cecc))
-
+- **characters:** clarify cloud save subscription message ([01cb2d1](https://github.com/equationalapplications/clanker/commit/01cb2d1abf7882c7cf4106bf5a5643b4f09c8c29))
+- **characters:** use theme color in share modal; fix schema version doc ([447396a](https://github.com/equationalapplications/clanker/commit/447396a7a9a1ee03994f03e58da72dead706362c))
+- **checkout:** address PR review feedback for web checkout sync ([1735acd](https://github.com/equationalapplications/clanker/commit/1735acde71bb41284117a2a3c4ba7c4d0e05cecc))
 
 ### Features
 
-* **chat:** make Enter send message, Shift+Enter adds newline ([549c6fd](https://github.com/equationalapplications/clanker/commit/549c6fd352d66eb690e488f4a69031fea531bd02))
-* **checkout:** multi-tab robustness + Stripe return recovery ([9abd565](https://github.com/equationalapplications/clanker/commit/9abd56507409ab4fdd4ade7179206176e26fbfa7))
-* **subscribe:** add Apple EULA link to Legal card ([915234a](https://github.com/equationalapplications/clanker/commit/915234aeae6913b0b45f7f906ed55bba19e026f4))
+- **chat:** make Enter send message, Shift+Enter adds newline ([549c6fd](https://github.com/equationalapplications/clanker/commit/549c6fd352d66eb690e488f4a69031fea531bd02))
+- **checkout:** multi-tab robustness + Stripe return recovery ([9abd565](https://github.com/equationalapplications/clanker/commit/9abd56507409ab4fdd4ade7179206176e26fbfa7))
+- **subscribe:** add Apple EULA link to Legal card ([915234a](https://github.com/equationalapplications/clanker/commit/915234aeae6913b0b45f7f906ed55bba19e026f4))
 
 # [28.2.0](https://github.com/equationalapplications/clanker/compare/v28.1.1...v28.2.0) (2026-04-22)
 
-
 ### Bug Fixes
 
-* **build:** simplify local EAS builds via env var injection ([2d9b6ac](https://github.com/equationalapplications/clanker/commit/2d9b6ac18d2bb3ed8b72f88c32f5b5c2ff5c9bd2))
-* **build:** stabilize local firebase temp paths ([51d50e5](https://github.com/equationalapplications/clanker/commit/51d50e5f231bcafaef7d8f4ff3b755a7e0a624b3))
-* **characters:** add share-sheet error handling ([4b32489](https://github.com/equationalapplications/clanker/commit/4b32489f58e5134a47494871ecc4597fef48a5d6))
-* **characters:** address final review nits ([6b2fb1c](https://github.com/equationalapplications/clanker/commit/6b2fb1cfa7e89e5b2989970feb78f2005fc86dbf))
-* **characters:** address review feedback on naming and state ([a4a9a2f](https://github.com/equationalapplications/clanker/commit/a4a9a2f80a6aa6d495799e84f62f28dc683e4ba2))
-* **characters:** harden qr generation and sync transition logic ([10a27d5](https://github.com/equationalapplications/clanker/commit/10a27d52a7cf335b1d50cafc1602a9d27912f451))
-* **characters:** make share failure toast generic ([40d128d](https://github.com/equationalapplications/clanker/commit/40d128d720e2930ef7e2aae9e3c87b171e7e928e))
-* **characters:** polish migration and share error messages ([d7f840a](https://github.com/equationalapplications/clanker/commit/d7f840a9c94396da235d7456a81bdeb8474d11e4))
-* **characters:** polish qr error handling and logging ([5f25eff](https://github.com/equationalapplications/clanker/commit/5f25effafd6ec4d374baf7630aed3b47e08d6a6a))
-* **characters:** refine messaging and shareable state naming ([4411e7b](https://github.com/equationalapplications/clanker/commit/4411e7b7a9f26f10b5f190229c1312e276ca6972))
-* **characters:** remove qr code and resolve review follow-ups ([fee0f3a](https://github.com/equationalapplications/clanker/commit/fee0f3a8dd42a332d47a70ae823a51d9ef410bb1))
-* **characters:** resolve remaining PR review feedback ([fc8430f](https://github.com/equationalapplications/clanker/commit/fc8430f07994b283e5718ac2d1c33a8a6ab8db62))
-* **chat:** advance summary_checkpoint before attempt to prevent burst retries on failure ([e2e9c48](https://github.com/equationalapplications/clanker/commit/e2e9c48c35bc7305996b78ab01c04f56010d5392))
-* **chat:** persist summary checkpoints for 20-message batches ([8b2167d](https://github.com/equationalapplications/clanker/commit/8b2167d71e1f4ce05480ba6e384689a295762da2))
-* **chat:** resolve three review issues - web callable, role detection, and getModel error handling ([70e5b30](https://github.com/equationalapplications/clanker/commit/70e5b30799692d10fa2a25aa102c378370816a94))
-* **chat:** select most recent messages for prompt context ([0655d89](https://github.com/equationalapplications/clanker/commit/0655d899c534a6e967ebb65f1f0407ce5592ff5d))
-* **docs:** make local Firebase base64 commands cross-platform ([13b1004](https://github.com/equationalapplications/clanker/commit/13b1004f1a44d9047f43eb7be2a3d3989fa2bccb))
-* **functions:** harden summarizeText input typing ([2c84b5d](https://github.com/equationalapplications/clanker/commit/2c84b5d2b715f2c04399cd26c2163f861b05d755))
-* **functions:** remove hardcoded maxCharacters upper bound from summarizeText ([1161dd3](https://github.com/equationalapplications/clanker/commit/1161dd3af4f3019d2ea9af9b94240e9cf0be0363))
-
+- **build:** simplify local EAS builds via env var injection ([2d9b6ac](https://github.com/equationalapplications/clanker/commit/2d9b6ac18d2bb3ed8b72f88c32f5b5c2ff5c9bd2))
+- **build:** stabilize local firebase temp paths ([51d50e5](https://github.com/equationalapplications/clanker/commit/51d50e5f231bcafaef7d8f4ff3b755a7e0a624b3))
+- **characters:** add share-sheet error handling ([4b32489](https://github.com/equationalapplications/clanker/commit/4b32489f58e5134a47494871ecc4597fef48a5d6))
+- **characters:** address final review nits ([6b2fb1c](https://github.com/equationalapplications/clanker/commit/6b2fb1cfa7e89e5b2989970feb78f2005fc86dbf))
+- **characters:** address review feedback on naming and state ([a4a9a2f](https://github.com/equationalapplications/clanker/commit/a4a9a2f80a6aa6d495799e84f62f28dc683e4ba2))
+- **characters:** harden qr generation and sync transition logic ([10a27d5](https://github.com/equationalapplications/clanker/commit/10a27d52a7cf335b1d50cafc1602a9d27912f451))
+- **characters:** make share failure toast generic ([40d128d](https://github.com/equationalapplications/clanker/commit/40d128d720e2930ef7e2aae9e3c87b171e7e928e))
+- **characters:** polish migration and share error messages ([d7f840a](https://github.com/equationalapplications/clanker/commit/d7f840a9c94396da235d7456a81bdeb8474d11e4))
+- **characters:** polish qr error handling and logging ([5f25eff](https://github.com/equationalapplications/clanker/commit/5f25effafd6ec4d374baf7630aed3b47e08d6a6a))
+- **characters:** refine messaging and shareable state naming ([4411e7b](https://github.com/equationalapplications/clanker/commit/4411e7b7a9f26f10b5f190229c1312e276ca6972))
+- **characters:** remove qr code and resolve review follow-ups ([fee0f3a](https://github.com/equationalapplications/clanker/commit/fee0f3a8dd42a332d47a70ae823a51d9ef410bb1))
+- **characters:** resolve remaining PR review feedback ([fc8430f](https://github.com/equationalapplications/clanker/commit/fc8430f07994b283e5718ac2d1c33a8a6ab8db62))
+- **chat:** advance summary_checkpoint before attempt to prevent burst retries on failure ([e2e9c48](https://github.com/equationalapplications/clanker/commit/e2e9c48c35bc7305996b78ab01c04f56010d5392))
+- **chat:** persist summary checkpoints for 20-message batches ([8b2167d](https://github.com/equationalapplications/clanker/commit/8b2167d71e1f4ce05480ba6e384689a295762da2))
+- **chat:** resolve three review issues - web callable, role detection, and getModel error handling ([70e5b30](https://github.com/equationalapplications/clanker/commit/70e5b30799692d10fa2a25aa102c378370816a94))
+- **chat:** select most recent messages for prompt context ([0655d89](https://github.com/equationalapplications/clanker/commit/0655d899c534a6e967ebb65f1f0407ce5592ff5d))
+- **docs:** make local Firebase base64 commands cross-platform ([13b1004](https://github.com/equationalapplications/clanker/commit/13b1004f1a44d9047f43eb7be2a3d3989fa2bccb))
+- **functions:** harden summarizeText input typing ([2c84b5d](https://github.com/equationalapplications/clanker/commit/2c84b5d2b715f2c04399cd26c2163f861b05d755))
+- **functions:** remove hardcoded maxCharacters upper bound from summarizeText ([1161dd3](https://github.com/equationalapplications/clanker/commit/1161dd3af4f3019d2ea9af9b94240e9cf0be0363))
 
 ### Features
 
-* **characters:** add cloud save share UI and deep-link import ([85e82c4](https://github.com/equationalapplications/clanker/commit/85e82c4034cc4a04bd016c136e3490daf7fcf236))
-* **characters:** add cloud share backend and opt-in sync flag ([9578d86](https://github.com/equationalapplications/clanker/commit/9578d86954219cd76b02935b331819f31512e82d))
-* **chat:** add background chat memory summarization pipeline ([cf48f2c](https://github.com/equationalapplications/clanker/commit/cf48f2cc48e3106fda7c3e6cfa151e128cf7fccb))
+- **characters:** add cloud save share UI and deep-link import ([85e82c4](https://github.com/equationalapplications/clanker/commit/85e82c4034cc4a04bd016c136e3490daf7fcf236))
+- **characters:** add cloud share backend and opt-in sync flag ([9578d86](https://github.com/equationalapplications/clanker/commit/9578d86954219cd76b02935b331819f31512e82d))
+- **chat:** add background chat memory summarization pipeline ([cf48f2c](https://github.com/equationalapplications/clanker/commit/cf48f2cc48e3106fda7c3e6cfa151e128cf7fccb))
 
 ## [28.1.1](https://github.com/equationalapplications/clanker/compare/v28.1.0...v28.1.1) (2026-04-21)
 
-
 ### Bug Fixes
 
-* **docs:** indent checklist code fence in firebase setup guide ([1b8f32e](https://github.com/equationalapplications/clanker/commit/1b8f32efccf093be3972ddadd5aaa8c2282a16a6))
-* **services:** trim verifiedAt in usage parsers ([65b444d](https://github.com/equationalapplications/clanker/commit/65b444dfb8f48e133e1815a15aed04f7b9c4d5f2))
+- **docs:** indent checklist code fence in firebase setup guide ([1b8f32e](https://github.com/equationalapplications/clanker/commit/1b8f32efccf093be3972ddadd5aaa8c2282a16a6))
+- **services:** trim verifiedAt in usage parsers ([65b444d](https://github.com/equationalapplications/clanker/commit/65b444dfb8f48e133e1815a15aed04f7b9c4d5f2))
 
 # [28.1.0](https://github.com/equationalapplications/clanker/compare/v28.0.1...v28.1.0) (2026-04-21)
 
-
 ### Bug Fixes
 
-* **auth:** clear stale pending refresh replay reason ([ad2c442](https://github.com/equationalapplications/clanker/commit/ad2c4422961f6014d28e1e64bca03a488693ef4b))
-* **auth:** require server verifiedAt and align user optimistic patching ([105604c](https://github.com/equationalapplications/clanker/commit/105604ce7c48baa76012d979dce231c99a9589d2))
-* **auth:** simplify optimistic profile patch payloads ([728dce8](https://github.com/equationalapplications/clanker/commit/728dce835e961df012d607ca597c661fa21239a2))
-* **auth:** surface machine errors in user hooks ([a09ebf4](https://github.com/equationalapplications/clanker/commit/a09ebf418cd69efd5481c7f7f1d69df89da6987a))
-* **functions:** normalize usage planStatus in image and chat handlers ([a5f58c7](https://github.com/equationalapplications/clanker/commit/a5f58c70a061bee506890e99d47389c2c74fffb6))
-* normalize email lookup and docs ([9eb653e](https://github.com/equationalapplications/clanker/commit/9eb653ec01c4e0d98001e70e045f4512f3f075d3))
-
+- **auth:** clear stale pending refresh replay reason ([ad2c442](https://github.com/equationalapplications/clanker/commit/ad2c4422961f6014d28e1e64bca03a488693ef4b))
+- **auth:** require server verifiedAt and align user optimistic patching ([105604c](https://github.com/equationalapplications/clanker/commit/105604ce7c48baa76012d979dce231c99a9589d2))
+- **auth:** simplify optimistic profile patch payloads ([728dce8](https://github.com/equationalapplications/clanker/commit/728dce835e961df012d607ca597c661fa21239a2))
+- **auth:** surface machine errors in user hooks ([a09ebf4](https://github.com/equationalapplications/clanker/commit/a09ebf418cd69efd5481c7f7f1d69df89da6987a))
+- **functions:** normalize usage planStatus in image and chat handlers ([a5f58c7](https://github.com/equationalapplications/clanker/commit/a5f58c70a061bee506890e99d47389c2c74fffb6))
+- normalize email lookup and docs ([9eb653e](https://github.com/equationalapplications/clanker/commit/9eb653ec01c4e0d98001e70e045f4512f3f075d3))
 
 ### Features
 
-* **auth:** make bootstrap refresh event-driven ([2efa422](https://github.com/equationalapplications/clanker/commit/2efa422a837fd1824be882b38e08cc86f9ed3971))
+- **auth:** make bootstrap refresh event-driven ([2efa422](https://github.com/equationalapplications/clanker/commit/2efa422a837fd1824be882b38e08cc86f9ed3971))
 
 ## [28.0.1](https://github.com/equationalapplications/clanker/compare/v28.0.0...v28.0.1) (2026-04-21)
 
-
 ### Bug Fixes
 
-* **auth:** normalize email and gate appcheck ([e21f19a](https://github.com/equationalapplications/clanker/commit/e21f19a4b8e92a679a14b27d94fe16ff16cf5723))
+- **auth:** normalize email and gate appcheck ([e21f19a](https://github.com/equationalapplications/clanker/commit/e21f19a4b8e92a679a14b27d94fe16ff16cf5723))
 
 # [28.0.0](https://github.com/equationalapplications/clanker/compare/v27.1.1...v28.0.0) (2026-04-21)
 
-
-* refactor!: migrate from Supabase to dedicated Cloud SQL ([dd0ca95](https://github.com/equationalapplications/clanker/commit/dd0ca95b92d1ed7c120e300d80f0ab09bcf65c9d))
-
+- refactor!: migrate from Supabase to dedicated Cloud SQL ([dd0ca95](https://github.com/equationalapplications/clanker/commit/dd0ca95b92d1ed7c120e300d80f0ab09bcf65c9d))
 
 ### Bug Fixes
 
-* address pr 268 code review feedback ([573e3b5](https://github.com/equationalapplications/clanker/commit/573e3b5abfb725309251c85757c07f107297c4d7))
-* address PR 268 code review feedback ([a4841c0](https://github.com/equationalapplications/clanker/commit/a4841c0796ebe3f8930445fe0b0cf72297296d71))
-* address PR review feedback on user and character services ([59df959](https://github.com/equationalapplications/clanker/commit/59df9596afe4f5c14eacbbe47b6c5c0e8d3cf3a1))
-* address PR268 review feedback ([0cb57c2](https://github.com/equationalapplications/clanker/commit/0cb57c265f0bf3b65c111fffdf6f25b2d7fa1afc))
-* address pr268 review items ([1253c89](https://github.com/equationalapplications/clanker/commit/1253c899adf081ecfbb8440b02bd916eee8d16ea))
-* **api:** harden callable contract handling ([6155a2a](https://github.com/equationalapplications/clanker/commit/6155a2aade3dc7801f5c072d443e8ab6c8aa3263))
-* **appcheck:** update recaptcha key and debug token ([8652c53](https://github.com/equationalapplications/clanker/commit/8652c5348923038283c3a2a19329ab29229dc5b4))
-* **auth:** avoid date drift and credit reset ([dd00b32](https://github.com/equationalapplications/clanker/commit/dd00b32a1a86ca050ba20119c22adb05e10e0da3))
-* **auth:** dedupe bootstrap session calls ([4077c38](https://github.com/equationalapplications/clanker/commit/4077c38d97545ef4d2dca56f39e8692fd3fd4e78))
-* **auth:** isolate bootstrap by uid ([4ed7dc1](https://github.com/equationalapplications/clanker/commit/4ed7dc1ed4a64ee83f967a7a3466c8a8e79bcb1c))
-* **auth:** preserve error when transitioning to signedOut ([c61201f](https://github.com/equationalapplications/clanker/commit/c61201fd65a4710808fe718ac97f7876d3c54a44))
-* **auth:** remove unnecessary CORS allowlist and clarify Cloud Run IAM requirement ([d43a780](https://github.com/equationalapplications/clanker/commit/d43a780e5b1221c2d5ec895bc1163418daa98f61))
-* **billing:** gate credits on active subscription status ([77f58ae](https://github.com/equationalapplications/clanker/commit/77f58aed495879efab67ea800bfd9926f711d148))
-* **character:** make provided-id upsert atomic ([7fb7b65](https://github.com/equationalapplications/clanker/commit/7fb7b65095e16bb460b7a6849510af9b4b737ce0))
-* consolidate purchase refresh mechanism ([0ee034d](https://github.com/equationalapplications/clanker/commit/0ee034da27e910155a419cb711739d121974465a))
-* **credits:** refresh query after native purchase ([2bddc87](https://github.com/equationalapplications/clanker/commit/2bddc87add35f48d19e8c4c1e8ec610d4dca32a6))
-* **exchangeToken:** convert Date timestamps to ISO strings in callable response ([73b9357](https://github.com/equationalapplications/clanker/commit/73b93574bc00bcbf1a3ffb91e60a7b92116b3fb5))
-* **functions:** address PR 268 review feedback ([ab2f631](https://github.com/equationalapplications/clanker/commit/ab2f631edcd308be7da8d70b3fe32c24a829c833))
-* **functions:** align credit spending and reduce Stripe function secrets ([bf70748](https://github.com/equationalapplications/clanker/commit/bf70748aa60b1092449a42842e138938d90fa93e))
-* **functions:** bootstrap defaults in acceptTerms ([3e411ae](https://github.com/equationalapplications/clanker/commit/3e411ae89cca0cd637e0bd0bbbaf2bed028d63a7))
-* **functions:** detect cloud sql config errors ([19a2232](https://github.com/equationalapplications/clanker/commit/19a2232e2260e1f2f759ad4a7ca5c311a6891fc3))
-* **functions:** enforce ownership and input validation ([d6d4056](https://github.com/equationalapplications/clanker/commit/d6d40566739f5015bb966392d1ce5a1bd0b65635))
-* **functions:** guard callable payload validation ([009c4d5](https://github.com/equationalapplications/clanker/commit/009c4d5c4b820c29a310ec54f1582e54e80abe48))
-* **functions:** guard idempotent credit delta ([66241e4](https://github.com/equationalapplications/clanker/commit/66241e46724f76e96598f0a0a81d7966b812bb89))
-* **functions:** normalize callable bootstrap errors ([332e8c3](https://github.com/equationalapplications/clanker/commit/332e8c367224f2c82c71d244ce716399a43d6c6e))
-* **functions:** prevent duplicate credit mutations and validate character fields ([314cd3b](https://github.com/equationalapplications/clanker/commit/314cd3b5ff8f1f37b67716af06ec8aa53b88fa98))
-* **functions:** require non-null user timestamps ([b1ebe7b](https://github.com/equationalapplications/clanker/commit/b1ebe7b4d803bcb4f19fe94a77b7ba762a1506ae))
-* **functions:** resolve latest copilot review findings ([587d517](https://github.com/equationalapplications/clanker/commit/587d51724a3db380baa73aeff9ce14e056b0b9e3))
-* **functions:** resolve test paths from cwd ([c322262](https://github.com/equationalapplications/clanker/commit/c322262c97d382a1ecf147556cd83acb94195f86))
-* **functions:** serialize callable timestamps to ISO strings ([bac18c0](https://github.com/equationalapplications/clanker/commit/bac18c02c9be05b5b8c6bb0c633e2b7381168300))
-* **functions:** use public IP for Cloud SQL connector ([d333fac](https://github.com/equationalapplications/clanker/commit/d333fac5c33568209c2c115a6ae728b4686f8177))
-* implement PR 268 review feedback for type safety and error consistency ([a3dcf7e](https://github.com/equationalapplications/clanker/commit/a3dcf7e1fcfdf387675f548bf6e8e617d2a662d5))
-* **purchase:** refresh state after native purchase ([d28d3b8](https://github.com/equationalapplications/clanker/commit/d28d3b835484b21c0b8f5739f993f8c3abc234dd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
-* **purchase:** skip refresh on cancel ([0b4c5f6](https://github.com/equationalapplications/clanker/commit/0b4c5f64faa1c803921d219b049a2a9bb7139691))
-* remove remaining supabaseClient imports and state checks from UI ([bb391f4](https://github.com/equationalapplications/clanker/commit/bb391f4b1ec466cebe6565c18da5a068d95a716e))
-* resolve PR 268 review findings ([4995d8c](https://github.com/equationalapplications/clanker/commit/4995d8c68ad2c6917a299a0a9687f4ad4c20bcfd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
-* revenueCat entitlement, docs, validation ([e6a1ace](https://github.com/equationalapplications/clanker/commit/e6a1acedc0a1b7c7e8a7822089a1d45757a1658f))
-* **revenueCat:** retry webhook when Cloud SQL user unavailable ([2307c1b](https://github.com/equationalapplications/clanker/commit/2307c1bcac101ef0b5d1f78ed6273364b129a501))
-* **state:** dedupe refresh and touch updatedAt ([b7158e1](https://github.com/equationalapplications/clanker/commit/b7158e10e4630edfbf5d024c022d29abcdc2411e))
-* **subscription:** keep default credits on webhook upsert ([0c591c2](https://github.com/equationalapplications/clanker/commit/0c591c209eae5d677b4c78ee42f685a6f5de7baa))
-* **subscription:** preserve credits on cancelled/expired status ([457bf4b](https://github.com/equationalapplications/clanker/commit/457bf4b8411e59dca9b53b1b6b27efaefd5ec86e))
-* **sync:** refresh credits and harden tests ([c719c90](https://github.com/equationalapplications/clanker/commit/c719c905109c30d2609c9e733868bf3a4d9d3d51))
-* **userRepository:** reject email identity when firebase uid differs ([e6d8b6d](https://github.com/equationalapplications/clanker/commit/e6d8b6d5da09f8c248314508e4a6fb995790f3f9))
-* **userService:** restore updated_at to profile and bootstrap ([b73b266](https://github.com/equationalapplications/clanker/commit/b73b2667966d246c172931b7936ce6f0a3bbc6e7))
-
+- address pr 268 code review feedback ([573e3b5](https://github.com/equationalapplications/clanker/commit/573e3b5abfb725309251c85757c07f107297c4d7))
+- address PR 268 code review feedback ([a4841c0](https://github.com/equationalapplications/clanker/commit/a4841c0796ebe3f8930445fe0b0cf72297296d71))
+- address PR review feedback on user and character services ([59df959](https://github.com/equationalapplications/clanker/commit/59df9596afe4f5c14eacbbe47b6c5c0e8d3cf3a1))
+- address PR268 review feedback ([0cb57c2](https://github.com/equationalapplications/clanker/commit/0cb57c265f0bf3b65c111fffdf6f25b2d7fa1afc))
+- address pr268 review items ([1253c89](https://github.com/equationalapplications/clanker/commit/1253c899adf081ecfbb8440b02bd916eee8d16ea))
+- **api:** harden callable contract handling ([6155a2a](https://github.com/equationalapplications/clanker/commit/6155a2aade3dc7801f5c072d443e8ab6c8aa3263))
+- **appcheck:** update recaptcha key and debug token ([8652c53](https://github.com/equationalapplications/clanker/commit/8652c5348923038283c3a2a19329ab29229dc5b4))
+- **auth:** avoid date drift and credit reset ([dd00b32](https://github.com/equationalapplications/clanker/commit/dd00b32a1a86ca050ba20119c22adb05e10e0da3))
+- **auth:** dedupe bootstrap session calls ([4077c38](https://github.com/equationalapplications/clanker/commit/4077c38d97545ef4d2dca56f39e8692fd3fd4e78))
+- **auth:** isolate bootstrap by uid ([4ed7dc1](https://github.com/equationalapplications/clanker/commit/4ed7dc1ed4a64ee83f967a7a3466c8a8e79bcb1c))
+- **auth:** preserve error when transitioning to signedOut ([c61201f](https://github.com/equationalapplications/clanker/commit/c61201fd65a4710808fe718ac97f7876d3c54a44))
+- **auth:** remove unnecessary CORS allowlist and clarify Cloud Run IAM requirement ([d43a780](https://github.com/equationalapplications/clanker/commit/d43a780e5b1221c2d5ec895bc1163418daa98f61))
+- **billing:** gate credits on active subscription status ([77f58ae](https://github.com/equationalapplications/clanker/commit/77f58aed495879efab67ea800bfd9926f711d148))
+- **character:** make provided-id upsert atomic ([7fb7b65](https://github.com/equationalapplications/clanker/commit/7fb7b65095e16bb460b7a6849510af9b4b737ce0))
+- consolidate purchase refresh mechanism ([0ee034d](https://github.com/equationalapplications/clanker/commit/0ee034da27e910155a419cb711739d121974465a))
+- **credits:** refresh query after native purchase ([2bddc87](https://github.com/equationalapplications/clanker/commit/2bddc87add35f48d19e8c4c1e8ec610d4dca32a6))
+- **exchangeToken:** convert Date timestamps to ISO strings in callable response ([73b9357](https://github.com/equationalapplications/clanker/commit/73b93574bc00bcbf1a3ffb91e60a7b92116b3fb5))
+- **functions:** address PR 268 review feedback ([ab2f631](https://github.com/equationalapplications/clanker/commit/ab2f631edcd308be7da8d70b3fe32c24a829c833))
+- **functions:** align credit spending and reduce Stripe function secrets ([bf70748](https://github.com/equationalapplications/clanker/commit/bf70748aa60b1092449a42842e138938d90fa93e))
+- **functions:** bootstrap defaults in acceptTerms ([3e411ae](https://github.com/equationalapplications/clanker/commit/3e411ae89cca0cd637e0bd0bbbaf2bed028d63a7))
+- **functions:** detect cloud sql config errors ([19a2232](https://github.com/equationalapplications/clanker/commit/19a2232e2260e1f2f759ad4a7ca5c311a6891fc3))
+- **functions:** enforce ownership and input validation ([d6d4056](https://github.com/equationalapplications/clanker/commit/d6d40566739f5015bb966392d1ce5a1bd0b65635))
+- **functions:** guard callable payload validation ([009c4d5](https://github.com/equationalapplications/clanker/commit/009c4d5c4b820c29a310ec54f1582e54e80abe48))
+- **functions:** guard idempotent credit delta ([66241e4](https://github.com/equationalapplications/clanker/commit/66241e46724f76e96598f0a0a81d7966b812bb89))
+- **functions:** normalize callable bootstrap errors ([332e8c3](https://github.com/equationalapplications/clanker/commit/332e8c367224f2c82c71d244ce716399a43d6c6e))
+- **functions:** prevent duplicate credit mutations and validate character fields ([314cd3b](https://github.com/equationalapplications/clanker/commit/314cd3b5ff8f1f37b67716af06ec8aa53b88fa98))
+- **functions:** require non-null user timestamps ([b1ebe7b](https://github.com/equationalapplications/clanker/commit/b1ebe7b4d803bcb4f19fe94a77b7ba762a1506ae))
+- **functions:** resolve latest copilot review findings ([587d517](https://github.com/equationalapplications/clanker/commit/587d51724a3db380baa73aeff9ce14e056b0b9e3))
+- **functions:** resolve test paths from cwd ([c322262](https://github.com/equationalapplications/clanker/commit/c322262c97d382a1ecf147556cd83acb94195f86))
+- **functions:** serialize callable timestamps to ISO strings ([bac18c0](https://github.com/equationalapplications/clanker/commit/bac18c02c9be05b5b8c6bb0c633e2b7381168300))
+- **functions:** use public IP for Cloud SQL connector ([d333fac](https://github.com/equationalapplications/clanker/commit/d333fac5c33568209c2c115a6ae728b4686f8177))
+- implement PR 268 review feedback for type safety and error consistency ([a3dcf7e](https://github.com/equationalapplications/clanker/commit/a3dcf7e1fcfdf387675f548bf6e8e617d2a662d5))
+- **purchase:** refresh state after native purchase ([d28d3b8](https://github.com/equationalapplications/clanker/commit/d28d3b835484b21c0b8f5739f993f8c3abc234dd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
+- **purchase:** skip refresh on cancel ([0b4c5f6](https://github.com/equationalapplications/clanker/commit/0b4c5f64faa1c803921d219b049a2a9bb7139691))
+- remove remaining supabaseClient imports and state checks from UI ([bb391f4](https://github.com/equationalapplications/clanker/commit/bb391f4b1ec466cebe6565c18da5a068d95a716e))
+- resolve PR 268 review findings ([4995d8c](https://github.com/equationalapplications/clanker/commit/4995d8c68ad2c6917a299a0a9687f4ad4c20bcfd)), closes [#268](https://github.com/equationalapplications/clanker/issues/268)
+- revenueCat entitlement, docs, validation ([e6a1ace](https://github.com/equationalapplications/clanker/commit/e6a1acedc0a1b7c7e8a7822089a1d45757a1658f))
+- **revenueCat:** retry webhook when Cloud SQL user unavailable ([2307c1b](https://github.com/equationalapplications/clanker/commit/2307c1bcac101ef0b5d1f78ed6273364b129a501))
+- **state:** dedupe refresh and touch updatedAt ([b7158e1](https://github.com/equationalapplications/clanker/commit/b7158e10e4630edfbf5d024c022d29abcdc2411e))
+- **subscription:** keep default credits on webhook upsert ([0c591c2](https://github.com/equationalapplications/clanker/commit/0c591c209eae5d677b4c78ee42f685a6f5de7baa))
+- **subscription:** preserve credits on cancelled/expired status ([457bf4b](https://github.com/equationalapplications/clanker/commit/457bf4b8411e59dca9b53b1b6b27efaefd5ec86e))
+- **sync:** refresh credits and harden tests ([c719c90](https://github.com/equationalapplications/clanker/commit/c719c905109c30d2609c9e733868bf3a4d9d3d51))
+- **userRepository:** reject email identity when firebase uid differs ([e6d8b6d](https://github.com/equationalapplications/clanker/commit/e6d8b6d5da09f8c248314508e4a6fb995790f3f9))
+- **userService:** restore updated_at to profile and bootstrap ([b73b266](https://github.com/equationalapplications/clanker/commit/b73b2667966d246c172931b7936ce6f0a3bbc6e7))
 
 ### Features
 
-* **appcheck:** web debug token support for localhost dev ([8c520b6](https://github.com/equationalapplications/clanker/commit/8c520b681bdee36ec7fc2259484cb2a8b0fc9ded))
-* **functions:** add Cloud SQL secrets to DB-backed functions ([5aa710e](https://github.com/equationalapplications/clanker/commit/5aa710e30d255688cbac20a6d6291e927413649a))
-
+- **appcheck:** web debug token support for localhost dev ([8c520b6](https://github.com/equationalapplications/clanker/commit/8c520b681bdee36ec7fc2259484cb2a8b0fc9ded))
+- **functions:** add Cloud SQL secrets to DB-backed functions ([5aa710e](https://github.com/equationalapplications/clanker/commit/5aa710e30d255688cbac20a6d6291e927413649a))
 
 ### BREAKING CHANGES
 
-* All direct Supabase connections and the auth
-bridge have been removed. The application now exclusively relies
-on Firebase Cloud Functions and Cloud SQL.
+- All direct Supabase connections and the auth
+  bridge have been removed. The application now exclusively relies
+  on Firebase Cloud Functions and Cloud SQL.
 
 ## [27.1.1](https://github.com/equationalapplications/clanker/compare/v27.1.0...v27.1.1) (2026-04-20)
 
-
 ### Bug Fixes
 
-* **webhook:** case-insensitive Bearer auth and smarter form detection ([d41ed04](https://github.com/equationalapplications/clanker/commit/d41ed04023ce367aa1918d9cf935a67a6b174f13))
-* **webhook:** compare buffer byte length and deduplicate body extraction ([6825790](https://github.com/equationalapplications/clanker/commit/68257909e683cf4bc9e9a4c5199a6fe7a64f2a4e))
-* **webhook:** skip auth for TEST events ([0c1c822](https://github.com/equationalapplications/clanker/commit/0c1c82264abbd5fe532c0a18c0d9620e9d913c41))
+- **webhook:** case-insensitive Bearer auth and smarter form detection ([d41ed04](https://github.com/equationalapplications/clanker/commit/d41ed04023ce367aa1918d9cf935a67a6b174f13))
+- **webhook:** compare buffer byte length and deduplicate body extraction ([6825790](https://github.com/equationalapplications/clanker/commit/68257909e683cf4bc9e9a4c5199a6fe7a64f2a4e))
+- **webhook:** skip auth for TEST events ([0c1c822](https://github.com/equationalapplications/clanker/commit/0c1c82264abbd5fe532c0a18c0d9620e9d913c41))
 
 # [27.1.0](https://github.com/equationalapplications/clanker/compare/v27.0.0...v27.1.0) (2026-04-17)
 
-
 ### Bug Fixes
 
-* **functions:** harden generateReply credit-spend parsing ([902fa67](https://github.com/equationalapplications/clanker/commit/902fa67abbe100b240b4423a892f6ec665de59bd))
-* **generateImage:** evict stale throttle buckets to prevent memory leak ([6160100](https://github.com/equationalapplications/clanker/commit/6160100c4044dd215a15a1dad3d1c22564ef2b47))
-* **generateReply:** restore error handling and enhance test coverage ([a4eca1b](https://github.com/equationalapplications/clanker/commit/a4eca1be33fa2b7b161889d6bbb8aeb14f9acfc9))
-* **image:** address PR 266 review feedback ([d1cf488](https://github.com/equationalapplications/clanker/commit/d1cf4883305167a35478f672bb6ea68ea016ef1f))
-* **images:** persist MIME type and fix throttle memory leak ([47c0c9b](https://github.com/equationalapplications/clanker/commit/47c0c9b13c5c6dccc0fc570dc5e68c0d32ca611b))
-
+- **functions:** harden generateReply credit-spend parsing ([902fa67](https://github.com/equationalapplications/clanker/commit/902fa67abbe100b240b4423a892f6ec665de59bd))
+- **generateImage:** evict stale throttle buckets to prevent memory leak ([6160100](https://github.com/equationalapplications/clanker/commit/6160100c4044dd215a15a1dad3d1c22564ef2b47))
+- **generateReply:** restore error handling and enhance test coverage ([a4eca1b](https://github.com/equationalapplications/clanker/commit/a4eca1be33fa2b7b161889d6bbb8aeb14f9acfc9))
+- **image:** address PR 266 review feedback ([d1cf488](https://github.com/equationalapplications/clanker/commit/d1cf4883305167a35478f672bb6ea68ea016ef1f))
+- **images:** persist MIME type and fix throttle memory leak ([47c0c9b](https://github.com/equationalapplications/clanker/commit/47c0c9b13c5c6dccc0fc570dc5e68c0d32ca611b))
 
 ### Features
 
-* **image:** move image generation to secure callable ([4d4a3eb](https://github.com/equationalapplications/clanker/commit/4d4a3ebcdd425992e386463b8c13da6e4018ac46))
+- **image:** move image generation to secure callable ([4d4a3eb](https://github.com/equationalapplications/clanker/commit/4d4a3ebcdd425992e386463b8c13da6e4018ac46))
 
 # [27.0.0](https://github.com/equationalapplications/clanker/compare/v26.2.2...v27.0.0) (2026-04-16)
 
-
 ### Bug Fixes
 
-* **chat:** bound prompt size and align function docs ([c6a5379](https://github.com/equationalapplications/clanker/commit/c6a5379840a7deb7a7572a95bcc6ba45b09b594f))
-* **config:** remove obsolete purchases ios build flag ([6cf2b2d](https://github.com/equationalapplications/clanker/commit/6cf2b2dbc186bed58f7286a079c9eebc540f494e))
-* **deps:** remove duplicate package entry ([f575c8f](https://github.com/equationalapplications/clanker/commit/f575c8f25c47509b7c3521e17f56b8ca433b3dd9))
-* **functions:** harden generateReply review follow-ups ([4a2ea61](https://github.com/equationalapplications/clanker/commit/4a2ea613bf50aa187ec041e9b6897fc3b55ec447))
-* **functions:** resolve TypeScript errors in generateReply ([5e66a6d](https://github.com/equationalapplications/clanker/commit/5e66a6d6ad474b658a0e4df84b1fd123ba6667f8))
-* **purchases:** disable monthly_50 RevenueCat wiring ([62e71ad](https://github.com/equationalapplications/clanker/commit/62e71addf71fd161cf305b124fb1d042c43d8bc1))
-* **test:** add expo-modules-core for jest-expo in CI ([af847bc](https://github.com/equationalapplications/clanker/commit/af847bc499451e7c4297ce6497776b75725b1bae))
-* **test:** resolve Jest setup issues with expo-sqlite and jest-expo polyfills ([d80d537](https://github.com/equationalapplications/clanker/commit/d80d537011ca7f519bc6828699ea376519ace9e6))
-
+- **chat:** bound prompt size and align function docs ([c6a5379](https://github.com/equationalapplications/clanker/commit/c6a5379840a7deb7a7572a95bcc6ba45b09b594f))
+- **config:** remove obsolete purchases ios build flag ([6cf2b2d](https://github.com/equationalapplications/clanker/commit/6cf2b2dbc186bed58f7286a079c9eebc540f494e))
+- **deps:** remove duplicate package entry ([f575c8f](https://github.com/equationalapplications/clanker/commit/f575c8f25c47509b7c3521e17f56b8ca433b3dd9))
+- **functions:** harden generateReply review follow-ups ([4a2ea61](https://github.com/equationalapplications/clanker/commit/4a2ea613bf50aa187ec041e9b6897fc3b55ec447))
+- **functions:** resolve TypeScript errors in generateReply ([5e66a6d](https://github.com/equationalapplications/clanker/commit/5e66a6d6ad474b658a0e4df84b1fd123ba6667f8))
+- **purchases:** disable monthly_50 RevenueCat wiring ([62e71ad](https://github.com/equationalapplications/clanker/commit/62e71addf71fd161cf305b124fb1d042c43d8bc1))
+- **test:** add expo-modules-core for jest-expo in CI ([af847bc](https://github.com/equationalapplications/clanker/commit/af847bc499451e7c4297ce6497776b75725b1bae))
+- **test:** resolve Jest setup issues with expo-sqlite and jest-expo polyfills ([d80d537](https://github.com/equationalapplications/clanker/commit/d80d537011ca7f519bc6828699ea376519ace9e6))
 
 ### Features
 
-* **chat:** move AI reply generation to secure cloud callable ([733213e](https://github.com/equationalapplications/clanker/commit/733213e28e5e483d921eaf09c0a0cd24f3d48225))
-* **deps:** update dependency versions ([106e4ae](https://github.com/equationalapplications/clanker/commit/106e4aea9dba054bb2744dfa90822d47bcf859df))
-
+- **chat:** move AI reply generation to secure cloud callable ([733213e](https://github.com/equationalapplications/clanker/commit/733213e28e5e483d921eaf09c0a0cd24f3d48225))
+- **deps:** update dependency versions ([106e4ae](https://github.com/equationalapplications/clanker/commit/106e4aea9dba054bb2744dfa90822d47bcf859df))
 
 ### BREAKING CHANGES
 
-* **deps:** react-native-purchases major version update from 9 to 10
+- **deps:** react-native-purchases major version update from 9 to 10
 
 ## [26.2.2](https://github.com/equationalapplications/clanker/compare/v26.2.1...v26.2.2) (2026-04-13)
 
-
 ### Bug Fixes
 
-* **purchases:** skip session refresh when RevenueCat purchase cancelled ([3f8f827](https://github.com/equationalapplications/clanker/commit/3f8f827b1dd07430343b67a7de859f55f3d0e725)), closes [#257](https://github.com/equationalapplications/clanker/issues/257)
+- **purchases:** skip session refresh when RevenueCat purchase cancelled ([3f8f827](https://github.com/equationalapplications/clanker/commit/3f8f827b1dd07430343b67a7de859f55f3d0e725)), closes [#257](https://github.com/equationalapplications/clanker/issues/257)
 
 ## [26.2.1](https://github.com/equationalapplications/clanker/compare/v26.2.0...v26.2.1) (2026-04-13)
 
-
 ### Bug Fixes
 
-* **functions:** secure exchangeToken error handling and config validation ([b56a4e5](https://github.com/equationalapplications/clanker/commit/b56a4e50773c8d66bd95595b7545b99ab046a31d))
-* **functions:** update engines.node to >=22.14 to match bridge dependency requirement ([5b6b144](https://github.com/equationalapplications/clanker/commit/5b6b1443f74d43ca4f557f40988e0211736c04c1))
+- **functions:** secure exchangeToken error handling and config validation ([b56a4e5](https://github.com/equationalapplications/clanker/commit/b56a4e50773c8d66bd95595b7545b99ab046a31d))
+- **functions:** update engines.node to >=22.14 to match bridge dependency requirement ([5b6b144](https://github.com/equationalapplications/clanker/commit/5b6b1443f74d43ca4f557f40988e0211736c04c1))
 
 # [26.2.0](https://github.com/equationalapplications/clanker/compare/v26.1.3...v26.2.0) (2026-04-12)
 
-
 ### Bug Fixes
 
-* address Copilot PR review comments ([cb10542](https://github.com/equationalapplications/clanker/commit/cb10542e48f98650aabac5a1ee1c4a7ea36fbe79))
-* **auth,exchange:** prevent SIGN_OUT reentrancy and remove rate-limit PII ([f057ec4](https://github.com/equationalapplications/clanker/commit/f057ec4b231fe23fa2d47405f52c64dbd537e867))
-* **auth:** allow sign-out during initial signin ([fb330e9](https://github.com/equationalapplications/clanker/commit/fb330e979f88a46ba54d5f18b91698e245a70223))
-* **exchangeToken:** clear rate-limit on transient failure ([6343bfd](https://github.com/equationalapplications/clanker/commit/6343bfdf5dedd699af8b0df09491e2216d4a9cb1)), closes [#251](https://github.com/equationalapplications/clanker/issues/251)
-* **functions:** finalize exchange-token review updates ([f493f4f](https://github.com/equationalapplications/clanker/commit/f493f4fce4fb4e0077a4b9f5aa4210a068a3a503))
-* **functions:** harden exchangeToken flow ([ae14677](https://github.com/equationalapplications/clanker/commit/ae14677bfc25061d59b41d8c5fa93edd409ea42f))
-* **functions:** harden exchangeToken rate limiting ([cbe7119](https://github.com/equationalapplications/clanker/commit/cbe71196ef2ac414f9503765eecdce550f1857a7))
-* **test:** restore firestore descriptor properly ([4063267](https://github.com/equationalapplications/clanker/commit/40632673039e9d394bc18f49e639cbc2d853a0a0))
-
+- address Copilot PR review comments ([cb10542](https://github.com/equationalapplications/clanker/commit/cb10542e48f98650aabac5a1ee1c4a7ea36fbe79))
+- **auth,exchange:** prevent SIGN_OUT reentrancy and remove rate-limit PII ([f057ec4](https://github.com/equationalapplications/clanker/commit/f057ec4b231fe23fa2d47405f52c64dbd537e867))
+- **auth:** allow sign-out during initial signin ([fb330e9](https://github.com/equationalapplications/clanker/commit/fb330e979f88a46ba54d5f18b91698e245a70223))
+- **exchangeToken:** clear rate-limit on transient failure ([6343bfd](https://github.com/equationalapplications/clanker/commit/6343bfdf5dedd699af8b0df09491e2216d4a9cb1)), closes [#251](https://github.com/equationalapplications/clanker/issues/251)
+- **functions:** finalize exchange-token review updates ([f493f4f](https://github.com/equationalapplications/clanker/commit/f493f4fce4fb4e0077a4b9f5aa4210a068a3a503))
+- **functions:** harden exchangeToken flow ([ae14677](https://github.com/equationalapplications/clanker/commit/ae14677bfc25061d59b41d8c5fa93edd409ea42f))
+- **functions:** harden exchangeToken rate limiting ([cbe7119](https://github.com/equationalapplications/clanker/commit/cbe71196ef2ac414f9503765eecdce550f1857a7))
+- **test:** restore firestore descriptor properly ([4063267](https://github.com/equationalapplications/clanker/commit/40632673039e9d394bc18f49e639cbc2d853a0a0))
 
 ### Features
 
-* **deletion:** hard-delete accounts, add self-service deletion ([6d3083a](https://github.com/equationalapplications/clanker/commit/6d3083aedcb8f5c2cf32e42a7de810601d013c91))
+- **deletion:** hard-delete accounts, add self-service deletion ([6d3083a](https://github.com/equationalapplications/clanker/commit/6d3083aedcb8f5c2cf32e42a7de810601d013c91))
 
 ## [26.1.3](https://github.com/equationalapplications/clanker/compare/v26.1.2...v26.1.3) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **tsconfig:** document skipLibCheck requirement for Supabase SDK ([82146a1](https://github.com/equationalapplications/clanker/commit/82146a1ad4cda6f133d10808142daebdf108a233))
-
+- **tsconfig:** document skipLibCheck requirement for Supabase SDK ([82146a1](https://github.com/equationalapplications/clanker/commit/82146a1ad4cda6f133d10808142daebdf108a233))
 
 ### Performance Improvements
 
-* memoize Supabase admin client as module-level singleton ([d3f02d5](https://github.com/equationalapplications/clanker/commit/d3f02d5e646897c9fa6a479ee296b8a2497259f7))
+- memoize Supabase admin client as module-level singleton ([d3f02d5](https://github.com/equationalapplications/clanker/commit/d3f02d5e646897c9fa6a479ee296b8a2497259f7))
 
 ## [26.1.2](https://github.com/equationalapplications/clanker/compare/v26.1.1...v26.1.2) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **auth:** handle soft-deleted Supabase users and implement optimistic terms acceptance ([d3d9f1d](https://github.com/equationalapplications/clanker/commit/d3d9f1dc51950efa4f26ab228cd873376293e1f1))
+- **auth:** handle soft-deleted Supabase users and implement optimistic terms acceptance ([d3d9f1d](https://github.com/equationalapplications/clanker/commit/d3d9f1dc51950efa4f26ab228cd873376293e1f1))
 
 ## [26.1.1](https://github.com/equationalapplications/clanker/compare/v26.1.0...v26.1.1) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **credits:** make terms acceptance atomic and gate free-tier provisioning ([f585bd1](https://github.com/equationalapplications/clanker/commit/f585bd124f530a0d61118fec04ab739837243d4b))
-* **credits:** separate terms acceptance from credit provisioning ([f11dcc8](https://github.com/equationalapplications/clanker/commit/f11dcc8860698ec9a49ca7ee1f8e2bef3cd5a622))
-* **credits:** simplify exchange token provisioning and fix docs ([b0325a4](https://github.com/equationalapplications/clanker/commit/b0325a4b861f3516effac2c58700bcf4dee6f45b))
-* **subscribe:** refine iOS legal copy grammar ([042a00f](https://github.com/equationalapplications/clanker/commit/042a00f1749c53a2ed473185933ec9e42dc962fe))
+- **credits:** make terms acceptance atomic and gate free-tier provisioning ([f585bd1](https://github.com/equationalapplications/clanker/commit/f585bd124f530a0d61118fec04ab739837243d4b))
+- **credits:** separate terms acceptance from credit provisioning ([f11dcc8](https://github.com/equationalapplications/clanker/commit/f11dcc8860698ec9a49ca7ee1f8e2bef3cd5a622))
+- **credits:** simplify exchange token provisioning and fix docs ([b0325a4](https://github.com/equationalapplications/clanker/commit/b0325a4b861f3516effac2c58700bcf4dee6f45b))
+- **subscribe:** refine iOS legal copy grammar ([042a00f](https://github.com/equationalapplications/clanker/commit/042a00f1749c53a2ed473185933ec9e42dc962fe))
 
 # [26.1.0](https://github.com/equationalapplications/clanker/compare/v26.0.3...v26.1.0) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **accept-terms:** resolve terms/privacy navigation on web ([d8bcb67](https://github.com/equationalapplications/clanker/commit/d8bcb67c0fa61a3e3e0a7ad9848d848dc01a4fe9))
-* **consent:** scope Apple copy to iOS and inline EULA terms ([e11b35e](https://github.com/equationalapplications/clanker/commit/e11b35e43cd2501bc9968eba80fbaf54296ee1af))
-* **copy:** clarify Apple's App Store terms wording in acceptance notice ([50f7e54](https://github.com/equationalapplications/clanker/commit/50f7e5472f94ff20a152654a55a75345abf90303))
-* **lint:** escape apostrophe in JSX text ([3e787d2](https://github.com/equationalapplications/clanker/commit/3e787d247e2b9b400edece4936e30bbea7982462))
-* **nav:** dismiss drawer context before navigating to terms/privacy from accept screen ([ffe3b59](https://github.com/equationalapplications/clanker/commit/ffe3b59c61aa752a6458af53faaa5d1f1050a2e3))
-* remove unused styles and fix terms gate alignment ([1a87c92](https://github.com/equationalapplications/clanker/commit/1a87c92de14352dbdb55ea6b40b20d6a145afa28))
-* **terms:** further shorten iOS legal summary copy ([01567b0](https://github.com/equationalapplications/clanker/commit/01567b0985fc3f50891c64110e13f0b830ffaf55))
-* **terms:** shorten iOS Apple legal summary copy ([18844a1](https://github.com/equationalapplications/clanker/commit/18844a110c4cf3d572011d55928683892272c712))
-
+- **accept-terms:** resolve terms/privacy navigation on web ([d8bcb67](https://github.com/equationalapplications/clanker/commit/d8bcb67c0fa61a3e3e0a7ad9848d848dc01a4fe9))
+- **consent:** scope Apple copy to iOS and inline EULA terms ([e11b35e](https://github.com/equationalapplications/clanker/commit/e11b35e43cd2501bc9968eba80fbaf54296ee1af))
+- **copy:** clarify Apple's App Store terms wording in acceptance notice ([50f7e54](https://github.com/equationalapplications/clanker/commit/50f7e5472f94ff20a152654a55a75345abf90303))
+- **lint:** escape apostrophe in JSX text ([3e787d2](https://github.com/equationalapplications/clanker/commit/3e787d247e2b9b400edece4936e30bbea7982462))
+- **nav:** dismiss drawer context before navigating to terms/privacy from accept screen ([ffe3b59](https://github.com/equationalapplications/clanker/commit/ffe3b59c61aa752a6458af53faaa5d1f1050a2e3))
+- remove unused styles and fix terms gate alignment ([1a87c92](https://github.com/equationalapplications/clanker/commit/1a87c92de14352dbdb55ea6b40b20d6a145afa28))
+- **terms:** further shorten iOS legal summary copy ([01567b0](https://github.com/equationalapplications/clanker/commit/01567b0985fc3f50891c64110e13f0b830ffaf55))
+- **terms:** shorten iOS Apple legal summary copy ([18844a1](https://github.com/equationalapplications/clanker/commit/18844a110c4cf3d572011d55928683892272c712))
 
 ### Features
 
-* **nav:** add icon-back navigation to legal pages with dark mode support ([83f53b6](https://github.com/equationalapplications/clanker/commit/83f53b60a7b1947c75038223b898924d7f2f40af))
-* **subscriptions:** add Apple auto-renewable subscription consent compliance ([ad0d170](https://github.com/equationalapplications/clanker/commit/ad0d1703eb6218c963cad14429d33ab353d650b5))
+- **nav:** add icon-back navigation to legal pages with dark mode support ([83f53b6](https://github.com/equationalapplications/clanker/commit/83f53b60a7b1947c75038223b898924d7f2f40af))
+- **subscriptions:** add Apple auto-renewable subscription consent compliance ([ad0d170](https://github.com/equationalapplications/clanker/commit/ad0d1703eb6218c963cad14429d33ab353d650b5))
 
 ## [26.0.3](https://github.com/equationalapplications/clanker/compare/v26.0.2...v26.0.3) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **babel:** fix plugin ordering to prevent hermes bytecode corruption ([7d0b1ff](https://github.com/equationalapplications/clanker/commit/7d0b1ff6dc125d31d9e72ee37d3db6b54810cd6f))
+- **babel:** fix plugin ordering to prevent hermes bytecode corruption ([7d0b1ff](https://github.com/equationalapplications/clanker/commit/7d0b1ff6dc125d31d9e72ee37d3db6b54810cd6f))
 
 ## [26.0.2](https://github.com/equationalapplications/clanker/compare/v26.0.1...v26.0.2) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **hooks:** stabilize useCurrentPlan selectors and add regression tests ([b6f38a9](https://github.com/equationalapplications/clanker/commit/b6f38a91cd14f96d2b5f8ed11343f7e661de4ce5))
+- **hooks:** stabilize useCurrentPlan selectors and add regression tests ([b6f38a9](https://github.com/equationalapplications/clanker/commit/b6f38a91cd14f96d2b5f8ed11343f7e661de4ce5))
 
 ## [26.0.1](https://github.com/equationalapplications/clanker/compare/v26.0.0...v26.0.1) (2026-04-11)
 
-
 ### Bug Fixes
 
-* **build:** resolve package build error in v26.0.0 ([3f0fa4f](https://github.com/equationalapplications/clanker/commit/3f0fa4fcd882023d934543c07b613e3b8707c973))
+- **build:** resolve package build error in v26.0.0 ([3f0fa4f](https://github.com/equationalapplications/clanker/commit/3f0fa4fcd882023d934543c07b613e3b8707c973))
 
 # [26.0.0](https://github.com/equationalapplications/clanker/compare/v25.8.3...v26.0.0) (2026-04-11)
 
-
 ### Bug Fixes
 
-* address PR feedback and resolve TypeScript compatibility ([c473caa](https://github.com/equationalapplications/clanker/commit/c473caaa1288ad1def38238de18dd8e2c533f2ec))
-* **deps:** update react-native-worklets to 0.7.4 to hoist expo-modules-core ([a807ea1](https://github.com/equationalapplications/clanker/commit/a807ea11b3e621c8214322a99f2bfaa1736ae7ec))
-* **nav:** display 'Back' label instead of '(drawer)' on Support screen ([8175135](https://github.com/equationalapplications/clanker/commit/8175135871c22c220ae6f0a41fff07fc52bff53a))
-* **subscribe:** restore monthly button spacing ([32247c7](https://github.com/equationalapplications/clanker/commit/32247c7e32ea617b07ca0588d65b57fcc3f96402))
-
+- address PR feedback and resolve TypeScript compatibility ([c473caa](https://github.com/equationalapplications/clanker/commit/c473caaa1288ad1def38238de18dd8e2c533f2ec))
+- **deps:** update react-native-worklets to 0.7.4 to hoist expo-modules-core ([a807ea1](https://github.com/equationalapplications/clanker/commit/a807ea11b3e621c8214322a99f2bfaa1736ae7ec))
+- **nav:** display 'Back' label instead of '(drawer)' on Support screen ([8175135](https://github.com/equationalapplications/clanker/commit/8175135871c22c220ae6f0a41fff07fc52bff53a))
+- **subscribe:** restore monthly button spacing ([32247c7](https://github.com/equationalapplications/clanker/commit/32247c7e32ea617b07ca0588d65b57fcc3f96402))
 
 ### Features
 
-* **splash:** add dark mode background support ([a7e21a7](https://github.com/equationalapplications/clanker/commit/a7e21a726dbfbb92da784610f21a1efe16319836))
-
+- **splash:** add dark mode background support ([a7e21a7](https://github.com/equationalapplications/clanker/commit/a7e21a726dbfbb92da784610f21a1efe16319836))
 
 ### BREAKING CHANGES
 
-* **splash:** Expo package updates require a native app build
+- **splash:** Expo package updates require a native app build
 
 ## [25.8.3](https://github.com/equationalapplications/clanker/compare/v25.8.2...v25.8.3) (2026-04-10)
 
-
 ### Bug Fixes
 
-* **database:** require both migration indicators before short-circuiting schema init ([3785d74](https://github.com/equationalapplications/clanker/commit/3785d742269098cf8dc7dd7378ca92bdacba586b))
-* **subscribe:** adjust button spacing for consistent gaps ([34dd5c7](https://github.com/equationalapplications/clanker/commit/34dd5c7c29e5f54dac41bdd2dc5c1e2b6532af08))
-* **terms:** improve checkbox visibility in dark mode and update contact email ([bd0a307](https://github.com/equationalapplications/clanker/commit/bd0a307c89e27a8ce6d092bad4ff31d6e0114cf8))
+- **database:** require both migration indicators before short-circuiting schema init ([3785d74](https://github.com/equationalapplications/clanker/commit/3785d742269098cf8dc7dd7378ca92bdacba586b))
+- **subscribe:** adjust button spacing for consistent gaps ([34dd5c7](https://github.com/equationalapplications/clanker/commit/34dd5c7c29e5f54dac41bdd2dc5c1e2b6532af08))
+- **terms:** improve checkbox visibility in dark mode and update contact email ([bd0a307](https://github.com/equationalapplications/clanker/commit/bd0a307c89e27a8ce6d092bad4ff31d6e0114cf8))
 
 ## [25.8.2](https://github.com/equationalapplications/clanker/compare/v25.8.1...v25.8.2) (2026-04-10)
 
-
 ### Bug Fixes
 
-* **database:** prevent concurrent initialization race on iOS and harden migrations ([84bd21d](https://github.com/equationalapplications/clanker/commit/84bd21ddf683b8653bda625fcf2aaa0896d66fe2))
-* **database:** remove manual transaction wrapper from init ([3c1a394](https://github.com/equationalapplications/clanker/commit/3c1a394dae9990fe44631c995c01d61d42917542))
-* **navigation:** prevent route names leaking into headers and hide back button on chat ([81116ea](https://github.com/equationalapplications/clanker/commit/81116ea73e370bdaf4cf839b122431f62441f26e))
-* **revenuecat:** add direct product fallback for consumables ([2a456b1](https://github.com/equationalapplications/clanker/commit/2a456b1d27b5f543f16fe1e497b51cd6d9230e7c))
+- **database:** prevent concurrent initialization race on iOS and harden migrations ([84bd21d](https://github.com/equationalapplications/clanker/commit/84bd21ddf683b8653bda625fcf2aaa0896d66fe2))
+- **database:** remove manual transaction wrapper from init ([3c1a394](https://github.com/equationalapplications/clanker/commit/3c1a394dae9990fe44631c995c01d61d42917542))
+- **navigation:** prevent route names leaking into headers and hide back button on chat ([81116ea](https://github.com/equationalapplications/clanker/commit/81116ea73e370bdaf4cf839b122431f62441f26e))
+- **revenuecat:** add direct product fallback for consumables ([2a456b1](https://github.com/equationalapplications/clanker/commit/2a456b1d27b5f543f16fe1e497b51cd6d9230e7c))
 
 ## [25.8.1](https://github.com/equationalapplications/clanker/compare/v25.8.0...v25.8.1) (2026-04-10)
 
-
 ### Bug Fixes
 
-* **functions:** avoid global auth and stdio test stubs ([852a5e1](https://github.com/equationalapplications/clanker/commit/852a5e1e4b4e0df7f7487d8b65752984eaf2edf7))
-* **payments:** derive Stripe mode from price type and add purchase tests ([29f0d9f](https://github.com/equationalapplications/clanker/commit/29f0d9f378c588f7697da556e929464a59c0989c))
-* **profile:** prevent native crashes from concurrent session reads ([e0158af](https://github.com/equationalapplications/clanker/commit/e0158afd8158b576430cf99bd3c31d81b663bf36))
-* **subscribe:** remove duplicate header and add legal links ([330e597](https://github.com/equationalapplications/clanker/commit/330e597b168a7144b077e8ade85a1ff5d20a2bbe))
+- **functions:** avoid global auth and stdio test stubs ([852a5e1](https://github.com/equationalapplications/clanker/commit/852a5e1e4b4e0df7f7487d8b65752984eaf2edf7))
+- **payments:** derive Stripe mode from price type and add purchase tests ([29f0d9f](https://github.com/equationalapplications/clanker/commit/29f0d9f378c588f7697da556e929464a59c0989c))
+- **profile:** prevent native crashes from concurrent session reads ([e0158af](https://github.com/equationalapplications/clanker/commit/e0158afd8158b576430cf99bd3c31d81b663bf36))
+- **subscribe:** remove duplicate header and add legal links ([330e597](https://github.com/equationalapplications/clanker/commit/330e597b168a7144b077e8ade85a1ff5d20a2bbe))
 
 # [25.8.0](https://github.com/equationalapplications/clanker/compare/v25.7.0...v25.8.0) (2026-04-09)
 
-
 ### Bug Fixes
 
-* **auth:** guard Apple name string fallback ([4519cb5](https://github.com/equationalapplications/clanker/commit/4519cb5d6cba63328a6da692e4272836604e70a4))
-* **auth:** hide Apple sign-in on Android ([3948e56](https://github.com/equationalapplications/clanker/commit/3948e56e44d3b7ae867229bf62db8bbf13976c89))
-* **auth:** hide Apple sign-in on Android ([42a754e](https://github.com/equationalapplications/clanker/commit/42a754ebad3fba6ba2ba41b80851811d47970596))
-* **ci:** allow hotfix branches for production release validation ([386c419](https://github.com/equationalapplications/clanker/commit/386c419d84bed9f4ab43ca5a977484bf9a182ab4))
-
+- **auth:** guard Apple name string fallback ([4519cb5](https://github.com/equationalapplications/clanker/commit/4519cb5d6cba63328a6da692e4272836604e70a4))
+- **auth:** hide Apple sign-in on Android ([3948e56](https://github.com/equationalapplications/clanker/commit/3948e56e44d3b7ae867229bf62db8bbf13976c89))
+- **auth:** hide Apple sign-in on Android ([42a754e](https://github.com/equationalapplications/clanker/commit/42a754ebad3fba6ba2ba41b80851811d47970596))
+- **ci:** allow hotfix branches for production release validation ([386c419](https://github.com/equationalapplications/clanker/commit/386c419d84bed9f4ab43ca5a977484bf9a182ab4))
 
 ### Features
 
-* **auth:** capture provider names and make Apple sign-in cross-platform ([c237c4b](https://github.com/equationalapplications/clanker/commit/c237c4b6e509a63033061672a060997c14708781))
-* **auth:** capture provider names and make Apple sign-in cross-platform ([a0f7453](https://github.com/equationalapplications/clanker/commit/a0f7453ca2690f0bc01e3c3ce407d9f815824f5f))
-* **support:** add public support page for App Store compliance ([47c9c26](https://github.com/equationalapplications/clanker/commit/47c9c2623edfd017ca0341570a6ccf878344e8b3))
+- **auth:** capture provider names and make Apple sign-in cross-platform ([c237c4b](https://github.com/equationalapplications/clanker/commit/c237c4b6e509a63033061672a060997c14708781))
+- **auth:** capture provider names and make Apple sign-in cross-platform ([a0f7453](https://github.com/equationalapplications/clanker/commit/a0f7453ca2690f0bc01e3c3ce407d9f815824f5f))
+- **support:** add public support page for App Store compliance ([47c9c26](https://github.com/equationalapplications/clanker/commit/47c9c2623edfd017ca0341570a6ccf878344e8b3))
 
 # [25.7.0](https://github.com/equationalapplications/clanker/compare/v25.6.1...v25.7.0) (2026-04-09)
 
-
 ### Features
 
-* **support:** add public support page for App Store compliance ([fb57ef1](https://github.com/equationalapplications/clanker/commit/fb57ef1e4414b9d37cb5b561dbb5a901e2b6e441))
+- **support:** add public support page for App Store compliance ([fb57ef1](https://github.com/equationalapplications/clanker/commit/fb57ef1e4414b9d37cb5b561dbb5a901e2b6e441))
 
 ## [25.6.1](https://github.com/equationalapplications/clanker/compare/v25.6.0...v25.6.1) (2026-04-09)
 
-
 ### Bug Fixes
 
-* **avatar:** make default avatar loading best-effort in character creation ([7506251](https://github.com/equationalapplications/clanker/commit/7506251dfdf4bfb77db9756e0b28e63be7a75b2d))
+- **avatar:** make default avatar loading best-effort in character creation ([7506251](https://github.com/equationalapplications/clanker/commit/7506251dfdf4bfb77db9756e0b28e63be7a75b2d))
 
 # [25.6.0](https://github.com/equationalapplications/clanker/compare/v25.5.1...v25.6.0) (2026-04-09)
 
-
 ### Bug Fixes
 
-* **avatar:** correct service docs and test mock contract ([830420c](https://github.com/equationalapplications/clanker/commit/830420c46af249d14886b0654afc8c06cffc3808))
-* **avatar:** lazy load and assign directly without fallback ([cc491b0](https://github.com/equationalapplications/clanker/commit/cc491b0fa081f86dfd9e225d6fd81639fcd67175))
-* **characters:** embed default avatar as base64 to remove expo dependencies ([bf9d2f6](https://github.com/equationalapplications/clanker/commit/bf9d2f664d815f2cb754ddf53de46407e6b138e8))
-* **characters:** normalize default avatar data and trim whitespace ([7bd2f59](https://github.com/equationalapplications/clanker/commit/7bd2f59ad1146a274689b2235e6cdabb4bdb20e2))
-* **characters:** resolve avatar loader review feedback and test isolation ([0db82a1](https://github.com/equationalapplications/clanker/commit/0db82a17536f85548b05b8b67f4a66e79624191d))
-* **navigation:** prevent route-group name from leaking to drawer header ([45557f9](https://github.com/equationalapplications/clanker/commit/45557f9a4f1cdc9db0cc50bbd26b19d8fae9c582))
-* **navigation:** prevent route-group name from leaking to drawer header ([124fd92](https://github.com/equationalapplications/clanker/commit/124fd92855f7da483e7b7dbd366c0766f8d16bb2))
-* rename *.instructions.md to semantic-release.instructions.md ([5deb7ad](https://github.com/equationalapplications/clanker/commit/5deb7ada96b6f0fc519ee46b38785d17dbad79a4))
-* **sign-in:** improve spacing between auth buttons and legal links ([d39f4a0](https://github.com/equationalapplications/clanker/commit/d39f4a0d8b6ba7337e57c4ea3790f50649d7f7ad))
-* **sign-in:** improve spacing between auth buttons and legal links ([12b536a](https://github.com/equationalapplications/clanker/commit/12b536a1a2d2b981ee4c952b451806245888ce2a))
-
+- **avatar:** correct service docs and test mock contract ([830420c](https://github.com/equationalapplications/clanker/commit/830420c46af249d14886b0654afc8c06cffc3808))
+- **avatar:** lazy load and assign directly without fallback ([cc491b0](https://github.com/equationalapplications/clanker/commit/cc491b0fa081f86dfd9e225d6fd81639fcd67175))
+- **characters:** embed default avatar as base64 to remove expo dependencies ([bf9d2f6](https://github.com/equationalapplications/clanker/commit/bf9d2f664d815f2cb754ddf53de46407e6b138e8))
+- **characters:** normalize default avatar data and trim whitespace ([7bd2f59](https://github.com/equationalapplications/clanker/commit/7bd2f59ad1146a274689b2235e6cdabb4bdb20e2))
+- **characters:** resolve avatar loader review feedback and test isolation ([0db82a1](https://github.com/equationalapplications/clanker/commit/0db82a17536f85548b05b8b67f4a66e79624191d))
+- **navigation:** prevent route-group name from leaking to drawer header ([45557f9](https://github.com/equationalapplications/clanker/commit/45557f9a4f1cdc9db0cc50bbd26b19d8fae9c582))
+- **navigation:** prevent route-group name from leaking to drawer header ([124fd92](https://github.com/equationalapplications/clanker/commit/124fd92855f7da483e7b7dbd366c0766f8d16bb2))
+- rename *.instructions.md to semantic-release.instructions.md ([5deb7ad](https://github.com/equationalapplications/clanker/commit/5deb7ada96b6f0fc519ee46b38785d17dbad79a4))
+- **sign-in:** improve spacing between auth buttons and legal links ([d39f4a0](https://github.com/equationalapplications/clanker/commit/d39f4a0d8b6ba7337e57c4ea3790f50649d7f7ad))
+- **sign-in:** improve spacing between auth buttons and legal links ([12b536a](https://github.com/equationalapplications/clanker/commit/12b536a1a2d2b981ee4c952b451806245888ce2a))
 
 ### Features
 
-* **characters:** add default avatar to newly created characters ([e2183c2](https://github.com/equationalapplications/clanker/commit/e2183c27f3e44cfa95701f3b134eff6b93e976b6))
+- **characters:** add default avatar to newly created characters ([e2183c2](https://github.com/equationalapplications/clanker/commit/e2183c27f3e44cfa95701f3b134eff6b93e976b6))
 
 ## [25.5.1](https://github.com/equationalapplications/clanker/compare/v25.5.0...v25.5.1) (2026-04-09)
 
-
 ### Bug Fixes
 
-* **functions:** share Stripe secret key validation ([e9d9c16](https://github.com/equationalapplications/clanker/commit/e9d9c168d86849446f0eeaeac6618b1786acdf8a))
-* **terms:** clear stale error on acceptance check success ([c8703f1](https://github.com/equationalapplications/clanker/commit/c8703f16a790f447c28ab262293378a368f28b1d))
-* **terms:** harden gating and add machine tests ([404473e](https://github.com/equationalapplications/clanker/commit/404473e9699981096557746a2b3151e6fb11dc2f))
-* **terms:** prevent redirect loop and add acceptance gate regressions ([7e7f7e8](https://github.com/equationalapplications/clanker/commit/7e7f7e82d9f77c79f7a4841b90782d52f04b492a))
+- **functions:** share Stripe secret key validation ([e9d9c16](https://github.com/equationalapplications/clanker/commit/e9d9c168d86849446f0eeaeac6618b1786acdf8a))
+- **terms:** clear stale error on acceptance check success ([c8703f1](https://github.com/equationalapplications/clanker/commit/c8703f16a790f447c28ab262293378a368f28b1d))
+- **terms:** harden gating and add machine tests ([404473e](https://github.com/equationalapplications/clanker/commit/404473e9699981096557746a2b3151e6fb11dc2f))
+- **terms:** prevent redirect loop and add acceptance gate regressions ([7e7f7e8](https://github.com/equationalapplications/clanker/commit/7e7f7e82d9f77c79f7a4841b90782d52f04b492a))
 
 # [25.5.0](https://github.com/equationalapplications/clanker/compare/v25.4.0...v25.5.0) (2026-04-09)
 
-
 ### Bug Fixes
 
-* **admin:** add explicit non-web platform gate for dashboard ([d5bccbc](https://github.com/equationalapplications/clanker/commit/d5bccbc46baff2fa88b9ac1ebdf2e5a11c1906c6))
-* **admin:** address review comments on error handling, test mocks, and docs ([36913fa](https://github.com/equationalapplications/clanker/commit/36913fa14906be3921ff327538f44178c59ed9b3))
-* **admin:** remove admin dashboard feature flag ([f0cd3ce](https://github.com/equationalapplications/clanker/commit/f0cd3ce73b88c54cdd1c47a02506ce426819b2ea))
-* **admin:** remove feature flag gate - dashboard is always enabled ([8d8d68d](https://github.com/equationalapplications/clanker/commit/8d8d68dfae5906e65c13ff39fdfd1849bdb27b97))
-* **admin:** restore dashboard feature flag and reduce duplicate delete errors ([a3f8041](https://github.com/equationalapplications/clanker/commit/a3f80414e47560b6802b98774e526030611d0da4))
-* **admin:** restore delete error severity and selected-row contrast ([ab4be5b](https://github.com/equationalapplications/clanker/commit/ab4be5bd0cf7747b52d09c004da920bad4190af7))
-* **admin:** tighten Supabase missing-table error detection ([d37194c](https://github.com/equationalapplications/clanker/commit/d37194cf4aae40edd030f53cc1d237856cfb2e87))
-* **admin:** validate tableName matches query path in deleteFromCanonicalTable ([b25c37e](https://github.com/equationalapplications/clanker/commit/b25c37ea04f29cc1f9315e11ef14338607a4a602))
-* **functions:** warn on non-string admin user filters ([f53284c](https://github.com/equationalapplications/clanker/commit/f53284cb2e81b522cc6c5f6f9ac9dc4f391b677b))
-* reduce sensitive data exposure in canonical table delete logs ([7b4b6fe](https://github.com/equationalapplications/clanker/commit/7b4b6fea1d3c8a27a03179a5f86a0c630f741f65))
-* update admin function tests to use correct table names (yours_brightly_*) ([7cd8263](https://github.com/equationalapplications/clanker/commit/7cd8263e739f4b2e93c2b29187850e19c8f9177a))
-
+- **admin:** add explicit non-web platform gate for dashboard ([d5bccbc](https://github.com/equationalapplications/clanker/commit/d5bccbc46baff2fa88b9ac1ebdf2e5a11c1906c6))
+- **admin:** address review comments on error handling, test mocks, and docs ([36913fa](https://github.com/equationalapplications/clanker/commit/36913fa14906be3921ff327538f44178c59ed9b3))
+- **admin:** remove admin dashboard feature flag ([f0cd3ce](https://github.com/equationalapplications/clanker/commit/f0cd3ce73b88c54cdd1c47a02506ce426819b2ea))
+- **admin:** remove feature flag gate - dashboard is always enabled ([8d8d68d](https://github.com/equationalapplications/clanker/commit/8d8d68dfae5906e65c13ff39fdfd1849bdb27b97))
+- **admin:** restore dashboard feature flag and reduce duplicate delete errors ([a3f8041](https://github.com/equationalapplications/clanker/commit/a3f80414e47560b6802b98774e526030611d0da4))
+- **admin:** restore delete error severity and selected-row contrast ([ab4be5b](https://github.com/equationalapplications/clanker/commit/ab4be5bd0cf7747b52d09c004da920bad4190af7))
+- **admin:** tighten Supabase missing-table error detection ([d37194c](https://github.com/equationalapplications/clanker/commit/d37194cf4aae40edd030f53cc1d237856cfb2e87))
+- **admin:** validate tableName matches query path in deleteFromCanonicalTable ([b25c37e](https://github.com/equationalapplications/clanker/commit/b25c37ea04f29cc1f9315e11ef14338607a4a602))
+- **functions:** warn on non-string admin user filters ([f53284c](https://github.com/equationalapplications/clanker/commit/f53284cb2e81b522cc6c5f6f9ac9dc4f391b677b))
+- reduce sensitive data exposure in canonical table delete logs ([7b4b6fe](https://github.com/equationalapplications/clanker/commit/7b4b6fea1d3c8a27a03179a5f86a0c630f741f65))
+- update admin function tests to use correct table names (yours_brightly_*) ([7cd8263](https://github.com/equationalapplications/clanker/commit/7cd8263e739f4b2e93c2b29187850e19c8f9177a))
 
 ### Features
 
-* **admin:** dark mode, contrast improvements, delete fix, update docs ([e4d9c73](https://github.com/equationalapplications/clanker/commit/e4d9c73e9eeea586f887b183dc6223be82905e54))
+- **admin:** dark mode, contrast improvements, delete fix, update docs ([e4d9c73](https://github.com/equationalapplications/clanker/commit/e4d9c73e9eeea586f887b183dc6223be82905e54))
 
 # [25.4.0](https://github.com/equationalapplications/clanker/compare/v25.3.1...v25.4.0) (2026-04-08)
 
-
 ### Bug Fixes
 
-* **admin-dashboard:** clarify invalid filter behavior and validate renewal date format ([1a664cc](https://github.com/equationalapplications/clanker/commit/1a664cc82f80fd1d5e332399d592fc0abdc3b5f5))
-* **admin-dashboard:** correct renewalDate semantics and hook type contract ([6c56f25](https://github.com/equationalapplications/clanker/commit/6c56f257092ce2d0a3f7ee06270cb46920f2980d))
-* **admin:** address Copilot code review issues ([7d28c69](https://github.com/equationalapplications/clanker/commit/7d28c69bc484c0468dcf33afe7547d6465bdaf67))
-* **admin:** address Copilot PR review feedback ([dff3543](https://github.com/equationalapplications/clanker/commit/dff354328e9e1b8b9a21b606deb8a71337986801))
-* **admin:** address data integrity and UX issues in admin dashboard ([79ba1f9](https://github.com/equationalapplications/clanker/commit/79ba1f985eb2734f2f799bbb0bab47b07b251dc9))
-* **admin:** align subscription statuses with canonical backend values ([5f69e68](https://github.com/equationalapplications/clanker/commit/5f69e68b442706feec28b0c636f6a055eebaf6e8))
-* **admin:** distinguish renewal-date omit vs clear, validate clear-terms precondition ([3197731](https://github.com/equationalapplications/clanker/commit/3197731a8d2013dda4b86d183f2cd55e13e85bb8))
-* **admin:** harden input validation, query safety, and type coverage ([3c4105b](https://github.com/equationalapplications/clanker/commit/3c4105b3f8cb3bfc357c7c8bc0752e0744e0a79d))
-* **admin:** only include renewalDate in payload when admin provides input ([f0a1647](https://github.com/equationalapplications/clanker/commit/f0a1647457cbc48ec9ff3daf3bf7947420232e48))
-* **admin:** strict ISO date validation, remove redundant access query, normalize plan tier filter ([5a7ed5b](https://github.com/equationalapplications/clanker/commit/5a7ed5bf4d54e87354b2805ec7925a17589e172f))
-* **admin:** sync confirmation modal, validate credits bounds, resilient deletion, cache allowlists ([b88be82](https://github.com/equationalapplications/clanker/commit/b88be827d931f3367c5b1b64dd893d002437d91b))
-* **admin:** tighten confirmation validation and add admin claim management ([adcef8d](https://github.com/equationalapplications/clanker/commit/adcef8dd7091ee7ef205f4aa2d9512330351558d))
-* **app-check:** resolve promise instead of rejecting when recaptcha site key missing ([ac67b17](https://github.com/equationalapplications/clanker/commit/ac67b176c84c2d60e0e4dcac831c134b3464720b))
-* **functions:** use dynamic import in adminFunctions test to ensure env vars set first ([73c6be3](https://github.com/equationalapplications/clanker/commit/73c6be39154c14509b3bdc9dd9c4a6371a428c37))
-
+- **admin-dashboard:** clarify invalid filter behavior and validate renewal date format ([1a664cc](https://github.com/equationalapplications/clanker/commit/1a664cc82f80fd1d5e332399d592fc0abdc3b5f5))
+- **admin-dashboard:** correct renewalDate semantics and hook type contract ([6c56f25](https://github.com/equationalapplications/clanker/commit/6c56f257092ce2d0a3f7ee06270cb46920f2980d))
+- **admin:** address Copilot code review issues ([7d28c69](https://github.com/equationalapplications/clanker/commit/7d28c69bc484c0468dcf33afe7547d6465bdaf67))
+- **admin:** address Copilot PR review feedback ([dff3543](https://github.com/equationalapplications/clanker/commit/dff354328e9e1b8b9a21b606deb8a71337986801))
+- **admin:** address data integrity and UX issues in admin dashboard ([79ba1f9](https://github.com/equationalapplications/clanker/commit/79ba1f985eb2734f2f799bbb0bab47b07b251dc9))
+- **admin:** align subscription statuses with canonical backend values ([5f69e68](https://github.com/equationalapplications/clanker/commit/5f69e68b442706feec28b0c636f6a055eebaf6e8))
+- **admin:** distinguish renewal-date omit vs clear, validate clear-terms precondition ([3197731](https://github.com/equationalapplications/clanker/commit/3197731a8d2013dda4b86d183f2cd55e13e85bb8))
+- **admin:** harden input validation, query safety, and type coverage ([3c4105b](https://github.com/equationalapplications/clanker/commit/3c4105b3f8cb3bfc357c7c8bc0752e0744e0a79d))
+- **admin:** only include renewalDate in payload when admin provides input ([f0a1647](https://github.com/equationalapplications/clanker/commit/f0a1647457cbc48ec9ff3daf3bf7947420232e48))
+- **admin:** strict ISO date validation, remove redundant access query, normalize plan tier filter ([5a7ed5b](https://github.com/equationalapplications/clanker/commit/5a7ed5bf4d54e87354b2805ec7925a17589e172f))
+- **admin:** sync confirmation modal, validate credits bounds, resilient deletion, cache allowlists ([b88be82](https://github.com/equationalapplications/clanker/commit/b88be827d931f3367c5b1b64dd893d002437d91b))
+- **admin:** tighten confirmation validation and add admin claim management ([adcef8d](https://github.com/equationalapplications/clanker/commit/adcef8dd7091ee7ef205f4aa2d9512330351558d))
+- **app-check:** resolve promise instead of rejecting when recaptcha site key missing ([ac67b17](https://github.com/equationalapplications/clanker/commit/ac67b176c84c2d60e0e4dcac831c134b3464720b))
+- **functions:** use dynamic import in adminFunctions test to ensure env vars set first ([73c6be3](https://github.com/equationalapplications/clanker/commit/73c6be39154c14509b3bdc9dd9c4a6371a428c37))
 
 ### Features
 
-* **admin:** add server-side search, debounce, and pagination UX ([13a959e](https://github.com/equationalapplications/clanker/commit/13a959e9a74d4b4a99bb58a86482bac8dfd01798))
-* **admin:** implement admin dashboard with pagination and server-side search ([25806e3](https://github.com/equationalapplications/clanker/commit/25806e3ca03b399c403f1f2dcc7d44ddea797286))
-* **admin:** implement web-only admin dashboard with user management callables ([d1023e8](https://github.com/equationalapplications/clanker/commit/d1023e83cfac29167a778c6b314c13bb2acd09e4))
+- **admin:** add server-side search, debounce, and pagination UX ([13a959e](https://github.com/equationalapplications/clanker/commit/13a959e9a74d4b4a99bb58a86482bac8dfd01798))
+- **admin:** implement admin dashboard with pagination and server-side search ([25806e3](https://github.com/equationalapplications/clanker/commit/25806e3ca03b399c403f1f2dcc7d44ddea797286))
+- **admin:** implement web-only admin dashboard with user management callables ([d1023e8](https://github.com/equationalapplications/clanker/commit/d1023e83cfac29167a778c6b314c13bb2acd09e4))
 
 ## [25.3.1](https://github.com/equationalapplications/clanker/compare/v25.3.0...v25.3.1) (2026-04-08)
 
-
 ### Bug Fixes
 
-* **functions:** remove Stripe price lookup on checkout path ([2fb5ca5](https://github.com/equationalapplications/clanker/commit/2fb5ca5fae3604eaaa4a9b8fb5579f0b34701ca3))
-* **stripe-webhook:** normalize and validate STRIPE_SECRET_KEY before client creation ([6530163](https://github.com/equationalapplications/clanker/commit/65301630b47f71c7897cd932e7bd9bd37b4fc787))
-* **stripe:** fail fast on missing checkout URLs and invalid secret keys ([12f3c58](https://github.com/equationalapplications/clanker/commit/12f3c585f93d235ee54aff5276d007f8d53fa919))
+- **functions:** remove Stripe price lookup on checkout path ([2fb5ca5](https://github.com/equationalapplications/clanker/commit/2fb5ca5fae3604eaaa4a9b8fb5579f0b34701ca3))
+- **stripe-webhook:** normalize and validate STRIPE_SECRET_KEY before client creation ([6530163](https://github.com/equationalapplications/clanker/commit/65301630b47f71c7897cd932e7bd9bd37b4fc787))
+- **stripe:** fail fast on missing checkout URLs and invalid secret keys ([12f3c58](https://github.com/equationalapplications/clanker/commit/12f3c585f93d235ee54aff5276d007f8d53fa919))
 
 # [25.3.0](https://github.com/equationalapplications/clanker/compare/v25.2.1...v25.3.0) (2026-04-08)
 
-
 ### Bug Fixes
 
-* address PR review feedback on validation and error handling ([fd75e03](https://github.com/equationalapplications/clanker/commit/fd75e030cd8a0e832283966ffd6496a3bf492ef1))
-* apply copilot PR review security and correctness fixes ([7dc2e9b](https://github.com/equationalapplications/clanker/commit/7dc2e9b99058ad350142ae15350eb649d32dba83))
-* **auth:** unify Apple sign-in button styling across iOS and web ([7fa37bc](https://github.com/equationalapplications/clanker/commit/7fa37bca1ff146a04ae91633c26a05b459b876f9))
-* **build:** improve expo temp path errors and trim unused eas installs ([6a6eea3](https://github.com/equationalapplications/clanker/commit/6a6eea3fe0fbba5540f6421c17ab989d122f53f8))
-* **functions:** add explicit invoker: "public" to webhooks and callables ([5349be1](https://github.com/equationalapplications/clanker/commit/5349be17f4d9c558275093e64b9034375731d9cf))
-* **functions:** address PR review feedback ([e0a021e](https://github.com/equationalapplications/clanker/commit/e0a021eb51b98590f39d45d7551d7bd75dd6b8ff))
-* **functions:** avoid double-logging Supabase errors in findSupabaseUserByEmail ([39731b1](https://github.com/equationalapplications/clanker/commit/39731b1ccef2b38ba86586432475db773d87f3a3))
-* **functions:** bind secrets to cloud run functions for secure access ([7ce7d12](https://github.com/equationalapplications/clanker/commit/7ce7d12abced3b6afd19ffed5435e998105efd2c))
-* **functions:** configure typescript for gen 2 cloud run with node 22 esm ([9baa28b](https://github.com/equationalapplications/clanker/commit/9baa28bfd39e1ec90f8e49686c01293f99c3239a))
-* **functions:** declare missing secrets and enable webhook retries ([520bc60](https://github.com/equationalapplications/clanker/commit/520bc60bbb743df64ae1141a97d901f1302a31f3))
-* **functions:** distinguish user-not-found from transient errors in RevenueCat webhook ([0ddc236](https://github.com/equationalapplications/clanker/commit/0ddc236e9a4aaeda7b405e79ef10b27da2773090))
-* **functions:** harden auth checks, Stripe client init, and ESM lint rules ([1a944c9](https://github.com/equationalapplications/clanker/commit/1a944c9edf0aa9236749ad86c1a8d1cd6d36a0ba))
-* **functions:** harden webhook handling and cleanup ([dc48e4c](https://github.com/equationalapplications/clanker/commit/dc48e4c9ae513a8438af1aa2e7a885af26178040))
-* **functions:** implement fail-fast Stripe price ID validation ([0d23efa](https://github.com/equationalapplications/clanker/commit/0d23efa7e253eabfec37304c4a7e944325e8d2dd))
-* **functions:** improve webhook error handling and security ([758481a](https://github.com/equationalapplications/clanker/commit/758481acab7028ee8f6feb65aa87f9c29c0ca03a))
-* **functions:** secure webhook parsing and add focused unit tests ([1da13c0](https://github.com/equationalapplications/clanker/commit/1da13c00656db6182d43199d8f8dc98a22455c59))
-* **functions:** support iOS and Android credit-pack product IDs in RevenueCat webhook ([9894327](https://github.com/equationalapplications/clanker/commit/9894327ab79696e53e64c3841ba537e3b18f1c3f))
-* **functions:** type stripe webhook rawBody request ([c02afe3](https://github.com/equationalapplications/clanker/commit/c02afe3bcef79e3c69062e2bf9ecd1a6d914d462))
-* **functions:** use constant-time comparison for RevenueCat auth header ([6e7f8a9](https://github.com/equationalapplications/clanker/commit/6e7f8a935590fc306f3cfe63f5243f0577e9fef7))
-* **functions:** use unquoted glob in test script for proper discovery ([0a9ed1d](https://github.com/equationalapplications/clanker/commit/0a9ed1d78c78d5d54cd5519ebbb94cfe289aefd5))
-* **functions:** validate post-floor amounts, safely extract Stripe IDs, prevent error leakage ([39f2b19](https://github.com/equationalapplications/clanker/commit/39f2b19c0e8da508729b049529c0f4a9c82a63f6))
-* **functions:** validate spend amount and stripe signature header ([fadad40](https://github.com/equationalapplications/clanker/commit/fadad40e61fff68c92d320b22b6037f69f5303e6))
-* normalize code style and imports in functions ([2e63dee](https://github.com/equationalapplications/clanker/commit/2e63dee5164659c465163717a837eaa559e422d1))
-* **stripe-webhook:** use typed invoice helpers and improve error semantics ([e5d1ee0](https://github.com/equationalapplications/clanker/commit/e5d1ee0c516b4dc7d1e7c01c86c3f3dc042f42eb))
-
+- address PR review feedback on validation and error handling ([fd75e03](https://github.com/equationalapplications/clanker/commit/fd75e030cd8a0e832283966ffd6496a3bf492ef1))
+- apply copilot PR review security and correctness fixes ([7dc2e9b](https://github.com/equationalapplications/clanker/commit/7dc2e9b99058ad350142ae15350eb649d32dba83))
+- **auth:** unify Apple sign-in button styling across iOS and web ([7fa37bc](https://github.com/equationalapplications/clanker/commit/7fa37bca1ff146a04ae91633c26a05b459b876f9))
+- **build:** improve expo temp path errors and trim unused eas installs ([6a6eea3](https://github.com/equationalapplications/clanker/commit/6a6eea3fe0fbba5540f6421c17ab989d122f53f8))
+- **functions:** add explicit invoker: "public" to webhooks and callables ([5349be1](https://github.com/equationalapplications/clanker/commit/5349be17f4d9c558275093e64b9034375731d9cf))
+- **functions:** address PR review feedback ([e0a021e](https://github.com/equationalapplications/clanker/commit/e0a021eb51b98590f39d45d7551d7bd75dd6b8ff))
+- **functions:** avoid double-logging Supabase errors in findSupabaseUserByEmail ([39731b1](https://github.com/equationalapplications/clanker/commit/39731b1ccef2b38ba86586432475db773d87f3a3))
+- **functions:** bind secrets to cloud run functions for secure access ([7ce7d12](https://github.com/equationalapplications/clanker/commit/7ce7d12abced3b6afd19ffed5435e998105efd2c))
+- **functions:** configure typescript for gen 2 cloud run with node 22 esm ([9baa28b](https://github.com/equationalapplications/clanker/commit/9baa28bfd39e1ec90f8e49686c01293f99c3239a))
+- **functions:** declare missing secrets and enable webhook retries ([520bc60](https://github.com/equationalapplications/clanker/commit/520bc60bbb743df64ae1141a97d901f1302a31f3))
+- **functions:** distinguish user-not-found from transient errors in RevenueCat webhook ([0ddc236](https://github.com/equationalapplications/clanker/commit/0ddc236e9a4aaeda7b405e79ef10b27da2773090))
+- **functions:** harden auth checks, Stripe client init, and ESM lint rules ([1a944c9](https://github.com/equationalapplications/clanker/commit/1a944c9edf0aa9236749ad86c1a8d1cd6d36a0ba))
+- **functions:** harden webhook handling and cleanup ([dc48e4c](https://github.com/equationalapplications/clanker/commit/dc48e4c9ae513a8438af1aa2e7a885af26178040))
+- **functions:** implement fail-fast Stripe price ID validation ([0d23efa](https://github.com/equationalapplications/clanker/commit/0d23efa7e253eabfec37304c4a7e944325e8d2dd))
+- **functions:** improve webhook error handling and security ([758481a](https://github.com/equationalapplications/clanker/commit/758481acab7028ee8f6feb65aa87f9c29c0ca03a))
+- **functions:** secure webhook parsing and add focused unit tests ([1da13c0](https://github.com/equationalapplications/clanker/commit/1da13c00656db6182d43199d8f8dc98a22455c59))
+- **functions:** support iOS and Android credit-pack product IDs in RevenueCat webhook ([9894327](https://github.com/equationalapplications/clanker/commit/9894327ab79696e53e64c3841ba537e3b18f1c3f))
+- **functions:** type stripe webhook rawBody request ([c02afe3](https://github.com/equationalapplications/clanker/commit/c02afe3bcef79e3c69062e2bf9ecd1a6d914d462))
+- **functions:** use constant-time comparison for RevenueCat auth header ([6e7f8a9](https://github.com/equationalapplications/clanker/commit/6e7f8a935590fc306f3cfe63f5243f0577e9fef7))
+- **functions:** use unquoted glob in test script for proper discovery ([0a9ed1d](https://github.com/equationalapplications/clanker/commit/0a9ed1d78c78d5d54cd5519ebbb94cfe289aefd5))
+- **functions:** validate post-floor amounts, safely extract Stripe IDs, prevent error leakage ([39f2b19](https://github.com/equationalapplications/clanker/commit/39f2b19c0e8da508729b049529c0f4a9c82a63f6))
+- **functions:** validate spend amount and stripe signature header ([fadad40](https://github.com/equationalapplications/clanker/commit/fadad40e61fff68c92d320b22b6037f69f5303e6))
+- normalize code style and imports in functions ([2e63dee](https://github.com/equationalapplications/clanker/commit/2e63dee5164659c465163717a837eaa559e422d1))
+- **stripe-webhook:** use typed invoice helpers and improve error semantics ([e5d1ee0](https://github.com/equationalapplications/clanker/commit/e5d1ee0c516b4dc7d1e7c01c86c3f3dc042f42eb))
 
 ### Features
 
-* **firebase-functions:** move non-sensitive config to params/env instead of secrets ([5137007](https://github.com/equationalapplications/clanker/commit/5137007e58eb89fbe0d2c242ce19c7280ace8498))
-* **functions:** add shared supabase admin helpers ([516488a](https://github.com/equationalapplications/clanker/commit/516488a709b70a8a9d49f80c5c0e712a1eb19b35))
+- **firebase-functions:** move non-sensitive config to params/env instead of secrets ([5137007](https://github.com/equationalapplications/clanker/commit/5137007e58eb89fbe0d2c242ce19c7280ace8498))
+- **functions:** add shared supabase admin helpers ([516488a](https://github.com/equationalapplications/clanker/commit/516488a709b70a8a9d49f80c5c0e712a1eb19b35))
 
 ## [25.2.1](https://github.com/equationalapplications/clanker/compare/v25.2.0...v25.2.1) (2026-04-05)
 
-
 ### Bug Fixes
 
-* **build:** address Copilot PR review security feedback ([b2a0b6d](https://github.com/equationalapplications/clanker/commit/b2a0b6d49cde81884a3eee485e662abc4122aac5))
-* **build:** extract firebase config files dynamically to temp dir ([9e6a181](https://github.com/equationalapplications/clanker/commit/9e6a18156fe9e19625ee00dccbaefbbb1e00b480))
-* **config:** address second round of Copilot PR review feedback ([2ec0392](https://github.com/equationalapplications/clanker/commit/2ec0392b4d47526881ca7c11713927aa3ae67fda))
-* **config:** harden base64 credential file writes ([29859ba](https://github.com/equationalapplications/clanker/commit/29859baa4f5d16d294d7143a1de577ea0f8dc7cf))
+- **build:** address Copilot PR review security feedback ([b2a0b6d](https://github.com/equationalapplications/clanker/commit/b2a0b6d49cde81884a3eee485e662abc4122aac5))
+- **build:** extract firebase config files dynamically to temp dir ([9e6a181](https://github.com/equationalapplications/clanker/commit/9e6a18156fe9e19625ee00dccbaefbbb1e00b480))
+- **config:** address second round of Copilot PR review feedback ([2ec0392](https://github.com/equationalapplications/clanker/commit/2ec0392b4d47526881ca7c11713927aa3ae67fda))
+- **config:** harden base64 credential file writes ([29859ba](https://github.com/equationalapplications/clanker/commit/29859baa4f5d16d294d7143a1de577ea0f8dc7cf))
 
 # [25.2.0](https://github.com/equationalapplications/clanker/compare/v25.1.0...v25.2.0) (2026-04-05)
 
-
 ### Bug Fixes
 
-* **ci:** improve OTA update delivery and workflow clarity ([#200](https://github.com/equationalapplications/clanker/issues/200)) ([59720d4](https://github.com/equationalapplications/clanker/commit/59720d43b4bdb57398bd16b9863435ad72268283)), closes [#199](https://github.com/equationalapplications/clanker/issues/199)
-* **ci:** rename job to check-merge-source for branch protection ([bd3ffaa](https://github.com/equationalapplications/clanker/commit/bd3ffaa89a1dad60a9cd489982b12672b402117a))
-* **credits:** address Copilot PR review on credits sync and docs ([e481ae9](https://github.com/equationalapplications/clanker/commit/e481ae9f00446c443fe20ef4c223f45dcd991018))
-* **ota:** read branch arg from argv[2] and unblock web sync button ([935b90a](https://github.com/equationalapplications/clanker/commit/935b90adef2e3e5708cb4073dada3d756c059f9d))
-
+- **ci:** improve OTA update delivery and workflow clarity ([#200](https://github.com/equationalapplications/clanker/issues/200)) ([59720d4](https://github.com/equationalapplications/clanker/commit/59720d43b4bdb57398bd16b9863435ad72268283)), closes [#199](https://github.com/equationalapplications/clanker/issues/199)
+- **ci:** rename job to check-merge-source for branch protection ([bd3ffaa](https://github.com/equationalapplications/clanker/commit/bd3ffaa89a1dad60a9cd489982b12672b402117a))
+- **credits:** address Copilot PR review on credits sync and docs ([e481ae9](https://github.com/equationalapplications/clanker/commit/e481ae9f00446c443fe20ef4c223f45dcd991018))
+- **ota:** read branch arg from argv[2] and unblock web sync button ([935b90a](https://github.com/equationalapplications/clanker/commit/935b90adef2e3e5708cb4073dada3d756c059f9d))
 
 ### Features
 
-* character state machine, database improvements, and UI enhancements ([dcda057](https://github.com/equationalapplications/clanker/commit/dcda057ceb74c469cfa32796dfcb3aafc0f8b99d))
-* character state machine, database improvements, and UI enhancements ([#201](https://github.com/equationalapplications/clanker/issues/201)) ([b72e186](https://github.com/equationalapplications/clanker/commit/b72e186804f3f9227f60b3e9d16534f1f115ea45)), closes [#200](https://github.com/equationalapplications/clanker/issues/200) [#199](https://github.com/equationalapplications/clanker/issues/199)
+- character state machine, database improvements, and UI enhancements ([dcda057](https://github.com/equationalapplications/clanker/commit/dcda057ceb74c469cfa32796dfcb3aafc0f8b99d))
+- character state machine, database improvements, and UI enhancements ([#201](https://github.com/equationalapplications/clanker/issues/201)) ([b72e186](https://github.com/equationalapplications/clanker/commit/b72e186804f3f9227f60b3e9d16534f1f115ea45)), closes [#200](https://github.com/equationalapplications/clanker/issues/200) [#199](https://github.com/equationalapplications/clanker/issues/199)
 
 # [25.1.0](https://github.com/equationalapplications/clanker/compare/v25.0.0...v25.1.0) (2026-04-05)
 
-
 ### Features
 
-* character state machine, database improvements, and UI enhancements ([#199](https://github.com/equationalapplications/clanker/issues/199)) ([d80e149](https://github.com/equationalapplications/clanker/commit/d80e1495fd9b285d6706b091c01584560b31cc7e))
+- character state machine, database improvements, and UI enhancements ([#199](https://github.com/equationalapplications/clanker/issues/199)) ([d80e149](https://github.com/equationalapplications/clanker/commit/d80e1495fd9b285d6706b091c01584560b31cc7e))
 
 # [25.0.0](https://github.com/equationalapplications/clanker/compare/v24.0.0...v25.0.0) (2026-04-04)
 
-
 ### Release
 
-* Staging to Main ([#197](https://github.com/equationalapplications/clanker/issues/197)) ([b060832](https://github.com/equationalapplications/clanker/commit/b060832e237d5cb8783c826146a5dc1b4283af99)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB) [#194](https://github.com/equationalapplications/clanker/issues/194) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#195](https://github.com/equationalapplications/clanker/issues/195) [#196](https://github.com/equationalapplications/clanker/issues/196) [#192](https://github.com/equationalapplications/clanker/issues/192)
-
+- Staging to Main ([#197](https://github.com/equationalapplications/clanker/issues/197)) ([b060832](https://github.com/equationalapplications/clanker/commit/b060832e237d5cb8783c826146a5dc1b4283af99)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB) [#194](https://github.com/equationalapplications/clanker/issues/194) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#193](https://github.com/equationalapplications/clanker/issues/193) [#195](https://github.com/equationalapplications/clanker/issues/195) [#196](https://github.com/equationalapplications/clanker/issues/196) [#192](https://github.com/equationalapplications/clanker/issues/192)
 
 ### BREAKING CHANGES
 
-* native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
+- native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
 
-* chore: stop tracking plan.md, add to gitignore
+- chore: stop tracking plan.md, add to gitignore
 
-* fix: address Copilot review comments on avatar generation and character management
+- fix: address Copilot review comments on avatar generation and character management
 
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Add React Query cache invalidation after local image generation to keep lists/details in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+* Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+* Remove unused userId parameter from useLocalImageGeneration hook
+* Add React Query cache invalidation after local image generation to keep lists/details in sync
+* Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+* Update stale schema migration comment to reference avatar_data instead of deleted_at
+* Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
 
-* fix(deps): update expo to 55.0.10
+- fix(deps): update expo to 55.0.10
 
-* fix(hooks): use useIsMutating for reactive default character creation
+- fix(hooks): use useIsMutating for reactive default character creation
 
-- Replace module-level creationInFlight with useIsMutating for reactive UI
-- Clear creationFailedForUser on success and user change
-- Extract createCharacterMutationKey as shared constant
-- Keep module-level flags as mutex, not UI state
-
-Fixes stale UI across tabs and permanent failure locks.
-
-* fix(drawer): add custom hamburger menu button with proper navigation context
-
-- Replace default DrawerToggleButton with custom Pressable using menu icon
-- Use screenOptions function form to get Drawer navigator context
-- Add proper drawer toggle dispatch and accessibility labels
-
-* fix: resolve character creation and drawer navigation issues
-
-- Make createCharacterMutationKey user-scoped to prevent mutation state from
-  leaking across account switches
-- Use useIsMutating for creation guard to prevent duplicate auto-creation
-  when manual create is in progress
-- Reset creationInFlight flag on user change alongside creationFailedForUser
-- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
-  label for drawer toggle
-
-* fix(ios): resolve build failures with static frameworks and latest image
-
-- Move expo-build-properties plugin to top of plugins array
-- Replace forceStaticLinking with buildReactNativeFromSource for iOS
-- Pin staging and production builds to latest EAS iOS image
-
-* feat(functions): copy firebase functions from account repo
-
-* chore: isolate functions from expo build and type checking
-
-* chore: add firebase functions documentation and update configuration
-* native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
-
-* chore: stop tracking plan.md, add to gitignore
-
-* fix: address Copilot review comments on avatar generation and character management
-
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Add React Query cache invalidation after local image generation to keep lists/details in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
-
-* fix(deps): update expo to 55.0.10
-
-* fix(hooks): use useIsMutating for reactive default character creation
-
-- Replace module-level creationInFlight with useIsMutating for reactive UI
-- Clear creationFailedForUser on success and user change
-- Extract createCharacterMutationKey as shared constant
-- Keep module-level flags as mutex, not UI state
+* Replace module-level creationInFlight with useIsMutating for reactive UI
+* Clear creationFailedForUser on success and user change
+* Extract createCharacterMutationKey as shared constant
+* Keep module-level flags as mutex, not UI state
 
 Fixes stale UI across tabs and permanent failure locks.
 
-* fix(drawer): add custom hamburger menu button with proper navigation context
+- fix(drawer): add custom hamburger menu button with proper navigation context
 
-- Replace default DrawerToggleButton with custom Pressable using menu icon
-- Use screenOptions function form to get Drawer navigator context
-- Add proper drawer toggle dispatch and accessibility labels
+* Replace default DrawerToggleButton with custom Pressable using menu icon
+* Use screenOptions function form to get Drawer navigator context
+* Add proper drawer toggle dispatch and accessibility labels
 
-* fix: resolve character creation and drawer navigation issues
+- fix: resolve character creation and drawer navigation issues
 
-- Make createCharacterMutationKey user-scoped to prevent mutation state from
+* Make createCharacterMutationKey user-scoped to prevent mutation state from
   leaking across account switches
-- Use useIsMutating for creation guard to prevent duplicate auto-creation
+* Use useIsMutating for creation guard to prevent duplicate auto-creation
   when manual create is in progress
-- Reset creationInFlight flag on user change alongside creationFailedForUser
-- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+* Reset creationInFlight flag on user change alongside creationFailedForUser
+* Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
   label for drawer toggle
 
-* fix(ios): resolve build failures with static frameworks and latest image
+- fix(ios): resolve build failures with static frameworks and latest image
 
-- Move expo-build-properties plugin to top of plugins array
-- Replace forceStaticLinking with buildReactNativeFromSource for iOS
-- Pin staging and production builds to latest EAS iOS image
+* Move expo-build-properties plugin to top of plugins array
+* Replace forceStaticLinking with buildReactNativeFromSource for iOS
+* Pin staging and production builds to latest EAS iOS image
 
-* feat(functions): copy firebase functions from account repo
+- feat(functions): copy firebase functions from account repo
 
-* chore: isolate functions from expo build and type checking
+- chore: isolate functions from expo build and type checking
 
-* chore: add firebase functions documentation and update configuration
+- chore: add firebase functions documentation and update configuration
+- native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
+
+- chore: stop tracking plan.md, add to gitignore
+
+- fix: address Copilot review comments on avatar generation and character management
+
+* Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+* Remove unused userId parameter from useLocalImageGeneration hook
+* Add React Query cache invalidation after local image generation to keep lists/details in sync
+* Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+* Update stale schema migration comment to reference avatar_data instead of deleted_at
+* Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+
+- fix(deps): update expo to 55.0.10
+
+- fix(hooks): use useIsMutating for reactive default character creation
+
+* Replace module-level creationInFlight with useIsMutating for reactive UI
+* Clear creationFailedForUser on success and user change
+* Extract createCharacterMutationKey as shared constant
+* Keep module-level flags as mutex, not UI state
+
+Fixes stale UI across tabs and permanent failure locks.
+
+- fix(drawer): add custom hamburger menu button with proper navigation context
+
+* Replace default DrawerToggleButton with custom Pressable using menu icon
+* Use screenOptions function form to get Drawer navigator context
+* Add proper drawer toggle dispatch and accessibility labels
+
+- fix: resolve character creation and drawer navigation issues
+
+* Make createCharacterMutationKey user-scoped to prevent mutation state from
+  leaking across account switches
+* Use useIsMutating for creation guard to prevent duplicate auto-creation
+  when manual create is in progress
+* Reset creationInFlight flag on user change alongside creationFailedForUser
+* Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+  label for drawer toggle
+
+- fix(ios): resolve build failures with static frameworks and latest image
+
+* Move expo-build-properties plugin to top of plugins array
+* Replace forceStaticLinking with buildReactNativeFromSource for iOS
+* Pin staging and production builds to latest EAS iOS image
+
+- feat(functions): copy firebase functions from account repo
+
+- chore: isolate functions from expo build and type checking
+
+- chore: add firebase functions documentation and update configuration
 
 # [24.0.0](https://github.com/equationalapplications/clanker/compare/v23.0.0...v24.0.0) (2026-04-03)
 
-
 ### chore
 
-* **release:** promote staging to production ([#192](https://github.com/equationalapplications/clanker/issues/192)) ([e5d53fb](https://github.com/equationalapplications/clanker/commit/e5d53fb366547db50b94f198aebed90db7510bda)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB) [#194](https://github.com/equationalapplications/clanker/issues/194)
-
+- **release:** promote staging to production ([#192](https://github.com/equationalapplications/clanker/issues/192)) ([e5d53fb](https://github.com/equationalapplications/clanker/commit/e5d53fb366547db50b94f198aebed90db7510bda)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB) [#194](https://github.com/equationalapplications/clanker/issues/194)
 
 ### BREAKING CHANGES
 
-* **release:** native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
+- **release:** native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
 
-* chore: stop tracking plan.md, add to gitignore
+- chore: stop tracking plan.md, add to gitignore
 
-* fix: address Copilot review comments on avatar generation and character management
+- fix: address Copilot review comments on avatar generation and character management
 
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Reload character lists/details via the character XState machine after local image generation to keep UI in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+* Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+* Remove unused userId parameter from useLocalImageGeneration hook
+* Reload character lists/details via the character XState machine after local image generation to keep UI in sync
+* Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+* Update stale schema migration comment to reference avatar_data instead of deleted_at
+* Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
 
-* fix(deps): update expo to 55.0.10
+- fix(deps): update expo to 55.0.10
 
-* fix(hooks): use useIsMutating for reactive default character creation
+- fix(hooks): use useIsMutating for reactive default character creation
 
-- Replace module-level creationInFlight with useIsMutating for reactive UI
-- Clear creationFailedForUser on success and user change
-- Extract createCharacterMutationKey as shared constant
-- Keep module-level flags as mutex, not UI state
+* Replace module-level creationInFlight with useIsMutating for reactive UI
+* Clear creationFailedForUser on success and user change
+* Extract createCharacterMutationKey as shared constant
+* Keep module-level flags as mutex, not UI state
 
 Fixes stale UI across tabs and permanent failure locks.
 
-* fix(drawer): add custom hamburger menu button with proper navigation context
+- fix(drawer): add custom hamburger menu button with proper navigation context
 
-- Replace default DrawerToggleButton with custom Pressable using menu icon
-- Use screenOptions function form to get Drawer navigator context
-- Add proper drawer toggle dispatch and accessibility labels
+* Replace default DrawerToggleButton with custom Pressable using menu icon
+* Use screenOptions function form to get Drawer navigator context
+* Add proper drawer toggle dispatch and accessibility labels
 
-* fix: resolve character creation and drawer navigation issues
+- fix: resolve character creation and drawer navigation issues
 
-- Make createCharacterMutationKey user-scoped to prevent mutation state from
+* Make createCharacterMutationKey user-scoped to prevent mutation state from
   leaking across account switches
-- Use useIsMutating for creation guard to prevent duplicate auto-creation
+* Use useIsMutating for creation guard to prevent duplicate auto-creation
   when manual create is in progress
-- Reset creationInFlight flag on user change alongside creationFailedForUser
-- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+* Reset creationInFlight flag on user change alongside creationFailedForUser
+* Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
   label for drawer toggle
 
-* fix(ios): resolve build failures with static frameworks and latest image
+- fix(ios): resolve build failures with static frameworks and latest image
 
-- Move expo-build-properties plugin to top of plugins array
-- Replace forceStaticLinking with buildReactNativeFromSource for iOS
-- Pin staging and production builds to latest EAS iOS image
+* Move expo-build-properties plugin to top of plugins array
+* Replace forceStaticLinking with buildReactNativeFromSource for iOS
+* Pin staging and production builds to latest EAS iOS image
 
-* feat(functions): copy firebase functions from account repo
+- feat(functions): copy firebase functions from account repo
 
-* chore: isolate functions from expo build and type checking
+- chore: isolate functions from expo build and type checking
 
-* chore: add firebase functions documentation and update configuration
+- chore: add firebase functions documentation and update configuration
 
 # [23.0.0](https://github.com/equationalapplications/clanker/compare/v22.0.0...v23.0.0) (2026-04-02)
 
-
 ### Bug Fixes
 
-* drawer hamburger button, reactive default character creation, remove realtime credits subscription ([#191](https://github.com/equationalapplications/clanker/issues/191)) ([31d7e98](https://github.com/equationalapplications/clanker/commit/31d7e98ae5ce54410aba92a02b811f32a7dbbdf4)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
-
+- drawer hamburger button, reactive default character creation, remove realtime credits subscription ([#191](https://github.com/equationalapplications/clanker/issues/191)) ([31d7e98](https://github.com/equationalapplications/clanker/commit/31d7e98ae5ce54410aba92a02b811f32a7dbbdf4)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
 
 ### BREAKING CHANGES
 
-* native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
+- native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
 
-* chore: stop tracking plan.md, add to gitignore
+- chore: stop tracking plan.md, add to gitignore
 
-* fix: address Copilot review comments on avatar generation and character management
+- fix: address Copilot review comments on avatar generation and character management
 
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Reload character lists/details via the character XState machine after local image generation to keep UI in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+* Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+* Remove unused userId parameter from useLocalImageGeneration hook
+* Reload character lists/details via the character XState machine after local image generation to keep UI in sync
+* Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+* Update stale schema migration comment to reference avatar_data instead of deleted_at
+* Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
 
-* fix(deps): update expo to 55.0.10
+- fix(deps): update expo to 55.0.10
 
-* fix(hooks): use useIsMutating for reactive default character creation
+- fix(hooks): use useIsMutating for reactive default character creation
 
-- Replace module-level creationInFlight with useIsMutating for reactive UI
-- Clear creationFailedForUser on success and user change
-- Extract createCharacterMutationKey as shared constant
-- Keep module-level flags as mutex, not UI state
+* Replace module-level creationInFlight with useIsMutating for reactive UI
+* Clear creationFailedForUser on success and user change
+* Extract createCharacterMutationKey as shared constant
+* Keep module-level flags as mutex, not UI state
 
 Fixes stale UI across tabs and permanent failure locks.
 
-* fix(drawer): add custom hamburger menu button with proper navigation context
+- fix(drawer): add custom hamburger menu button with proper navigation context
 
-- Replace default DrawerToggleButton with custom Pressable using menu icon
-- Use screenOptions function form to get Drawer navigator context
-- Add proper drawer toggle dispatch and accessibility labels
+* Replace default DrawerToggleButton with custom Pressable using menu icon
+* Use screenOptions function form to get Drawer navigator context
+* Add proper drawer toggle dispatch and accessibility labels
 
-* fix: resolve character creation and drawer navigation issues
+- fix: resolve character creation and drawer navigation issues
 
-- Make createCharacterMutationKey user-scoped to prevent mutation state from
+* Make createCharacterMutationKey user-scoped to prevent mutation state from
   leaking across account switches
-- Use useIsMutating for creation guard to prevent duplicate auto-creation
+* Use useIsMutating for creation guard to prevent duplicate auto-creation
   when manual create is in progress
-- Reset creationInFlight flag on user change alongside creationFailedForUser
-- Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
+* Reset creationInFlight flag on user change alongside creationFailedForUser
+* Fix Pressable touch target (44x44 with padding/hitSlop) and accessibility
   label for drawer toggle
 
-* fix(ios): resolve build failures with static frameworks and latest image
+- fix(ios): resolve build failures with static frameworks and latest image
 
-- Move expo-build-properties plugin to top of plugins array
-- Replace forceStaticLinking with buildReactNativeFromSource for iOS
-- Pin staging and production builds to latest EAS iOS image
+* Move expo-build-properties plugin to top of plugins array
+* Replace forceStaticLinking with buildReactNativeFromSource for iOS
+* Pin staging and production builds to latest EAS iOS image
 
-* feat(functions): copy firebase functions from account repo
+- feat(functions): copy firebase functions from account repo
 
-* chore: isolate functions from expo build and type checking
+- chore: isolate functions from expo build and type checking
 
-* chore: add firebase functions documentation and update configuration
+- chore: add firebase functions documentation and update configuration
 
 # [22.0.0](https://github.com/equationalapplications/clanker/compare/v21.0.0...v22.0.0) (2026-04-02)
 
-
 ### Bug Fixes
 
-* **deps:** update expo to 55.0.10 ([#190](https://github.com/equationalapplications/clanker/issues/190)) ([cda5e3f](https://github.com/equationalapplications/clanker/commit/cda5e3fd2c478f3d18ed15fb9f5644706adf8937)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
-
+- **deps:** update expo to 55.0.10 ([#190](https://github.com/equationalapplications/clanker/issues/190)) ([cda5e3f](https://github.com/equationalapplications/clanker/commit/cda5e3fd2c478f3d18ed15fb9f5644706adf8937)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
 
 ### BREAKING CHANGES
 
-* **deps:** native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
+- **deps:** native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
 
-* chore: stop tracking plan.md, add to gitignore
+- chore: stop tracking plan.md, add to gitignore
 
-* fix: address Copilot review comments on avatar generation and character management
+- fix: address Copilot review comments on avatar generation and character management
 
-- Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
-- Remove unused userId parameter from useLocalImageGeneration hook
-- Reload character lists/details via the character XState machine after local image generation to keep UI in sync
-- Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
-- Update stale schema migration comment to reference avatar_data instead of deleted_at
-- Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
+* Remove unused imports (useCallback in useEditDirtyState, useSegments in _layout)
+* Remove unused userId parameter from useLocalImageGeneration hook
+* Reload character lists/details via the character XState machine after local image generation to keep UI in sync
+* Guard against retry loops in useEnsureDefaultCharacter by tracking failed-creation per user
+* Update stale schema migration comment to reference avatar_data instead of deleted_at
+* Conditionally render 'Creating...' spinner in characters list based on isCreatingDefault state
 
-* fix(deps): update expo to 55.0.10
+- fix(deps): update expo to 55.0.10
 
 # [21.0.0](https://github.com/equationalapplications/clanker/compare/v20.0.4...v21.0.0) (2026-04-02)
 
-
-* feat(characters)!: replace expo-file-system with SQLite image storage, fix tab nav, unify default character creation ([#189](https://github.com/equationalapplications/clanker/issues/189)) ([b0d7e43](https://github.com/equationalapplications/clanker/commit/b0d7e43ca2f52fa385f8dc3d75dc3075565308c6)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
-
+- feat(characters)!: replace expo-file-system with SQLite image storage, fix tab nav, unify default character creation ([#189](https://github.com/equationalapplications/clanker/issues/189)) ([b0d7e43](https://github.com/equationalapplications/clanker/commit/b0d7e43ca2f52fa385f8dc3d75dc3075565308c6)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
 
 ### BREAKING CHANGES
 
-* native module change (@react-native-firebase/ai replaces
-@react-native-firebase/vertexai), requires new native build
+- native module change (@react-native-firebase/ai replaces
+  @react-native-firebase/vertexai), requires new native build
 
 ## [20.0.4](https://github.com/equationalapplications/clanker/compare/v20.0.3...v20.0.4) (2026-04-02)
 
-
 ### Bug Fixes
 
-* **vertexai:** update to gemini-2.5 models and migrate to Nano Banana image generation ([#188](https://github.com/equationalapplications/clanker/issues/188)) ([c69b367](https://github.com/equationalapplications/clanker/commit/c69b36782855f26aab2088ae568642a0392abd05)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
+- **vertexai:** update to gemini-2.5 models and migrate to Nano Banana image generation ([#188](https://github.com/equationalapplications/clanker/issues/188)) ([c69b367](https://github.com/equationalapplications/clanker/commit/c69b36782855f26aab2088ae568642a0392abd05)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
 
 ## [20.0.3](https://github.com/equationalapplications/clanker/compare/v20.0.2...v20.0.3) (2026-04-02)
 
-
 ### Bug Fixes
 
-* update login button style ([#187](https://github.com/equationalapplications/clanker/issues/187)) ([00513f7](https://github.com/equationalapplications/clanker/commit/00513f714b2d85c72d692754f9f1a700d34ccff4)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
+- update login button style ([#187](https://github.com/equationalapplications/clanker/issues/187)) ([00513f7](https://github.com/equationalapplications/clanker/commit/00513f714b2d85c72d692754f9f1a700d34ccff4)), closes [hi#priority](https://github.com/hi/issues/priority) [#666](https://github.com/equationalapplications/clanker/issues/666) [#ffebee](https://github.com/equationalapplications/clanker/issues/ffebee) [#ef5350](https://github.com/equationalapplications/clanker/issues/ef5350) [#c62828](https://github.com/equationalapplications/clanker/issues/c62828) [#d32f2f](https://github.com/equationalapplications/clanker/issues/d32f2f) [#e8f5e8](https://github.com/equationalapplications/clanker/issues/e8f5e8) [#2196F3](https://github.com/equationalapplications/clanker/issues/2196F3) [#eee](https://github.com/equationalapplications/clanker/issues/eee) [374151/#F9FAFB](https://github.com/equationalapplications/clanker/issues/F9FAFB)
 
 ## [20.0.2](https://github.com/equationalapplications/clanker/compare/v20.0.1...v20.0.2) (2026-04-02)
 
-
 ### Bug Fixes
 
-* **auth:** ensure Google and Apple signin buttons have same height ([5b74c61](https://github.com/equationalapplications/clanker/commit/5b74c611bf0edd0d9b637bf1a2cdea7c58e4af3c))
+- **auth:** ensure Google and Apple signin buttons have same height ([5b74c61](https://github.com/equationalapplications/clanker/commit/5b74c611bf0edd0d9b637bf1a2cdea7c58e4af3c))
 
 ## [20.0.1](https://github.com/equationalapplications/clanker/compare/v20.0.0...v20.0.1) (2026-04-02)
 
-
 ### Bug Fixes
 
-* **auth:** round apple signin button corners to match google button ([f50e2c5](https://github.com/equationalapplications/clanker/commit/f50e2c5d1ffe8f28a1476574c955753e5db8eceb))
-* **chat:** resolve keyboard covering input on android and ios ([547cd35](https://github.com/equationalapplications/clanker/commit/547cd353364abac1dfc4271476218f176edce286))
-* **ui:** make checkbox visible on accept terms page ([25a2862](https://github.com/equationalapplications/clanker/commit/25a28620b1c0b344d3332c5a638790bd27aec053))
+- **auth:** round apple signin button corners to match google button ([f50e2c5](https://github.com/equationalapplications/clanker/commit/f50e2c5d1ffe8f28a1476574c955753e5db8eceb))
+- **chat:** resolve keyboard covering input on android and ios ([547cd35](https://github.com/equationalapplications/clanker/commit/547cd353364abac1dfc4271476218f176edce286))
+- **ui:** make checkbox visible on accept terms page ([25a2862](https://github.com/equationalapplications/clanker/commit/25a28620b1c0b344d3332c5a638790bd27aec053))
 
 # [20.0.0](https://github.com/equationalapplications/clanker/compare/v19.0.0...v20.0.0) (2026-04-02)
 
-
-* feat(auth)!: add Apple Sign-In for iOS and web ([3d98eec](https://github.com/equationalapplications/clanker/commit/3d98eeca3f2a5e0b072c2aabc6f13771dc601d19))
-* feat(auth)!: add Apple Sign-In for iOS and web ([#183](https://github.com/equationalapplications/clanker/issues/183)) ([38c06b5](https://github.com/equationalapplications/clanker/commit/38c06b583b918c44321d4bbf727626d729a4ed19))
-
+- feat(auth)!: add Apple Sign-In for iOS and web ([3d98eec](https://github.com/equationalapplications/clanker/commit/3d98eeca3f2a5e0b072c2aabc6f13771dc601d19))
+- feat(auth)!: add Apple Sign-In for iOS and web ([#183](https://github.com/equationalapplications/clanker/issues/183)) ([38c06b5](https://github.com/equationalapplications/clanker/commit/38c06b583b918c44321d4bbf727626d729a4ed19))
 
 ### Bug Fixes
 
-* **android:** resolve Supabase apikey header drop and App Check race condition ([fd01d7f](https://github.com/equationalapplications/clanker/commit/fd01d7f62704cbfe8896ac108479c84d09d2297b))
-* **assets:** add adaptive icon and banner images ([5a92a22](https://github.com/equationalapplications/clanker/commit/5a92a2262e92e8782035c047c96c1a190104a43c))
-* **auth:** address Apple Sign-In code review feedback ([cd771ce](https://github.com/equationalapplications/clanker/commit/cd771ce1a4b530c15a036ae07d4981843da3c1ef))
-* **auth:** address Copilot review comments ([1a2378e](https://github.com/equationalapplications/clanker/commit/1a2378ea37be1bbbe2d82effffff8152e54cad5c))
-* **auth:** remove sensitive JWT payload from debug log ([1de09c8](https://github.com/equationalapplications/clanker/commit/1de09c835deff2a1c868fc9be5276d3c3692c1da))
-* **auth:** surface apple redirect sign-in errors to user ([37ef059](https://github.com/equationalapplications/clanker/commit/37ef0595bb5c03bbba1880c9b277b3db357f248f))
-* **checkout:** escape apostrophe in cancel screen to satisfy react/no-unescaped-entities ([c3d3558](https://github.com/equationalapplications/clanker/commit/c3d35582665d49f470de034dbdf32e5823142761))
-* **checkout:** handle refreshSession errors and improve apostrophe readability ([b7b6aed](https://github.com/equationalapplications/clanker/commit/b7b6aed140128854ec52dafd4c7d38acb1fa4925))
-* **ci:** add --platform all to production EAS build command ([3c8c735](https://github.com/equationalapplications/clanker/commit/3c8c7351ca28a6d2c90b8331468b65e44b6909ef))
-* **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([eb2cf5f](https://github.com/equationalapplications/clanker/commit/eb2cf5fcd3204a01833d27f442019665d7e85d1d))
-* **payments:** use native Supabase refreshSession post-purchase and clarify autoRefreshToken comment ([5b7d86d](https://github.com/equationalapplications/clanker/commit/5b7d86d46fdc5e303e299e22390a6908c82935de))
-* resolve merge conflicts for dev into staging ([4806a50](https://github.com/equationalapplications/clanker/commit/4806a500b17cdd270eb88c75d4efb7a3088709fd))
-* restore CHANGELOG entries to correct chronological order after merge conflict ([98710a0](https://github.com/equationalapplications/clanker/commit/98710a0a27753abffff4eea0b888ff692c50aad0))
-* **routing:** remove duplicate (app) route group and fix stale-tab web errors ([6e72f26](https://github.com/equationalapplications/clanker/commit/6e72f26dd59472da0310553f395f78aa828fbb95))
-* **settings:** show real app version from package.json ([7f23865](https://github.com/equationalapplications/clanker/commit/7f238655f6fdce5f6e774a240c86f29c20fb8eb9))
-
+- **android:** resolve Supabase apikey header drop and App Check race condition ([fd01d7f](https://github.com/equationalapplications/clanker/commit/fd01d7f62704cbfe8896ac108479c84d09d2297b))
+- **assets:** add adaptive icon and banner images ([5a92a22](https://github.com/equationalapplications/clanker/commit/5a92a2262e92e8782035c047c96c1a190104a43c))
+- **auth:** address Apple Sign-In code review feedback ([cd771ce](https://github.com/equationalapplications/clanker/commit/cd771ce1a4b530c15a036ae07d4981843da3c1ef))
+- **auth:** address Copilot review comments ([1a2378e](https://github.com/equationalapplications/clanker/commit/1a2378ea37be1bbbe2d82effffff8152e54cad5c))
+- **auth:** remove sensitive JWT payload from debug log ([1de09c8](https://github.com/equationalapplications/clanker/commit/1de09c835deff2a1c868fc9be5276d3c3692c1da))
+- **auth:** surface apple redirect sign-in errors to user ([37ef059](https://github.com/equationalapplications/clanker/commit/37ef0595bb5c03bbba1880c9b277b3db357f248f))
+- **checkout:** escape apostrophe in cancel screen to satisfy react/no-unescaped-entities ([c3d3558](https://github.com/equationalapplications/clanker/commit/c3d35582665d49f470de034dbdf32e5823142761))
+- **checkout:** handle refreshSession errors and improve apostrophe readability ([b7b6aed](https://github.com/equationalapplications/clanker/commit/b7b6aed140128854ec52dafd4c7d38acb1fa4925))
+- **ci:** add --platform all to production EAS build command ([3c8c735](https://github.com/equationalapplications/clanker/commit/3c8c7351ca28a6d2c90b8331468b65e44b6909ef))
+- **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([eb2cf5f](https://github.com/equationalapplications/clanker/commit/eb2cf5fcd3204a01833d27f442019665d7e85d1d))
+- **payments:** use native Supabase refreshSession post-purchase and clarify autoRefreshToken comment ([5b7d86d](https://github.com/equationalapplications/clanker/commit/5b7d86d46fdc5e303e299e22390a6908c82935de))
+- resolve merge conflicts for dev into staging ([4806a50](https://github.com/equationalapplications/clanker/commit/4806a500b17cdd270eb88c75d4efb7a3088709fd))
+- restore CHANGELOG entries to correct chronological order after merge conflict ([98710a0](https://github.com/equationalapplications/clanker/commit/98710a0a27753abffff4eea0b888ff692c50aad0))
+- **routing:** remove duplicate (app) route group and fix stale-tab web errors ([6e72f26](https://github.com/equationalapplications/clanker/commit/6e72f26dd59472da0310553f395f78aa828fbb95))
+- **settings:** show real app version from package.json ([7f23865](https://github.com/equationalapplications/clanker/commit/7f238655f6fdce5f6e774a240c86f29c20fb8eb9))
 
 ### Features
 
-* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
-* **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
-* promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+- **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+- **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
+- promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
 
 ### BREAKING CHANGES
 
-* Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+- Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
   and all Expo packages to SDK 55. Updated native module versions for firebase,
   navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
   and worklets. Added expo-font and expo-image plugins to app.config.ts.
   Requires new native build.
-* Updated expo.
-* Updated expo.
+- Updated expo.
+- Updated expo.
 
 # [19.0.0-staging.1](https://github.com/equationalapplications/clanker/compare/v18.0.1...v19.0.0-staging.1) (2026-04-02)
 
-* Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
-* feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
+- Dev ([#169](https://github.com/equationalapplications/clanker/issues/169)) ([8f81316](https://github.com/equationalapplications/clanker/commit/8f81316108b45e1feaae3ef72a5015a7f9084a81)), closes [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+- feat!: upgrade to Expo SDK 55 with updated dependencies ([67047b5](https://github.com/equationalapplications/clanker/commit/67047b572f618e3997163793f507aa4f63d755e6))
 
 ### Bug Fixes
 
-* add missing error handling and userId scoping ([1d9352f](https://github.com/equationalapplications/clanker/commit/1d9352fb705b61684acaa66311c53d89222f5511))
-* address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
-* **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
-* **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
-* **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
-* **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
-* **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
-* **database:** correct soft-delete filtering and migration handling ([0a44410](https://github.com/equationalapplications/clanker/commit/0a44410b0105f395dc83f523d0f971ccf8ce4edd))
-* **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
-* **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
-* **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
-* **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
-* **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([#175](https://github.com/equationalapplications/clanker/issues/175)) ([8715e45](https://github.com/equationalapplications/clanker/commit/8715e45a7a73a4f5b0c5fd037e5d87f8642d94bb))
-* **payments:** post-review fixes for cross-platform subscription flow ([#176](https://github.com/equationalapplications/clanker/issues/176)) ([69bdeb0](https://github.com/equationalapplications/clanker/commit/69bdeb048faeb7a775fa90dce286f3e8ff822d05))
-* **payments:** use platform-specific product ID for credit pack and update pricing docs ([30ef71c](https://github.com/equationalapplications/clanker/commit/30ef71c55f66f837a722ad365732159cb497c135))
-* resolve linting errors and warnings ([3c49022](https://github.com/equationalapplications/clanker/commit/3c49022cce27eef832698602d1360b21ebd0df2d))
-* resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
-* resolve merge conflicts - accept staging over main ([63de453](https://github.com/equationalapplications/clanker/commit/63de4537b5fb0bb0c63343f17848b77771ebe9cd))
-* resolve merge conflicts for dev into staging ([e6a9dce](https://github.com/equationalapplications/clanker/commit/e6a9dce2fc90a30c7ad15e08f7e79d21ed481894))
-* resolve merge conflicts for staging into main ([e3af772](https://github.com/equationalapplications/clanker/commit/e3af77249ba44904eea96234b5a45bce23cafd2b))
-* **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
-* **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
-* **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
+- add missing error handling and userId scoping ([1d9352f](https://github.com/equationalapplications/clanker/commit/1d9352fb705b61684acaa66311c53d89222f5511))
+- address second round of PR review comments ([c8240ee](https://github.com/equationalapplications/clanker/commit/c8240ee6f7b07f647f4e371f713701a47f8d26e1))
+- **auth:** address Copilot PR review feedback ([1c3bc29](https://github.com/equationalapplications/clanker/commit/1c3bc297ba482c9f922a415b54f85376d69b41bf))
+- **auth:** eliminate Firebase race condition and simplify auth flow ([1e6bcc0](https://github.com/equationalapplications/clanker/commit/1e6bcc020994cea1f5422dddb296b0c98adf2c00))
+- **auth:** fail open on terms check error to avoid blocking users ([aafb3aa](https://github.com/equationalapplications/clanker/commit/aafb3aa2837a51946777761f39c66ba2758f4385))
+- **character-sync:** use Supabase Auth UUID for cloud operations, not Firebase UID ([6d1d6d3](https://github.com/equationalapplications/clanker/commit/6d1d6d3fd4a7609c1684fb6f6674d4a9565ed4f7))
+- **ci:** disable semantic-release success/fail issue comments ([bc6c140](https://github.com/equationalapplications/clanker/commit/bc6c140264da9d1020be0182e51681b1279b5f11))
+- **database:** correct soft-delete filtering and migration handling ([0a44410](https://github.com/equationalapplications/clanker/commit/0a44410b0105f395dc83f523d0f971ccf8ce4edd))
+- **db:** address PR review - schema migration, soft-delete, deps ([579a397](https://github.com/equationalapplications/clanker/commit/579a397b9c243eed3005621eaac524fad800a2b4))
+- **offline:** address PR review issues in offline-first architecture ([5d8637e](https://github.com/equationalapplications/clanker/commit/5d8637ed4dd020e61c60c0ff2e86f59435ed0183))
+- **offline:** await Storage calls and fix startup sync connectivity check ([135246e](https://github.com/equationalapplications/clanker/commit/135246e875dbd6391f5b760753e8f9b162876104))
+- **offline:** improve local-first sync behavior ([347e241](https://github.com/equationalapplications/clanker/commit/347e24196bf67ac0d533dee2ac4b6baeb419d3e5))
+- **payments:** fix JWT base64url decode, hoist Platform import, and refresh session post-purchase ([#175](https://github.com/equationalapplications/clanker/issues/175)) ([8715e45](https://github.com/equationalapplications/clanker/commit/8715e45a7a73a4f5b0c5fd037e5d87f8642d94bb))
+- **payments:** post-review fixes for cross-platform subscription flow ([#176](https://github.com/equationalapplications/clanker/issues/176)) ([69bdeb0](https://github.com/equationalapplications/clanker/commit/69bdeb048faeb7a775fa90dce286f3e8ff822d05))
+- **payments:** use platform-specific product ID for credit pack and update pricing docs ([30ef71c](https://github.com/equationalapplications/clanker/commit/30ef71c55f66f837a722ad365732159cb497c135))
+- resolve linting errors and warnings ([3c49022](https://github.com/equationalapplications/clanker/commit/3c49022cce27eef832698602d1360b21ebd0df2d))
+- resolve linting errors and warnings ([#172](https://github.com/equationalapplications/clanker/issues/172)) ([1881e99](https://github.com/equationalapplications/clanker/commit/1881e999b766040fbfba62d5e86617b92d156713))
+- resolve merge conflicts - accept staging over main ([63de453](https://github.com/equationalapplications/clanker/commit/63de4537b5fb0bb0c63343f17848b77771ebe9cd))
+- resolve merge conflicts for dev into staging ([e6a9dce](https://github.com/equationalapplications/clanker/commit/e6a9dce2fc90a30c7ad15e08f7e79d21ed481894))
+- resolve merge conflicts for staging into main ([e3af772](https://github.com/equationalapplications/clanker/commit/e3af77249ba44904eea96234b5a45bce23cafd2b))
+- **subscription:** bubble up DB errors and preserve full state on transient failures ([b0aa80a](https://github.com/equationalapplications/clanker/commit/b0aa80ab1aa0b2b9123fa17a0783026a0d603eb6))
+- **sync:** use default Storage import and map cloud_id to local id on restore ([0093b05](https://github.com/equationalapplications/clanker/commit/0093b05b6b41c947bc7a6c3ee19dae07119d9b91))
+- **terms:** replace JWT claims with direct DB query for terms acceptance ([35176f1](https://github.com/equationalapplications/clanker/commit/35176f16e6877aff93d17e6df6bbf0906dea3441))
 
 ### Features
 
-* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
-* **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
-* promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+- **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+- **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
+- promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
 
 ### BREAKING CHANGES
 
-* Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+- Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
   and all Expo packages to SDK 55. Updated native module versions for firebase,
   navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
   and worklets. Added expo-font and expo-image plugins to app.config.ts.
   Requires new native build.
-* Updated expo.
-* Updated expo.
+- Updated expo.
+- Updated expo.
 
 ## [18.0.1](https://github.com/equationalapplications/clanker/compare/v18.0.0...v18.0.1) (2026-03-31)
 
@@ -2866,19 +2632,19 @@ Fixes stale UI across tabs and permanent failure locks.
 
 ### Features
 
-* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
-* **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
-* promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
+- **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+- **payments:** integrate Stripe and RevenueCat for cross-platform subscriptions ([771265f](https://github.com/equationalapplications/clanker/commit/771265f8baa82a2eacc30dfc05e1ca579101cf28))
+- promote dev to staging ([#179](https://github.com/equationalapplications/clanker/issues/179)) ([26b0419](https://github.com/equationalapplications/clanker/commit/26b04194468a9e13e45d000e08b83cd8406ed7b4)), closes [#177](https://github.com/equationalapplications/clanker/issues/177) [#169](https://github.com/equationalapplications/clanker/issues/169) [#166](https://github.com/equationalapplications/clanker/issues/166) [#154](https://github.com/equationalapplications/clanker/issues/154) [#157](https://github.com/equationalapplications/clanker/issues/157) [#160](https://github.com/equationalapplications/clanker/issues/160)
 
 ### BREAKING CHANGES
 
-* Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+- Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
   and all Expo packages to SDK 55. Updated native module versions for firebase,
   navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
   and worklets. Added expo-font and expo-image plugins to app.config.ts.
   Requires new native build.
-* Updated expo.
-* Updated expo.
+- Updated expo.
+- Updated expo.
 
 # [17.0.0-staging.2](https://github.com/equationalapplications/clanker/compare/v17.0.0-staging.1...v17.0.0-staging.2) (2026-03-25)
 
@@ -2917,17 +2683,17 @@ Fixes stale UI across tabs and permanent failure locks.
 
 ### Features
 
-* **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
+- **characters:** add character list page and improve details screen ([2abf5bc](https://github.com/equationalapplications/clanker/commit/2abf5bc4eb2eb246247a6d09e1d061264cb7be2b))
 
 ### BREAKING CHANGES
 
-* Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
+- Upgraded react-native to 0.83.2, react/react-dom to 19.2.4,
   and all Expo packages to SDK 55. Updated native module versions for firebase,
   navigation, reanimated, screens, gesture-handler, keyboard-controller, webview,
   and worklets. Added expo-font and expo-image plugins to app.config.ts.
   Requires new native build.
-* Updated expo.
-* Updated expo.
+- Updated expo.
+- Updated expo.
 
 # [16.0.0](https://github.com/equationalapplications/clanker/compare/v15.0.0...v16.0.0) (2026-03-22)
 

@@ -139,17 +139,19 @@ describe('migrateAvatarsToImageStore', () => {
   it('creates an inline row with a NULL thumb for a real avatar', async () => {
     mockGetAllAsync.mockResolvedValue([charRow()])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'uuid-mig',
-      character_id: 'char_a',
-      user_id: 'user-1',
-      storage_kind: 'inline',
-      master_ref: 'UklGRkkAAABXRUJQVlA4CUSTOM',
-      thumb_ref: null,
-      mime_type: 'image/webp',
-      source: 'uploaded',
-      sync_state: 'local',
-    }))
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'uuid-mig',
+        character_id: 'char_a',
+        user_id: 'user-1',
+        storage_kind: 'inline',
+        master_ref: 'UklGRkkAAABXRUJQVlA4CUSTOM',
+        thumb_ref: null,
+        mime_type: 'image/webp',
+        source: 'uploaded',
+        sync_state: 'local',
+      }),
+    )
     expect(mockSetActive).toHaveBeenCalledWith('char_a', 'uuid-mig')
   })
 
@@ -180,7 +182,14 @@ describe('migrateAvatarsToImageStore', () => {
   it('runs the background thumbnail pass on every row it just migrated', async () => {
     mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a' })])
     mockGetPendingThumbnails.mockResolvedValue([
-      { id: 'uuid-mig', storage_kind: 'inline', master_ref: 'UklGRkkAAABXRUJQVlA4CUSTOM', thumb_ref: null, mime_type: 'image/webp', sync_state: 'local' },
+      {
+        id: 'uuid-mig',
+        storage_kind: 'inline',
+        master_ref: 'UklGRkkAAABXRUJQVlA4CUSTOM',
+        thumb_ref: null,
+        mime_type: 'image/webp',
+        sync_state: 'local',
+      },
     ])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
     // §15 step 3: a migrated row has no thumb yet — the pass derives one so the
@@ -200,11 +209,21 @@ describe('migrateAvatarsToImageStore', () => {
     mockGetAllAsync.mockResolvedValue([charRow({ id: 'char_a', save_to_cloud: 1 })])
     mockGetImages.mockResolvedValue([{ id: 'existing' }])
     mockGetPendingThumbnails.mockResolvedValue([
-      { id: 'existing', storage_kind: 'inline', master_ref: 'X', thumb_ref: null, mime_type: 'image/webp', sync_state: 'local' },
+      {
+        id: 'existing',
+        storage_kind: 'inline',
+        master_ref: 'X',
+        thumb_ref: null,
+        mime_type: 'image/webp',
+        sync_state: 'local',
+      },
     ])
     await migrateAvatarsToImageStore('user-1', DEFAULT_B64)
     expect(mockInsert).not.toHaveBeenCalled()
-    expect(mockUpdateRefs).toHaveBeenCalledWith('existing', expect.objectContaining({ thumb_ref: 'NEWT' }))
+    expect(mockUpdateRefs).toHaveBeenCalledWith(
+      'existing',
+      expect.objectContaining({ thumb_ref: 'NEWT' }),
+    )
     expect(mockPromoteToCloud).toHaveBeenCalledWith('char_a')
   })
 
@@ -236,32 +255,56 @@ describe('background thumbnail pass', () => {
   it('re-encodes PNG masters instead of relabelling them', async () => {
     mockGetAllAsync.mockResolvedValue([])
     await backfillThumbnails([
-      { id: 'img-1', storage_kind: 'inline', master_ref: 'iVBORw0KGgo', thumb_ref: null, mime_type: 'image/png' } as never,
+      {
+        id: 'img-1',
+        storage_kind: 'inline',
+        master_ref: 'iVBORw0KGgo',
+        thumb_ref: null,
+        mime_type: 'image/png',
+      } as never,
     ])
     expect(mockPrepareVariants).toHaveBeenCalledWith(
       expect.objectContaining({ uri: 'data:image/png;base64,iVBORw0KGgo' }),
     )
-    expect(mockUpdateRefs).toHaveBeenCalledWith('img-1', expect.objectContaining({
-      master_ref: 'NEWM',
-      thumb_ref: 'NEWT',
-      mime_type: 'image/webp',
-    }))
+    expect(mockUpdateRefs).toHaveBeenCalledWith(
+      'img-1',
+      expect.objectContaining({
+        master_ref: 'NEWM',
+        thumb_ref: 'NEWT',
+        mime_type: 'image/webp',
+      }),
+    )
   })
 
   it('leaves an inline WebP master alone and only adds the thumb', async () => {
     await backfillThumbnails([
-      { id: 'img-2', storage_kind: 'inline', master_ref: 'UklGRkk', thumb_ref: null, mime_type: 'image/webp' } as never,
+      {
+        id: 'img-2',
+        storage_kind: 'inline',
+        master_ref: 'UklGRkk',
+        thumb_ref: null,
+        mime_type: 'image/webp',
+      } as never,
     ])
-    expect(mockUpdateRefs).toHaveBeenCalledWith('img-2', expect.objectContaining({
-      master_ref: 'UklGRkk',
-      thumb_ref: 'NEWT',
-      mime_type: 'image/webp',
-    }))
+    expect(mockUpdateRefs).toHaveBeenCalledWith(
+      'img-2',
+      expect.objectContaining({
+        master_ref: 'UklGRkk',
+        thumb_ref: 'NEWT',
+        mime_type: 'image/webp',
+      }),
+    )
   })
 
   it('skips rows that already have a thumb', async () => {
     await backfillThumbnails([
-      { id: 'img-3', storage_kind: 'inline', master_ref: 'UklGRkk', thumb_ref: 'T', mime_type: 'image/webp' } as never,
+      {
+        id: 'img-3',
+        storage_kind: 'inline',
+        master_ref: 'UklGRkk',
+        thumb_ref: 'T',
+        mime_type: 'image/webp',
+      } as never,
     ])
     expect(mockPrepareVariants).not.toHaveBeenCalled()
   })

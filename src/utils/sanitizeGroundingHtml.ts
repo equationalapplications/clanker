@@ -5,8 +5,7 @@ const SCRIPT_SELF_CLOSING_RE = /<script\b[^>]*\/?>/gi
 const INLINE_EVENT_HANDLER_RE = /\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi
 const ANCHOR_TAG_RE = /<a\b([^>]*)>/gi
 const IMG_TAG_RE = /<img\b([^>]*)>/gi
-const HREF_ATTR_RE =
-  /(?:^|\s)(?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi
+const HREF_ATTR_RE = /(?:^|\s)(?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi
 const SRC_ATTR_RE = /(?:^|\s)src\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi
 
 /** Repeat replace until stable — avoids CodeQL incomplete-sanitization bypasses. */
@@ -55,11 +54,7 @@ function cloneRegExp(re: RegExp): RegExp {
   return new RegExp(re.source, re.flags)
 }
 
-function stripUnsafeUrlAttribute(
-  tagName: 'a' | 'img',
-  attrs: string,
-  urlAttrRe: RegExp,
-): string {
+function stripUnsafeUrlAttribute(tagName: 'a' | 'img', attrs: string, urlAttrRe: RegExp): string {
   const attrRe = cloneRegExp(urlAttrRe)
   const matches = [...attrs.matchAll(attrRe)]
   if (matches.length === 0) {
@@ -68,7 +63,10 @@ function stripUnsafeUrlAttribute(
 
   const lastMatch = matches[matches.length - 1]
   const url = lastMatch[1] ?? lastMatch[2] ?? lastMatch[3] ?? ''
-  const strippedAttrs = attrs.replace(cloneRegExp(urlAttrRe), '').replace(/\s{2,}/g, ' ').trim()
+  const strippedAttrs = attrs
+    .replace(cloneRegExp(urlAttrRe), '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
   const { body, selfClosing } = splitSelfClosing(strippedAttrs)
 
   if (!isSafeHttpUrl(url)) {

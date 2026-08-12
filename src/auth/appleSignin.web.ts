@@ -124,10 +124,7 @@ const attachAppleSignInListeners = () => {
     const idToken = data?.authorization?.id_token
 
     if (!idToken || !storedNonce) {
-      const missingFields = [
-        !idToken ? 'identity token' : null,
-        !storedNonce ? 'nonce' : null,
-      ]
+      const missingFields = [!idToken ? 'identity token' : null, !storedNonce ? 'nonce' : null]
         .filter(Boolean)
         .join(' and ')
       storedHandlers.onCredentialError(
@@ -222,9 +219,7 @@ const createAppleSignInSessionId = (): string => {
   return `apple-signin-session-${randomUUID()}`
 }
 
-export const initializeAppleSignIn = async (
-  handlers: AppleSignInHandlers,
-): Promise<() => void> => {
+export const initializeAppleSignIn = async (handlers: AppleSignInHandlers): Promise<() => void> => {
   const clientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
   const redirectURI = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
   if (!clientId || !redirectURI) {

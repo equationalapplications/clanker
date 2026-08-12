@@ -2,7 +2,11 @@ import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import type { DrizzleClient } from '../db/client.js'
 
-export function setReminderTool(_db: DrizzleClient, _userId: string, _characterId: string): FunctionTool {
+export function setReminderTool(
+  _db: DrizzleClient,
+  _userId: string,
+  _characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'set_reminder',
     description: 'Schedule a reminder for the user at a specific future time.',

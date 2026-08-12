@@ -80,7 +80,9 @@ const ensureAppCheckConfigured = () => {
 
   const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY?.trim()
   if (!siteKey) {
-    throw new Error('App Check is not configured for admin actions. Set EXPO_PUBLIC_RECAPTCHA_SITE_KEY.')
+    throw new Error(
+      'App Check is not configured for admin actions. Set EXPO_PUBLIC_RECAPTCHA_SITE_KEY.',
+    )
   }
 }
 
@@ -96,14 +98,30 @@ async function callAdmin<Req, Res>(fn: Callable<Req, Res>, payload: Req): Promis
   return response.data
 }
 
-const adminListUsersCallable = adminListUsersFn as Callable<ListAdminUsersRequest, AdminListUsersResponse>
-const adminSetUserCreditsCallable = adminSetUserCreditsFn as Callable<SetAdminUserCreditsRequest, AdminMutationResponse>
-const adminSetUserSubscriptionCallable =
-  adminSetUserSubscriptionFn as Callable<SetAdminUserSubscriptionRequest, AdminMutationResponse>
-const adminClearTermsAcceptanceCallable =
-  adminClearTermsAcceptanceFn as Callable<AdminMutationRequest, AdminMutationResponse>
-const adminResetUserStateCallable = adminResetUserStateFn as Callable<AdminMutationRequest, AdminMutationResponse>
-const adminDeleteUserCallable = adminDeleteUserFn as Callable<AdminMutationRequest, AdminMutationResponse>
+const adminListUsersCallable = adminListUsersFn as Callable<
+  ListAdminUsersRequest,
+  AdminListUsersResponse
+>
+const adminSetUserCreditsCallable = adminSetUserCreditsFn as Callable<
+  SetAdminUserCreditsRequest,
+  AdminMutationResponse
+>
+const adminSetUserSubscriptionCallable = adminSetUserSubscriptionFn as Callable<
+  SetAdminUserSubscriptionRequest,
+  AdminMutationResponse
+>
+const adminClearTermsAcceptanceCallable = adminClearTermsAcceptanceFn as Callable<
+  AdminMutationRequest,
+  AdminMutationResponse
+>
+const adminResetUserStateCallable = adminResetUserStateFn as Callable<
+  AdminMutationRequest,
+  AdminMutationResponse
+>
+const adminDeleteUserCallable = adminDeleteUserFn as Callable<
+  AdminMutationRequest,
+  AdminMutationResponse
+>
 
 export async function listAdminUsers(params: {
   page: number
@@ -139,9 +157,7 @@ export async function setAdminUserSubscription(input: {
     userId: input.userId,
     planTier: input.planTier,
     planStatus: input.planStatus,
-    ...(input.renewalDate !== undefined
-      ? { renewalDate: input.renewalDate }
-      : {}),
+    ...(input.renewalDate !== undefined ? { renewalDate: input.renewalDate } : {}),
     reason: ensureReason(input.reason),
     requestId: makeRequestId(),
   })

@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { StyleSheet, View, Alert, Platform, ScrollView, useWindowDimensions, Linking } from 'react-native'
+import {
+  StyleSheet,
+  View,
+  Alert,
+  Platform,
+  ScrollView,
+  useWindowDimensions,
+  Linking,
+} from 'react-native'
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import * as ExpoLinking from 'expo-linking'
 import { useSelector } from '@xstate/react'
@@ -28,9 +36,7 @@ export default function SignIn() {
   const { isSignedIn, isLoading, error } = useSelector(authService, (state) => ({
     isSignedIn: state.matches('signedIn'),
     isLoading:
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
     error: state.context.error,
   }))
 

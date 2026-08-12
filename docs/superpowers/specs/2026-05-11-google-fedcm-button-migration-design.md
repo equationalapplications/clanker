@@ -205,17 +205,17 @@ No change.
 
 ### Web Google
 
-| Failure | Surface | Auth machine effect |
-|---|---|---|
-| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` missing | Component `error` state. Disabled `<ProviderButton type="google">` with caption `Google Sign-In unavailable. Please refresh or try Apple.` Logged via `console.warn`. | None. |
-| GIS script load failure | Same as above. | None. |
-| `google.accounts.id.initialize` throws | Same as above. | None. |
-| `renderButton` throws | Same as above. | None. |
-| User dismisses FedCM dialog without selecting | No callback fires. UI stays idle; user can click again. | None. |
-| FedCM `AbortError` / "Provider's accounts list is empty" | GIS may log `[GSI_LOGGER]` warnings. The dev console filter redirects matching `console.error` calls to `console.warn`, suppressing the `LogBox` modal. UI stays idle. | None. |
-| `signInWithCredential` rejects | `onCredentialError(error)` → component `error` state with inline caption `Sign-in failed. Please try again.` Detailed error logged via `console.warn`. | None. |
-| `auth/account-exists-with-different-credential` | Same as above; caption: `An account with that email already exists with a different sign-in method.` | None. |
-| `syncDisplayNameFromCredential` throws | Logged via `console.warn`; sign-in still succeeds. | None. |
+| Failure                                                  | Surface                                                                                                                                                                | Auth machine effect |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` missing               | Component `error` state. Disabled `<ProviderButton type="google">` with caption `Google Sign-In unavailable. Please refresh or try Apple.` Logged via `console.warn`.  | None.               |
+| GIS script load failure                                  | Same as above.                                                                                                                                                         | None.               |
+| `google.accounts.id.initialize` throws                   | Same as above.                                                                                                                                                         | None.               |
+| `renderButton` throws                                    | Same as above.                                                                                                                                                         | None.               |
+| User dismisses FedCM dialog without selecting            | No callback fires. UI stays idle; user can click again.                                                                                                                | None.               |
+| FedCM `AbortError` / "Provider's accounts list is empty" | GIS may log `[GSI_LOGGER]` warnings. The dev console filter redirects matching `console.error` calls to `console.warn`, suppressing the `LogBox` modal. UI stays idle. | None.               |
+| `signInWithCredential` rejects                           | `onCredentialError(error)` → component `error` state with inline caption `Sign-in failed. Please try again.` Detailed error logged via `console.warn`.                 | None.               |
+| `auth/account-exists-with-different-credential`          | Same as above; caption: `An account with that email already exists with a different sign-in method.`                                                                   | None.               |
+| `syncDisplayNameFromCredential` throws                   | Logged via `console.warn`; sign-in still succeeds.                                                                                                                     | None.               |
 
 ### Web Apple (unchanged)
 

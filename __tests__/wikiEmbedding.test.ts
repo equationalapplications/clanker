@@ -108,8 +108,20 @@ describe('wiki embedding integration', () => {
       entities: {
         [ENTITY]: {
           facts: [
-            makeFact('fact-apple', ENTITY, 'Apples', 'The apple is a popular fruit with red or green skin.', toBlob(vectorApple)),
-            makeFact('fact-banana', ENTITY, 'Bananas', 'Bananas are yellow and rich in potassium.', toBlob(vectorBanana)),
+            makeFact(
+              'fact-apple',
+              ENTITY,
+              'Apples',
+              'The apple is a popular fruit with red or green skin.',
+              toBlob(vectorApple),
+            ),
+            makeFact(
+              'fact-banana',
+              ENTITY,
+              'Bananas',
+              'Bananas are yellow and rich in potassium.',
+              toBlob(vectorBanana),
+            ),
           ],
           tasks: [],
           events: [],
@@ -149,7 +161,13 @@ describe('wiki embedding integration', () => {
       entities: {
         [ENTITY]: {
           facts: [
-            makeFact('fact-apples', ENTITY, 'Apples', 'The apple is a popular fruit.', toBlob(unitVec(0))),
+            makeFact(
+              'fact-apples',
+              ENTITY,
+              'Apples',
+              'The apple is a popular fruit.',
+              toBlob(unitVec(0)),
+            ),
           ],
           tasks: [],
           events: [],

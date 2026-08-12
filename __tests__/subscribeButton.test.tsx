@@ -28,7 +28,10 @@ jest.mock('~/utilities/makePackagePurchase', () => ({
 }))
 
 jest.mock('~/hooks/useBootstrapRefresh', () => ({
-  useBootstrapRefresh: () => (...args: unknown[]) => mockRefreshBootstrap(...args),
+  useBootstrapRefresh:
+    () =>
+    (...args: unknown[]) =>
+      mockRefreshBootstrap(...args),
 }))
 
 jest.mock('~/components/Button', () => {
@@ -69,7 +72,9 @@ describe('SubscribeButton', () => {
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
-      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_50" />)
+      tree = create(
+        <SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_50" />,
+      )
     })
 
     const button = tree.root.findByProps({ testID: 'subscribe-button' })
@@ -107,7 +112,7 @@ describe('SubscribeButton', () => {
     expect(onChangeIsLoading).toHaveBeenNthCalledWith(2, false)
     expect(Alert.alert).toHaveBeenCalledWith(
       'Purchase Failed',
-      'Something went wrong. Please try again.\n\nDetails: purchase failed'
+      'Something went wrong. Please try again.\n\nDetails: purchase failed',
     )
   })
 
@@ -130,7 +135,10 @@ describe('SubscribeButton', () => {
       await button.props.onPress()
     })
 
-    expect(Alert.alert).toHaveBeenCalledWith('Purchase Failed', 'Something went wrong. Please try again.')
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Purchase Failed',
+      'Something went wrong. Please try again.',
+    )
   })
 
   it('refreshes bootstrap state after native purchase', async () => {
@@ -142,7 +150,9 @@ describe('SubscribeButton', () => {
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
-      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />)
+      tree = create(
+        <SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />,
+      )
     })
 
     const button = tree.root.findByProps({ testID: 'subscribe-button' })
@@ -163,7 +173,9 @@ describe('SubscribeButton', () => {
     let tree!: ReturnType<typeof create>
 
     await act(async () => {
-      tree = create(<SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />)
+      tree = create(
+        <SubscribeButton onChangeIsLoading={onChangeIsLoading} productType="monthly_20" />,
+      )
     })
 
     const button = tree.root.findByProps({ testID: 'subscribe-button' })

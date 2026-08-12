@@ -1,33 +1,14 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "types": [
-      "expo",
-      "expo-router",
-      "jest",
-      "node"
-    ],
+    "types": ["expo", "expo-router", "jest", "node"],
     "jsx": "react-jsx",
     "paths": {
-      "~/*": [
-        "./src/*"
-      ],
-      "expo-router/src/*": [
-        "./node_modules/expo-router/build/*"
-      ]
+      "~/*": ["./src/*"],
+      "expo-router/src/*": ["./node_modules/expo-router/build/*"]
     },
     "strict": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "app"
-  ],
-  "exclude": [
-    "functions",
-    "cloud-agent",
-    "extension"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "app"],
+  "exclude": ["functions", "cloud-agent", "extension"]
 }

@@ -68,7 +68,12 @@ jest.mock('react-native', () => {
   }
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
-    Platform: { get OS() { return mockPlatformOS }, select: (spec: any) => spec[mockPlatformOS] || spec.default },
+    Platform: {
+      get OS() {
+        return mockPlatformOS
+      },
+      select: (spec: any) => spec[mockPlatformOS] || spec.default,
+    },
     View,
     Text,
     TouchableOpacity,
@@ -96,10 +101,8 @@ jest.mock('react-native-paper', () => {
       roundness: 4,
     }),
     Avatar: {
-      Image: (props: any) =>
-        React.createElement('View', { testID: 'avatar-img', ...props }),
-      Text: (props: any) =>
-        React.createElement('View', { testID: 'avatar-text', ...props }),
+      Image: (props: any) => React.createElement('View', { testID: 'avatar-img', ...props }),
+      Text: (props: any) => React.createElement('View', { testID: 'avatar-text', ...props }),
     },
   }
 })
@@ -129,7 +132,10 @@ jest.mock('~/hooks/useAIChat', () => ({
   useAIChat: jest.fn(() => ({ sendMessage: jest.fn() })),
 }))
 
-let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = { totalCredits: 10, nextExpiryDate: null }
+let mockCreditsData: { totalCredits: number; nextExpiryDate: string | null } = {
+  totalCredits: 10,
+  nextExpiryDate: null,
+}
 jest.mock('~/hooks/usePowerBalance', () => ({
   usePowerBalance: () => ({ totalPower: mockCreditsData.totalCredits }),
 }))
@@ -213,9 +219,7 @@ function withLoggedInUser() {
 }
 
 function withNoUser() {
-  mockSelectorImpl.mockImplementation((_s, sel) =>
-    sel({ context: { user: null } }),
-  )
+  mockSelectorImpl.mockImplementation((_s, sel) => sel({ context: { user: null } }))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -242,13 +246,14 @@ describe('ChatView accessibility', () => {
     withLoggedInUser()
   })
 
-
   // ── loading state ─────────────────────────────────────────────────────────
   it('loading state: accessible with polite live region and "Loading character" label', () => {
     mockUseCharacter.mockReturnValue({ data: null, isLoading: true })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -263,7 +268,9 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: null, isLoading: false })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -279,7 +286,9 @@ describe('ChatView accessibility', () => {
     withNoUser()
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -296,13 +305,12 @@ describe('ChatView accessibility', () => {
     // SendButton directly: idle state is a button with the canonical label.
     let sendTree: any
     act(() => {
-      sendTree = create(
-        <SendButton onPress={jest.fn()} disabled={false} isGenerating={false} />,
-      )
+      sendTree = create(<SendButton onPress={jest.fn()} disabled={false} isGenerating={false} />)
     })
 
     const sendBtn = sendTree.root.find(
-      (n: any) => n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Send message',
+      (n: any) =>
+        n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Send message',
     )
     expect(sendBtn).toBeDefined()
     expect(sendBtn.props.accessibilityState).toEqual({ disabled: false })
@@ -313,13 +321,17 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     mockWikiStatus = { ingesting: true, librarian: false, heal: false }
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const wikiRegion = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
 
     expect(wikiRegion).toBeDefined()
-    act(() => { tree.unmount() })
+    act(() => {
+      tree.unmount()
+    })
   })
 
   // ── wiki status region (free tier) ────────────────────────────────────────
@@ -328,13 +340,19 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     mockWikiStatus = { ingesting: true, librarian: false, heal: false }
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
-    const ingestingText = allTexts.find((t: any) => t.props.accessibilityLabel === 'Ingesting document')
+    const ingestingText = allTexts.find(
+      (t: any) => t.props.accessibilityLabel === 'Ingesting document',
+    )
     expect(ingestingText).toBeDefined()
 
-    act(() => { tree.unmount() })
+    act(() => {
+      tree.unmount()
+    })
   })
 
   // ── document upload phase banner ──────────────────────────────────────────
@@ -343,37 +361,50 @@ describe('ChatView accessibility', () => {
     ['converting', 'Converting document', '⏳ Converting document…'],
     ['checking', 'Checking for changes', '⏳ Checking for changes…'],
     ['forgetting', 'Removing previous version', '⏳ Removing previous version…'],
-  ])('shows the %s banner with label %s when ChatComposer reports that phase', (phase, label, text) => {
-    mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
+  ])(
+    'shows the %s banner with label %s when ChatComposer reports that phase',
+    (phase, label, text) => {
+      mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
-    let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+      let tree: any
+      act(() => {
+        tree = create(<ChatView characterId="char-1" />)
+      })
 
-    // Slice 2: ChatComposer is mounted inside ChatInputBar, which is inside
-    // ChatView. ChatView passes `setDocumentPhase` as ChatComposer's
-    // `onPhaseChange`. Captured by the ChatComposer mock.
-    expect(capturedChatComposerProps).not.toBeNull()
-    expect(typeof capturedChatComposerProps.onPhaseChange).toBe('function')
+      // Slice 2: ChatComposer is mounted inside ChatInputBar, which is inside
+      // ChatView. ChatView passes `setDocumentPhase` as ChatComposer's
+      // `onPhaseChange`. Captured by the ChatComposer mock.
+      expect(capturedChatComposerProps).not.toBeNull()
+      expect(typeof capturedChatComposerProps.onPhaseChange).toBe('function')
 
-    act(() => { capturedChatComposerProps.onPhaseChange(phase) })
+      act(() => {
+        capturedChatComposerProps.onPhaseChange(phase)
+      })
 
-    const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
-    const phaseText = allTexts.find((t: any) => t.props.accessibilityLabel === label)
-    expect(phaseText).toBeDefined()
-    expect(phaseText.props.children).toBe(text)
-  })
+      const allTexts = tree.root.findAll((n: any) => n.type === 'Text')
+      const phaseText = allTexts.find((t: any) => t.props.accessibilityLabel === label)
+      expect(phaseText).toBeDefined()
+      expect(phaseText.props.children).toBe(text)
+    },
+  )
 
   it('hides the document-phase banner once ChatComposer reports phase null and no other status is active', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
-    act(() => { capturedChatComposerProps.onPhaseChange('reading') })
+    act(() => {
+      capturedChatComposerProps.onPhaseChange('reading')
+    })
     let allTexts = tree.root.findAll((n: any) => n.type === 'Text')
     expect(allTexts.find((t: any) => t.props.accessibilityLabel === 'Reading file')).toBeDefined()
 
-    act(() => { capturedChatComposerProps.onPhaseChange(null) })
+    act(() => {
+      capturedChatComposerProps.onPhaseChange(null)
+    })
     allTexts = tree.root.findAll((n: any) => n.type === 'Text')
     expect(allTexts.find((t: any) => t.props.accessibilityLabel === 'Reading file')).toBeUndefined()
   })
@@ -384,7 +415,9 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: null, isLoading: true })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -398,7 +431,9 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: null, isLoading: false })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -434,7 +469,9 @@ describe('ChatView accessibility', () => {
     })
 
     capturedCharacterAvatarProps.length = 0
-    act(() => { create(<ChatView characterId="char-1" />) })
+    act(() => {
+      create(<ChatView characterId="char-1" />)
+    })
 
     expect(capturedCharacterAvatarProps).toHaveLength(1)
     expect(capturedCharacterAvatarProps[0].characterName).toBe('Nova')
@@ -463,7 +500,9 @@ describe('ChatView accessibility', () => {
     })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const avatarText = tree.root.find((n: any) => n.props.testID === 'avatar-text')
     expect(avatarText.props.accessibilityLabel).toContain('Test')
@@ -477,7 +516,9 @@ describe('ChatView accessibility', () => {
     withNoUser()
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const allViews = tree.root.findAll((n: any) => n.type === 'View')
     const liveView = allViews.find((v: any) => v.props.accessibilityLiveRegion === 'polite')
@@ -502,7 +543,9 @@ describe('ChatView accessibility', () => {
     })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     // Slice 2: renderInputToolbar is replaced by ChatInputBar mounted in its
     // slot. Verify ChatInputBar exists with the ownership props ChatView
@@ -534,7 +577,9 @@ describe('ChatView accessibility', () => {
     })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     const statusTexts = tree.root.findAll(
       (n: any) => n.props.accessibilityLabel === 'Reading your memory',
@@ -557,7 +602,9 @@ describe('ChatView accessibility', () => {
     })
 
     let tree: any
-    act(() => { tree = create(<ChatView characterId="char-1" />) })
+    act(() => {
+      tree = create(<ChatView characterId="char-1" />)
+    })
 
     // Slice 2: alwaysShowSend is replaced by ChatInputBar's isGenerating
     // prop. ChatView passes isGeneratingResponse through as isGenerating.
@@ -569,9 +616,7 @@ describe('ChatView accessibility', () => {
     const sendBtn = tree.root.findByType(SendButton)
     expect(sendBtn.props.isGenerating).toBe(true)
 
-    const spinner = tree.root.find(
-      (n: any) => n.props.accessibilityLabel === 'Generating response',
-    )
+    const spinner = tree.root.find((n: any) => n.props.accessibilityLabel === 'Generating response')
     expect(spinner).toBeDefined()
     expect(spinner.props.accessibilityRole).toBe('progressbar')
   })
@@ -580,7 +625,9 @@ describe('ChatView accessibility', () => {
     mockUseCharacter.mockReturnValue({ data: defaultCharacter, isLoading: false })
     const setIntervalSpy = jest.spyOn(globalThis, 'setInterval')
 
-    act(() => { create(<ChatView characterId="char-1" />) })
+    act(() => {
+      create(<ChatView characterId="char-1" />)
+    })
 
     expect(setIntervalSpy).not.toHaveBeenCalled()
     setIntervalSpy.mockRestore()
@@ -592,13 +639,12 @@ describe('ChatView accessibility', () => {
     // background on its outer container is the same color the mock theme provides.
     let sendTree: any
     act(() => {
-      sendTree = create(
-        <SendButton onPress={jest.fn()} disabled={false} isGenerating={false} />,
-      )
+      sendTree = create(<SendButton onPress={jest.fn()} disabled={false} isGenerating={false} />)
     })
 
     const pill = sendTree.root.find(
-      (n: any) => n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Send message',
+      (n: any) =>
+        n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Send message',
     )
     expect(pill).toBeDefined()
     // The pill's outer style carries the primaryContainer background as a

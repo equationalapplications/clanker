@@ -12,16 +12,16 @@ Users watch a small credit number tick down with every message. Each action has 
 
 ## Product Decisions (locked in)
 
-| # | Topic | Decision |
-|---|---|---|
-| 1 | Scaling | True backend migration: all stored balances, grants, and per-action costs multiplied by exactly 100. Straight ×100 — no cost rebalancing in this spec. |
-| 2 | Unit name | User-facing unit renamed **"Power"**. Backend schema, service names, and code identifiers keep `credit*` naming. "Energy" is reserved for a possible future free daily recharging grant (see Appendix). |
-| 3 | Badge | `CreditCounterIcon` numeric badge replaced by a plan-relative **power meter** with coarse (5%-step) fill rendering and no visible number. |
-| 4 | Low balance | Soft low-power UX: amber/red meter bands, gentle pre-emptive prompts, friendly "Out of Power" copy instead of raw insufficient-credit errors. |
-| 5 | Cost visibility | Per-action costs removed from chat surfaces; costs appear only in one pricing section of the subscribe screen. |
-| 6 | Subscription framing | "Power refills monthly" copy on subscribe screen. |
-| 7 | Free daily Energy | **Not implemented in this spec.** Research retained as non-normative Appendix A. |
-| 8 | Rollout | Approach A: big-bang SQL migration + coordinated deploy. Acceptable because there are currently no users. |
+| #   | Topic                | Decision                                                                                                                                                                                                |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Scaling              | True backend migration: all stored balances, grants, and per-action costs multiplied by exactly 100. Straight ×100 — no cost rebalancing in this spec.                                                  |
+| 2   | Unit name            | User-facing unit renamed **"Power"**. Backend schema, service names, and code identifiers keep `credit*` naming. "Energy" is reserved for a possible future free daily recharging grant (see Appendix). |
+| 3   | Badge                | `CreditCounterIcon` numeric badge replaced by a plan-relative **power meter** with coarse (5%-step) fill rendering and no visible number.                                                               |
+| 4   | Low balance          | Soft low-power UX: amber/red meter bands, gentle pre-emptive prompts, friendly "Out of Power" copy instead of raw insufficient-credit errors.                                                           |
+| 5   | Cost visibility      | Per-action costs removed from chat surfaces; costs appear only in one pricing section of the subscribe screen.                                                                                          |
+| 6   | Subscription framing | "Power refills monthly" copy on subscribe screen.                                                                                                                                                       |
+| 7   | Free daily Energy    | **Not implemented in this spec.** Research retained as non-normative Appendix A.                                                                                                                        |
+| 8   | Rollout              | Approach A: big-bang SQL migration + coordinated deploy. Acceptable because there are currently no users.                                                                                               |
 
 ---
 
@@ -45,27 +45,27 @@ No schema change. Columns remain integers.
 
 ### Grant amounts
 
-| Grant | Old | New |
-|---|---|---|
-| Free signup (`getOrCreateDefaultSubscription` → `creditService.addCredits`) | 50 | 5,000 |
-| Monthly subscription (Stripe + RevenueCat webhooks) | 300/cycle | 30,000/cycle |
-| One-time pack (Stripe + RevenueCat webhooks) | 100 | 10,000 |
+| Grant                                                                       | Old       | New          |
+| --------------------------------------------------------------------------- | --------- | ------------ |
+| Free signup (`getOrCreateDefaultSubscription` → `creditService.addCredits`) | 50        | 5,000        |
+| Monthly subscription (Stripe + RevenueCat webhooks)                         | 300/cycle | 30,000/cycle |
+| One-time pack (Stripe + RevenueCat webhooks)                                | 100       | 10,000       |
 
 ### Per-action costs (straight ×100)
 
-| Action | Old | New |
-|---|---|---|
-| Text chat reply, grounded (`generateReply`, default googleSearch) | 3 / round-trip | 300 |
-| Text chat reply, standard (`generateReply`, explicit tools) | 1 / round-trip | 100 |
-| Image generation (`generateImage`) | 2 | 200 |
-| Document text conversion (`convertDocumentText`) | 2 | 200 |
-| Summarization (`summarizeText`) | 1 | 100 |
-| Embeddings (`generateEmbedding`) | 1 / 50,000 chars | 100 / 50,000 chars |
-| Wiki LLM / sync, memory write/heal | 1 each | 100 each |
-| Agent turn, per internal tool-call loop iteration (cap 5) | 1 (max 5) | 100 (max 500) |
-| Live voice connect + per 60s | 5 + 5/60s | 500 + 500/60s |
-| Scheduler trigger | 1 | 100 |
-| `browser_action` (voice path) | 1 | 100 |
+| Action                                                            | Old              | New                |
+| ----------------------------------------------------------------- | ---------------- | ------------------ |
+| Text chat reply, grounded (`generateReply`, default googleSearch) | 3 / round-trip   | 300                |
+| Text chat reply, standard (`generateReply`, explicit tools)       | 1 / round-trip   | 100                |
+| Image generation (`generateImage`)                                | 2                | 200                |
+| Document text conversion (`convertDocumentText`)                  | 2                | 200                |
+| Summarization (`summarizeText`)                                   | 1                | 100                |
+| Embeddings (`generateEmbedding`)                                  | 1 / 50,000 chars | 100 / 50,000 chars |
+| Wiki LLM / sync, memory write/heal                                | 1 each           | 100 each           |
+| Agent turn, per internal tool-call loop iteration (cap 5)         | 1 (max 5)        | 100 (max 500)      |
+| Live voice connect + per 60s                                      | 5 + 5/60s        | 500 + 500/60s      |
+| Scheduler trigger                                                 | 1                | 100                |
+| `browser_action` (voice path)                                     | 1                | 100                |
 
 Live voice connect gate raised to **≥ 500**, enforced in both client (`useLiveVoiceChat`) and server (cloud-agent `/agent/live`).
 
@@ -77,7 +77,7 @@ Refund logic is unaffected: `spendCredits` allocations and `refundCredit` operat
 - `cloud-agent/` — per-iteration spend, live-voice billing controller (500/60s), connect gate, scheduler trigger, `browser_action` billing.
 - `src/` — client-side gate checks and any client constants mirroring costs.
 - Bootstrap/`exchangeToken` credits payload — add `grantedTotal` (`SUM(initial_amount)` over live rows: `remaining_balance > 0` and not expired) to power the meter denominator.
-- `docs/billing-and-credits.md` — cost tables rewritten in new units with a note: *user-facing name is "Power"*.
+- `docs/billing-and-credits.md` — cost tables rewritten in new units with a note: _user-facing name is "Power"_.
 
 ### Deploy order
 
@@ -138,10 +138,10 @@ band      = rawFill >= 0.20 ? normal : rawFill >= 0.05 ? amber : red   // bands 
 
 ### Low-power progression
 
-| Band | Trigger | Behavior |
-|---|---|---|
-| Amber | fill 5–20% | One gentle snackbar/banner per session: "Power getting low" + recharge link. Non-blocking. |
-| Red | fill < 5% | Inline hint in composer: "Low Power — recharge to keep chatting." Shown before a send can fail. |
+| Band  | Trigger                        | Behavior                                                                                                       |
+| ----- | ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Amber | fill 5–20%                     | One gentle snackbar/banner per session: "Power getting low" + recharge link. Non-blocking.                     |
+| Red   | fill < 5%                      | Inline hint in composer: "Low Power — recharge to keep chatting." Shown before a send can fail.                |
 | Empty | insufficient balance on action | Friendly "Out of Power" message with recharge CTA. Raw insufficient-credit error text never shown to the user. |
 
 ### Cost desurfacing
@@ -181,11 +181,11 @@ Research retained for a possible future free daily recharging grant. The name **
 
 `generateReply` uses the standard `@google/genai` `generateContent` shape (currently `gemini-3.5-flash`, thinking budget 0) — any Gemini model is a drop-in string change.
 
-| Model | $/1M tokens in / out (July 2026) | Notes |
-|---|---|---|
-| gemini-3.5-flash (current) | 1.50 / 9.00 | Paid-lane quality; ~$0.006 per typical turn |
-| gemini-3.1-flash-lite | 0.25 / 1.50 | ~$0.001/turn |
-| gemini-2.5-flash-lite | 0.10 / 0.40 | ~$0.0003/turn; cheapest viable |
+| Model                      | $/1M tokens in / out (July 2026) | Notes                                       |
+| -------------------------- | -------------------------------- | ------------------------------------------- |
+| gemini-3.5-flash (current) | 1.50 / 9.00                      | Paid-lane quality; ~$0.006 per typical turn |
+| gemini-3.1-flash-lite      | 0.25 / 1.50                      | ~$0.001/turn                                |
+| gemini-2.5-flash-lite      | 0.10 / 0.40                      | ~$0.0003/turn; cheapest viable              |
 
 Typical turn ≈ 2K input tokens (persona + history) + 300 output. At 25 free texts/day × 1,000 DAU: 2.5-flash-lite ≈ $8/day; 3.1-flash-lite ≈ $25/day; 3.5-flash ≈ $150/day.
 

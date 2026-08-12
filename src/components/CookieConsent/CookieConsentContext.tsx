@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import {
   COOKIE_POLICY_VERSION,
   CONSENT_TTL_MS,
@@ -14,10 +7,7 @@ import {
   defaultAcceptChoices,
   defaultRejectChoices,
 } from '~/utilities/cookieConsentTypes'
-import {
-  readConsent,
-  writeConsent,
-} from '~/utilities/cookieConsentStorage.web'
+import { readConsent, writeConsent } from '~/utilities/cookieConsentStorage.web'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
 import { setAnalyticsEnabled } from '~/services/analyticsService'
 
@@ -89,10 +79,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
     [persist, record],
   )
 
-  const choices = useMemo(
-    () => record?.choices ?? defaultRejectChoices(),
-    [record],
-  )
+  const choices = useMemo(() => record?.choices ?? defaultRejectChoices(), [record])
   const canUse = useCallback(
     (category: CookieCategory) =>
       category === 'necessary' || (record ? choices[category] === true : false),

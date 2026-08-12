@@ -44,7 +44,7 @@ describe('installGoogleIdentityConsoleFilter', () => {
     expect(errorSink).not.toHaveBeenCalled()
   })
 
-  it("redirects the \"Provider's accounts list is empty.\" message to console.warn", () => {
+  it('redirects the "Provider\'s accounts list is empty." message to console.warn', () => {
     console.error("Provider's accounts list is empty.")
     expect(console.warn).toHaveBeenCalledWith("Provider's accounts list is empty.")
     expect(errorSink).not.toHaveBeenCalled()

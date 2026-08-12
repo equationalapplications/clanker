@@ -40,8 +40,13 @@ export async function handleWsUpgrade(
 ) {
   const { db } = options
   const cs = options.creditService ?? createCreditService(db)
-  const verifyToken = options.verifyToken ?? ((token: string) =>
-    admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })))
+  const verifyToken =
+    options.verifyToken ??
+    ((token: string) =>
+      admin
+        .auth()
+        .verifyIdToken(token)
+        .then((d) => ({ uid: d.uid })))
 
   let userId: string | null = null
   let authTimer: ReturnType<typeof setTimeout>
@@ -93,7 +98,14 @@ export async function handleWsUpgrade(
 
       hasRun = true
 
-      const { message, characterId, unsyncedHistory = [], history: rawHistory = [], timezone = 'UTC', attachments = [] } = parseResult.data
+      const {
+        message,
+        characterId,
+        unsyncedHistory = [],
+        history: rawHistory = [],
+        timezone = 'UTC',
+        attachments = [],
+      } = parseResult.data
       const history = rawHistory as Content[]
 
       try {
@@ -110,9 +122,10 @@ export async function handleWsUpgrade(
       isCompleted = false
       abortController = new AbortController()
 
-      const [character] = await db.select().from(characters).where(
-        and(eq(characters.id, characterId), eq(characters.userId, userId)),
-      )
+      const [character] = await db
+        .select()
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
       if (!character) {
         safeSend({ type: 'error', code: 'CHARACTER_NOT_FOUND', message: 'Character not found' })
         ws.close(4404, 'Character not found')
@@ -231,12 +244,20 @@ export async function handleWsUpgrade(
         console.error('ADK execution error:', adkErr)
         const mapped = mapAgentExecutionError(adkErr)
         safeSend({ type: 'error', code: mapped.code, message: mapped.message })
-        try { ws.close(1011, 'Execution failed') } catch { /* ignore close errors */ }
+        try {
+          ws.close(1011, 'Execution failed')
+        } catch {
+          /* ignore close errors */
+        }
       }
     } catch (err) {
       console.error('agent_run handler error:', err)
       safeSend({ type: 'error', code: 'INTERNAL_ERROR', message: 'Internal server error' })
-      try { ws.close(1011, 'Internal error') } catch { /* ignore close errors */ }
+      try {
+        ws.close(1011, 'Internal error')
+      } catch {
+        /* ignore close errors */
+      }
     }
   }
 
@@ -254,7 +275,10 @@ export async function handleWsUpgrade(
       const decoded = await verifyToken(payload.token)
       const uid = decoded.uid
 
-      const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid))
+      const [dbUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.firebaseUid, uid))
       if (!dbUser) {
         safeSend({ type: 'error', code: 'UNAUTHORIZED', message: 'User not found' })
         ws.close(4001, 'User not found')
@@ -271,15 +295,17 @@ export async function handleWsUpgrade(
 
   let messageChain = Promise.resolve()
   ws.on('message', (data) => {
-    messageChain = messageChain.then(async () => {
-      if (!userId) {
-        await handleAuthMessage(data)
-        return
-      }
-      await handleAgentRunMessage(data)
-    }).catch((err) => {
-      console.error('WebSocket message handling error:', err)
-    })
+    messageChain = messageChain
+      .then(async () => {
+        if (!userId) {
+          await handleAuthMessage(data)
+          return
+        }
+        await handleAgentRunMessage(data)
+      })
+      .catch((err) => {
+        console.error('WebSocket message handling error:', err)
+      })
   })
 
   ws.on('close', () => {

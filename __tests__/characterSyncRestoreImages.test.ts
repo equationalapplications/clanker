@@ -61,16 +61,18 @@ function cloudCharacter(overrides: Record<string, unknown> = {}) {
     createdAt: new Date(1000).toISOString(),
     updatedAt: new Date(2000).toISOString(),
     voice: null,
-    images: [{
-      id: IMAGE_ID,
-      characterId: CLOUD_ID,
-      storagePath: `users/u/characters/${CLOUD_ID}/${IMAGE_ID}.webp`,
-      thumbPath: null,
-      mimeType: 'image/webp',
-      source: 'generated',
-      createdAt: new Date(2000).toISOString(),
-      deletedAt: null,
-    }],
+    images: [
+      {
+        id: IMAGE_ID,
+        characterId: CLOUD_ID,
+        storagePath: `users/u/characters/${CLOUD_ID}/${IMAGE_ID}.webp`,
+        thumbPath: null,
+        mimeType: 'image/webp',
+        source: 'generated',
+        createdAt: new Date(2000).toISOString(),
+        deletedAt: null,
+      },
+    ],
     activeImageId: IMAGE_ID,
     ...overrides,
   }

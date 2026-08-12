@@ -47,7 +47,7 @@ grants production credits and tier.
 
 - Extend `parseRevenueCatEvent` to extract `environment` (string, optional).
 - If `environment === "SANDBOX"`: log at info, respond `200 {received: true,
-  ignored: "sandbox"}`, no side effects. Return 200 (not 5xx) so RC does not retry.
+ignored: "sandbox"}`, no side effects. Return 200 (not 5xx) so RC does not retry.
 - Test: sandbox `INITIAL_PURCHASE` for a credit pack grants nothing.
 
 ### A2. Handle refunds (`cancel_reason`) (money bug)
@@ -83,7 +83,7 @@ Two unconditional downgrades fire regardless of which product the event is about
 - `CANCELLATION` for an unknown product (which includes the credit packs
   `credit_pack_100` / `credit_100`) falls into the else branch at
   `revenueCatWebhook.ts:519` and sets the user to `free/cancelled` — destroying an
-  active subscription when a *pack* is refunded, and never deducting the pack credits.
+  active subscription when a _pack_ is refunded, and never deducting the pack credits.
 - `EXPIRATION` (`revenueCatWebhook.ts:534`) downgrades unconditionally.
 
 Changes:
@@ -126,13 +126,13 @@ active Stripe subscription can buy again via RC and pay twice.
     contains it), widen `SubscriptionSnapshot` + `normalizeBootstrapResponse` to
     `'stripe' | 'revenuecat' | null`, then read it in `CreditsDisplay`.
 - Backend: **already implemented** (2026-07-24 finding) — `purchasePackageStripe.ts:150-166`
-  already rejects a *subscription* checkout with `HttpsError("already-exists", …)` when an
+  already rejects a _subscription_ checkout with `HttpsError("already-exists", …)` when an
   active RC subscription exists (fail-closed, message surfaced by the client). Remaining
   work is a regression test only, not new code. The RC side cannot be blocked server-side
   (the store transaction completes regardless), so for native the client gate is the
   primary defense and the collision log remains the tripwire.
-  - Note: the shipped backend message is *"You already have an active subscription on
-    mobile. Manage it in the App Store or Play Store."* Reconcile with the client wording
+  - Note: the shipped backend message is _"You already have an active subscription on
+    mobile. Manage it in the App Store or Play Store."_ Reconcile with the client wording
     above (pick one) so both providers present a consistent message.
 - Test: active RC sub → Stripe subscription checkout rejected; credit-pack checkout
   and resubscribe-after-expiry still allowed.
@@ -264,7 +264,7 @@ mirroring RC's `emitRevenueCatPurchase` / `emitRevenueCatRefund` (try/catch/log,
 never throw).
 
 **B6.1 Subscription purchases → `invoice.payment_succeeded` only.**
-A brand-new Stripe subscription fires *both* `checkout.session.completed` (subscription
+A brand-new Stripe subscription fires _both_ `checkout.session.completed` (subscription
 line item) and `invoice.payment_succeeded` (`billing_reason: subscription_create`).
 Emitting from both would double-count revenue in GA4 (different natural ids → no
 dedup). **Decision 5:** emit subscription purchases from `invoice.payment_succeeded`
@@ -289,6 +289,7 @@ invoice, uniform keying, no double-count.
 `invoice.payment_succeeded` credit-pack path as today.
 
 **B6.3 Refunds → `charge.refunded`.**
+
 - Credit-pack refund branch (`creditPackQty > 0`): after deducting credits, emit
   `refund` with `valueMinorUnits = deltaRefunded` (the new-refund delta already
   computed), so partial / repeat refunds each report only their increment.
@@ -354,9 +355,9 @@ PRs target `staging` per `docs/GIT_WORKFLOW.md`.
 1. **RC Scheduled Data Exports**: not on current plan — B4 deferred until native
    revenue or sale process justifies the upgrade.
 2. **Backend double-subscribe guard**: build it — `purchasePackageStripe` rejects
-   subscription checkout when an active RC subscription exists (A5). *(Update
+   subscription checkout when an active RC subscription exists (A5). _(Update
    2026-07-24: already shipped at `purchasePackageStripe.ts:150-166`; remaining work
-   is a regression test only.)*
+   is a regression test only.)_
 3. **GA4 export**: stay daily-only; no streaming export.
 4. **Refund clawback**: proportional, mirroring the Stripe path. Rationale: a
    partial refund (e.g. 50% via Stripe) must claw back exactly that fraction of the

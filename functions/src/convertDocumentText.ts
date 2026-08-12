@@ -1,46 +1,46 @@
-import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
-import * as logger from 'firebase-functions/logger';
-import type { DecodedIdToken } from 'firebase-admin/auth';
-import { generateTextWithRetry } from './services/vertexText.js';
-import * as mammoth from 'mammoth';
+import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import type { DecodedIdToken } from 'firebase-admin/auth'
+import { generateTextWithRetry } from './services/vertexText.js'
+import * as mammoth from 'mammoth'
 
-import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js';
-import { userRepository } from './services/userRepository.js';
-import { creditService } from './services/creditService.js';
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import { userRepository } from './services/userRepository.js'
+import { creditService } from './services/creditService.js'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const DEFAULT_REGION = 'us-central1';
-const CONVERT_MODEL = 'gemini-3.5-flash';
-const MAX_BASE64_LENGTH = 12_000_000; // ~9MB raw file
-const MAX_DOCUMENT_CHARS = 200_000;
-const CONVERT_THINKING_BUDGET = 0; // mechanical transcription transform
+const DEFAULT_REGION = 'us-central1'
+const CONVERT_MODEL = 'gemini-3.5-flash'
+const MAX_BASE64_LENGTH = 12_000_000 // ~9MB raw file
+const MAX_DOCUMENT_CHARS = 200_000
+const CONVERT_THINKING_BUDGET = 0 // mechanical transcription transform
 
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
-const ALLOWED_MIME_TYPES = new Set<string>([DOCX_MIME, ...GEMINI_MIME_TYPES]);
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'])
+const ALLOWED_MIME_TYPES = new Set<string>([DOCX_MIME, ...GEMINI_MIME_TYPES])
 
 const CONVERSION_PROMPT =
   'Transcribe all text content from this document into clean markdown. ' +
   'Preserve headings, lists, and tables where present. ' +
-  'Output only the transcribed markdown — no commentary, no preamble.';
+  'Output only the transcribed markdown — no commentary, no preamble.'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ConvertDocumentTextOutput {
-  text: string;
-  truncated: boolean;
+  text: string
+  truncated: boolean
 }
 
 interface ConvertDocumentTextInput {
-  filename?: unknown;
-  mimeType?: unknown;
-  contentBase64?: unknown;
+  filename?: unknown
+  mimeType?: unknown
+  contentBase64?: unknown
 }
 
 interface ConvertDocumentTextDeps {
-  userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>;
-  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>;
-  convertDocx: (buffer: Buffer) => Promise<string>;
-  generateFromGemini: (mimeType: string, base64: string) => Promise<string>;
+  userRepository: Pick<typeof userRepository, 'getOrCreateUserByFirebaseIdentity'>
+  creditService: Pick<typeof creditService, 'spendCredits' | 'refundCredit'>
+  convertDocx: (buffer: Buffer) => Promise<string>
+  generateFromGemini: (mimeType: string, base64: string) => Promise<string>
 }
 
 async function defaultGenerateFromGemini(mimeType: string, base64: string): Promise<string> {
@@ -57,68 +57,71 @@ async function defaultGenerateFromGemini(mimeType: string, base64: string): Prom
       thinkingConfig: { thinkingBudget: CONVERT_THINKING_BUDGET },
     },
     logContext: 'convertDocumentText',
-  });
-  return text;
+  })
+  return text
 }
 
 /** Test seam — exercises the real generator against the injected client. */
-export async function defaultGenerateFromGeminiForTests(mimeType: string, base64: string): Promise<string> {
-  return defaultGenerateFromGemini(mimeType, base64);
+export async function defaultGenerateFromGeminiForTests(
+  mimeType: string,
+  base64: string,
+): Promise<string> {
+  return defaultGenerateFromGemini(mimeType, base64)
 }
 
 async function defaultConvertDocx(buffer: Buffer): Promise<string> {
   try {
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value;
+    const result = await mammoth.extractRawText({ buffer })
+    return result.value
   } catch {
-    throw new HttpsError('invalid-argument', 'Could not read DOCX file.');
+    throw new HttpsError('invalid-argument', 'Could not read DOCX file.')
   }
 }
 
 // ─── Input parsing ────────────────────────────────────────────────────────────
 function parseInput(data: unknown): {
-  filename: string;
-  mimeType: string;
-  contentBase64: string;
+  filename: string
+  mimeType: string
+  contentBase64: string
 } {
   if (!data || typeof data !== 'object') {
-    throw new HttpsError('invalid-argument', 'Valid payload is required.');
+    throw new HttpsError('invalid-argument', 'Valid payload is required.')
   }
-  const payload = data as ConvertDocumentTextInput;
+  const payload = data as ConvertDocumentTextInput
 
   if (typeof payload.filename !== 'string' || !payload.filename.trim()) {
-    throw new HttpsError('invalid-argument', 'filename is required.');
+    throw new HttpsError('invalid-argument', 'filename is required.')
   }
   const filename = payload.filename
     .replace(/[^A-Za-z0-9._\- ]/g, '')
     .trim()
-    .slice(0, 255);
+    .slice(0, 255)
   if (!filename) {
-    throw new HttpsError('invalid-argument', 'filename is required after sanitization.');
+    throw new HttpsError('invalid-argument', 'filename is required after sanitization.')
   }
 
   if (typeof payload.mimeType !== 'string') {
-    throw new HttpsError('invalid-argument', 'Unsupported file type.');
+    throw new HttpsError('invalid-argument', 'Unsupported file type.')
   }
-  const mimeType = payload.mimeType.trim().toLowerCase();
+  const mimeType = payload.mimeType.trim().toLowerCase()
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-    throw new HttpsError('invalid-argument', 'Unsupported file type.');
+    throw new HttpsError('invalid-argument', 'Unsupported file type.')
   }
 
   if (typeof payload.contentBase64 !== 'string' || !payload.contentBase64) {
-    throw new HttpsError('invalid-argument', 'contentBase64 must be a non-empty string.');
+    throw new HttpsError('invalid-argument', 'contentBase64 must be a non-empty string.')
   }
   if (payload.contentBase64.length > MAX_BASE64_LENGTH) {
-    throw new HttpsError('invalid-argument', 'File too large.');
+    throw new HttpsError('invalid-argument', 'File too large.')
   }
   if (
     !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.contentBase64) ||
     payload.contentBase64.length % 4 !== 0
   ) {
-    throw new HttpsError('invalid-argument', 'contentBase64 must be valid base64.');
+    throw new HttpsError('invalid-argument', 'contentBase64 must be valid base64.')
   }
 
-  return { filename, mimeType, contentBase64: payload.contentBase64 };
+  return { filename, mimeType, contentBase64: payload.contentBase64 }
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -133,27 +136,27 @@ export async function convertDocumentTextHandler(
 ): Promise<ConvertDocumentTextOutput> {
   // 1. Auth check
   if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Authentication required.');
+    throw new HttpsError('unauthenticated', 'Authentication required.')
   }
-  const decoded = request.auth.token as DecodedIdToken;
+  const decoded = request.auth.token as DecodedIdToken
   if (!decoded || decoded.uid !== request.auth.uid) {
-    throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.');
+    throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.')
   }
 
   // 2. Parse + validate input (before any credit charge)
-  const { filename, mimeType, contentBase64 } = parseInput(request.data);
+  const { filename, mimeType, contentBase64 } = parseInput(request.data)
 
   // 3. User identity
   const user = await deps.userRepository.getOrCreateUserByFirebaseIdentity({
     firebaseUid: request.auth.uid,
     email: typeof decoded.email === 'string' ? decoded.email.trim() : '',
     displayName: decoded.name,
-  });
+  })
 
   // 4. Charge 2 credits before conversion; refunded on any failure below.
-  const spendAllocations = await deps.creditService.spendCredits(user.id, 200);
+  const spendAllocations = await deps.creditService.spendCredits(user.id, 200)
   if (!spendAllocations) {
-    throw new HttpsError('failed-precondition', 'Insufficient credits to convert document.');
+    throw new HttpsError('failed-precondition', 'Insufficient credits to convert document.')
   }
 
   logger.info('convertDocumentText start', {
@@ -161,25 +164,25 @@ export async function convertDocumentTextHandler(
     mimeType,
     base64Len: contentBase64.length,
     userId: user.id,
-  });
+  })
 
   try {
-    let text: string;
+    let text: string
     if (mimeType === DOCX_MIME) {
-      const buffer = Buffer.from(contentBase64, 'base64');
-      text = await deps.convertDocx(buffer);
+      const buffer = Buffer.from(contentBase64, 'base64')
+      text = await deps.convertDocx(buffer)
     } else {
-      text = await deps.generateFromGemini(mimeType, contentBase64);
+      text = await deps.generateFromGemini(mimeType, contentBase64)
     }
 
     if (!text.trim()) {
-      throw new HttpsError('internal', 'Conversion produced no text.');
+      throw new HttpsError('internal', 'Conversion produced no text.')
     }
 
-    let truncated = false;
+    let truncated = false
     if (text.length > MAX_DOCUMENT_CHARS) {
-      text = text.slice(0, MAX_DOCUMENT_CHARS);
-      truncated = true;
+      text = text.slice(0, MAX_DOCUMENT_CHARS)
+      truncated = true
     }
 
     logger.info('convertDocumentText done', {
@@ -187,32 +190,32 @@ export async function convertDocumentTextHandler(
       outputLen: text.length,
       truncated,
       userId: user.id,
-    });
+    })
 
-    return { text, truncated };
+    return { text, truncated }
   } catch (error) {
     logger.error('convertDocumentText conversion failed', {
       userId: user.id,
       mimeType,
       error,
-    });
+    })
     try {
-      await deps.creditService.refundCredit(user.id, spendAllocations);
+      await deps.creditService.refundCredit(user.id, spendAllocations)
       logger.warn('convertDocumentText refunded credit after conversion failure', {
         userId: user.id,
         spendAllocations,
-      });
+      })
     } catch (refundError) {
       logger.error('convertDocumentText failed to refund credit after failure', {
         userId: user.id,
         spendAllocations,
         error: refundError instanceof Error ? refundError.message : String(refundError),
-      });
+      })
     }
     if (error instanceof HttpsError) {
-      throw error;
+      throw error
     }
-    throw new HttpsError('internal', 'Failed to convert document.');
+    throw new HttpsError('internal', 'Failed to convert document.')
   }
 }
 
@@ -227,4 +230,4 @@ export const convertDocumentText = onCall(
     secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => convertDocumentTextHandler(request),
-);
+)

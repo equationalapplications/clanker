@@ -80,11 +80,31 @@ export function AvatarPicker({
     if (visible) void refresh()
   }, [visible, refresh])
 
-  const { uploadAvatar, isUploading, error: uploadError, clearError: clearUploadError } =
-    useAvatarUpload({ characterId, onImageUploaded: (id) => { onActiveImageChange(id); void refresh() } })
+  const {
+    uploadAvatar,
+    isUploading,
+    error: uploadError,
+    clearError: clearUploadError,
+  } = useAvatarUpload({
+    characterId,
+    onImageUploaded: (id) => {
+      onActiveImageChange(id)
+      void refresh()
+    },
+  })
 
-  const { generateImage, isGenerating, error: generateError, clearError: clearGenerateError } =
-    useImageGeneration({ characterId, onImageGenerated: (id) => { onActiveImageChange(id); void refresh() } })
+  const {
+    generateImage,
+    isGenerating,
+    error: generateError,
+    clearError: clearGenerateError,
+  } = useImageGeneration({
+    characterId,
+    onImageGenerated: (id) => {
+      onActiveImageChange(id)
+      void refresh()
+    },
+  })
 
   const handleActivate = async (imageId: string) => {
     try {
@@ -146,7 +166,9 @@ export function AvatarPicker({
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => { void performDelete(imageId).then(resolve, resolve) },
+          onPress: () => {
+            void performDelete(imageId).then(resolve, resolve)
+          },
         },
       ])
     })
@@ -166,7 +188,11 @@ export function AvatarPicker({
               icon={isUploading ? undefined : 'image-plus'}
               loading={isUploading}
               disabled={isUploading || isGenerating}
-              onPress={() => { clearUploadError(); clearGenerateError(); return uploadAvatar() }}
+              onPress={() => {
+                clearUploadError()
+                clearGenerateError()
+                return uploadAvatar()
+              }}
               style={styles.headerButton}
             >
               Upload
@@ -177,14 +203,22 @@ export function AvatarPicker({
               icon={isGenerating ? undefined : 'image-auto-adjust'}
               loading={isGenerating}
               disabled={isUploading || isGenerating}
-              onPress={() => { clearUploadError(); clearGenerateError(); return generateImage(imagePrompt) }}
+              onPress={() => {
+                clearUploadError()
+                clearGenerateError()
+                return generateImage(imagePrompt)
+              }}
               style={styles.headerButton}
             >
               Generate
             </Button>
           </View>
 
-          {error ? <HelperText type="error" visible>{error}</HelperText> : null}
+          {error ? (
+            <HelperText type="error" visible>
+              {error}
+            </HelperText>
+          ) : null}
 
           {items.length === 0 ? (
             <Text testID="avatar-picker-empty" style={styles.empty}>

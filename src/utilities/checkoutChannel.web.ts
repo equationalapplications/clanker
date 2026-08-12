@@ -6,10 +6,7 @@ import {
 } from './checkoutStateStore'
 
 export type CheckoutEventType =
-  | 'CHECKOUT_STARTED'
-  | 'CHECKOUT_SUCCEEDED'
-  | 'CHECKOUT_CANCELLED'
-  | 'CHECKOUT_STALE_CLEARED'
+  'CHECKOUT_STARTED' | 'CHECKOUT_SUCCEEDED' | 'CHECKOUT_CANCELLED' | 'CHECKOUT_STALE_CLEARED'
 
 export interface CheckoutChannelEvent {
   type: CheckoutEventType

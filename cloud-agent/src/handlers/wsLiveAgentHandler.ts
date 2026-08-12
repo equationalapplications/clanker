@@ -10,7 +10,11 @@ import { users, characters } from '../db/schema.js'
 import { embedText } from '../db/embeddings.js'
 import { assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { buildLiveTools, resolveVoice } from '../services/liveToolAdapter.js'
-import { createVaultToolDeps, resetVaultTurnState, type VaultToolDeps } from '../tools/vaultTools.js'
+import {
+  createVaultToolDeps,
+  resetVaultTurnState,
+  type VaultToolDeps,
+} from '../tools/vaultTools.js'
 import { desktopBridge } from '../services/desktopBridge.js'
 import { createCreditService } from '../services/creditService.js'
 import { LIVE_SESSION_CREDIT_COST } from '../constants/credits.js'
@@ -52,21 +56,35 @@ export function makeBillingController(opts: BillingControllerOpts) {
       graceTimer = setT(() => {
         graceTimer = null
         opts.spend()
-        timer = setI(() => { if (!paused) opts.spend() }, opts.intervalMs)
+        timer = setI(() => {
+          if (!paused) opts.spend()
+        }, opts.intervalMs)
       }, graceMs)
     },
-    pause() { paused = true },
-    resume() { paused = false },
+    pause() {
+      paused = true
+    },
+    resume() {
+      paused = false
+    },
     stop() {
-      if (graceTimer !== null) { clearT(graceTimer); graceTimer = null }
-      if (timer !== null) { clearI(timer); timer = null }
+      if (graceTimer !== null) {
+        clearT(graceTimer)
+        graceTimer = null
+      }
+      if (timer !== null) {
+        clearI(timer)
+        timer = null
+      }
     },
   }
 }
 export type BillingController = ReturnType<typeof makeBillingController>
 
 const billingControllers = new Map<string, BillingController>()
-export function getBillingController(key: string): BillingController | undefined { return billingControllers.get(key) }
+export function getBillingController(key: string): BillingController | undefined {
+  return billingControllers.get(key)
+}
 
 type GeminiSession = {
   sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void
@@ -78,7 +96,11 @@ type GeminiSession = {
 
 type LiveConnectCfg = {
   model: string
-  callbacks: { onmessage: (msg: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
+  callbacks: {
+    onmessage: (msg: unknown) => void
+    onclose: () => void
+    onerror?: (e: unknown) => void
+  }
   config: unknown
 }
 
@@ -99,7 +121,10 @@ export interface WsLiveHandlerOptions {
   billingGraceMs?: number
   _clearInterval?: (id: ReturnType<typeof setInterval> | undefined) => void
   _clearTimeout?: (id: ReturnType<typeof setTimeout> | undefined) => void
-  browserBridge?: Omit<import('../tools/browserAction.js').BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'>
+  browserBridge?: Omit<
+    import('../tools/browserAction.js').BrowserActionDeps,
+    'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'
+  >
   /** Injectable for testing; defaults to DB lookup. */
   getExpoPushToken?: (firebaseUid: string) => Promise<string | null>
 }
@@ -115,7 +140,9 @@ async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
     process.env.GCLOUD_PROJECT,
     process.env.GCP_PROJECT,
     process.env.GOOGLE_CLOUD_PROJECT,
-  ].map((v) => v?.trim()).find((v): v is string => Boolean(v))
+  ]
+    .map((v) => v?.trim())
+    .find((v): v is string => Boolean(v))
   if (!project) throw new Error('Missing GCP project env for Gemini Live')
   // Gemini Live is only available in us-central1; ignore GOOGLE_CLOUD_LOCATION (may be 'global')
   const location = 'us-central1'
@@ -130,17 +157,21 @@ export async function handleLiveWsUpgrade(
 ): Promise<void> {
   const { db } = options
   const cs = options.creditService ?? createCreditService(db)
-  const verifyToken = options.verifyToken ??
-    ((token: string) => admin.auth().verifyIdToken(token).then((d) => ({ uid: d.uid })))
+  const verifyToken =
+    options.verifyToken ??
+    ((token: string) =>
+      admin
+        .auth()
+        .verifyIdToken(token)
+        .then((d) => ({ uid: d.uid })))
   const liveConnect = options.liveConnect ?? defaultLiveConnect
   const billingIntervalMs = options.billingIntervalMs ?? 60_000
   const billingGraceMs = options.billingGraceMs
   const clearIntervalFn = options._clearInterval ?? clearInterval
   const clearTimeoutFn = options._clearTimeout ?? clearTimeout
 
-  const timezone = typeof req.headers['x-timezone'] === 'string'
-    ? req.headers['x-timezone'].trim()
-    : 'UTC'
+  const timezone =
+    typeof req.headers['x-timezone'] === 'string' ? req.headers['x-timezone'].trim() : 'UTC'
 
   let billingController: BillingController | null = null
   let billingInFlight = false
@@ -159,10 +190,16 @@ export async function handleLiveWsUpgrade(
       if (liveSessionKey) billingControllers.delete(liveSessionKey)
       billingController = null
     }
-    try { geminiSession?.close() } catch { /* ignore */ }
+    try {
+      geminiSession?.close()
+    } catch {
+      /* ignore */
+    }
     try {
       if (ws.readyState === WebSocket.OPEN) ws.close(1000, 'Session ended')
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   const authTimer = setTimeout(() => {
@@ -170,7 +207,9 @@ export async function handleLiveWsUpgrade(
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Auth timeout' }))
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     ws.close(4001, 'Auth timeout')
   }, AUTH_TIMEOUT_MS)
 
@@ -184,7 +223,12 @@ export async function handleLiveWsUpgrade(
     }
     const m = msg as {
       serverContent?: {
-        modelTurn?: { parts?: Array<{ inlineData?: { data: string }; functionCall?: { id?: string; name?: string; args?: unknown } }> }
+        modelTurn?: {
+          parts?: Array<{
+            inlineData?: { data: string }
+            functionCall?: { id?: string; name?: string; args?: unknown }
+          }>
+        }
         outputTranscription?: { text?: string }
         inputTranscription?: { text?: string }
         interrupted?: boolean
@@ -206,7 +250,9 @@ export async function handleLiveWsUpgrade(
           if (part.inlineData?.data) {
             try {
               ws.send(JSON.stringify({ type: 'audio_output', data: part.inlineData.data }))
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           }
           if (part.functionCall?.name) {
             const callId = part.functionCall.id
@@ -230,16 +276,36 @@ export async function handleLiveWsUpgrade(
       }
       if (sc.outputTranscription?.text) {
         try {
-          ws.send(JSON.stringify({ type: 'transcript_token', role: 'model', text: sc.outputTranscription.text }))
-        } catch { /* ignore */ }
+          ws.send(
+            JSON.stringify({
+              type: 'transcript_token',
+              role: 'model',
+              text: sc.outputTranscription.text,
+            }),
+          )
+        } catch {
+          /* ignore */
+        }
       }
       if (sc.inputTranscription?.text) {
         try {
-          ws.send(JSON.stringify({ type: 'transcript_token', role: 'user', text: sc.inputTranscription.text }))
-        } catch { /* ignore */ }
+          ws.send(
+            JSON.stringify({
+              type: 'transcript_token',
+              role: 'user',
+              text: sc.inputTranscription.text,
+            }),
+          )
+        } catch {
+          /* ignore */
+        }
       }
       if (sc.interrupted) {
-        try { ws.send(JSON.stringify({ type: 'audio_interrupted' })) } catch { /* ignore */ }
+        try {
+          ws.send(JSON.stringify({ type: 'audio_interrupted' }))
+        } catch {
+          /* ignore */
+        }
       }
       // Spec §7: the vault call cap is per turn. Live sessions span many turns,
       // so reset the budget (and any timeout decay) at each turn boundary.
@@ -248,11 +314,15 @@ export async function handleLiveWsUpgrade(
       }
       if (hasGroundingData(sc.groundingMetadata as GroundingMetadata | undefined)) {
         try {
-          ws.send(JSON.stringify({
-            type: 'grounding_metadata',
-            groundingMetadata: sc.groundingMetadata,
-          }))
-        } catch { /* ignore */ }
+          ws.send(
+            JSON.stringify({
+              type: 'grounding_metadata',
+              groundingMetadata: sc.groundingMetadata,
+            }),
+          )
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -279,13 +349,17 @@ export async function handleLiveWsUpgrade(
     console.error('[gemini live] connection closed', { code: e?.code, reason: e?.reason })
     try {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'error',
-          code: 'GEMINI_DISCONNECTED',
-          message: 'Upstream connection lost',
-        }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'GEMINI_DISCONNECTED',
+            message: 'Upstream connection lost',
+          }),
+        )
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     clearAndClose()
   }
 
@@ -293,7 +367,11 @@ export async function handleLiveWsUpgrade(
     calls: Array<{ id: string; name: string; args?: unknown }>,
   ): Promise<void> {
     for (const call of calls) {
-      try { ws.send(JSON.stringify({ type: 'tool_start', name: call.name })) } catch { /* ignore */ }
+      try {
+        ws.send(JSON.stringify({ type: 'tool_start', name: call.name }))
+      } catch {
+        /* ignore */
+      }
 
       let result: unknown
       try {
@@ -314,7 +392,11 @@ export async function handleLiveWsUpgrade(
         console.error('[live tools] sendToolResponse failed:', err)
       }
 
-      try { ws.send(JSON.stringify({ type: 'tool_end', name: call.name })) } catch { /* ignore */ }
+      try {
+        ws.send(JSON.stringify({ type: 'tool_end', name: call.name }))
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -324,7 +406,9 @@ export async function handleLiveWsUpgrade(
     try {
       const parseResult = liveAuthSchema.safeParse(JSON.parse(data.toString()))
       if (!parseResult.success) {
-        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Invalid auth payload' }))
+        ws.send(
+          JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Invalid auth payload' }),
+        )
         ws.close(4001, 'Invalid auth payload')
         return
       }
@@ -336,12 +420,21 @@ export async function handleLiveWsUpgrade(
         const decoded = await verifyToken(token)
         uid = decoded.uid
       } catch {
-        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Token verification failed' }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'UNAUTHORIZED',
+            message: 'Token verification failed',
+          }),
+        )
         ws.close(4001, 'Token verification failed')
         return
       }
 
-      const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.firebaseUid, uid))
+      const [dbUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.firebaseUid, uid))
       if (!dbUser) {
         ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'User not found' }))
         ws.close(4001, 'User not found')
@@ -351,7 +444,13 @@ export async function handleLiveWsUpgrade(
 
       const balance = await cs.getBalance(userId)
       if (balance < LIVE_SESSION_CREDIT_COST) {
-        ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'INSUFFICIENT_CREDITS',
+            message: 'Insufficient credits',
+          }),
+        )
         ws.close(4402, 'Insufficient credits')
         return
       }
@@ -361,7 +460,13 @@ export async function handleLiveWsUpgrade(
         .from(characters)
         .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
       if (!character) {
-        ws.send(JSON.stringify({ type: 'error', code: 'CHARACTER_NOT_FOUND', message: 'Character not found' }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'CHARACTER_NOT_FOUND',
+            message: 'Character not found',
+          }),
+        )
         ws.close(4404, 'Character not found')
         return
       }
@@ -388,7 +493,13 @@ export async function handleLiveWsUpgrade(
             if (msg === 'INSUFFICIENT_CREDITS') {
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'usage_snapshot', remainingCredits: 0 }))
-                ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
+                ws.send(
+                  JSON.stringify({
+                    type: 'error',
+                    code: 'INSUFFICIENT_CREDITS',
+                    message: 'Insufficient credits',
+                  }),
+                )
               }
               clearAndClose()
             } else {
@@ -411,62 +522,83 @@ export async function handleLiveWsUpgrade(
       liveSessionKey = `${userId}:${crypto.randomUUID()}`
       billingControllers.set(liveSessionKey, billingController)
 
-      const bridgeBase = options.browserBridge ?? (admin.apps.length ? {
-        firebaseUid: uid,
-        userId: userId!,
-        firestoreSession: defaultFirestoreSession(),
-        fcmDispatcher: defaultFcmDispatcher(),
-        creditService: cs,
-        instanceId: INSTANCE_ID,
-      } : undefined)
+      const bridgeBase =
+        options.browserBridge ??
+        (admin.apps.length
+          ? {
+              firebaseUid: uid,
+              userId: userId!,
+              firestoreSession: defaultFirestoreSession(),
+              fcmDispatcher: defaultFcmDispatcher(),
+              creditService: cs,
+              instanceId: INSTANCE_ID,
+            }
+          : undefined)
 
-      vaultDeps = bridgeBase ? createVaultToolDeps({
-        firebaseUid: uid,
-        firestoreSession: bridgeBase.firestoreSession,
-        desktopBridge,
-        pauseBilling: () => billingController?.pause(),
-        resumeBilling: () => billingController?.resume(),
-      }) : undefined
+      vaultDeps = bridgeBase
+        ? createVaultToolDeps({
+            firebaseUid: uid,
+            firestoreSession: bridgeBase.firestoreSession,
+            desktopBridge,
+            pauseBilling: () => billingController?.pause(),
+            resumeBilling: () => billingController?.resume(),
+          })
+        : undefined
 
       const { declarations, executors } = bridgeBase
-        ? buildLiveTools(db, userId, characterId, embedText, timezone, {
-          ...bridgeBase,
-          pauseBilling: () => billingController?.pause(),
-          resumeBilling: () => billingController?.resume(),
-          registerLiveCall: (taskId: string) => {
-            if (activeBrowserCallId) {
-              browserCallByTaskId.set(taskId, activeBrowserCallId)
-              activeBrowserCallId = null
-            }
-          },
-          pushToLive: (taskId: string, bridgeSessionId: string, text: string) => {
-            const callId = browserCallByTaskId.get(taskId)
-            if (!callId) return
-            browserCallByTaskId.delete(taskId)
-            const sessionOpen = geminiSession !== null && ws.readyState === WebSocket.OPEN
-            if (sessionOpen) {
-              try {
-                geminiSession!.sendToolResponse({
-                  functionResponses: [{ id: callId, name: 'browser_action', response: { output: text } }],
-                })
-                return
-              } catch (err) {
-                console.warn('[pushToLive] live tool response failed, falling back to Expo Push:', err)
-              }
-            }
-            // Voice session closed or live delivery failed — deliver via Expo Push fallback.
-            if (bridgeBase?.fcmDispatcher && bridgeBase.firebaseUid) {
-              const fwd = bridgeBase.fcmDispatcher
-              const fbUid = bridgeBase.firebaseUid
-              const getToken = options.getExpoPushToken ?? ((uid: string) => dbGetExpoPushToken(options.db, uid))
-              void getToken(fbUid)
-                .then(async (token) => {
-                  if (token) await fwd.sendTaskComplete(token, bridgeSessionId, taskId, text)
-                })
-                .catch((err) => console.error('[pushToLive Expo fallback]', err))
-            }
-          },
-        }, vaultDeps)
+        ? buildLiveTools(
+            db,
+            userId,
+            characterId,
+            embedText,
+            timezone,
+            {
+              ...bridgeBase,
+              pauseBilling: () => billingController?.pause(),
+              resumeBilling: () => billingController?.resume(),
+              registerLiveCall: (taskId: string) => {
+                if (activeBrowserCallId) {
+                  browserCallByTaskId.set(taskId, activeBrowserCallId)
+                  activeBrowserCallId = null
+                }
+              },
+              pushToLive: (taskId: string, bridgeSessionId: string, text: string) => {
+                const callId = browserCallByTaskId.get(taskId)
+                if (!callId) return
+                browserCallByTaskId.delete(taskId)
+                const sessionOpen = geminiSession !== null && ws.readyState === WebSocket.OPEN
+                if (sessionOpen) {
+                  try {
+                    geminiSession!.sendToolResponse({
+                      functionResponses: [
+                        { id: callId, name: 'browser_action', response: { output: text } },
+                      ],
+                    })
+                    return
+                  } catch (err) {
+                    console.warn(
+                      '[pushToLive] live tool response failed, falling back to Expo Push:',
+                      err,
+                    )
+                  }
+                }
+                // Voice session closed or live delivery failed — deliver via Expo Push fallback.
+                if (bridgeBase?.fcmDispatcher && bridgeBase.firebaseUid) {
+                  const fwd = bridgeBase.fcmDispatcher
+                  const fbUid = bridgeBase.firebaseUid
+                  const getToken =
+                    options.getExpoPushToken ??
+                    ((uid: string) => dbGetExpoPushToken(options.db, uid))
+                  void getToken(fbUid)
+                    .then(async (token) => {
+                      if (token) await fwd.sendTaskComplete(token, bridgeSessionId, taskId, text)
+                    })
+                    .catch((err) => console.error('[pushToLive Expo fallback]', err))
+                }
+              },
+            },
+            vaultDeps,
+          )
         : buildLiveTools(db, userId, characterId, embedText, timezone)
       toolExecutors = executors
 
@@ -477,7 +609,14 @@ export async function handleLiveWsUpgrade(
         try {
           let timeoutId: ReturnType<typeof setTimeout> | undefined
           wikiContext = await Promise.race([
-            queryWikiContext(db, memoryAnchor, userId, characterId, embedText, abortController.signal),
+            queryWikiContext(
+              db,
+              memoryAnchor,
+              userId,
+              characterId,
+              embedText,
+              abortController.signal,
+            ),
             new Promise<string>((_, reject) => {
               timeoutId = setTimeout(() => {
                 abortController.abort()
@@ -504,7 +643,9 @@ export async function handleLiveWsUpgrade(
           callbacks: {
             onmessage: handleGeminiMessage,
             onclose: handleGeminiClose,
-            onerror: (e: unknown) => { console.error('[gemini live] error event:', e) },
+            onerror: (e: unknown) => {
+              console.error('[gemini live] error event:', e)
+            },
           },
           config: {
             systemInstruction,
@@ -516,7 +657,13 @@ export async function handleLiveWsUpgrade(
           },
         })
       } catch {
-        ws.send(JSON.stringify({ type: 'error', code: 'GEMINI_UNAVAILABLE', message: 'Failed to connect to Gemini' }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'GEMINI_UNAVAILABLE',
+            message: 'Failed to connect to Gemini',
+          }),
+        )
         ws.close(1011, 'Gemini unavailable')
         return
       }
@@ -528,8 +675,12 @@ export async function handleLiveWsUpgrade(
     } catch (err) {
       console.error('Live auth error:', err)
       try {
-        ws.send(JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Internal auth error' }))
-      } catch { /* ignore */ }
+        ws.send(
+          JSON.stringify({ type: 'error', code: 'UNAUTHORIZED', message: 'Internal auth error' }),
+        )
+      } catch {
+        /* ignore */
+      }
       ws.close(4001, 'Auth error')
     }
   }
@@ -546,26 +697,34 @@ export async function handleLiveWsUpgrade(
           }
           break
         case 'end_session':
-          try { ws.send(JSON.stringify({ type: 'session_ended' })) } catch { /* ignore */ }
+          try {
+            ws.send(JSON.stringify({ type: 'session_ended' }))
+          } catch {
+            /* ignore */
+          }
           clearAndClose()
           break
         default:
           break
       }
-    } catch { /* ignore malformed messages */ }
+    } catch {
+      /* ignore malformed messages */
+    }
   }
 
   let messageChain = Promise.resolve()
   ws.on('message', (data) => {
-    messageChain = messageChain.then(async () => {
-      if (!isAuthenticated) {
-        await handleAuthMessage(data)
-      } else {
-        await handleLiveMessage(data)
-      }
-    }).catch((err) => {
-      console.error('Live WS message error:', err)
-    })
+    messageChain = messageChain
+      .then(async () => {
+        if (!isAuthenticated) {
+          await handleAuthMessage(data)
+        } else {
+          await handleLiveMessage(data)
+        }
+      })
+      .catch((err) => {
+        console.error('Live WS message error:', err)
+      })
   })
 
   ws.on('close', () => {

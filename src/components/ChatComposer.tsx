@@ -69,13 +69,22 @@ export default function ChatComposer({
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [phase, setPhase] = useState<DocumentUploadPhase>(null)
-  const [pendingImageAsset, setPendingImageAsset] = useState<
-    { uri: string; width: number; height: number; asset: DocumentPicker.DocumentPickerAsset } | null
-  >(null)
+  const [pendingImageAsset, setPendingImageAsset] = useState<{
+    uri: string
+    width: number
+    height: number
+    asset: DocumentPicker.DocumentPickerAsset
+  } | null>(null)
   const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
-  const { prepareFromAsset, captureFromCamera, isPreparing, error: photoError, clearError: clearPhotoError } = useChatPhotoUpload()
+  const {
+    prepareFromAsset,
+    captureFromCamera,
+    isPreparing,
+    error: photoError,
+    clearError: clearPhotoError,
+  } = useChatPhotoUpload()
   const characterWiki = useCharacterWiki(characterId)
   const { hasChanged, forget, ingest, isIngesting } = characterWiki
 
@@ -123,11 +132,17 @@ export default function ChatComposer({
 
         const uri = asset.uri
         const rawRef = asset.name ?? uri
-        const sourceRef = rawRef.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200).trim() || uri
+        const sourceRef =
+          rawRef
+            .replace(/[\x00-\x1f\x7f]/g, '')
+            .slice(0, 200)
+            .trim() || uri
 
         const resolvedMimeType = resolveDocumentMimeType(sourceRef, asset.mimeType)
         const normalizedMimeType = resolvedMimeType?.trim().toLowerCase()
-        const isConvertType = Boolean(normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType))
+        const isConvertType = Boolean(
+          normalizedMimeType && CONVERT_MIME_TYPES.has(normalizedMimeType),
+        )
 
         let fileContent: string
         try {
@@ -192,7 +207,8 @@ export default function ChatComposer({
             .replace(/^﻿/, '')
             .replace(/\0/g, '')
             .normalize('NFC')
-            .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
           sourceHash = await Crypto.digestStringAsync(
             Crypto.CryptoDigestAlgorithm.SHA256,
             documentChunk,
@@ -300,14 +316,27 @@ export default function ChatComposer({
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        {showPlusButton && (
-          (isIngesting || isPreparing || phase !== null) ? (
-            <View style={styles.spinnerContainer} accessible accessibilityRole="progressbar" accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'} accessibilityState={{ busy: true }}>
+        {showPlusButton &&
+          (isIngesting || isPreparing || phase !== null ? (
+            <View
+              style={styles.spinnerContainer}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={isPreparing ? 'Preparing photo' : 'Adding document to memory'}
+              accessibilityState={{ busy: true }}
+            >
               <ActivityIndicator size={20} />
             </View>
           ) : (
             <View style={styles.attachmentRow}>
-              <IconButton icon="plus" size={20} onPress={handlePlusPress} style={styles.plusButton} accessibilityLabel="Attach a photo or document" accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory" />
+              <IconButton
+                icon="plus"
+                size={20}
+                onPress={handlePlusPress}
+                style={styles.plusButton}
+                accessibilityLabel="Attach a photo or document"
+                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
+              />
               {canSendPhoto && !isWeb && (
                 // The camera capture path opens expo-image-picker's native
                 // camera intent, which web cannot host. Suppress the button
@@ -333,15 +362,19 @@ export default function ChatComposer({
                 />
               )}
             </View>
-          )
-        )}
-        <View style={[styles.composerWrapper, {
-          backgroundColor: colors.surfaceVariant,
-          borderRadius: roundness * 4,
-          marginVertical: 4,
-          marginRight: 12,
-          overflow: 'hidden',
-        }]}>
+          ))}
+        <View
+          style={[
+            styles.composerWrapper,
+            {
+              backgroundColor: colors.surfaceVariant,
+              borderRadius: roundness * 4,
+              marginVertical: 4,
+              marginRight: 12,
+              overflow: 'hidden',
+            },
+          ]}
+        >
           <TextInput
             value={text}
             onChangeText={onChangeText}
@@ -382,7 +415,10 @@ export default function ChatComposer({
             // TextInput contract.
             onKeyPress={(event) => {
               if (!isWeb) return
-              const { key, shiftKey } = event.nativeEvent as unknown as { key?: string; shiftKey?: boolean }
+              const { key, shiftKey } = event.nativeEvent as unknown as {
+                key?: string
+                shiftKey?: boolean
+              }
               if (key === 'Enter' && !shiftKey) {
                 onSubmit()
               }
@@ -407,9 +443,13 @@ export default function ChatComposer({
         <Dialog visible={pendingImageAsset !== null} onDismiss={() => setPendingImageAsset(null)}>
           <Dialog.Title>Add this image</Dialog.Title>
           {!canSendPhoto ? (
-            <Dialog.Content><Text>Only cloud-synced characters can see photos in chat.</Text></Dialog.Content>
+            <Dialog.Content>
+              <Text>Only cloud-synced characters can see photos in chat.</Text>
+            </Dialog.Content>
           ) : isSending ? (
-            <Dialog.Content><Text>Wait for the current reply to finish before sending a photo.</Text></Dialog.Content>
+            <Dialog.Content>
+              <Text>Wait for the current reply to finish before sending a photo.</Text>
+            </Dialog.Content>
           ) : null}
           <Dialog.Actions>
             <Button
@@ -419,7 +459,11 @@ export default function ChatComposer({
                 setPendingImageAsset(null)
                 if (!picked) return
                 try {
-                  const photo = await prepareFromAsset({ uri: picked.uri, width: picked.width, height: picked.height })
+                  const photo = await prepareFromAsset({
+                    uri: picked.uri,
+                    width: picked.width,
+                    height: picked.height,
+                  })
                   // Only clear the typed caption when the photo turn
                   // actually launched — on rejection the user keeps the
                   // text and can retry without retyping.
@@ -429,14 +473,18 @@ export default function ChatComposer({
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }
               }}
-            >Send in chat</Button>
+            >
+              Send in chat
+            </Button>
             <Button
               onPress={async () => {
                 const picked = pendingImageAsset
                 setPendingImageAsset(null)
                 if (picked) await ingestDocument(picked.asset)
               }}
-            >Add to memory</Button>
+            >
+              Add to memory
+            </Button>
           </Dialog.Actions>
         </Dialog>
         <Snackbar

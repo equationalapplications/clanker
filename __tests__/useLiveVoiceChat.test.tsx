@@ -28,9 +28,13 @@ jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockRoute
 jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({ addListener: jest.fn().mockReturnValue(jest.fn()) }),
 }))
-jest.mock('~/hooks/useCharacters', () => ({ useCharacter: (...a: unknown[]) => mockUseCharacter(...a) }))
+jest.mock('~/hooks/useCharacters', () => ({
+  useCharacter: (...a: unknown[]) => mockUseCharacter(...a),
+}))
 jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: () => ({ send: mockAuthSend }) }))
-jest.mock('~/hooks/useCurrentPlan', () => ({ useCurrentPlan: (...a: unknown[]) => mockUseCurrentPlan(...a) }))
+jest.mock('~/hooks/useCurrentPlan', () => ({
+  useCurrentPlan: (...a: unknown[]) => mockUseCurrentPlan(...a),
+}))
 jest.mock('@xstate/react', () => ({
   useSelector: (...a: unknown[]) => mockUseSelector(...a),
   useMachine: (...a: unknown[]) => mockUseMachine(...a),
@@ -79,7 +83,11 @@ describe('useLiveVoiceChat', () => {
     jest.clearAllMocks()
     jest.mocked(liveVoiceMachine.provide).mockReturnValue(liveVoiceMachine as never)
     const snapshot = makeIdleSnapshot()
-    mockUseMachine.mockReturnValue([snapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => snapshot }])
+    mockUseMachine.mockReturnValue([
+      snapshot,
+      mockSend,
+      { subscribe: jest.fn(), getSnapshot: () => snapshot },
+    ])
     mockUseSelector.mockReturnValue({ uid: 'user1' })
     mockAddEventListener.mockReturnValue({ remove: jest.fn() })
   })
@@ -90,18 +98,20 @@ describe('useLiveVoiceChat', () => {
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     await act(async () => {
       await hookRef!.startCall()
     })
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'No Voice Set',
-      expect.any(String),
-      expect.any(Array),
-    )
+    expect(Alert.alert).toHaveBeenCalledWith('No Voice Set', expect.any(String), expect.any(Array))
     expect(mockSend).not.toHaveBeenCalled()
   })
 
@@ -111,7 +121,13 @@ describe('useLiveVoiceChat', () => {
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     await act(async () => {
@@ -131,7 +147,13 @@ describe('useLiveVoiceChat', () => {
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     await act(async () => {
@@ -151,7 +173,13 @@ describe('useLiveVoiceChat', () => {
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     await act(async () => {
@@ -172,7 +200,13 @@ describe('useLiveVoiceChat', () => {
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     await act(async () => {
@@ -197,7 +231,11 @@ describe('useLiveVoiceChat', () => {
       },
       context: { transcript: [], activeTool: null, remainingCredits: 10, socketError: null },
     }
-    mockUseMachine.mockReturnValue([liveSnapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => liveSnapshot }])
+    mockUseMachine.mockReturnValue([
+      liveSnapshot,
+      mockSend,
+      { subscribe: jest.fn(), getSnapshot: () => liveSnapshot },
+    ])
 
     let appStateListener: ((state: string) => void) | null = null
     mockAddEventListener.mockImplementation((_event: string, cb: (state: string) => void) => {
@@ -236,11 +274,21 @@ describe('useLiveVoiceChat', () => {
         socketError: null,
       },
     }
-    mockUseMachine.mockReturnValue([liveSnapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => liveSnapshot }])
+    mockUseMachine.mockReturnValue([
+      liveSnapshot,
+      mockSend,
+      { subscribe: jest.fn(), getSnapshot: () => liveSnapshot },
+    ])
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
     await act(async () => {
-      create(<TestHarness onMount={(h) => { hookRef = h }} />)
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
     })
 
     expect(hookRef!.isLive).toBe(true)
@@ -279,7 +327,11 @@ describe('useLiveVoiceChat', () => {
       },
       context: { transcript: [], activeTool: null, remainingCredits: 9, socketError: null },
     }
-    mockUseMachine.mockReturnValue([tickSnapshot, mockSend, { subscribe: jest.fn(), getSnapshot: () => tickSnapshot }])
+    mockUseMachine.mockReturnValue([
+      tickSnapshot,
+      mockSend,
+      { subscribe: jest.fn(), getSnapshot: () => tickSnapshot },
+    ])
 
     await act(async () => {
       root!.update(<TestHarness onMount={() => {}} />)

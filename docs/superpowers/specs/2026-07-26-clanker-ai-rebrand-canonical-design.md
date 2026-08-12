@@ -13,32 +13,32 @@ Make `clanker-ai.com` the canonical, correctly-branded home of **Clanker AI**.
 
 ## Problem
 
-The product was rebranded to "Clanker AI" on the business site in July 2026, but that spec explicitly excluded this repo. So the product's *own* domain still brands itself "Clanker" everywhere:
+The product was rebranded to "Clanker AI" on the business site in July 2026, but that spec explicitly excluded this repo. So the product's _own_ domain still brands itself "Clanker" everywhere:
 
-| URL | Current title |
-|---|---|
-| `/welcome` | `Clanker — AI Characters with Real-Time Voice & Google OKF Memory` |
-| `/real-time-voice` | `Live Real-Time Voice Calls — Clanker` |
-| `/advanced-memory` | `Advanced AI Memory That Learns — Clanker` |
-| `/privacy-mode` | `Enhanced Privacy Mode — Keep AI Memory On Your Device — Clanker` |
-| `/open-source` | `Clanker is Open Source — Clanker` |
-| `/memory-export-with-okf` | `Import & Export AI Character Memory with Google's OKF — Clanker` |
+| URL                       | Current title                                                      |
+| ------------------------- | ------------------------------------------------------------------ |
+| `/welcome`                | `Clanker — AI Characters with Real-Time Voice & Google OKF Memory` |
+| `/real-time-voice`        | `Live Real-Time Voice Calls — Clanker`                             |
+| `/advanced-memory`        | `Advanced AI Memory That Learns — Clanker`                         |
+| `/privacy-mode`           | `Enhanced Privacy Mode — Keep AI Memory On Your Device — Clanker`  |
+| `/open-source`            | `Clanker is Open Source — Clanker`                                 |
+| `/memory-export-with-okf` | `Import & Export AI Character Memory with Google's OKF — Clanker`  |
 
 Two problems follow. The brand is inconsistent across the two domains a user might land on. And `equationalapplications.com` is about to hand canonical authority for "Clanker AI" to pages that never use the phrase — which would concede the branded query rather than consolidate it.
 
-There is also a positioning split: this site says *"AI Characters"*, the business site says *"personal AI assistant"*.
+There is also a positioning split: this site says _"AI Characters"_, the business site says _"personal AI assistant"_.
 
 ## Locked Decisions
 
-| # | Topic | Decision |
-|---|---|---|
-| 1 | Brand | **"Clanker AI"** in all user-facing titles, headings, meta, and JSON-LD `name`. |
-| 2 | Positioning | **Assistant-first** primary framing, matching the business site. "AI characters" and "AI companion" retained as secondary keyword equity — they carry real search volume and existing ranking. |
-| 3 | Identifiers | Unchanged. Bundle IDs, package names, file paths, route slugs, config keys, the `Clanker` app title in the SPA. This is a marketing rebrand, not a rename. |
-| 4 | Canonicals | Already correct and self-referential on every page. **No changes.** |
-| 5 | URL slugs | Unchanged. No redirects; renaming paths would discard existing ranking for zero benefit. |
-| 6 | `/open-source` title | **`Open Source — Clanker AI`.** Not `Clanker AI is Open Source — Clanker AI` — the doubled brand reads as keyword stuffing and as a template bug. Decided here, not at implementation time. |
-| 7 | Old brand in schema | Preserve "Clanker" as `alternateName` on the `SoftwareApplication` entity so the rebrand reads as a rename of one entity rather than a new one. |
+| #   | Topic                | Decision                                                                                                                                                                                       |
+| --- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Brand                | **"Clanker AI"** in all user-facing titles, headings, meta, and JSON-LD `name`.                                                                                                                |
+| 2   | Positioning          | **Assistant-first** primary framing, matching the business site. "AI characters" and "AI companion" retained as secondary keyword equity — they carry real search volume and existing ranking. |
+| 3   | Identifiers          | Unchanged. Bundle IDs, package names, file paths, route slugs, config keys, the `Clanker` app title in the SPA. This is a marketing rebrand, not a rename.                                     |
+| 4   | Canonicals           | Already correct and self-referential on every page. **No changes.**                                                                                                                            |
+| 5   | URL slugs            | Unchanged. No redirects; renaming paths would discard existing ranking for zero benefit.                                                                                                       |
+| 6   | `/open-source` title | **`Open Source — Clanker AI`.** Not `Clanker AI is Open Source — Clanker AI` — the doubled brand reads as keyword stuffing and as a template bug. Decided here, not at implementation time.    |
+| 7   | Old brand in schema  | Preserve "Clanker" as `alternateName` on the `SoftwareApplication` entity so the rebrand reads as a rename of one entity rather than a new one.                                                |
 
 ---
 
@@ -46,11 +46,11 @@ There is also a positioning split: this site says *"AI Characters"*, the busines
 
 This trips people up, so it is worth stating before the work:
 
-| Page | Source | How to change |
-|---|---|---|
-| `/welcome` | `src/config/landingConfig.ts` | Edit config, run `npm run generate:static-pages`. The generated `public/welcome/index.html` **is git-tracked**, so commit the regenerated output too. |
-| `/real-time-voice`, `/advanced-memory`, `/privacy-mode`, `/open-source`, `/memory-export-with-okf`, `/support` | Hand-written HTML in `public/<slug>/index.html` | Edit the HTML directly. Not generated. |
-| `/privacy`, `/terms` | `src/config/privacyConfig.ts`, `termsConfig.ts` | Generated **and gitignored** — never edit the HTML. Out of scope here. |
+| Page                                                                                                           | Source                                          | How to change                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/welcome`                                                                                                     | `src/config/landingConfig.ts`                   | Edit config, run `npm run generate:static-pages`. The generated `public/welcome/index.html` **is git-tracked**, so commit the regenerated output too. |
+| `/real-time-voice`, `/advanced-memory`, `/privacy-mode`, `/open-source`, `/memory-export-with-okf`, `/support` | Hand-written HTML in `public/<slug>/index.html` | Edit the HTML directly. Not generated.                                                                                                                |
+| `/privacy`, `/terms`                                                                                           | `src/config/privacyConfig.ts`, `termsConfig.ts` | Generated **and gitignored** — never edit the HTML. Out of scope here.                                                                                |
 
 Do not hand-edit `public/welcome/index.html`; it is overwritten on the next generate.
 
@@ -103,7 +103,7 @@ After this ships, `clanker-ai.com` and `equationalapplications.com` should agree
 
 The business site's `SoftwareApplication` schema is being **removed** by the companion spec, leaving this site's as the only declaration of the product entity. Verify after both deploy.
 
-**On the `Organization` nodes:** every page's `Organization` JSON-LD is the *publisher* — `Equational Applications LLC`, `https://equationalapplications.com/`. It never names the product, so nothing in it changes and no `alternateName` belongs there. The product entity is the `SoftwareApplication` in `/welcome`, and that is where `alternateName: "Clanker"` goes (decision 7, §2). Do not add product branding to the publisher node.
+**On the `Organization` nodes:** every page's `Organization` JSON-LD is the _publisher_ — `Equational Applications LLC`, `https://equationalapplications.com/`. It never names the product, so nothing in it changes and no `alternateName` belongs there. The product entity is the `SoftwareApplication` in `/welcome`, and that is where `alternateName: "Clanker"` goes (decision 7, §2). Do not add product branding to the publisher node.
 
 ## Risks
 

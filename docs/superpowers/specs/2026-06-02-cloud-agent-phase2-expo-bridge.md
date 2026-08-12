@@ -85,13 +85,13 @@ Production value: the Cloud Run HTTPS URL.
 
 ## 4. Files
 
-| Action | Path | Responsibility |
-|--------|------|----------------|
-| Create | `src/services/cloudAgentService.ts` | HTTP client: token fetch, `fetch` POST, response parse |
-| Create | `__tests__/cloudAgentService.test.ts` | Unit tests for cloudAgentService |
-| Modify | `src/hooks/useAIChat.ts` | Route escalated+isCloudSynced to Cloud Agent |
-| Modify | `__tests__/useAIChat.test.tsx` | Tests for Cloud Agent routing in useAIChat |
-| Modify | `.env.example` | Add `EXPO_PUBLIC_CLOUD_AGENT_URL=` |
+| Action | Path                                  | Responsibility                                         |
+| ------ | ------------------------------------- | ------------------------------------------------------ |
+| Create | `src/services/cloudAgentService.ts`   | HTTP client: token fetch, `fetch` POST, response parse |
+| Create | `__tests__/cloudAgentService.test.ts` | Unit tests for cloudAgentService                       |
+| Modify | `src/hooks/useAIChat.ts`              | Route escalated+isCloudSynced to Cloud Agent           |
+| Modify | `__tests__/useAIChat.test.tsx`        | Tests for Cloud Agent routing in useAIChat             |
+| Modify | `.env.example`                        | Add `EXPO_PUBLIC_CLOUD_AGENT_URL=`                     |
 
 ---
 
@@ -107,12 +107,12 @@ Production value: the Cloud Run HTTPS URL.
 
 ## 6. Acceptance Criteria
 
-| Scenario | Expected |
-|---|---|
+| Scenario                                                           | Expected                                                                                   |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | `isCloudSynced=true` + `cloud_id` set + URL configured + escalated | Cloud Agent called with `characterId=cloud_id`; reply saved locally; `usageSnapshot: null` |
-| `isCloudSynced=true` + `cloud_id` is null + escalated | Falls through to Firebase `generateReply` (character not yet synced to cloud) |
-| `isCloudSynced=true` + URL not configured + escalated | Falls through to Firebase `generateReply` (unchanged) |
-| `isCloudSynced=false` + escalated | Firebase `generateReply` (unchanged) |
-| Cloud Agent returns 401/500 | `mutationFn` throws; `onError` rolls back optimistic update; error state set |
-| `listTasks` returns tasks | Tasks sent as `unsyncedHistory` with `type: 'task'` |
-| Prior conversation history | Sent as `Content[]` (up to 20 messages, current message excluded) |
+| `isCloudSynced=true` + `cloud_id` is null + escalated              | Falls through to Firebase `generateReply` (character not yet synced to cloud)              |
+| `isCloudSynced=true` + URL not configured + escalated              | Falls through to Firebase `generateReply` (unchanged)                                      |
+| `isCloudSynced=false` + escalated                                  | Firebase `generateReply` (unchanged)                                                       |
+| Cloud Agent returns 401/500                                        | `mutationFn` throws; `onError` rolls back optimistic update; error state set               |
+| `listTasks` returns tasks                                          | Tasks sent as `unsyncedHistory` with `type: 'task'`                                        |
+| Prior conversation history                                         | Sent as `Content[]` (up to 20 messages, current message excluded)                          |

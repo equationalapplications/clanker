@@ -16,11 +16,7 @@ function isValidBirthDate(year: number, month: number, day: number): boolean {
   }
 
   const birth = new Date(year, month - 1, day)
-  if (
-    birth.getFullYear() !== year ||
-    birth.getMonth() !== month - 1 ||
-    birth.getDate() !== day
-  ) {
+  if (birth.getFullYear() !== year || birth.getMonth() !== month - 1 || birth.getDate() !== day) {
     return false
   }
 

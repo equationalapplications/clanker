@@ -6,15 +6,12 @@ const capturedScreens: Array<{ name: string; options: any }> = []
 jest.mock('expo-router', () => {
   const React = require('react')
   return {
-    Tabs: Object.assign(
-      ({ children }: any) => React.createElement('View', {}, children),
-      {
-        Screen: ({ name, options }: any) => {
-          capturedScreens.push({ name, options })
-          return React.createElement('View', { testID: `tab-${name}` })
-        },
-      }
-    ),
+    Tabs: Object.assign(({ children }: any) => React.createElement('View', {}, children), {
+      Screen: ({ name, options }: any) => {
+        capturedScreens.push({ name, options })
+        return React.createElement('View', { testID: `tab-${name}` })
+      },
+    }),
     useNavigation: () => ({ setOptions: jest.fn() }),
     usePathname: () => '/characters/list',
     router: { navigate: jest.fn() },
@@ -41,7 +38,9 @@ import TabLayout from '../app/(drawer)/(tabs)/_layout'
 describe('Tabs accessibility labels', () => {
   beforeEach(() => {
     capturedScreens.length = 0
-    act(() => { create(<TabLayout />) })
+    act(() => {
+      create(<TabLayout />)
+    })
   })
 
   it('Chat tab has tabBarAccessibilityLabel', () => {

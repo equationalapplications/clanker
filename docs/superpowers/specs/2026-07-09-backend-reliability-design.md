@@ -26,8 +26,8 @@ Two concurrency sources on the single shared `_wiki` connection
 (`src/services/wikiService.ts`):
 
 1. `wikiOrchestrator.syncAll` (`src/services/wikiOrchestrator.ts`) runs entity syncs
-   with `concurrency = 2`; the per-entity xState actors serialize work *within* an
-   entity but not *across* entities.
+   with `concurrency = 2`; the per-entity xState actors serialize work _within_ an
+   entity but not _across_ entities.
 2. `wikiOrchestrator.getOrSpawn` fires a **fire-and-forget ontology bootstrap**
    (`void wiki.getOntologyManifest(...).then(setOntologyManifest)`) entirely outside
    the actor queue — it races every other wiki transaction even at concurrency 1.
@@ -76,8 +76,8 @@ On actor spawn: unawaited `getOntologyManifest` → if missing or `mode === 'off
 `setOntologyManifest(empty, emergent)`. Problems:
 
 - Runs outside the actor's event queue → logical race: it can interleave with (or
-  land *after*) a sync that just imported a real manifest from the cloud. The
-  package-level mutex makes this *safe* at the SQLite layer but not *correct* at the
+  land _after_) a sync that just imported a real manifest from the cloud. The
+  package-level mutex makes this _safe_ at the SQLite layer but not _correct_ at the
   ordering layer.
 - Failure is only `console.warn` — invisible in production.
 
@@ -120,15 +120,15 @@ New module `functions/src/services/vertexText.ts` consolidating what
 `generateReply.ts:318-409` already proved out:
 
 ```ts
-export function getGenAIClient(): GoogleGenAI          // singleton, vertexai + global location
-export const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set(["MAX_TOKENS", "SAFETY"])
+export function getGenAIClient(): GoogleGenAI // singleton, vertexai + global location
+export const NON_RETRYABLE_EMPTY_RESPONSE_FINISH_REASONS = new Set(['MAX_TOKENS', 'SAFETY'])
 export function isRetryableEmptyResponseFinishReason(reason: string | undefined): boolean
 
 export async function generateTextWithRetry(params: {
   model: string
   contents: Content[] | string
-  config: GenerateContentConfig      // caller controls systemInstruction, tokens, thinking, schema…
-  logContext: string                 // e.g. "summarizeText", "wikiLlm", "memoryHeal"
+  config: GenerateContentConfig // caller controls systemInstruction, tokens, thinking, schema…
+  logContext: string // e.g. "summarizeText", "wikiLlm", "memoryHeal"
 }): Promise<{ text: string; candidate: Candidate }>
 ```
 
@@ -145,13 +145,13 @@ Behavior (lifted from `generateReply`, now shared):
 
 ### Adoption
 
-| Function | Change |
-|---|---|
-| `summarizeText.ts` | Replace private client + candidate loop with helper |
-| `wikiLlm.ts` | Same, plus Fix 4 config changes |
+| Function                                        | Change                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `summarizeText.ts`                              | Replace private client + candidate loop with helper                                                                                               |
+| `wikiLlm.ts`                                    | Same, plus Fix 4 config changes                                                                                                                   |
 | `memoryFunctions.ts` (`defaultGenerateContent`) | Replace; **also fixes a latent bug** — it currently returns `''` on empty response instead of failing, silently corrupting heal/write-diff output |
-| `convertDocumentText.ts` | Replace private client + loop |
-| `generateReply.ts` | Migrate to shared client + retry predicate; keeps its own loop for `functionCalls` / `groundingMetadata` handling on top of the shared pieces |
+| `convertDocumentText.ts`                        | Replace private client + loop                                                                                                                     |
+| `generateReply.ts`                              | Migrate to shared client + retry predicate; keeps its own loop for `functionCalls` / `groundingMetadata` handling on top of the shared pieces     |
 
 Existing per-function tests keep passing by injecting `generateText` /
 `generateContent` fakes exactly as today (the DI seams don't move).
@@ -179,13 +179,13 @@ Two changes to `getTextGenerator` (`functions/src/wikiLlm.ts:94-122`):
 `thinkingBudget: 0` everywhere was a latency/cost choice. For structured-reasoning
 endpoints it is suspect for quality and possibly implicated in empties. New policy:
 
-| Function | Budget | Rationale |
-|---|---|---|
-| `wikiLlm` (librarian) | **1024** | Background job; structured JSON reasoning over the memory graph; quality > latency |
-| `memoryFunctions` heal / write-diff / contradiction | **1024** | Same profile: background, structured, correctness-critical |
-| `generateReply` (chat) | 0 (unchanged) | Interactive latency budget |
-| `summarizeText` | 0 (unchanged) | Simple compression task; retry (Fix 3) covers empties |
-| `convertDocumentText` | 0 (unchanged) | Mechanical transform |
+| Function                                            | Budget        | Rationale                                                                          |
+| --------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------- |
+| `wikiLlm` (librarian)                               | **1024**      | Background job; structured JSON reasoning over the memory graph; quality > latency |
+| `memoryFunctions` heal / write-diff / contradiction | **1024**      | Same profile: background, structured, correctness-critical                         |
+| `generateReply` (chat)                              | 0 (unchanged) | Interactive latency budget                                                         |
+| `summarizeText`                                     | 0 (unchanged) | Simple compression task; retry (Fix 3) covers empties                              |
+| `convertDocumentText`                               | 0 (unchanged) | Mechanical transform                                                               |
 
 Budgets become named constants next to each function's `MAX_OUTPUT_TOKENS`. If
 empties persist on the budget-0 functions after Fix 3 ships, raising their budgets is

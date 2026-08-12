@@ -24,9 +24,7 @@ function trimTrailingPunctuation(url: string): string {
   return trimmed
 }
 
-export type LinkSegment =
-  | { type: 'text'; value: string }
-  | { type: 'url'; value: string }
+export type LinkSegment = { type: 'text'; value: string } | { type: 'url'; value: string }
 
 export function linkifyUrls(text: string): LinkSegment[] {
   if (!text) return []

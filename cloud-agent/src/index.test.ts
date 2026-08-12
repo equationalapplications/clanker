@@ -68,9 +68,15 @@ const mockUser = {
 }
 
 const mockCharacter = {
-  id: 'char-1', userId: 'user-uuid-1', name: 'Alice',
-  appearance: null, traits: null, emotions: null, context: null,
-  createdAt: new Date(), updatedAt: new Date(),
+  id: 'char-1',
+  userId: 'user-uuid-1',
+  name: 'Alice',
+  appearance: null,
+  traits: null,
+  emotions: null,
+  context: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 const mockVerify = async (token: string): Promise<{ uid: string }> => {
@@ -78,14 +84,21 @@ const mockVerify = async (token: string): Promise<{ uid: string }> => {
   throw new Error('invalid')
 }
 
-const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => ({
+const mockRunAgent = async (
+  _params: RunAgentParams,
+): Promise<{ reply: string; toolCalls: string[] }> => ({
   reply: 'Hello from mock agent',
   toolCalls: [],
 })
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
-  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [
+    { transactionId: 'mock-txid', amount: 1 },
+  ],
+  refundCredit: async (
+    _userId: string,
+    _allocations: { transactionId: string; amount: number }[],
+  ): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 1000,
 }
 
@@ -303,7 +316,12 @@ test('POST /agent/run passes DB user UUID and Firebase UID to runAgentFn', async
 
 test('POST /agent/run returns reply from runAgentFn', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -373,11 +391,18 @@ test('POST /agent/run maps pending status to open during sync', async () => {
 })
 
 test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', async () => {
-  const failingAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => {
+  const failingAgent = async (
+    _params: RunAgentParams,
+  ): Promise<{ reply: string; toolCalls: string[] }> => {
     throw new Error('ADK error (unknown): something went wrong')
   }
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: failingAgent,
+    creditService: mockCreditService,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -392,7 +417,12 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
 test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
   // Cycle user → character → wiki rows per request (queryWikiContext adds a 3rd select).
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   for (let i = 0; i < 20; i++) {
     const res = await request(app)
       .post('/agent/run')
@@ -420,7 +450,10 @@ test('POST /agent/run returns 402 when balance is zero before agent starts', asy
   const app = createApp({
     verifyToken: mockVerify,
     db,
-    runAgentFn: async () => { agentCalled = true; return { reply: 'ok', toolCalls: [] } },
+    runAgentFn: async () => {
+      agentCalled = true
+      return { reply: 'ok', toolCalls: [] }
+    },
     creditService: cs,
   })
   const res = await request(app)
@@ -435,22 +468,36 @@ test('POST /agent/run returns 402 when balance is zero before agent starts', asy
 test('POST /agent/run returns usageSnapshot.remainingCredits on success', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const cs = { ...mockCreditService, getBalance: async (_userId: string) => 2700 }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: cs,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 200)
-  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, { remainingCredits: 2700 })
+  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, {
+    remainingCredits: 2700,
+  })
 })
 
 test('POST /agent/run returns usageSnapshot: null and 200 when getBalance throws', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const cs = {
     ...mockCreditService,
-    getBalance: async (_userId: string): Promise<number> => { throw new Error('db connection lost') },
+    getBalance: async (_userId: string): Promise<number> => {
+      throw new Error('db connection lost')
+    },
   }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: cs,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -465,7 +512,10 @@ test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', a
   const app = createApp({
     verifyToken: mockVerify,
     db,
-    runAgentFn: async (params) => { capturedTimezone = params.timezone; return { reply: 'ok', toolCalls: [] } },
+    runAgentFn: async (params) => {
+      capturedTimezone = params.timezone
+      return { reply: 'ok', toolCalls: [] }
+    },
     creditService: mockCreditService,
   })
   await request(app)
@@ -485,20 +535,23 @@ async function runAgentRunRequest(options: {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
 
   const originalRunAsync = InMemoryRunner.prototype.runAsync
-  ;(InMemoryRunner.prototype as unknown as { runAsync: (params: { newMessage: unknown }) => AsyncGenerator<unknown, void, undefined> }).runAsync =
-    function runAsyncMock(params: { newMessage: unknown }) {
-      options.onNewMessage?.(params.newMessage)
-      return (async function* () {
-        yield {
-          id: 'mock-event-1',
-          invocationId: 'mock-invocation-1',
-          author: 'mock-agent',
-          actions: { stateDelta: {}, artifactDelta: {} },
-          timestamp: Date.now(),
-          content: { role: 'model', parts: [{ text: 'mock reply' }] },
-        }
-      })()
+  ;(
+    InMemoryRunner.prototype as unknown as {
+      runAsync: (params: { newMessage: unknown }) => AsyncGenerator<unknown, void, undefined>
     }
+  ).runAsync = function runAsyncMock(params: { newMessage: unknown }) {
+    options.onNewMessage?.(params.newMessage)
+    return (async function* () {
+      yield {
+        id: 'mock-event-1',
+        invocationId: 'mock-invocation-1',
+        author: 'mock-agent',
+        actions: { stateDelta: {}, artifactDelta: {} },
+        timestamp: Date.now(),
+        content: { role: 'model', parts: [{ text: 'mock reply' }] },
+      }
+    })()
+  }
 
   const app = createApp({
     verifyToken: mockVerify,
@@ -513,7 +566,8 @@ async function runAgentRunRequest(options: {
       .set('Authorization', 'Bearer valid-token')
       .send(options.body)
   } finally {
-    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync = originalRunAsync
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
+      originalRunAsync
   }
 }
 
@@ -531,10 +585,7 @@ test('POST /agent/run forwards an attachment as a leading inlineData part', asyn
   assert.equal(res.status, 200)
   assert.deepEqual(captured[0], {
     role: 'user',
-    parts: [
-      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
-      { text: 'what is this?' },
-    ],
+    parts: [{ inlineData: { mimeType: 'image/webp', data: 'AAAA' } }, { text: 'what is this?' }],
   })
 })
 
@@ -575,7 +626,12 @@ test('POST /agent/browser/scheduler-trigger returns 401 with no secret', async (
     })
     const res = await request(app)
       .post('/agent/browser/scheduler-trigger')
-      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+      .send({
+        uid: 'u1',
+        action: { type: 'extract', selector: '.p', label: 'p' },
+        actionSummary: 'Extract',
+        notificationBody: 'Done',
+      })
     assert.equal(res.status, 401)
   } finally {
     if (savedSecret === undefined) delete process.env.SCHEDULER_SECRET
@@ -596,7 +652,12 @@ test('POST /agent/browser/scheduler-trigger returns 503 when SCHEDULER_SECRET no
     const res = await request(app)
       .post('/agent/browser/scheduler-trigger')
       .set('Authorization', 'Bearer anything')
-      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+      .send({
+        uid: 'u1',
+        action: { type: 'extract', selector: '.p', label: 'p' },
+        actionSummary: 'Extract',
+        notificationBody: 'Done',
+      })
     assert.equal(res.status, 503)
   } finally {
     if (saved === undefined) delete process.env.SCHEDULER_SECRET
@@ -619,7 +680,7 @@ test('WS upgrade with no Origin header succeeds (server-to-server caller)', asyn
   }
 })
 
-test('WS upgrade with the cloud-agent\'s own origin succeeds (React Native client path)', async () => {
+test("WS upgrade with the cloud-agent's own origin succeeds (React Native client path)", async () => {
   // React Native 0.86.2's Android WebSocketModule synthesizes
   // `Origin: http(s)://<endpoint>` when the JS client does not supply one
   // (see `node_modules/react-native/.../WebSocketModule.kt` `getDefaultOrigin`).
@@ -637,7 +698,7 @@ test('WS upgrade with the cloud-agent\'s own origin succeeds (React Native clien
   }
 })
 
-test('WS upgrade with the cloud-agent\'s own https origin succeeds behind a TLS-terminating proxy (Cloud Run shape)', async () => {
+test("WS upgrade with the cloud-agent's own https origin succeeds behind a TLS-terminating proxy (Cloud Run shape)", async () => {
   // Cloud Run terminates TLS at the managed LB, so inside the container
   // `req.socket.encrypted` is false even though the client connected via
   // wss:// and synthesized `Origin: https://<host>`. The server must consult
@@ -648,11 +709,7 @@ test('WS upgrade with the cloud-agent\'s own https origin succeeds behind a TLS-
   let srv: Awaited<ReturnType<typeof startWsTestServer>> | undefined
   try {
     srv = await startWsTestServer()
-    const result = await attemptUpgrade(
-      srv.port,
-      `https://127.0.0.1:${srv.port}`,
-      'https',
-    )
+    const result = await attemptUpgrade(srv.port, `https://127.0.0.1:${srv.port}`, 'https')
     assert.deepEqual(result, { upgraded: true })
   } finally {
     try {

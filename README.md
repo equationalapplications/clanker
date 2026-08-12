@@ -5,9 +5,11 @@
 ## Documentation Deep Dives
 
 ### Authentication
+
 - **[Authentication](docs/authentication.md)** — Source of truth, Firebase → Cloud SQL bootstrap flow, auth cache management, provider name sync, event-driven refresh, cookie consent, and optimistic terms acceptance — all in one place.
 
 ### AI & Chat
+
 - **[AI & Chat](docs/ai-and-chat.md)** — Chat response pipeline (`generateReply`), chat memory summarization, LLM Wiki Memory (structured facts/tasks/events), wiki state machine architecture, image generation (`generateImage`), and local `cloud-agent` dev (local Postgres + Vertex via ADC; see `docker-compose.local.yml` and `./scripts/migrate-dev.sh`).
 - **[Browser Bridge](docs/browser-bridge.md)** — Clanker Desktop Bridge MV3 extension: cross-device web tasks via `browser_action`, Wake-and-Connect lifecycle, Firestore coordination, approval flow, pairing, and billing.
 - **[Desktop Vault Bridge](docs/desktop-vault-bridge.md)** — `/agent/desktop` persistent WebSocket, pairing tokens, `vault_*` tools querying the Curated Thoughts home vault.
@@ -16,21 +18,27 @@
 - **[OKF Import & Export](docs/okf-import-export.md)** — Restore or clone a character's memory from a portable backup
 
 ### Billing & Credits
+
 - **[Billing & Credits](docs/billing-and-credits.md)** — First-login credits, Stripe and RevenueCat webhook event mappings, web checkout flow, Apple auto-renewable subscription consent, and multi-tab checkout robustness (localStorage + BroadcastChannel).
 
 ### Admin Operations
+
 - **[Admin Operations](docs/admin-operations.md)** — Web-only admin dashboard UX, callable function contracts (list/set/reset/delete), authorization model, audit logging, and runbook with action procedures.
 
 ### Architecture & Data
+
 - **[Architecture & Data](docs/architecture-and-data.md)** — State management (xState / TanStack Query / SQLite), navigation (Expo Router), offline support architecture, Cloud SQL schema design & migrations, cloud character save/share, avatar upload, and support page.
 
 ### ADRs
+
 - **[ADR 001: Callable Error Normalization](docs/adrs/001-callable-error-normalization.md)** — How callable handlers map bootstrap/config errors to stable `HttpsError` codes.
 
 ### Workflows & Debugging
+
 - **[Contributing Guide](CONTRIBUTING.md)** — Git workflow, merge strategy, coding standards, commit guidelines (Conventional Commits), testing (root + functions), web debugging, and PR process — all in one place.
 
 ### Other Reference
+
 - **[Accessibility Guide](docs/accessibility.md)** — Conventions for `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`, live regions, and skip links.
 - **[Architecture Charts](docs/flowcharts/README.md)** — Auto-generated Mermaid dependency charts per module, plus C4 system context and container diagrams.
 

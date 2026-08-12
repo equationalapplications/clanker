@@ -45,14 +45,14 @@ export const convertDocumentText = onCall(
     secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => convertDocumentTextHandler(request),
-);
+)
 ```
 
 `540` is the max `timeoutSeconds` for an `onCall` (HTTPS) 2nd-gen function. `memory` raised from the implicit default (256MiB) to 512MiB to comfortably hold a ~9MB base64 payload plus the Gemini SDK response buffer; the prior `generateEmbedding.ts` function uses an explicit `memory: "256MiB"` for a lighter workload, so 512MiB here is proportionate, not arbitrary.
 
 ### 2. Matching client-side callable timeout (`src/config/firebaseConfig.ts`, `src/config/firebaseConfig.web.ts`)
 
-The Firebase callable client SDK defaults to a 70-second timeout independent of the server's `timeoutSeconds`. Raising only the server timeout without raising the client's means the client now gives up *before* the server would — the user sees a spurious failure (and, worse, no refund, since the server call may still succeed after the client stopped listening). Both config files change:
+The Firebase callable client SDK defaults to a 70-second timeout independent of the server's `timeoutSeconds`. Raising only the server timeout without raising the client's means the client now gives up _before_ the server would — the user sees a spurious failure (and, worse, no refund, since the server call may still succeed after the client stopped listening). Both config files change:
 
 ```ts
 const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentText', {
@@ -84,12 +84,14 @@ This makes every step idempotent against staleness without touching the existing
 ## Files Touched
 
 **Modified**:
+
 - `functions/src/convertDocumentText.ts` — `timeoutSeconds`, `memory` on the `onCall` export
 - `src/config/firebaseConfig.ts`, `src/config/firebaseConfig.web.ts` — `timeout` option on `convertDocumentTextFn`
 - `src/components/documentMimeTypes.ts` — new `MAX_DOCUMENT_RAW_BYTES` export
 - `src/components/ChatComposer.tsx`, `src/components/ChatComposer.web.tsx` — size pre-check, `requestIdRef` staleness guard
 
 **Unchanged**:
+
 - `src/machines/wikiMachine.ts`, `src/hooks/useCharacterWiki.ts`, `@equationalapplications/core-llm-wiki`
 - `DocumentUploadPhase` type, banner rendering in `ChatView.tsx`
 - Plus-button spinner/concurrency-guard logic (already correct)

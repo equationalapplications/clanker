@@ -30,8 +30,7 @@ export default function Profile() {
   const isPremium = useIsPremium()
   const { totalPower } = usePowerBalance()
 
-  const displayName =
-    asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
+  const displayName = asTrimmedString(userPublic?.name) || asTrimmedString(user?.displayName) || ''
   const email = asTrimmedString(user?.email) || asTrimmedString(userPublic?.email) || ''
   // Try server profile first, fall back to Firebase photoURL, then to default
   const photoURL = asNonEmptyUri(

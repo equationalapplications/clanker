@@ -7,10 +7,7 @@ export interface SyncMessage {
   createdAt: number
 }
 
-export function toSyncMessage(
-  msg: LocalMessage,
-  userId: string,
-): SyncMessage {
+export function toSyncMessage(msg: LocalMessage, userId: string): SyncMessage {
   return {
     id: msg.id,
     role: msg.sender_user_id === userId ? 'user' : 'model',

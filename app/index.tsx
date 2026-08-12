@@ -9,9 +9,7 @@ export default function Index() {
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
 
   if (isLoading) {

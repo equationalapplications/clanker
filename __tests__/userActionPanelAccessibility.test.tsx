@@ -22,17 +22,36 @@ jest.mock('react-native-paper', () => {
       ({ children, style }: any) => React.createElement('View', { style }, children),
       {
         Content: ({ children, style }: any) => React.createElement('View', { style }, children),
-      }
+      },
     ),
     Button: ({ children, onPress, disabled }: any) =>
       React.createElement('Button', { onPress, disabled }, children),
-    TextInput: ({ label, value, onChangeText, mode, accessibilityHint, keyboardType, placeholder, error }: any) =>
-      React.createElement('TextInput', { label, value, onChangeText, mode, accessibilityHint, keyboardType, placeholder, error }),
+    TextInput: ({
+      label,
+      value,
+      onChangeText,
+      mode,
+      accessibilityHint,
+      keyboardType,
+      placeholder,
+      error,
+    }: any) =>
+      React.createElement('TextInput', {
+        label,
+        value,
+        onChangeText,
+        mode,
+        accessibilityHint,
+        keyboardType,
+        placeholder,
+        error,
+      }),
     Menu: Object.assign(
-      ({ children, visible, onDismiss, anchor }: any) => React.createElement('View', {}, anchor, children),
+      ({ children, visible, onDismiss, anchor }: any) =>
+        React.createElement('View', {}, anchor, children),
       {
         Item: ({ title, onPress }: any) => React.createElement('View', { onPress }, title),
-      }
+      },
     ),
   }
 })
@@ -65,7 +84,7 @@ describe('UserActionPanel accessibility', () => {
           onResetUserState={noop}
           onDeleteUser={noop}
           isBusy={false}
-        />
+        />,
       )
     })
 

@@ -27,7 +27,7 @@ Internals (`ImportExportService.doImportEntity`, `chunk-AV2ZNKEA.mjs:1708`):
 - **`merge: true`:** per fact/task, `if (merge && safeUpdatedAt <= existing.updated_at) continue` — otherwise upsert. So "Merge Backup" already means exactly "update if the imported item is newer," confirming the draft's UI copy without further work needed.
 - **Events and edges** always go through `addIgnoreDuplicate` (by `id`) in both modes — never updated once present, only inserted if the id is new.
 
-### Cross-entity ID collision is actively guarded — and this *is* the reason cloning needs ID remap
+### Cross-entity ID collision is actively guarded — and this _is_ the reason cloning needs ID remap
 
 For every fact/task, before upserting: `existingFactsById.get(fact.id)` is looked up **across the whole local database, not scoped to the importing entity**. If found and `existing.entity_id !== entityId`, the row is logged via `_warnCrossEntityCollision` and **skipped** — never imported, never overwritten:
 
@@ -46,10 +46,14 @@ Concretely: if a user exports character A, then tries to "clone" that bundle int
 ### `parseOkfBundle` takes the target `entityId` as an argument — it already stamps ownership
 
 ```typescript
-declare function parseOkfBundle(entityId: string, files: OkfFile[], options?: OkfImportOptions): MemoryDump
+declare function parseOkfBundle(
+  entityId: string,
+  files: OkfFile[],
+  options?: OkfImportOptions,
+): MemoryDump
 ```
 
-Every fact/task/edge/event produced by `parseOkfBundle` already has `entity_id` set to whatever `entityId` you pass in — this is not something the remap step needs to rewrite itself. For facts and tasks, what `parseOkfBundle` does **not** do is regenerate the `id` fields — those come straight from each concept file's frontmatter `id:` (`resolvedId`), i.e. the *original* character's ids. That's the collision surface described above.
+Every fact/task/edge/event produced by `parseOkfBundle` already has `entity_id` set to whatever `entityId` you pass in — this is not something the remap step needs to rewrite itself. For facts and tasks, what `parseOkfBundle` does **not** do is regenerate the `id` fields — those come straight from each concept file's frontmatter `id:` (`resolvedId`), i.e. the _original_ character's ids. That's the collision surface described above.
 
 This simplifies the original draft's `cloneOkfDumpForEntity` step list — `entity_id` rewriting is a side effect of which `entityId` you pass to `parseOkfBundle`, not a separate rewrite pass.
 
@@ -94,14 +98,15 @@ Edges don't have this problem despite also getting fresh ids from `parseOkfBundl
 2. **Read:** `new File(uri).arrayBuffer()` (the `expo-file-system` v56 `File` class already used in `okfSave.ts` and `ChatComposer.tsx` — the legacy string-path API throws at runtime on this `expo-file-system` version) → `JSZip.loadAsync(arrayBuffer)`.
 3. **Defensive Filtering** (before any content is handed to `parseOkfBundle`):
    - Cap total entry count in the zip (e.g. 5,000 — an OKF bundle is one fact/task file per entry plus a couple of index files; 5,000 comfortably covers any real character while rejecting a crafted zip with hundreds of thousands of empty entries).
-   - Cap total decompressed size across all entries, checked via each entry's `zipObject._data.uncompressedSize` *before* calling `.async('string')` on it — reading the size metadata JSZip already parsed from the central directory costs nothing, so this is a cheap first gate. **But `_data` is a private, untyped JSZip internal, and the value is attacker-controlled header metadata** — a crafted zip can declare a small `uncompressedSize` while actually inflating to something huge (or the field can be absent/wrong on some encoders). Treat it as a fast pre-filter only: also track a running total of actual `content.length` after each entry's `.async('string')` resolves, and abort the moment the running total crosses the cap. This is the real zip-bomb defense; the pre-check just avoids doing that work for the obviously-oversized case.
+   - Cap total decompressed size across all entries, checked via each entry's `zipObject._data.uncompressedSize` _before_ calling `.async('string')` on it — reading the size metadata JSZip already parsed from the central directory costs nothing, so this is a cheap first gate. **But `_data` is a private, untyped JSZip internal, and the value is attacker-controlled header metadata** — a crafted zip can declare a small `uncompressedSize` while actually inflating to something huge (or the field can be absent/wrong on some encoders). Treat it as a fast pre-filter only: also track a running total of actual `content.length` after each entry's `.async('string')` resolves, and abort the moment the running total crosses the cap. This is the real zip-bomb defense; the pre-check just avoids doing that work for the obviously-oversized case.
    - Filter to an **exact allow-list** of OKF path shapes, not a loose "`.md` plus structural files" rule: `index.md`, `entities/{id}/index.md`, `entities/{id}/log.md`, `entities/{id}/facts/*.md`, `entities/{id}/tasks/*.md`. This must exclude the bundle's own `README.md` (added by the export pipeline at bundle root, see export spec) — `README.md` is a `.md` file that is neither `index.md` nor `log.md`, so a looser filter lets it through. Because `resolveRoute` falls back to `defaultSchema ?? "fact"` for any concept-file path it doesn't recognize as `/facts/` or `/tasks/` (`core-llm-wiki/index.mjs:2544-2551`), an admitted `README.md` parses as a fact with `id: "README"` and the entire README text as its body — a real, reproducible bug when re-importing a bundle this same feature exported, not a hypothetical. The exact allow-list above prevents it structurally.
    - Reject bundles containing more than one `entities/{id}/` directory. V1 targets single-entity bundles only (see Non-Goals), but `parseOkfBundle` has no such guard itself — it folds every concept file matching the allow-list into whatever single `entityId` is passed to it, regardless of which `entities/{id}/` directory it came from. Picking a multi-character export bundle would silently merge multiple characters' facts/tasks/events into the one target entity. Count distinct `entities/{id}/` prefixes during filtering; if more than one, reject with "This bundle contains multiple characters — multi-character import isn't supported yet."
 4. **Parse & Preview:** `parseOkfBundle(targetEntityId, sanitizedFiles)` → `MemoryDump`. Build a preview from `dump.entities[targetEntityId]`: fact/task/event counts, plus a count of edges reconstructed via markdown-link scanning (fidelity note carried over from the export spec: only `source_id`/`target_id`/`edge_type` survive the round trip — `id`/`created_at` are regenerated by `parseOkfBundle` itself via `generateId()`/`Date.now()`, this is unrelated to and unaffected by our own clone-remap step below).
 
-   **Clone path caveat:** on the restore path, `targetEntityId` is the existing character's real id at preview time, so this step is exactly as described. On the **clone path it is not** — per the UI flow below, the new character record doesn't get created until *after* preview/confirm, so no real `targetEntityId` exists yet when preview needs to run. The pipeline must not parse-and-cache a `MemoryDump` keyed to a placeholder id for later reuse: `remapOkfDumpIds` reads `dump.entities[targetEntityId]` (step 1 below) and does not rewrite `entity_id` itself (it's already stamped by whichever id was passed to `parseOkfBundle` — see "ID Remapping" below), so a dump parsed against a placeholder would need its every fact/task/event's `entity_id` fixed up too, which is exactly the rewrite step this design deliberately avoids doing separately. Instead: cache the sanitized **files**, not the parsed dump. Preview counts are id-independent (they only need array lengths), so preview can parse with any placeholder id (or count concept files directly by allow-listed path, skipping `parseOkfBundle` entirely for the count). At commit time, once the new character id is known, parse for real: `parseOkfBundle(newCharacterId, cachedFiles)` → `remapOkfDumpIds(dump, newCharacterId)` → `importDump`. Re-parsing is cheap (pure string/regex work, no I/O), so doing it twice (once for preview, once for commit) is not a meaningful cost.
+   **Clone path caveat:** on the restore path, `targetEntityId` is the existing character's real id at preview time, so this step is exactly as described. On the **clone path it is not** — per the UI flow below, the new character record doesn't get created until _after_ preview/confirm, so no real `targetEntityId` exists yet when preview needs to run. The pipeline must not parse-and-cache a `MemoryDump` keyed to a placeholder id for later reuse: `remapOkfDumpIds` reads `dump.entities[targetEntityId]` (step 1 below) and does not rewrite `entity_id` itself (it's already stamped by whichever id was passed to `parseOkfBundle` — see "ID Remapping" below), so a dump parsed against a placeholder would need its every fact/task/event's `entity_id` fixed up too, which is exactly the rewrite step this design deliberately avoids doing separately. Instead: cache the sanitized **files**, not the parsed dump. Preview counts are id-independent (they only need array lengths), so preview can parse with any placeholder id (or count concept files directly by allow-listed path, skipping `parseOkfBundle` entirely for the count). At commit time, once the new character id is known, parse for real: `parseOkfBundle(newCharacterId, cachedFiles)` → `remapOkfDumpIds(dump, newCharacterId)` → `importDump`. Re-parsing is cheap (pure string/regex work, no I/O), so doing it twice (once for preview, once for commit) is not a meaningful cost.
+
 5. **Remap (clone path only):** see below.
-6. **Commit:** `wiki.importDump(dump, { merge })` — `merge` only meaningful for the restore path. The clone path passes a dump whose ids are already known-new, so there's nothing to merge against or replace on a brand-new character — but `importDump`'s default (`opts?.merge ?? false`, `chunk-AV2ZNKEA.mjs:1668`) is *replace*, which still runs `bulkSoftDeleteByEntityId`/`bulkDeleteByEntityId`/`deleteCheckpoint` against the new (empty) entity before importing. These are harmless no-ops against an entity with no existing rows, but to avoid the pointless queries and to make the intent explicit in the call site, the clone path passes `{ merge: true }` explicitly rather than omitting `opts`.
+6. **Commit:** `wiki.importDump(dump, { merge })` — `merge` only meaningful for the restore path. The clone path passes a dump whose ids are already known-new, so there's nothing to merge against or replace on a brand-new character — but `importDump`'s default (`opts?.merge ?? false`, `chunk-AV2ZNKEA.mjs:1668`) is _replace_, which still runs `bulkSoftDeleteByEntityId`/`bulkDeleteByEntityId`/`deleteCheckpoint` against the new (empty) entity before importing. These are harmless no-ops against an entity with no existing rows, but to avoid the pointless queries and to make the intent explicit in the call site, the clone path passes `{ merge: true }` explicitly rather than omitting `opts`.
 
 ### ID Remapping for Cloning (`remapOkfDumpIds`, not `cloneOkfDumpForEntity`)
 
@@ -112,7 +117,7 @@ Given `dump.entities[newCharacterId]` (already entity-scoped correctly by `parse
 1. For every fact and task, generate a new id via `randomUUID()` from `expo-crypto` (the id-generation utility already used elsewhere in this codebase, e.g. `src/utilities/makePackagePurchase.ts:71` — no new dependency). Build `oldId -> newId`.
 2. Rewrite each edge's `source_id`/`target_id` through the map; drop edges where either endpoint isn't in the map (defensive — shouldn't happen since `parseOkfBundle` only produces edges between concept files it parsed, but a dangling reference should be dropped, not silently written with a stale id).
 3. Rewrite each event's `related_entry_id` through the map when present; leave `null` alone.
-4. Events need no id-remap step here — unlike facts/tasks, `parseOkfBundle` already regenerates every event's `id` on each parse (`generateId("evt_")`, no id survives from the source bundle's `log.md`), so there is no "old event id" to collide in the first place. (This also means event *deduplication* is a separate, unrelated concern from remapping — see the events-duplicate-on-restore gap above, which affects the restore path, not clone: a clone always targets a brand-new, empty entity, so there's nothing for the new events to collide or duplicate against.)
+4. Events need no id-remap step here — unlike facts/tasks, `parseOkfBundle` already regenerates every event's `id` on each parse (`generateId("evt_")`, no id survives from the source bundle's `log.md`), so there is no "old event id" to collide in the first place. (This also means event _deduplication_ is a separate, unrelated concern from remapping — see the events-duplicate-on-restore gap above, which affects the restore path, not clone: a clone always targets a brand-new, empty entity, so there's nothing for the new events to collide or duplicate against.)
 5. `entity_id` is **not** rewritten here — it's already correct from step in the pipeline above.
 
 ## UI Integration
@@ -201,44 +206,51 @@ export function useImportCharacterOKF() {
     }
   }, [])
 
-  const handleCommitImport = useCallback(async (targetEntityId: string, mode: ImportMode) => {
-    if (!filesRef.current || inFlightRef.current) return
-    inFlightRef.current = true
-    setIsImporting(true)
-    setError(null)
-    try {
-      // Real parse against the real target id — required on the clone path
-      // (targetEntityId only exists now, post character-creation) and
-      // harmless-but-consistent on the restore path (same id as preview).
-      let dump = parseOkfBundle(targetEntityId, filesRef.current)
-      if (mode === 'clone') {
-        dump = remapOkfDumpIds(dump, targetEntityId)
-      } else {
-        // Events have no stable id across parses (parseOkfBundle regenerates
-        // them every time) and no uniqueness constraint beyond id, so a
-        // merge/replace restore duplicates every event unless we filter
-        // against what's already there first. Clone always targets a
-        // brand-new, empty entity, so this step is skipped for it.
-        dump = await dedupeEventsAgainstExisting(wiki, targetEntityId, dump)
+  const handleCommitImport = useCallback(
+    async (targetEntityId: string, mode: ImportMode) => {
+      if (!filesRef.current || inFlightRef.current) return
+      inFlightRef.current = true
+      setIsImporting(true)
+      setError(null)
+      try {
+        // Real parse against the real target id — required on the clone path
+        // (targetEntityId only exists now, post character-creation) and
+        // harmless-but-consistent on the restore path (same id as preview).
+        let dump = parseOkfBundle(targetEntityId, filesRef.current)
+        if (mode === 'clone') {
+          dump = remapOkfDumpIds(dump, targetEntityId)
+        } else {
+          // Events have no stable id across parses (parseOkfBundle regenerates
+          // them every time) and no uniqueness constraint beyond id, so a
+          // merge/replace restore duplicates every event unless we filter
+          // against what's already there first. Clone always targets a
+          // brand-new, empty entity, so this step is skipped for it.
+          dump = await dedupeEventsAgainstExisting(wiki, targetEntityId, dump)
+        }
+        await wiki.importDump(dump, mode === 'replace' ? { merge: false } : { merge: true })
+        filesRef.current = null
+        setPreview(null)
+        setDidImport(true)
+      } catch (err) {
+        const normalized = err instanceof Error ? err : new Error(String(err))
+        // Keep the original message intact for reportError/telemetry; carry the
+        // user-facing copy separately so the busy-retry case doesn't clobber
+        // the underlying WikiBusyError(operation, entityId) detail.
+        setError(
+          err instanceof WikiBusyError
+            ? Object.assign(normalized, {
+                displayMessage: 'Memory is busy right now — try again in a moment.',
+              })
+            : normalized,
+        )
+        reportError(normalized, `okf-import:${targetEntityId}`)
+      } finally {
+        inFlightRef.current = false
+        setIsImporting(false)
       }
-      await wiki.importDump(dump, mode === 'replace' ? { merge: false } : { merge: true })
-      filesRef.current = null
-      setPreview(null)
-      setDidImport(true)
-    } catch (err) {
-      const normalized = err instanceof Error ? err : new Error(String(err))
-      // Keep the original message intact for reportError/telemetry; carry the
-      // user-facing copy separately so the busy-retry case doesn't clobber
-      // the underlying WikiBusyError(operation, entityId) detail.
-      setError(err instanceof WikiBusyError
-        ? Object.assign(normalized, { displayMessage: 'Memory is busy right now — try again in a moment.' })
-        : normalized)
-      reportError(normalized, `okf-import:${targetEntityId}`)
-    } finally {
-      inFlightRef.current = false
-      setIsImporting(false)
-    }
-  }, [wiki])
+    },
+    [wiki],
+  )
 
   const handleCancel = useCallback(() => {
     filesRef.current = null
@@ -246,7 +258,16 @@ export function useImportCharacterOKF() {
     setError(null)
   }, [])
 
-  return { isParsing, isImporting, preview, error, didImport, handlePickAndPreview, handleCommitImport, handleCancel }
+  return {
+    isParsing,
+    isImporting,
+    preview,
+    error,
+    didImport,
+    handlePickAndPreview,
+    handleCommitImport,
+    handleCancel,
+  }
 }
 ```
 
@@ -264,7 +285,7 @@ export function useImportCharacterOKF() {
 
 ### Cross-Entity Collision on Restore (not clone)
 
-- Restoring a backup for character A using a bundle whose ids somehow belong to a *different* still-live character B (e.g. user picked the wrong export file) → rows silently skipped per the collision guard, no exception thrown, no report. `importDump` returns `Promise<void>` — there is no count of what was skipped vs. upserted, and no public API to preflight it (`findExistingMetadataByIds` is internal to `ImportExportService`, not exposed on `WikiMemory`). A pre/post row-count diff was considered but rejected: it can't distinguish "skipped due to collision" from "updated in place" (merge mode leaves count unchanged in both cases). **Decision: generic "Import complete" toast, no skipped-count claim.** The collision case only arises when restoring the wrong file into the wrong character while the source character is still on-device — rare, and the guard already prevents data corruption, which was the actual risk worth engineering against. Building exact skip-tracking for this would require a new public method on `WikiMemory` in `core-llm-wiki` — out of scope for this feature; revisit only if user reports of "my restore did nothing" show up in practice.
+- Restoring a backup for character A using a bundle whose ids somehow belong to a _different_ still-live character B (e.g. user picked the wrong export file) → rows silently skipped per the collision guard, no exception thrown, no report. `importDump` returns `Promise<void>` — there is no count of what was skipped vs. upserted, and no public API to preflight it (`findExistingMetadataByIds` is internal to `ImportExportService`, not exposed on `WikiMemory`). A pre/post row-count diff was considered but rejected: it can't distinguish "skipped due to collision" from "updated in place" (merge mode leaves count unchanged in both cases). **Decision: generic "Import complete" toast, no skipped-count claim.** The collision case only arises when restoring the wrong file into the wrong character while the source character is still on-device — rare, and the guard already prevents data corruption, which was the actual risk worth engineering against. Building exact skip-tracking for this would require a new public method on `WikiMemory` in `core-llm-wiki` — out of scope for this feature; revisit only if user reports of "my restore did nothing" show up in practice.
 
 ### `WikiBusyError` (entity mid-maintenance)
 
@@ -296,7 +317,7 @@ export function useImportCharacterOKF() {
 - Zip safeguards: mocked entry with a huge declared `uncompressedSize` is rejected without calling `.async()` on it (assert the mock's decompression method was never invoked — that's the actual bomb defense, not just "throws eventually"); separately, an entry with a small/absent declared `uncompressedSize` but large actual decompressed content is caught by the running-total check, proving the pre-check alone isn't load-bearing.
 - Filtering: only the exact allow-listed OKF path shapes survive (`index.md`, `entities/{id}/index.md`, `entities/{id}/log.md`, `entities/{id}/facts/*.md`, `entities/{id}/tasks/*.md`); a bundle-root `README.md` is dropped (regression test for the junk-fact bug above — feed a real exported bundle, including its README, back through the filter and assert no `README` fact appears in the parsed dump); a bundle containing more than one `entities/{id}/` directory is rejected before parsing.
 - Remap: old ids fully absent from the output dump; edges/events resolve to new ids; an edge whose endpoint isn't in the id map is dropped, not left dangling.
-- Round-trip: remapped dump fed through `importDump` (against a real or in-memory `WikiMemory`, not a mock) into a fresh entity, assert no `_warnCrossEntityCollision` path is hit (spy on `console.warn` or the equivalent) when the *source* character's original rows still exist in the same DB — this is the actual regression test for the bug this whole remap step exists to prevent.
+- Round-trip: remapped dump fed through `importDump` (against a real or in-memory `WikiMemory`, not a mock) into a fresh entity, assert no `_warnCrossEntityCollision` path is hit (spy on `console.warn` or the equivalent) when the _source_ character's original rows still exist in the same DB — this is the actual regression test for the bug this whole remap step exists to prevent.
 - Event dedup: importing the same bundle twice in merge mode against a character that already has the bundle's events produces no duplicate rows on the second import; importing two bundles whose events genuinely differ (different `event_type`/`summary`/day) does not cross-filter them.
 
 ### Hook Layer

@@ -39,10 +39,13 @@ test('registerExpoPushTokenHandler stores native expoPushToken', async () => {
     fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
   }
 
-  const result = await registerExpoPushTokenHandler({
-    auth: { uid: 'firebase-uid-1' },
-    data: { expoPushToken: 'ExponentPushToken[native]' },
-  } as never, deps)
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { expoPushToken: 'ExponentPushToken[native]' },
+    } as never,
+    deps,
+  )
 
   assert.deepEqual(result, { ok: true })
   assert.equal(savedToken, 'ExponentPushToken[native]')
@@ -65,21 +68,24 @@ test('registerExpoPushTokenHandler exchanges web subscription and stores Expo to
     },
   }
 
-  const result = await registerExpoPushTokenHandler({
-    auth: { uid: 'firebase-uid-1' },
-    data: {
-      webDevicePushToken: {
-        type: 'web',
-        data: {
-          endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
-          keys: { p256dh: 'p', auth: 'a' },
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: {
+        webDevicePushToken: {
+          type: 'web',
+          data: {
+            endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+            keys: { p256dh: 'p', auth: 'a' },
+          },
         },
+        projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
+        applicationId: 'com.equationalapplications.clanker',
+        deviceId: 'install-1',
       },
-      projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
-      applicationId: 'com.equationalapplications.clanker',
-      deviceId: 'install-1',
-    },
-  } as never, deps)
+    } as never,
+    deps,
+  )
 
   assert.deepEqual(result, { ok: true })
   assert.equal(savedToken, 'ExponentPushToken[from-web]')

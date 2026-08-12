@@ -1,46 +1,52 @@
-import {and, desc, eq, inArray, isNotNull, isNull, lt} from "drizzle-orm";
-import {getDb} from "../db/cloudSql.js";
-import {characterImages, characters} from "../db/schema.js";
-import {storageAdmin} from "./storageAdmin.js";
+import { and, desc, eq, inArray, isNotNull, isNull, lt } from 'drizzle-orm'
+import { getDb } from '../db/cloudSql.js'
+import { characterImages, characters } from '../db/schema.js'
+import { storageAdmin } from './storageAdmin.js'
 
-export const IMAGE_CAP_PER_CHARACTER = 100;
+export const IMAGE_CAP_PER_CHARACTER = 100
 
-export type CharacterImageRecord = typeof characterImages.$inferSelect;
+export type CharacterImageRecord = typeof characterImages.$inferSelect
 
 export type CharacterImageRepository = {
-  listByCharacter(characterId: string): Promise<CharacterImageRecord[]>;
-  listByCharacters(characterIds: string[]): Promise<CharacterImageRecord[]>;
-  listLiveByCharacter(characterId: string): Promise<CharacterImageRecord[]>;
-  upsert(row: typeof characterImages.$inferInsert): Promise<void>;
-  tombstone(id: string): Promise<void>;
-  getActiveImageId(characterId: string): Promise<string | null>;
-  setActiveImageId(characterId: string, imageId: string | null): Promise<void>;
-  deleteByCharacter(characterId: string, userId: string): Promise<void>;
-  deleteTombstonesOlderThan(cutoff: Date): Promise<number>;
-};
+  listByCharacter(characterId: string): Promise<CharacterImageRecord[]>
+  listByCharacters(characterIds: string[]): Promise<CharacterImageRecord[]>
+  listLiveByCharacter(characterId: string): Promise<CharacterImageRecord[]>
+  upsert(row: typeof characterImages.$inferInsert): Promise<void>
+  tombstone(id: string): Promise<void>
+  getActiveImageId(characterId: string): Promise<string | null>
+  setActiveImageId(characterId: string, imageId: string | null): Promise<void>
+  deleteByCharacter(characterId: string, userId: string): Promise<void>
+  deleteTombstonesOlderThan(cutoff: Date): Promise<number>
+}
 
 export const createCharacterImageRepository = (): CharacterImageRepository => ({
   async listByCharacter(characterId) {
-    const db = await getDb();
-    return db.select().from(characterImages)
+    const db = await getDb()
+    return db
+      .select()
+      .from(characterImages)
       .where(eq(characterImages.characterId, characterId))
-      .orderBy(desc(characterImages.createdAt));
+      .orderBy(desc(characterImages.createdAt))
   },
   async listByCharacters(characterIds) {
-    if (characterIds.length === 0) return [];
-    const db = await getDb();
-    return db.select().from(characterImages)
+    if (characterIds.length === 0) return []
+    const db = await getDb()
+    return db
+      .select()
+      .from(characterImages)
       .where(inArray(characterImages.characterId, characterIds))
-      .orderBy(desc(characterImages.createdAt));
+      .orderBy(desc(characterImages.createdAt))
   },
   async listLiveByCharacter(characterId) {
-    const db = await getDb();
-    return db.select().from(characterImages)
+    const db = await getDb()
+    return db
+      .select()
+      .from(characterImages)
       .where(and(eq(characterImages.characterId, characterId), isNull(characterImages.deletedAt)))
-      .orderBy(characterImages.createdAt);
+      .orderBy(characterImages.createdAt)
   },
   async upsert(row) {
-    const db = await getDb();
+    const db = await getDb()
     // setWhere is the ownership boundary on the conflict path. The id is a
     // client-chosen UUID, so without it a caller who guesses (or replays) an id
     // belonging to someone else would overwrite that row's storage paths — the
@@ -54,74 +60,85 @@ export const createCharacterImageRepository = (): CharacterImageRepository => ({
     // not by when the image was made — a backlog of week-old offline images
     // synced together looks newest. Not plumbed through: it would mean
     // trusting a client-supplied timestamp for an ordering that deletes data.
-    await db.insert(characterImages).values(row).onConflictDoUpdate({
-      target: characterImages.id,
-      set: {
-        storagePath: row.storagePath,
-        thumbPath: row.thumbPath ?? null,
-        mimeType: row.mimeType ?? "image/webp",
-        source: row.source,
-        messageId: row.messageId ?? null,
-      },
-      setWhere: and(
-        eq(characterImages.userId, row.userId),
-        eq(characterImages.characterId, row.characterId)
-      ),
-    });
+    await db
+      .insert(characterImages)
+      .values(row)
+      .onConflictDoUpdate({
+        target: characterImages.id,
+        set: {
+          storagePath: row.storagePath,
+          thumbPath: row.thumbPath ?? null,
+          mimeType: row.mimeType ?? 'image/webp',
+          source: row.source,
+          messageId: row.messageId ?? null,
+        },
+        setWhere: and(
+          eq(characterImages.userId, row.userId),
+          eq(characterImages.characterId, row.characterId),
+        ),
+      })
   },
   async tombstone(id) {
-    const db = await getDb();
-    await db.update(characterImages).set({deletedAt: new Date()})
-      .where(eq(characterImages.id, id));
+    const db = await getDb()
+    await db
+      .update(characterImages)
+      .set({ deletedAt: new Date() })
+      .where(eq(characterImages.id, id))
   },
   async getActiveImageId(characterId) {
-    const db = await getDb();
-    const [row] = await db.select({activeImageId: characters.activeImageId})
-      .from(characters).where(eq(characters.id, characterId)).limit(1);
-    return row?.activeImageId ?? null;
+    const db = await getDb()
+    const [row] = await db
+      .select({ activeImageId: characters.activeImageId })
+      .from(characters)
+      .where(eq(characters.id, characterId))
+      .limit(1)
+    return row?.activeImageId ?? null
   },
   async setActiveImageId(characterId, imageId) {
-    const db = await getDb();
-    await db.update(characters).set({activeImageId: imageId})
-      .where(eq(characters.id, characterId));
+    const db = await getDb()
+    await db
+      .update(characters)
+      .set({ activeImageId: imageId })
+      .where(eq(characters.id, characterId))
   },
   async deleteByCharacter(characterId, userId) {
-    const db = await getDb();
+    const db = await getDb()
     // Scoped by user_id as well as character_id: this must never be reachable
     // for a characterId the caller does not own, even if an ownership check
     // upstream is ever skipped or reordered. See §10.1 of the design spec.
-    await db.delete(characterImages).where(
-      and(eq(characterImages.characterId, characterId), eq(characterImages.userId, userId))
-    );
+    await db
+      .delete(characterImages)
+      .where(and(eq(characterImages.characterId, characterId), eq(characterImages.userId, userId)))
   },
   async deleteTombstonesOlderThan(cutoff) {
-    const db = await getDb();
+    const db = await getDb()
     // The Storage objects behind a tombstoned row are already deleted at
     // tombstone time (see tombstoneWithObjects below) — this only drops the
     // now-unreferenced row itself, tens of bytes each.
-    const deleted = await db.delete(characterImages)
+    const deleted = await db
+      .delete(characterImages)
       .where(and(isNotNull(characterImages.deletedAt), lt(characterImages.deletedAt, cutoff)))
-      .returning({id: characterImages.id});
-    return deleted.length;
+      .returning({ id: characterImages.id })
+    return deleted.length
   },
-});
+})
 
-type StorageOps = Pick<typeof storageAdmin, "deleteObjects" | "deletePrefix">;
+type StorageOps = Pick<typeof storageAdmin, 'deleteObjects' | 'deletePrefix'>
 
 export const createCharacterImageService = (
   repository: CharacterImageRepository = createCharacterImageRepository(),
-  storage: StorageOps = storageAdmin
+  storage: StorageOps = storageAdmin,
 ) => {
   /** Objects backing one row: master plus thumb when present. */
   const objectPathsFor = (row: CharacterImageRecord): string[] =>
-    row.thumbPath ? [row.storagePath, row.thumbPath] : [row.storagePath];
+    row.thumbPath ? [row.storagePath, row.thumbPath] : [row.storagePath]
 
   const tombstoneWithObjects = async (row: CharacterImageRecord): Promise<void> => {
     // Bytes before rows: a failure partway leaves a recoverable row pointing at
     // possibly-missing bytes. The reverse would strand objects nothing references.
-    await storage.deleteObjects(objectPathsFor(row));
-    await repository.tombstone(row.id);
-  };
+    await storage.deleteObjects(objectPathsFor(row))
+    await repository.tombstone(row.id)
+  }
 
   return {
     /**
@@ -135,25 +152,25 @@ export const createCharacterImageService = (
     async syncImages(
       characterId: string,
       userId: string,
-      rows: (typeof characterImages.$inferInsert)[]
-    ): Promise<{evictedImageIds: string[]}> {
+      rows: (typeof characterImages.$inferInsert)[],
+    ): Promise<{ evictedImageIds: string[] }> {
       for (const row of rows) {
-        await repository.upsert({...row, characterId, userId});
+        await repository.upsert({ ...row, characterId, userId })
       }
 
-      const live = await repository.listLiveByCharacter(characterId);
-      const excess = live.length - IMAGE_CAP_PER_CHARACTER;
-      if (excess <= 0) return {evictedImageIds: []};
+      const live = await repository.listLiveByCharacter(characterId)
+      const excess = live.length - IMAGE_CAP_PER_CHARACTER
+      if (excess <= 0) return { evictedImageIds: [] }
 
-      const activeImageId = await repository.getActiveImageId(characterId);
-      const evictable = live.filter((row) => row.id !== activeImageId);
-      const evicted = evictable.slice(0, excess);
+      const activeImageId = await repository.getActiveImageId(characterId)
+      const evictable = live.filter((row) => row.id !== activeImageId)
+      const evicted = evictable.slice(0, excess)
 
       for (const row of evicted) {
-        await tombstoneWithObjects(row);
+        await tombstoneWithObjects(row)
       }
 
-      return {evictedImageIds: evicted.map((row) => row.id)};
+      return { evictedImageIds: evicted.map((row) => row.id) }
     },
 
     async deleteImages(characterId: string, userId: string, imageIds: string[]): Promise<void> {
@@ -161,18 +178,18 @@ export const createCharacterImageService = (
       // belongs to userId, so every row under it already carries userId — this
       // filter is defense in depth against that check ever being skipped or
       // reordered, matching deleteByCharacter's own scoping above.
-      const rows = await repository.listByCharacter(characterId);
+      const rows = await repository.listByCharacter(characterId)
       const targets = rows.filter(
-        (row) => row.userId === userId && imageIds.includes(row.id) && !row.deletedAt
-      );
+        (row) => row.userId === userId && imageIds.includes(row.id) && !row.deletedAt,
+      )
       for (const row of targets) {
-        await tombstoneWithObjects(row);
+        await tombstoneWithObjects(row)
       }
     },
 
     /** Includes tombstones — absence is ambiguous, an explicit deleted_at is not. */
     async listImages(characterId: string): Promise<CharacterImageRecord[]> {
-      return repository.listByCharacter(characterId);
+      return repository.listByCharacter(characterId)
     },
 
     /**
@@ -181,11 +198,11 @@ export const createCharacterImageService = (
      * one's gallery.
      */
     async listImagesByCharacters(characterIds: string[]): Promise<CharacterImageRecord[]> {
-      return repository.listByCharacters(characterIds);
+      return repository.listByCharacters(characterIds)
     },
 
     async setActiveImage(characterId: string, imageId: string | null): Promise<void> {
-      await repository.setActiveImageId(characterId, imageId);
+      await repository.setActiveImageId(characterId, imageId)
     },
 
     /**
@@ -208,9 +225,13 @@ export const createCharacterImageService = (
      * scopes the row delete as defense in depth against that check ever being
      * skipped or reordered.
      */
-    async purgeCharacter(firebaseUid: string, dbUserId: string, characterId: string): Promise<void> {
-      await repository.deleteByCharacter(characterId, dbUserId);
-      await storage.deletePrefix(`users/${firebaseUid}/characters/${characterId}/`);
+    async purgeCharacter(
+      firebaseUid: string,
+      dbUserId: string,
+      characterId: string,
+    ): Promise<void> {
+      await repository.deleteByCharacter(characterId, dbUserId)
+      await storage.deletePrefix(`users/${firebaseUid}/characters/${characterId}/`)
     },
 
     /**
@@ -219,10 +240,10 @@ export const createCharacterImageService = (
      * exists purely so the table doesn't grow unbounded with dead rows.
      */
     async sweepExpiredTombstones(retentionDays: number): Promise<number> {
-      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-      return repository.deleteTombstonesOlderThan(cutoff);
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
+      return repository.deleteTombstonesOlderThan(cutoff)
     },
-  };
-};
+  }
+}
 
-export const characterImageService = createCharacterImageService();
+export const characterImageService = createCharacterImageService()

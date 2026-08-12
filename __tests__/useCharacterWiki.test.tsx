@@ -25,7 +25,11 @@ jest.mock('~/services/apiClient', () => ({
 }))
 
 import { act, renderHook } from '@testing-library/react'
-import { useCharacterWiki, _resetCharacterWikiEntityQueuesForTests, awaitPendingWikiWrites } from '~/hooks/useCharacterWiki'
+import {
+  useCharacterWiki,
+  _resetCharacterWikiEntityQueuesForTests,
+  awaitPendingWikiWrites,
+} from '~/hooks/useCharacterWiki'
 import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { wikiOrchestrator } from '~/services/wikiOrchestrator'
 import { wikiSync } from '~/services/apiClient'
@@ -49,7 +53,10 @@ describe('useCharacterWiki', () => {
   const createMockActor = ({
     lastReadResult = { facts: [], tasks: [], events: [] },
     lastIngestResult = { truncated: false, chunks: 7 },
-  }: { lastReadResult?: { facts: unknown[]; tasks: unknown[]; events: unknown[] }; lastIngestResult?: { truncated: boolean; chunks: number } } = {}) => {
+  }: {
+    lastReadResult?: { facts: unknown[]; tasks: unknown[]; events: unknown[] }
+    lastIngestResult?: { truncated: boolean; chunks: number }
+  } = {}) => {
     let state = 'idle'
     let status = { ingesting: false, librarian: false, heal: false }
     let callback: ((snap: any) => void) | null = null
@@ -94,17 +101,28 @@ describe('useCharacterWiki', () => {
           state = 'syncing'
           callback?.(snapshot(state))
           Promise.resolve()
-            .then(() => event.runRemoteSync({
-              generatedAt: 1000,
-              entities: {
-                char1: {
-                  facts: [],
-                  tasks: [],
-                  events: [],
-                  edges: [{ id: 'local-edge', entity_id: 'char1', source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 1 }],
+            .then(() =>
+              event.runRemoteSync({
+                generatedAt: 1000,
+                entities: {
+                  char1: {
+                    facts: [],
+                    tasks: [],
+                    events: [],
+                    edges: [
+                      {
+                        id: 'local-edge',
+                        entity_id: 'char1',
+                        source_id: 'a',
+                        target_id: 'b',
+                        edge_type: 'knows',
+                        created_at: 1,
+                      },
+                    ],
+                  },
                 },
-              },
-            }))
+              }),
+            )
             .then(() => {
               state = 'idle'
               callback?.(snapshot(state))
@@ -119,18 +137,18 @@ describe('useCharacterWiki', () => {
   test('ingest returns lastIngestResult from context', async () => {
     const mockWiki = {} as any
     mockUseWiki.mockReturnValue(mockWiki)
-    
+
     const mockActor = createMockActor()
     mockGetOrSpawn.mockReturnValue(mockActor)
-    
+
     const { result } = renderHook(() => useCharacterWiki('char1'))
-    
+
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
     let ingestResultReturned: any
     await act(async () => {
       ingestResultReturned = await result.current.ingest(doc)
     })
-    
+
     expect(ingestResultReturned).toEqual({ truncated: false, chunks: 7 })
   })
 
@@ -210,18 +228,18 @@ describe('useCharacterWiki', () => {
   test('read returns lastReadResult from context', async () => {
     const mockWiki = {} as any
     mockUseWiki.mockReturnValue(mockWiki)
-    
+
     const readResult = { facts: [{ id: 'f1' }], tasks: [], events: [] }
     const mockActor = createMockActor({ lastReadResult: readResult })
     mockGetOrSpawn.mockReturnValue(mockActor)
-    
+
     const { result } = renderHook(() => useCharacterWiki('char1'))
-    
+
     let readResultReturned: any
     await act(async () => {
       readResultReturned = await result.current.read('test query')
     })
-    
+
     expect(readResultReturned).toEqual(readResult)
   })
 
@@ -250,13 +268,22 @@ describe('useCharacterWiki', () => {
 
     const syncArg = mockWikiSync.mock.calls[0][0]
     expect(syncArg.dump.entities['cloud-1'].edges).toEqual([
-      { id: 'local-edge', entity_id: 'cloud-1', source_id: 'a', target_id: 'b', edge_type: 'knows', created_at: 1 },
+      {
+        id: 'local-edge',
+        entity_id: 'cloud-1',
+        source_id: 'a',
+        target_id: 'b',
+        edge_type: 'knows',
+        created_at: 1,
+      },
     ])
   })
 
   test('sync sends the local ontology manifest and writes back the cloud-merged one', async () => {
     const mockWiki = {
-      getOntologyManifest: jest.fn().mockResolvedValue({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } }),
+      getOntologyManifest: jest
+        .fn()
+        .mockResolvedValue({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } }),
       setOntologyManifest: jest.fn().mockResolvedValue(undefined),
     } as any
     mockUseWiki.mockReturnValue(mockWiki)
@@ -273,7 +300,13 @@ describe('useCharacterWiki', () => {
               tasks: [],
               events: [],
               edges: [],
-              ontology: { mode: 'emergent', manifest: { node_types: [{ type: 'person', description: 'a person' }], edge_types: [] } },
+              ontology: {
+                mode: 'emergent',
+                manifest: {
+                  node_types: [{ type: 'person', description: 'a person' }],
+                  edge_types: [],
+                },
+              },
             },
           },
         },
@@ -287,7 +320,10 @@ describe('useCharacterWiki', () => {
 
     expect(mockWiki.getOntologyManifest).toHaveBeenCalledWith('char1')
     const syncArg = mockWikiSync.mock.calls[0][0]
-    expect(syncArg.dump.entities['cloud-1'].ontology).toEqual({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } })
+    expect(syncArg.dump.entities['cloud-1'].ontology).toEqual({
+      mode: 'emergent',
+      manifest: { node_types: [], edge_types: [] },
+    })
 
     expect(mockWiki.setOntologyManifest).toHaveBeenCalledWith(
       'char1',

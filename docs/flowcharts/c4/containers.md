@@ -76,11 +76,11 @@ Priority order in `useAIChat` after send:
 
 Three-node async loop. Voice WS and browser WS may land on different Cloud Run instances; Firestore is the sole cross-instance routing bus.
 
-| Node | Container | Connection |
-|------|-----------|------------|
-| Mobile | Clanker App | `/agent/live` or `/agent/run` (triggers `browser_action`) |
-| Coordinator | Cloud Agent | In-memory `sessionBridge` per instance; Firestore writes + FCM dispatch |
-| Desktop | Desktop Bridge Extension | Idle (FCM) → active (`/agent/browser` WS on wake) |
+| Node        | Container                | Connection                                                              |
+| ----------- | ------------------------ | ----------------------------------------------------------------------- |
+| Mobile      | Clanker App              | `/agent/live` or `/agent/run` (triggers `browser_action`)               |
+| Coordinator | Cloud Agent              | In-memory `sessionBridge` per instance; Firestore writes + FCM dispatch |
+| Desktop     | Desktop Bridge Extension | Idle (FCM) → active (`/agent/browser` WS on wake)                       |
 
 **Happy path:**
 

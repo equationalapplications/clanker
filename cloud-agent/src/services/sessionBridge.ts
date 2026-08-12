@@ -14,13 +14,22 @@ export function createSessionBridge() {
   function ensure(uid: string, sessionId: string): SessionState {
     const k = key(uid, sessionId)
     let s = map.get(k)
-    if (!s) { s = { sessionId, voiceWs: null, browserWs: null, firestoreUnsub: null }; map.set(k, s) }
+    if (!s) {
+      s = { sessionId, voiceWs: null, browserWs: null, firestoreUnsub: null }
+      map.set(k, s)
+    }
     return s
   }
   return {
-    registerBrowser(uid: string, sessionId: string, ws: WebSocket): void { ensure(uid, sessionId).browserWs = ws },
-    registerVoice(uid: string, sessionId: string, ws: WebSocket): void { ensure(uid, sessionId).voiceWs = ws },
-    getSession(uid: string, sessionId: string): SessionState | undefined { return map.get(key(uid, sessionId)) },
+    registerBrowser(uid: string, sessionId: string, ws: WebSocket): void {
+      ensure(uid, sessionId).browserWs = ws
+    },
+    registerVoice(uid: string, sessionId: string, ws: WebSocket): void {
+      ensure(uid, sessionId).voiceWs = ws
+    },
+    getSession(uid: string, sessionId: string): SessionState | undefined {
+      return map.get(key(uid, sessionId))
+    },
     deregisterBrowser(uid: string, sessionId: string): void {
       const s = map.get(key(uid, sessionId))
       if (!s) return
@@ -29,7 +38,11 @@ export function createSessionBridge() {
     },
     deregister(uid: string, sessionId: string): void {
       const s = map.get(key(uid, sessionId))
-      try { s?.firestoreUnsub?.() } catch { /* ignore */ }
+      try {
+        s?.firestoreUnsub?.()
+      } catch {
+        /* ignore */
+      }
       map.delete(key(uid, sessionId))
     },
   }

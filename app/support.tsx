@@ -68,8 +68,9 @@ export default function Support() {
             How do credits and subscriptions work?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Chat replies, image generation, voice replies, cloud character saves/sync, document ingestion, and memory writes/heals consume credits. Subscriptions give a monthly credit allowance, and one-time packs
-            grant temporary credits that expire after 31 days.
+            Chat replies, image generation, voice replies, cloud character saves/sync, document
+            ingestion, and memory writes/heals consume credits. Subscriptions give a monthly credit
+            allowance, and one-time packs grant temporary credits that expire after 31 days.
           </Text>
 
           <Text variant="titleSmall" style={styles.question}>
@@ -77,7 +78,8 @@ export default function Support() {
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             Two options:
-            {'\n'}• Monthly subscription ($20/month): 300 credits per billing cycle, renewed automatically
+            {'\n'}• Monthly subscription ($20/month): 300 credits per billing cycle, renewed
+            automatically
             {'\n'}• One-time pack ($10): 100 credits, valid for 31 days
             {'\n'}Purchase from the Subscribe screen in the app.
           </Text>
@@ -96,8 +98,8 @@ export default function Support() {
             What happened to unlimited credits?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            The unlimited credits plan has been retired. Monthly subscribers now receive
-            300 credits per billing cycle. Your existing credits remain unaffected.
+            The unlimited credits plan has been retired. Monthly subscribers now receive 300 credits
+            per billing cycle. Your existing credits remain unaffected.
           </Text>
 
           <Divider style={styles.divider} />
@@ -106,8 +108,8 @@ export default function Support() {
             How do chat and voice work and what do they cost?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Text chat in the Chat tab costs 1 credit per reply. Live real-time voice in the Talk
-            tab costs 5 credits per minute.{' '}
+            Text chat in the Chat tab costs 1 credit per reply. Live real-time voice in the Talk tab
+            costs 5 credits per minute.{' '}
             <Text style={styles.inlineLink} onPress={onPressRealTimeVoice}>
               See how live voice works in action
             </Text>
@@ -120,8 +122,8 @@ export default function Support() {
             How do I sign in?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Open Clanker and choose Google or Apple sign-in. Use the same provider each time so
-            your account data loads correctly.
+            Open Clanker and choose Google or Apple sign-in. Use the same provider each time so your
+            account data loads correctly.
           </Text>
 
           <Divider style={styles.divider} />
@@ -151,8 +153,8 @@ export default function Support() {
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             {'Yes - open Character Settings and tap "Export Memory as OKF" to download a '}
-            complete, standard-format backup of everything your character knows, including
-            its facts, tasks, and how they connect. Bring it back anytime with{' '}
+            complete, standard-format backup of everything your character knows, including its
+            facts, tasks, and how they connect. Bring it back anytime with{' '}
             {'"Import OKF Backup" (restore into the same character) or "From Bundle" on the '}
             characters list (clone into a new one). Restoring the same backup more than once
             {" won't duplicate your character's timeline."}

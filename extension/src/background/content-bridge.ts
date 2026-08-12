@@ -2,7 +2,11 @@ import type { SingleAction } from '../shared/dsl-types.js'
 import type { Injector } from './task-dispatcher.js'
 
 function originPattern(url: string): string {
-  try { return new URL(url).origin + '/*' } catch { return url }
+  try {
+    return new URL(url).origin + '/*'
+  } catch {
+    return url
+  }
 }
 
 const HOST_PERMISSION_NOTIFICATION = 'host-permission'
@@ -29,9 +33,7 @@ async function activeTab(): Promise<{ id: number; url: string }> {
 }
 
 type ContentResponse =
-  | { data: Record<string, string>; activeUrl: string }
-  | { awaitingAuth: true }
-  | { error: string }
+  { data: Record<string, string>; activeUrl: string } | { awaitingAuth: true } | { error: string }
 
 function sendActionToTab(
   tabId: number,
@@ -39,25 +41,34 @@ function sendActionToTab(
   ctx: { skipLayerTwo?: boolean },
 ): Promise<{ data: Record<string, string>; activeUrl: string } | { awaitingAuth: true }> {
   return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, { type: 'CLANKER_RUN_ACTION', action, ctx }, (response: ContentResponse | undefined) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error('EXECUTION_ERROR: ' + (chrome.runtime.lastError.message ?? 'no response from content script')))
-        return
-      }
-      if (!response) {
-        reject(new Error('EXECUTION_ERROR: empty response from content script'))
-        return
-      }
-      if ('error' in response) {
-        reject(new Error(response.error))
-        return
-      }
-      if ('awaitingAuth' in response) {
-        resolve({ awaitingAuth: true as const })
-        return
-      }
-      resolve(response)
-    })
+    chrome.tabs.sendMessage(
+      tabId,
+      { type: 'CLANKER_RUN_ACTION', action, ctx },
+      (response: ContentResponse | undefined) => {
+        if (chrome.runtime.lastError) {
+          reject(
+            new Error(
+              'EXECUTION_ERROR: ' +
+                (chrome.runtime.lastError.message ?? 'no response from content script'),
+            ),
+          )
+          return
+        }
+        if (!response) {
+          reject(new Error('EXECUTION_ERROR: empty response from content script'))
+          return
+        }
+        if ('error' in response) {
+          reject(new Error(response.error))
+          return
+        }
+        if ('awaitingAuth' in response) {
+          resolve({ awaitingAuth: true as const })
+          return
+        }
+        resolve(response)
+      },
+    )
   })
 }
 
@@ -69,7 +80,13 @@ export function createInjector(): Injector {
     },
     async focusTab(host: string) {
       const tabs = await chrome.tabs.query({})
-      const match = tabs.find((t) => { try { return new URL(t.url ?? '').host === host } catch { return false } })
+      const match = tabs.find((t) => {
+        try {
+          return new URL(t.url ?? '').host === host
+        } catch {
+          return false
+        }
+      })
       if (!match?.id) throw new Error('EXECUTION_ERROR: no tab for host')
       await chrome.tabs.update(match.id, { active: true })
     },

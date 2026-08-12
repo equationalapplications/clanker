@@ -74,13 +74,20 @@ export function handleDesktopWsUpgrade(
     unsubDevice = null
 
     if (ownsRegistration && !deviceDocGone) {
-      void fs.markDesktopDeviceOffline(uid, deviceId, options.instanceId).catch(() => { /* liveness bound covers */ })
+      void fs.markDesktopDeviceOffline(uid, deviceId, options.instanceId).catch(() => {
+        /* liveness bound covers */
+      })
     }
     if (ownsRegistration) {
       for (const taskId of dispatched) {
-        void fs.failDesktopTaskIfUnresolved(uid, taskId, {
-          code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
-        }).catch(() => { /* caller timeout covers */ })
+        void fs
+          .failDesktopTaskIfUnresolved(uid, taskId, {
+            code: 'DESKTOP_DISCONNECTED',
+            message: 'Desktop connection lost mid-call',
+          })
+          .catch(() => {
+            /* caller timeout covers */
+          })
       }
     }
     dispatched.clear()
@@ -89,39 +96,64 @@ export function handleDesktopWsUpgrade(
   async function onAuth(raw: unknown): Promise<void> {
     if (authed || authInFlight) return
     const parsed = desktopAuthSchema.safeParse(raw)
-    if (!parsed.success) { ws.close(4001, 'Invalid auth frame'); return }
+    if (!parsed.success) {
+      ws.close(4001, 'Invalid auth frame')
+      return
+    }
     authInFlight = true
     try {
       const resolved = await options.resolvePairingToken(parsed.data.pairingToken)
       if (!socketOpen()) return
-      if (!resolved) { ws.close(4001, 'Unknown pairing token'); return }
+      if (!resolved) {
+        ws.close(4001, 'Unknown pairing token')
+        return
+      }
       const device = await fs.getDesktopDeviceDoc(resolved.uid, resolved.deviceId)
       if (!socketOpen()) return
-      if (!device.exists || device.isPaused) { ws.close(4001, 'Device unavailable'); return }
+      if (!device.exists || device.isPaused) {
+        ws.close(4001, 'Device unavailable')
+        return
+      }
 
-      uid = resolved.uid; deviceId = resolved.deviceId; authed = true
+      uid = resolved.uid
+      deviceId = resolved.deviceId
+      authed = true
       clearTimeout(authTimer)
 
       // Single dispatch path for both the pending-queue listener and the
       // same-instance shortcut (desktopBridge.get().dispatchTask): every task
       // sent over this socket enters `dispatched`, so the disconnect path can
       // fail it immediately, and concurrent dispatch attempts dedupe here.
-      const dispatchTask = (taskId: string, tool: string, params: Record<string, unknown>): boolean => {
+      const dispatchTask = (
+        taskId: string,
+        tool: string,
+        params: Record<string, unknown>,
+      ): boolean => {
         if (dispatched.has(taskId)) return false
         if (!socketOpen()) {
-          void fs.failDesktopTaskIfUnresolved(uid!, taskId, {
-            code: 'DESKTOP_DISCONNECTED', message: 'Desktop connection lost mid-call',
-          }).catch(() => { /* caller timeout covers */ })
+          void fs
+            .failDesktopTaskIfUnresolved(uid!, taskId, {
+              code: 'DESKTOP_DISCONNECTED',
+              message: 'Desktop connection lost mid-call',
+            })
+            .catch(() => {
+              /* caller timeout covers */
+            })
           return false
         }
         dispatched.add(taskId)
         // Send frame immediately; markDesktopTaskExecuting race is handled below
         ws.send(JSON.stringify({ type: 'task', taskId, tool, params }))
-        void fs.markDesktopTaskExecuting(uid!, taskId)
+        void fs
+          .markDesktopTaskExecuting(uid!, taskId)
           .then((ok) => {
             if (!ok) {
               // Task already terminal (race with disconnect). Best-effort remove frame.
-              try { ws.send(JSON.stringify({ type: 'cancel_task', taskId })) } catch { /* ignore */ }
+              try {
+                ws.send(JSON.stringify({ type: 'cancel_task', taskId }))
+              } catch {
+                /* ignore */
+              }
             }
           })
           .catch((err) => {
@@ -160,8 +192,15 @@ export function handleDesktopWsUpgrade(
     const r = taskResultSchema.safeParse(raw)
     if (r.success) {
       dispatched.delete(r.data.taskId)
-      const written = await fs.writeDesktopTaskResult(uid, r.data.taskId, { status: 'complete', result: r.data.result })
-      if (!written) console.warn('[desktop-bridge] result write rejected for unknown/terminal task:', r.data.taskId)
+      const written = await fs.writeDesktopTaskResult(uid, r.data.taskId, {
+        status: 'complete',
+        result: r.data.result,
+      })
+      if (!written)
+        console.warn(
+          '[desktop-bridge] result write rejected for unknown/terminal task:',
+          r.data.taskId,
+        )
       return
     }
     const e = taskErrorSchema.safeParse(raw)
@@ -171,7 +210,11 @@ export function handleDesktopWsUpgrade(
         status: 'failed',
         error: { code: 'TOOL_ERROR', message: e.data.error.message },
       })
-      if (!written) console.warn('[desktop-bridge] error write rejected for unknown/terminal task:', e.data.taskId)
+      if (!written)
+        console.warn(
+          '[desktop-bridge] error write rejected for unknown/terminal task:',
+          e.data.taskId,
+        )
       return
     }
     console.warn('[desktop-bridge] dropped malformed post-auth frame')
@@ -179,7 +222,9 @@ export function handleDesktopWsUpgrade(
 
   ws.on('message', (data: Buffer) => {
     let parsed: unknown
-    try { parsed = JSON.parse(data.toString()) } catch {
+    try {
+      parsed = JSON.parse(data.toString())
+    } catch {
       if (authed) console.warn('[desktop-bridge] dropped non-JSON frame')
       return
     }
@@ -202,13 +247,17 @@ export function handleDesktopWsUpgrade(
     }
 
     if (!authed) {
-      void onAuth(parsed).catch(() => { if (socketOpen()) ws.close(1011, 'Internal error') })
+      void onAuth(parsed).catch(() => {
+        if (socketOpen()) ws.close(1011, 'Internal error')
+      })
       return
     }
 
     const type = (parsed as { type?: string }).type
     if (type === 'task_result' || type === 'task_error') {
-      void onResult(parsed).catch((err) => console.error('[desktop-bridge] result write failed:', err))
+      void onResult(parsed).catch((err) =>
+        console.error('[desktop-bridge] result write failed:', err),
+      )
     } else {
       console.warn('[desktop-bridge] dropped malformed post-auth frame:', type)
     }

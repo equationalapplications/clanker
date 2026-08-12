@@ -4,21 +4,21 @@
 
 ### Layer Overview
 
-| Layer | Technology | Responsibility |
-|---|---|---|
-| Complex async flows | xState (machines) | Auth lifecycle, CRUD with optimistic rollback, multi-step flows |
-| Server state / cache | TanStack Query + kvStorePersister | API data, background refetch, 24-hour offline cache |
-| Local-first data | Expo SQLite | Messages, characters (always available offline) |
-| Cross-cutting access | React Context (`GlobalStateContext`) | Exposes xState actor refs to the component tree |
-| UI-local state | `useState` / `useEffect` | Transient UI state (modal visibility, form errors) |
+| Layer                | Technology                           | Responsibility                                                  |
+| -------------------- | ------------------------------------ | --------------------------------------------------------------- |
+| Complex async flows  | xState (machines)                    | Auth lifecycle, CRUD with optimistic rollback, multi-step flows |
+| Server state / cache | TanStack Query + kvStorePersister    | API data, background refetch, 24-hour offline cache             |
+| Local-first data     | Expo SQLite                          | Messages, characters (always available offline)                 |
+| Cross-cutting access | React Context (`GlobalStateContext`) | Exposes xState actor refs to the component tree                 |
+| UI-local state       | `useState` / `useEffect`             | Transient UI state (modal visibility, form errors)              |
 
 ### xState Machines
 
-| Machine | File | Responsibility |
-|---|---|---|
-| `authMachine` | `src/machines/authMachine.ts` | Firebase auth bootstrap, Cloud SQL user/subscription state, sign-out |
-| `termsMachine` | `src/machines/termsMachine.ts` | Check and record Terms of Service acceptance |
-| `characterMachine` | `src/machines/characterMachine.ts` | Character CRUD with optimistic updates and rollback |
+| Machine            | File                               | Responsibility                                                                     |
+| ------------------ | ---------------------------------- | ---------------------------------------------------------------------------------- |
+| `authMachine`      | `src/machines/authMachine.ts`      | Firebase auth bootstrap, Cloud SQL user/subscription state, sign-out               |
+| `termsMachine`     | `src/machines/termsMachine.ts`     | Check and record Terms of Service acceptance                                       |
+| `characterMachine` | `src/machines/characterMachine.ts` | Character CRUD with optimistic updates and rollback                                |
 | `liveVoiceMachine` | `src/machines/liveVoiceMachine.ts` | Talk tab live voice: pre-call wiki sync, WebSocket session, transcript persistence |
 
 The **Talk tab** uses `liveVoiceMachine` (via `useLiveVoiceChat`) for continuous voice calls over Cloud Agent `/agent/live`. That flow is independent of the text-chat edge agent loop in `useAIChat` / `useEdgeAgent` — it owns its own WebSocket lifecycle, audio I/O, and end-of-call SQLite persistence. See [Real-Time Voice Chat](real-time-voice-chat.md).
@@ -28,6 +28,7 @@ The **Talk tab** uses `liveVoiceMachine` (via `useLiveVoiceChat`) for continuous
 **When to add a new machine:** Create for features with two or more of: multiple sequential async steps, optimistic updates with rollback, complex conditional transitions, long-running background work, explicit loading/idle/error/success states needing isolated testing. Simple one-shot operations should use TanStack Query mutations instead.
 
 **How to add a new machine:**
+
 1. Create `src/machines/<feature>Machine.ts` following `characterMachine.ts` structure
 2. Register in `GlobalStateContext` (`src/hooks/useMachines.ts`)
 3. Spawn in `GlobalStateProvider` (`app/_layout.tsx`)
@@ -111,33 +112,34 @@ characters/
 
 ### Architecture Overview
 
-| Layer | Technology | Role |
-|---|---|---|
-| Local DB | expo-sqlite (SQLite) | Source of truth for characters + messages |
-| Query cache | TanStack Query v5 | In-memory cache with `offlineFirst` for local queries |
-| Cache persistence | expo-sqlite/kv-store | Survives app restarts |
-| Network detection | @react-native-community/netinfo | Drives `onlineManager`, triggers reconnect sync |
-| Cloud backup | Cloud SQL `characters` table | Backup/restore for characters only |
+| Layer             | Technology                      | Role                                                  |
+| ----------------- | ------------------------------- | ----------------------------------------------------- |
+| Local DB          | expo-sqlite (SQLite)            | Source of truth for characters + messages             |
+| Query cache       | TanStack Query v5               | In-memory cache with `offlineFirst` for local queries |
+| Cache persistence | expo-sqlite/kv-store            | Survives app restarts                                 |
+| Network detection | @react-native-community/netinfo | Drives `onlineManager`, triggers reconnect sync       |
+| Cloud backup      | Cloud SQL `characters` table    | Backup/restore for characters only                    |
 
 Messages are **never synced to cloud** (privacy by design).
 
 ### Key Files
 
-| File | Purpose |
-|---|---|
-| `src/config/networkManager.ts` | Bridges NetInfo → `onlineManager`; calls optional reconnect callback |
-| `src/config/queryPersister.ts` | `Persister` impl using `expo-sqlite/kv-store` |
-| `src/config/queryClient.ts` | `gcTime: 24h`; queries default `online`, mutations `offlineFirst` |
-| `app/_layout.tsx` | Wraps app in `PersistQueryClientProvider`; sets up network manager + reconnect sync |
-| `src/hooks/useCharacters.ts` | `networkMode: offlineFirst` — reads from SQLite, always works offline |
-| `src/hooks/useMessages.ts` | `networkMode: offlineFirst` — reads from SQLite, always works offline |
-| `src/services/characterService.ts` | Canonical character CRUD; talks to SQLite via `characterDatabase.ts` |
-| `src/services/characterSyncService.ts` | `syncAllToCloud()` / `restoreFromCloud()` on reconnect + explicitly |
-| `src/components/NetworkStatusBanner.tsx` | Offline indicator bar |
+| File                                     | Purpose                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/config/networkManager.ts`           | Bridges NetInfo → `onlineManager`; calls optional reconnect callback                |
+| `src/config/queryPersister.ts`           | `Persister` impl using `expo-sqlite/kv-store`                                       |
+| `src/config/queryClient.ts`              | `gcTime: 24h`; queries default `online`, mutations `offlineFirst`                   |
+| `app/_layout.tsx`                        | Wraps app in `PersistQueryClientProvider`; sets up network manager + reconnect sync |
+| `src/hooks/useCharacters.ts`             | `networkMode: offlineFirst` — reads from SQLite, always works offline               |
+| `src/hooks/useMessages.ts`               | `networkMode: offlineFirst` — reads from SQLite, always works offline               |
+| `src/services/characterService.ts`       | Canonical character CRUD; talks to SQLite via `characterDatabase.ts`                |
+| `src/services/characterSyncService.ts`   | `syncAllToCloud()` / `restoreFromCloud()` on reconnect + explicitly                 |
+| `src/components/NetworkStatusBanner.tsx` | Offline indicator bar                                                               |
 
 ### How Offline Works
 
 **App restart while offline:**
+
 1. `PersistQueryClientProvider` restores previous cache from kv-store
 2. After hydration, previously fetched queries show cached data without network request
 3. Online queries are paused; stale cache shown if available
@@ -156,6 +158,7 @@ Only characters (not messages). Direction: local → cloud (local is source of t
 **Conflict resolution:** Last-write-wins by `updated_at`.
 
 **Sync triggers:**
+
 1. App startup — `RootLayoutNav` triggers `syncAllToCloud()` when auth resolves and device is online
 2. Reconnect — `setupNetworkManager` calls `syncAllToCloud()` on offline→online transition
 3. Explicit — `syncAllToCloud()` / `restoreFromCloud()` directly
@@ -166,14 +169,14 @@ Only characters (not messages). Direction: local → cloud (local is source of t
 
 ### Hook Reference
 
-| Hook | Source | Network Mode | Notes |
-|---|---|---|---|
-| `useCharacters()` | SQLite | offlineFirst | Full CRUD + optimistic updates |
-| `useCharacter(id)` | SQLite | offlineFirst | Seeded from list cache |
-| `useMessages(charId, userId)` | SQLite | offlineFirst | Polls every 5s for AI responses |
-| `useUserPublicData()` | Cloud SQL | online | Persisted cache shown offline |
-| `useUserPrivateData()` | Cloud SQL | online | Cached data with periodic refetch |
-| `useUserProfile()` | Cloud SQL | online | Cached profile data refreshed by polling |
+| Hook                          | Source    | Network Mode | Notes                                    |
+| ----------------------------- | --------- | ------------ | ---------------------------------------- |
+| `useCharacters()`             | SQLite    | offlineFirst | Full CRUD + optimistic updates           |
+| `useCharacter(id)`            | SQLite    | offlineFirst | Seeded from list cache                   |
+| `useMessages(charId, userId)` | SQLite    | offlineFirst | Polls every 5s for AI responses          |
+| `useUserPublicData()`         | Cloud SQL | online       | Persisted cache shown offline            |
+| `useUserPrivateData()`        | Cloud SQL | online       | Cached data with periodic refetch        |
+| `useUserProfile()`            | Cloud SQL | online       | Cached profile data refreshed by polling |
 
 ---
 
@@ -207,11 +210,11 @@ Rows with `synced_to_cloud = 0` AND `save_to_cloud = 1` AND not soft-deleted.
 
 ### Access Control
 
-| Callable | Gate |
-|---|---|
-| `syncCharacter` | 1 credit reserved via `creditService.spendCredits` before upsert; refunded on failure. Available to monthly subscribers and `payg` users with sufficient credits. |
-| `getUserCharacters` | Firebase Auth + App Check only (no credit charge) |
-| `getPublicCharacter` | Firebase Auth + App Check only (no credit charge) |
+| Callable             | Gate                                                                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `syncCharacter`      | 1 credit reserved via `creditService.spendCredits` before upsert; refunded on failure. Available to monthly subscribers and `payg` users with sufficient credits. |
+| `getUserCharacters`  | Firebase Auth + App Check only (no credit charge)                                                                                                                 |
+| `getPublicCharacter` | Firebase Auth + App Check only (no credit charge)                                                                                                                 |
 
 Backend enforcement lives in `functions/src/characterFunctions.ts`. Client UI surfaces credit cost on the "Save to Cloud" toggle rather than blocking on plan tier.
 
@@ -259,53 +262,61 @@ Single-tenant PostgreSQL instance managed by Google Cloud SQL. Driver: `pg` (nod
 ### Schema Tables
 
 #### `users`
+
 Canonical identity is `firebase_uid`. Columns: `id` (uuid PK), `firebase_uid` (unique, not null), `email` (unique, not null), `display_name`, `avatar_url`, `is_profile_public` (default false), `default_character_id`, `created_at`, `updated_at`.
 
 Indexes: `firebase_uid` (unique), `email` (unique).
 
 #### `subscriptions`
+
 One per user (unique `user_id`). Columns: `id` (uuid PK), `user_id` (FK → users, cascade), `plan_tier` (default 'free', check: free/monthly_20/monthly_50/payg), `plan_status` (default 'active', check: active/cancelled/expired), `current_credits` (default 0), `terms_version`, `terms_accepted_at`, `stripe_subscription_id`, `stripe_customer_id`, `billing_cycle_start`, `billing_cycle_end`, `documents_ingested_count`, `documents_ingested_date`, `created_at`, `updated_at`.
 
 Indexes: `user_id` (unique).
 
 #### `credit_transactions`
+
 Ledger for all credit mutations. Columns: `id` (uuid PK), `user_id` (FK → users, cascade), `delta` (not null), `reason` (not null), `reference_id`, `created_at`. Additional columns from credits redesign: `initial_amount`, `remaining_balance`, `transaction_type`, `expires_at`.
 
 Indexes: `user_id`, partial unique index on `(user_id, reason, reference_id)` where `reference_id IS NOT NULL` (idempotency).
 
 #### `characters`
+
 Columns: `id` (uuid PK), `user_id` (FK → users, cascade), `name`, `avatar`, `appearance`, `traits`, `emotions`, `context`, `voice` (default 'Umbriel'), `is_public`, `created_at`, `updated_at`.
 
 Index: `user_id`.
 
 #### `messages`
+
 Columns: `id` (uuid PK), `character_id` (FK → characters, cascade), `sender_user_id` (FK → users, cascade), `message_id`, `text`, `sender_name`, `sender_avatar`, `message_data` (jsonb), `created_at`.
 
 Indexes: `character_id`, `sender_user_id`, `(character_id, created_at DESC)`.
 
 #### `wiki_entries`
+
 Structured memory facts. Soft-deleted via `deleted_at`. Columns: `id` (text PK), `character_id` (FK), `user_id` (FK), `title`, `body`, `tags` (jsonb), `confidence` (certain/inferred/tentative), `source_type` (user_stated/agent_inferred/user_confirmed/user_document), `source_hash`, `source_ref`, `created_at`, `updated_at`, `last_accessed_at`, `access_count`, `deleted_at`.
 
 Indexes: `(character_id, user_id)`, `(character_id, deleted_at)`, `(updated_at DESC)`, partial on `source_hash`, partial on `source_ref`, GIN on tsvector for full-text search.
 
 #### `agent_tasks`
+
 Volatile goals. Soft-deleted via `deleted_at`. Columns: `id` (text PK), `character_id`, `user_id`, `description`, `status` (pending/in_progress/done/abandoned), `priority` (default 0), `due_context`, `created_at`, `updated_at`, `resolved_at`, `resolution_note`, `deleted_at`.
 
 Indexes: `(character_id, user_id, status)`, `(priority DESC)`.
 
 #### `memory_events`
+
 Episodic append-only log. Columns: `id` (text PK), `character_id`, `user_id`, `event_type` (observation/decision/action/outcome), `summary`, `related_entry_id`, `related_task_id`, `source_ref`, `created_at`.
 
 Index: `(character_id, user_id, created_at DESC)`.
 
 ### Instance Sizing
 
-| Phase | vCPU | RAM | Storage | Availability | Est. Monthly |
-|---|---|---|---|---|---|
-| Launch (0 users) | 1 | 3.75-4 GB | 10 GB SSD, no autoresize | Single-zone | ~$45-105 |
-| Early (up to 50 users) | 1 | 3.75-4 GB | 20-30 GB SSD, autoresize | Single-zone | ~$70-140 |
-| Growth (50-200 users) | 2 | 8 GB | 30-50 GB SSD | Single-zone or HA | ~$140-320 (SZ) / ~$260-520 (HA) |
-| Reliability-first | 2+ | 8+ GB | 50+ GB SSD | Regional HA | ~$260-700+ |
+| Phase                  | vCPU | RAM       | Storage                  | Availability      | Est. Monthly                    |
+| ---------------------- | ---- | --------- | ------------------------ | ----------------- | ------------------------------- |
+| Launch (0 users)       | 1    | 3.75-4 GB | 10 GB SSD, no autoresize | Single-zone       | ~$45-105                        |
+| Early (up to 50 users) | 1    | 3.75-4 GB | 20-30 GB SSD, autoresize | Single-zone       | ~$70-140                        |
+| Growth (50-200 users)  | 2    | 8 GB      | 30-50 GB SSD             | Single-zone or HA | ~$140-320 (SZ) / ~$260-520 (HA) |
+| Reliability-first      | 2+   | 8+ GB     | 50+ GB SSD               | Regional HA       | ~$260-700+                      |
 
 ### Scaling Triggers
 

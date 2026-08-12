@@ -13,10 +13,7 @@ test('attachments precede the text so the question reads as being about the imag
   const result = buildNewMessage('what is this?', [{ mimeType: 'image/webp', data: 'AAAA' }])
   assert.deepEqual(result, {
     role: 'user',
-    parts: [
-      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
-      { text: 'what is this?' },
-    ],
+    parts: [{ inlineData: { mimeType: 'image/webp', data: 'AAAA' } }, { text: 'what is this?' }],
   })
 })
 

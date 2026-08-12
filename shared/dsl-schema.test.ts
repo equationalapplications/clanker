@@ -4,8 +4,12 @@ import assert from 'node:assert/strict'
 import { taskIntentSchema, validateTaskIntent, actionTier } from './dsl-schema.js'
 
 const validReadOnly = {
-  version: '1', taskId: 't1', sessionId: 's1', requiresAuth: false,
-  actionSummary: 'Summarize', action: { type: 'summarize_visible_text', filter: 'no_nav' },
+  version: '1',
+  taskId: 't1',
+  sessionId: 's1',
+  requiresAuth: false,
+  actionSummary: 'Summarize',
+  action: { type: 'summarize_visible_text', filter: 'no_nav' },
 }
 
 test('accepts a valid read-only intent', () => {

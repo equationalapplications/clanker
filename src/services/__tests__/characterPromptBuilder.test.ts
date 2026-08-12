@@ -63,12 +63,7 @@ describe('buildContentHistory', () => {
   const userId = 'user-123'
   const charId = 'char-1'
 
-  const makeMsg = (
-    id: string,
-    text: string,
-    senderId: string,
-    createdAt: Date,
-  ): Message => ({
+  const makeMsg = (id: string, text: string, senderId: string, createdAt: Date): Message => ({
     _id: id,
     text,
     createdAt,

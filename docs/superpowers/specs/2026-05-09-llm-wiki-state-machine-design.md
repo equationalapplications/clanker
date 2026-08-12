@@ -125,16 +125,16 @@ export function useCharacterWiki(entityId: string) {
   )
   // subscribe to actor snapshots via useState + actor.subscribe
   return {
-    status,       // WikiStatus from context.status
-    isBusy,       // !snapshot.matches('idle')
-    isIngesting,  // snapshot.matches('ingesting')
-    error,        // context.lastError
-    read,         // send READ + waitForActorOperation → lastReadResult
-    write,        // send WRITE + waitForActorOperation
-    ingest,       // send INGEST + waitForActorOperation → lastIngestResult
-    forget,       // send FORGET + waitForActorOperation
-    sync,         // send SYNC (assembles runRemoteSync with entity-ID remap) + waitForActorOperation
-    hasChanged,   // delegates to wiki.hasChanged (no machine involvement)
+    status, // WikiStatus from context.status
+    isBusy, // !snapshot.matches('idle')
+    isIngesting, // snapshot.matches('ingesting')
+    error, // context.lastError
+    read, // send READ + waitForActorOperation → lastReadResult
+    write, // send WRITE + waitForActorOperation
+    ingest, // send INGEST + waitForActorOperation → lastIngestResult
+    forget, // send FORGET + waitForActorOperation
+    sync, // send SYNC (assembles runRemoteSync with entity-ID remap) + waitForActorOperation
+    hasChanged, // delegates to wiki.hasChanged (no machine involvement)
   }
 }
 ```
@@ -144,6 +144,7 @@ export function useCharacterWiki(entityId: string) {
 ## Data Flow
 
 ### Read path (chat send)
+
 ```
 useAIChat.sendMessage
   → useCharacterWiki(charId).read(query)
@@ -155,6 +156,7 @@ useAIChat.sendMessage
 ```
 
 ### Status path
+
 `subscribeStatus` (fromCallback) invoked once at machine creation; uses `subscribeEntityStatus` to dispatch `STATUS` events updating `context.status`. `ChatView` reads `useCharacterWiki(charId).status` for the banner. No polling — immediate updates via subscription.
 
 ### Sync path (premium, cloud-linked)
@@ -168,6 +170,7 @@ Two code paths use sync:
 Cloud sync is gated on `save_to_cloud + cloud_id` UUID at the call site (`characterSyncService`), not in the orchestrator or machine.
 
 ### Ingest path
+
 Unchanged user flow (`+` button → `DocumentPicker`). Goes through `useCharacterWiki(charId).ingest(...)`.
 
 ## Configuration Changes
@@ -203,28 +206,35 @@ Unchanged user flow (`+` button → `DocumentPicker`). Goes through `useCharacte
 ## Phases & PRs
 
 ### Phase 1 — Package upgrade (sequential, blocks rest)
+
 **Status:** Merged.
 **1 PR.** Bump to 4.1.0, audit migration, update `wikiService` config to new defaults. Smoke tests pass.
 
 v3→v4 migration: `source_type` enum values renamed (`user_document` → `immutable_document`, `agent_inferred` → `librarian_inferred`). Idempotent SQL migration runs before `wiki.setup()` in `initWiki`. Validated on populated test DB.
 
 ### Phase 2 — Independent foundations (parallel)
+
 - **P2a:** `wikiMachine` + `wikiOrchestrator`, no call-site changes. Unit tests with mocked wiki. **Status:** Merged (#369).
 - **P2b:** Drop `hasUnlimited` gate on memory in `useAIChat`, `ChatComposer`, `ChatView`. Cloud sync gate unchanged. Tests for free-tier path. **Status:** Merged (#370).
 - **P2c:** Replace `console.warn('[wiki]…')` with `reportError`. `WikiBusyError` discrimination. No behavior change. **Status:** Merged (#368).
 
 ### Phase 3 — Wire call-sites (sequential, after P2a + P2b)
+
 **Status:** Merged (#372).
 **1 PR.** Replace package-hook calls in `ChatView`, `ChatComposer`, `useAIChat`, `characterSyncService.syncWikiForCloud` to go through `useCharacterWiki(entityId)` / `wikiOrchestrator`. Delete 5s polling in `ChatView`. Route `syncWikiForCloud` through `wikiOrchestrator.syncAll`.
 
 ### Phase 4 — Enhancements (parallel, after P3)
+
 **Status:** Merged (#373).
+
 - **P4a:** Batch sync concurrency — single `syncAll` call with all cloud-linked characters and concurrency=2. Network-reconnect and startup trigger wiring.
 - **P4b:** Memory inspector UI — `/characters/[id]/memory` route listing facts/tasks/events with delete via `wiki.forget`. Includes `useMemoryBundle` hook and "View Memory" button on edit screen.
 
 ### Phase 5 — Cleanup (sequential, last)
+
 **Status:** Merged (#374).
 **1 PR.**
+
 - Removed `useCharacterWikiSync` standalone hook; edit screen uses `useCharacterWiki.sync()`.
 - Wired `wikiOrchestrator.stop(entityId)` into character soft-delete flow (`characterMachine`).
 - Made `subscribeEntityStatus` required on `Wiki` type; removed polling fallback.
@@ -270,6 +280,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **File:** `src/machines/wikiMachine.ts`
 
 **Context:**
+
 - `entityId: string` - Entity identifier
 - `wiki: Wiki` - Wiki instance
 - `status: EntityStatus` - Current entity status (ingesting, librarian, heal)
@@ -282,6 +293,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `busyRetryDelayMs: number` - Delay before retrying after WikiBusyError (default 1000)
 
 **States:**
+
 - `idle` - Ready to accept operations; flushes pending events on entry
 - `reading` - Executing READ operation
 - `writing` - Executing WRITE operation
@@ -292,6 +304,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `error` - Error state with auto-recovery (RETRY event or after 30s)
 
 **Events:**
+
 - `READ { query }` - Query wiki for entity
 - `WRITE { summary }` - Write observation to wiki
 - `INGEST { doc }` - Ingest document into wiki
@@ -301,6 +314,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 - `RETRY` - Manually retry from error state
 
 **Key Behaviors:**
+
 - **Serialization:** All operations (READ, WRITE, INGEST, SYNC, FORGET) are queued via `pendingEvents` and flushed on `idle` entry to ensure consistent ordering
 - **WikiBusyError handling:** Re-enqueues operation via `requeueCurrentEvent` action, transitions to `busyRetry` for automatic retry after delay
 - **Error recovery:** `lastError` cleared on successful operations and recovery transitions
@@ -312,11 +326,13 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **File:** `src/services/wikiOrchestrator.ts`
 
 **API:**
+
 - `getOrSpawn(entityId, wiki, machineOptions?): WikiActor` - Get or create actor for entity (cached); optional `busyRetryDelayMs` applies only on first spawn
 - `stop(entityId): void` - Stop and remove actor from cache
 - `syncAll(items, wiki, concurrency=2, timeoutMs=60000, options?): Promise<void>` - Sync multiple entities with bounded parallelism; `options.stopActorsSpawnedForBatch` stops actors that did not exist before the batch; `options.machineOptions` forwarded on spawn
 
 **SyncAllItem Interface:**
+
 ```typescript
 {
   entityId: string
@@ -325,6 +341,7 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 ```
 
 **Key Behaviors:**
+
 - Actors cached by `entityId` in a Map
 - `syncAll` uses work-queue pattern to limit concurrent syncs
 - Sends `RETRY` before `SYNC` for actors in error state, then `waitFor` `idle` so queued work is drained before the SYNC waiter runs
@@ -337,12 +354,10 @@ Phase 2a delivers `wikiMachine` and `wikiOrchestrator` as pure additive code wit
 **File:** `src/services/wikiService.ts`
 
 Extended `Wiki` type with `subscribeEntityStatus` (required since Phase 5):
+
 ```typescript
 export type Wiki = BaseWiki & {
-  subscribeEntityStatus: (
-    entityId: string,
-    callback: (status: EntityStatus) => void,
-  ) => () => void
+  subscribeEntityStatus: (entityId: string, callback: (status: EntityStatus) => void) => () => void
 }
 ```
 
@@ -365,6 +380,7 @@ export type Wiki = BaseWiki & {
 ### Test Coverage
 
 **wikiMachine.test.ts:**
+
 - READ → reading → idle and calls wiki.read
 - WRITE → writing → idle and calls wiki.write
 - INGEST → ingesting → idle and calls wiki.ingestDocument
@@ -381,6 +397,7 @@ export type Wiki = BaseWiki & {
 - `subscribeEntityStatus` non-function at runtime calls `reportError`
 
 **wikiOrchestrator.test.ts:**
+
 - getOrSpawn returns same actor for repeat entityId
 - getOrSpawn returns distinct actors for distinct entityIds
 - stop removes the actor and unsubscribes status

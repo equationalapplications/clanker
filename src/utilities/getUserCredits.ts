@@ -27,5 +27,3 @@ export const getUserCredits = async (): Promise<UserCredits> => {
     return { totalCredits: 0, nextExpiryDate: null }
   }
 }
-
-

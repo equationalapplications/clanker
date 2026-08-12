@@ -21,12 +21,12 @@ Only the developer with CodeGraph initialized (`.codegraph/codegraph.db`) can ge
 
 One output file per module folder:
 
-| Output file | Source folder |
-|---|---|
-| `docs/flowcharts/database.md` | `src/database/` |
-| `docs/flowcharts/services.md` | `src/services/` |
-| `docs/flowcharts/hooks.md` | `src/hooks/` |
-| `docs/flowcharts/machines.md` | `src/machines/` |
+| Output file                     | Source folder     |
+| ------------------------------- | ----------------- |
+| `docs/flowcharts/database.md`   | `src/database/`   |
+| `docs/flowcharts/services.md`   | `src/services/`   |
+| `docs/flowcharts/hooks.md`      | `src/hooks/`      |
+| `docs/flowcharts/machines.md`   | `src/machines/`   |
 | `docs/flowcharts/components.md` | `src/components/` |
 
 ## Data Flow
@@ -44,7 +44,7 @@ One output file per module folder:
 
 ### Module file (`docs/flowcharts/database.md`)
 
-```markdown
+````markdown
 # database call graph
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
@@ -55,7 +55,9 @@ graph TD
   getDatabase --> initializeDatabase["initializeDatabase\n(index.ts)"]
   ...
 ```
-```
+````
+
+````
 
 Node IDs are `sanitizedFunctionName_sanitizedFilename` to handle duplicate function names across files. Labels show `functionName\n(file.ts)`.
 
@@ -86,4 +88,4 @@ Explains:
 
 ```json
 "docs:charts": "node scripts/generate-charts.js"
-```
+````

@@ -33,18 +33,18 @@ migration, and — later — the Vision upload path." This is that later.
 
 ## 2. Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Agent path | Cloud agent only | The edge path's `ContentPart` union has no image variant; adding one there duplicates plumbing for a model tier that already sheds capability elsewhere. See §3 |
-| Persistence | Durable, in `character_images` | The user asked for one gallery per character combining avatars, chat uploads, and (later) generated images — not a parallel attachment store |
-| Message linkage | Nullable `message_id` on `character_images` | One table, one sync flow. A join table would add a second thing to sync for no gain — see §4.2 |
-| Aspect ratio | Preserved for chat photos | A photo of a landscape must not be centre-cropped to a square before the model sees the subject the question is about — see §4.3 |
-| Model delivery | Client sends base64 `inlineData` | The manipulator already yields base64; a Storage round-trip would make the reply wait on an upload it does not need |
-| Vision scope | Current turn only | Re-sending every past photo on every turn grows the payload without bound. Recall of older images becomes an agent tool in Phase 3 — see §11 |
-| Entry point | The existing `+` picker, branched on file type | Image types are already accepted there; adding a second icon splits one "attach something" affordance in two |
-| Camera | Included | `expo-image-picker` is already a dependency via `useAvatarUpload` |
-| Save on failure | Image is kept regardless of reply outcome | Phase 1 §11's governing rule, applied to user effort rather than credits |
-| Wire contract | Single definition in `shared/cloudAgentProtocol.ts` | The WS and HTTP handlers already duplicate their schemas; extending that duplication makes an intermittent, network-dependent bug possible. See §6.1 |
+| Decision        | Choice                                              | Rationale                                                                                                                                                       |
+| --------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent path      | Cloud agent only                                    | The edge path's `ContentPart` union has no image variant; adding one there duplicates plumbing for a model tier that already sheds capability elsewhere. See §3 |
+| Persistence     | Durable, in `character_images`                      | The user asked for one gallery per character combining avatars, chat uploads, and (later) generated images — not a parallel attachment store                    |
+| Message linkage | Nullable `message_id` on `character_images`         | One table, one sync flow. A join table would add a second thing to sync for no gain — see §4.2                                                                  |
+| Aspect ratio    | Preserved for chat photos                           | A photo of a landscape must not be centre-cropped to a square before the model sees the subject the question is about — see §4.3                                |
+| Model delivery  | Client sends base64 `inlineData`                    | The manipulator already yields base64; a Storage round-trip would make the reply wait on an upload it does not need                                             |
+| Vision scope    | Current turn only                                   | Re-sending every past photo on every turn grows the payload without bound. Recall of older images becomes an agent tool in Phase 3 — see §11                    |
+| Entry point     | The existing `+` picker, branched on file type      | Image types are already accepted there; adding a second icon splits one "attach something" affordance in two                                                    |
+| Camera          | Included                                            | `expo-image-picker` is already a dependency via `useAvatarUpload`                                                                                               |
+| Save on failure | Image is kept regardless of reply outcome           | Phase 1 §11's governing rule, applied to user effort rather than credits                                                                                        |
+| Wire contract   | Single definition in `shared/cloudAgentProtocol.ts` | The WS and HTTP handlers already duplicate their schemas; extending that duplication makes an intermittent, network-dependent bug possible. See §6.1            |
 
 ---
 
@@ -121,12 +121,12 @@ translation to get wrong.
 (`imageVariants.ts:16-17`), never upscaling. What becomes conditional is the
 **square-crop stage**, which today runs for every upload:
 
-| Source | Square crop |
-|---|---|
-| `generated` | Already 1024×1024 from the model |
+| Source                     | Square crop                                                           |
+| -------------------------- | --------------------------------------------------------------------- |
+| `generated`                | Already 1024×1024 from the model                                      |
 | `uploaded` (avatar picker) | Yes — OS cropper on native (`useAvatarUpload.ts`), centre-crop on web |
-| `chat` | **No** — native aspect ratio preserved |
-| `imported` | Unchanged from Phase 1 |
+| `chat`                     | **No** — native aspect ratio preserved                                |
+| `imported`                 | Unchanged from Phase 1                                                |
 
 A non-square row in the gallery is already safe: `CharacterAvatar` gained
 `resizeMode: 'cover'` in Phase 1 §16 precisely so legacy non-square avatars fill
@@ -164,7 +164,7 @@ Non-image picks (`.txt`, `.md`, `.pdf`, `.docx`) show no prompt and behave
 exactly as today.
 
 A third entry, **Take photo**, opens `ImagePicker.launchCameraAsync` and goes
-straight to *send in chat* — capturing a photo in order to file it into memory
+straight to _send in chat_ — capturing a photo in order to file it into memory
 is not a flow anyone asks for, so it is not offered. Camera permission is
 requested at first use and a denial surfaces in the existing toast, matching
 `useAvatarUpload`'s handling of a denied photo library.
@@ -204,10 +204,10 @@ on the HTTP path whenever a proxy or carrier blocks the upgrade.
 Today the two are served by separate handlers that **duplicate their request
 schema and their `newMessage` construction**:
 
-| Path | Schema | `newMessage` construction |
-|---|---|---|
-| HTTP | `cloud-agent/src/index.ts:211` (with `contentSchema` at `:39-42`) | `:113` |
-| WS | `cloud-agent/src/handlers/wsAgentHandler.ts:30` (with `contentSchema` at `:23-27`) | `:205` |
+| Path | Schema                                                                             | `newMessage` construction |
+| ---- | ---------------------------------------------------------------------------------- | ------------------------- |
+| HTTP | `cloud-agent/src/index.ts:211` (with `contentSchema` at `:39-42`)                  | `:113`                    |
+| WS   | `cloud-agent/src/handlers/wsAgentHandler.ts:30` (with `contentSchema` at `:23-27`) | `:205`                    |
 
 `contentSchema` is already copy-pasted verbatim between the two, and the
 `agentRunSchema` fields differ only incidentally. Adding `attachments` to one and
@@ -239,7 +239,7 @@ structurally different prompts to the model:
 ] }
 ```
 
-Attachments precede the text so the question reads as being *about* the image,
+Attachments precede the text so the question reads as being _about_ the image,
 and the trailing text part is omitted when the caption is empty (per §6.2).
 A captionless photo therefore produces a single `inlineData` part, not
 `{ text: '' }` next to it.
@@ -254,20 +254,20 @@ generous against the ~200 KB a 1024px WebP produces, with headroom under §6.3's
 
 #### Client-side reuse is a second, gated step
 
-Sharing the same module with the *client* would also give pre-flight validation
+Sharing the same module with the _client_ would also give pre-flight validation
 before a wasted round-trip. That is desirable but **not proven in this repo**, and
 it is not on the critical path:
 
 - No `shared/` module is currently imported from both sides. The directory is
   partitioned in practice — `dsl-*`, `constants`, and `hostPolicy` are
-  cloud-agent-only; `localCloudAgent` is app-only and is *explicitly excluded* by
+  cloud-agent-only; `localCloudAgent` is app-only and is _explicitly excluded_ by
   `cloud-agent/tsconfig.json`.
 - `cloud-agent` is `moduleResolution: nodenext`, which **requires** a `.js`
   specifier on relative imports. There are **zero** `.js`-suffixed relative
   imports anywhere in `src/`, so Metro's handling of `'../../shared/x.js'` →
   `shared/x.ts` is untested here.
 
-`shared/` *is* in Metro's `watchFolders` and the root tsconfig compiles it, so
+`shared/` _is_ in Metro's `watchFolders` and the root tsconfig compiles it, so
 this will probably work. **Verify it with a throwaway import before relying on
 it.** If it resolves, the client imports `ATTACHMENT_MIME_TYPES` and
 `MAX_ATTACHMENT_BASE64_CHARS` directly. If it does not, the client keeps its own
@@ -306,7 +306,7 @@ There are two distinct rejection paths the client can hit, and they are not
 symmetric:
 
 - **413 Payload Too Large** — the body exceeds `express.json`'s 2 MB limit
-  *before* the handler runs. `agentRunSchema` never gets to see it; the body is
+  _before_ the handler runs. `agentRunSchema` never gets to see it; the body is
   gone by the time validation could log a useful reason. `runViaHttp`
   surfaces this as `Cloud Agent responded with 413` (status only, no body), so
   the user sees a generic failure. The mitigation is keeping the budget here,
@@ -354,11 +354,11 @@ retry after restart is not yet supported and is the documented gap in §13.
 **Dangling pointers are tolerated in both directions**, matching §4.2's decision
 not to enforce referential integrity:
 
-| Event | Effect |
-|---|---|
+| Event                                | Effect                                                                                                                                                                                                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Photo deleted from the Avatar Picker | Message keeps its text; the bubble degrades via `ChatImageBubble`'s `Photo unavailable` placeholder. The placeholder renders only after `useResolvedImage` completes the lookup and finds no row — a row still in flight shows nothing rather than the misleading "unavailable" label. |
-| Message deleted | Image **stays** in the gallery — it is a gallery image now, and §11 forbids destroying it. `message_id` becomes dangling, which nothing reads destructively |
-| Cap eviction takes a chat photo | Same degrade as the first row. Not prevented; only the active image is exempt |
+| Message deleted                      | Image **stays** in the gallery — it is a gallery image now, and §11 forbids destroying it. `message_id` becomes dangling, which nothing reads destructively                                                                                                                            |
+| Cap eviction takes a chat photo      | Same degrade as the first row. Not prevented; only the active image is exempt                                                                                                                                                                                                          |
 
 **Sync is two independent flows and neither blocks on the other.** The image row
 rides the existing `syncCharacterImages` sweeper (Phase 1 §13); the message
@@ -450,22 +450,22 @@ that fails on divergence is the next-best control — and unlike a comment sayin
 
 ## 10. Testing
 
-| Area | Cases |
-|---|---|
-| Variants | `source:'chat'` preserves aspect ratio; `source:'uploaded'` still squares; neither upscales below 1024 |
-| Picker branch | Image pick prompts send-vs-memory; `.txt`/`.pdf`/`.docx` pick does **not** prompt and still ingests; camera entry goes straight to chat; denied camera permission surfaces in the toast |
+| Area             | Cases                                                                                                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Variants         | `source:'chat'` preserves aspect ratio; `source:'uploaded'` still squares; neither upscales below 1024                                                                                                          |
+| Picker branch    | Image pick prompts send-vs-memory; `.txt`/`.pdf`/`.docx` pick does **not** prompt and still ingests; camera entry goes straight to chat; denied camera permission surfaces in the toast                         |
 | Transport parity | Both handlers import `agentRunSchema` from `shared/` and call `buildNewMessage` — asserted structurally (no locally-declared schema, no inline `parts` literal), not by duplicating payload cases per transport |
-| Wire contract | `buildNewMessage` puts `inlineData` parts before the text part; omits the text part rules per §6.2; one table-driven suite over `agentRunSchema` |
-| Captionless | Empty text with an attachment accepted; empty text with no attachment rejected — once, against the shared schema |
-| Validation | `mimeType` outside `ATTACHMENT_MIME_TYPES` rejected; two attachments rejected; `data` over `MAX_ATTACHMENT_BASE64_CHARS` rejected |
-| Cross-boundary | `storage.rules` content types match `ATTACHMENT_MIME_TYPES` (extends `__tests__/storageRules.test.ts`); if the client keeps its own constants (§6.1), they equal the shared module's |
-| Edge gating | A character without `canUseCloudAgent` disables the photo option; no silent text-only send |
-| Persistence | Image row committed when the reply throws; row carries `source:'chat'` and `message_id` |
-| Retry | Retry reuses the existing row rather than inserting a second; the same in-memory `PendingChatPhoto` bytes are used. Cold retry after app restart is not yet supported (see §13) |
-| Dangling | Deleting the image degrades the bubble without touching the message; deleting the message leaves the image in the gallery; evicted chat photo degrades |
-| Cross-device | Message-before-image renders a placeholder then resolves; image-before-message is a plain gallery row; neither ordering deletes anything |
-| Gallery | A chat photo is pickable as an avatar and displays cropped-to-fill, not letterboxed |
-| Render | Thumb variant used in the bubble; tap opens the master |
+| Wire contract    | `buildNewMessage` puts `inlineData` parts before the text part; omits the text part rules per §6.2; one table-driven suite over `agentRunSchema`                                                                |
+| Captionless      | Empty text with an attachment accepted; empty text with no attachment rejected — once, against the shared schema                                                                                                |
+| Validation       | `mimeType` outside `ATTACHMENT_MIME_TYPES` rejected; two attachments rejected; `data` over `MAX_ATTACHMENT_BASE64_CHARS` rejected                                                                               |
+| Cross-boundary   | `storage.rules` content types match `ATTACHMENT_MIME_TYPES` (extends `__tests__/storageRules.test.ts`); if the client keeps its own constants (§6.1), they equal the shared module's                            |
+| Edge gating      | A character without `canUseCloudAgent` disables the photo option; no silent text-only send                                                                                                                      |
+| Persistence      | Image row committed when the reply throws; row carries `source:'chat'` and `message_id`                                                                                                                         |
+| Retry            | Retry reuses the existing row rather than inserting a second; the same in-memory `PendingChatPhoto` bytes are used. Cold retry after app restart is not yet supported (see §13)                                 |
+| Dangling         | Deleting the image degrades the bubble without touching the message; deleting the message leaves the image in the gallery; evicted chat photo degrades                                                          |
+| Cross-device     | Message-before-image renders a placeholder then resolves; image-before-message is a plain gallery row; neither ordering deletes anything                                                                        |
+| Gallery          | A chat photo is pickable as an avatar and displays cropped-to-fill, not letterboxed                                                                                                                             |
+| Render           | Thumb variant used in the bubble; tap opens the master                                                                                                                                                          |
 
 ---
 
@@ -495,26 +495,26 @@ ceiling deliberately.
 
 ## 12. File map
 
-| Action | Path |
-|---|---|
-| Create | `src/hooks/useChatPhotoUpload.ts` (picker branch, camera, resize, send) |
-| Create | `src/components/ChatImageBubble.tsx` (thumb in bubble, tap-to-view) |
-| Modify | `src/database/schema.ts` (migration 24: `message_id` + index) |
-| Modify | `src/database/characterImageDatabase.ts` (`message_id` on insert; lookup by `message_id`) |
-| Modify | `src/services/characterImageService.ts` (`source:'chat'`, `messageId` param) |
-| Modify | `src/services/imageVariants.ts` (square-crop stage made conditional) |
-| Modify | `src/components/ChatComposer.tsx` (image branch; memory path unchanged) |
-| Modify | `src/hooks/useAIChat.ts` (attachment through the send path; cloud-agent gating) |
-| Modify | `src/services/cloudAgentService.ts` (`attachments` on `CloudAgentPayload`; WS and HTTP) |
-| Modify | `src/database/messageDatabase.ts` / `src/services/messageService.ts` (image id in `message_data`) |
-| Create | `functions/drizzle/0023_character_images_chat.sql` |
-| Modify | `functions/src/db/schema.ts` (`messageId` on `character_images`) |
-| Modify | `functions/src/characterFunctions.ts` (`messageId` accepted and echoed by `syncCharacterImages`) |
+| Action | Path                                                                                                                                           |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create | `src/hooks/useChatPhotoUpload.ts` (picker branch, camera, resize, send)                                                                        |
+| Create | `src/components/ChatImageBubble.tsx` (thumb in bubble, tap-to-view)                                                                            |
+| Modify | `src/database/schema.ts` (migration 24: `message_id` + index)                                                                                  |
+| Modify | `src/database/characterImageDatabase.ts` (`message_id` on insert; lookup by `message_id`)                                                      |
+| Modify | `src/services/characterImageService.ts` (`source:'chat'`, `messageId` param)                                                                   |
+| Modify | `src/services/imageVariants.ts` (square-crop stage made conditional)                                                                           |
+| Modify | `src/components/ChatComposer.tsx` (image branch; memory path unchanged)                                                                        |
+| Modify | `src/hooks/useAIChat.ts` (attachment through the send path; cloud-agent gating)                                                                |
+| Modify | `src/services/cloudAgentService.ts` (`attachments` on `CloudAgentPayload`; WS and HTTP)                                                        |
+| Modify | `src/database/messageDatabase.ts` / `src/services/messageService.ts` (image id in `message_data`)                                              |
+| Create | `functions/drizzle/0023_character_images_chat.sql`                                                                                             |
+| Modify | `functions/src/db/schema.ts` (`messageId` on `character_images`)                                                                               |
+| Modify | `functions/src/characterFunctions.ts` (`messageId` accepted and echoed by `syncCharacterImages`)                                               |
 | Create | `shared/cloudAgentProtocol.ts` (`contentSchema`, `agentRunSchema`, `attachmentSchema`, `ATTACHMENT_MIME_TYPES`, `MAX_ATTACHMENT_BASE64_CHARS`) |
-| Create | `cloud-agent/src/agentMessage.ts` (`buildNewMessage`) |
-| Modify | `cloud-agent/src/index.ts` (**delete** local `contentSchema`/`agentRunSchema`; import shared; call `buildNewMessage`) |
-| Modify | `cloud-agent/src/handlers/wsAgentHandler.ts` (same deletions and imports) |
-| Modify | `__tests__/storageRules.test.ts` (bind rules content types to `ATTACHMENT_MIME_TYPES`) |
+| Create | `cloud-agent/src/agentMessage.ts` (`buildNewMessage`)                                                                                          |
+| Modify | `cloud-agent/src/index.ts` (**delete** local `contentSchema`/`agentRunSchema`; import shared; call `buildNewMessage`)                          |
+| Modify | `cloud-agent/src/handlers/wsAgentHandler.ts` (same deletions and imports)                                                                      |
+| Modify | `__tests__/storageRules.test.ts` (bind rules content types to `ATTACHMENT_MIME_TYPES`)                                                         |
 
 ---
 
@@ -536,7 +536,7 @@ rather than silently re-sending stale bytes from Storage.
 
 **`message_data.imageId` is denormalised.** Justified in §8 by the write-once
 property and the query it removes from every page render. If a future feature
-ever needs to *change* which image a message shows, this decision has to be
+ever needs to _change_ which image a message shows, this decision has to be
 revisited rather than extended.
 
 **Client-side import of `shared/cloudAgentProtocol.ts` is unverified.** §6.1
@@ -552,4 +552,4 @@ equality test) is one small test, not a redesign.
 neighbour code.** The schemas being moved serve `/agent/stream` only, not
 `/agent/live` or `/agent/browser`, so the blast radius is limited — but
 `cloud-agent/src/index.ts` is a large file with several handlers, and the
-deletion should be verified as removing *only* the text-chat schemas.
+deletion should be verified as removing _only_ the text-chat schemas.

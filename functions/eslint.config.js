@@ -4,32 +4,32 @@ import eslint from '@eslint/js'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-    {
-        ignores: ['lib/**'],
+  {
+    ignores: ['lib/**'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        fetch: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+      },
     },
-    eslint.configs.recommended,
-    ...tseslint.configs.recommended,
-    {
-        languageOptions: {
-            globals: {
-                process: 'readonly',
-                fetch: 'readonly',
-                console: 'readonly',
-                URL: 'readonly',
-            },
-        },
-        rules: {
-            'no-console': 'warn',
-            'no-unused-vars': 'off',
-            '@typescript-eslint/no-var-requires': 'error',
-            '@typescript-eslint/no-require-imports': 'error',
-            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-        },
+    rules: {
+      'no-console': 'warn',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-var-requires': 'error',
+      '@typescript-eslint/no-require-imports': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
-    {
-        files: ['scripts/**'],
-        rules: {
-            'no-console': 'off',
-        },
+  },
+  {
+    files: ['scripts/**'],
+    rules: {
+      'no-console': 'off',
     },
+  },
 )

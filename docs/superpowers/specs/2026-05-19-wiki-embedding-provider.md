@@ -17,16 +17,16 @@ PR: https://github.com/equationalapplications/clanker/pull/386
 
 ## File Map
 
-| Action | Path | Responsibility |
-|--------|------|---------------|
-| Create | `functions/src/generateEmbedding.ts` | Callable function: auth check, input validation, Vertex AI REST call |
-| Create | `functions/src/generateEmbedding.test.ts` | Unit tests with DI mock for embedder |
-| Modify | `functions/src/index.ts` | Export `generateEmbedding` |
-| Modify | `src/config/firebaseConfig.ts` | Add `generateEmbeddingFn` httpsCallable (native) |
-| Modify | `src/config/firebaseConfig.web.ts` | Add `generateEmbeddingFn` httpsCallable (web) |
-| Modify | `src/services/apiClient.ts` | Types + AppCheck-wrapped `generateEmbedding` export |
-| Modify | `src/services/wikiLlmProvider.ts` | Add `embed` method using `generateEmbedding` |
-| Create | `__tests__/wikiEmbedding.test.ts` | Integration tests: cosine ranking + fallback |
+| Action | Path                                      | Responsibility                                                       |
+| ------ | ----------------------------------------- | -------------------------------------------------------------------- |
+| Create | `functions/src/generateEmbedding.ts`      | Callable function: auth check, input validation, Vertex AI REST call |
+| Create | `functions/src/generateEmbedding.test.ts` | Unit tests with DI mock for embedder                                 |
+| Modify | `functions/src/index.ts`                  | Export `generateEmbedding`                                           |
+| Modify | `src/config/firebaseConfig.ts`            | Add `generateEmbeddingFn` httpsCallable (native)                     |
+| Modify | `src/config/firebaseConfig.web.ts`        | Add `generateEmbeddingFn` httpsCallable (web)                        |
+| Modify | `src/services/apiClient.ts`               | Types + AppCheck-wrapped `generateEmbedding` export                  |
+| Modify | `src/services/wikiLlmProvider.ts`         | Add `embed` method using `generateEmbedding`                         |
+| Create | `__tests__/wikiEmbedding.test.ts`         | Integration tests: cosine ranking + fallback                         |
 
 ---
 
@@ -46,6 +46,7 @@ The cloud function accepts an optional `taskType` parameter (valid values: `RETR
 ## `generateEmbedding` Cloud Function
 
 **Files:**
+
 - `functions/src/generateEmbedding.ts`
 - `functions/src/generateEmbedding.test.ts`
 
@@ -72,10 +73,12 @@ export const generateEmbeddingHandler = async (
 **Auth pattern:** Check `request.auth` only. No `userRepository` call. No subscription check. The user's wiki actor is already running behind auth by the time it calls `embed`.
 
 **Input validation:**
+
 - `text` must be a non-empty string, max `MAX_TEXT_LENGTH = 8_000` characters
 - `taskType` defaults to `'RETRIEVAL_DOCUMENT'`; must be one of the three allowed values if provided
 
 **Vertex AI REST call:**
+
 ```
 POST https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/publishers/google/models/{MODEL_ID}:predict
 Authorization: Bearer {token}
@@ -83,9 +86,11 @@ Content-Type: application/json
 
 { "instances": [{ "content": text, "task_type": taskType }] }
 ```
+
 Response path: `data.predictions[0].embeddings.values` → `number[]`
 
 **Error handling:**
+
 - Non-200 from Vertex AI → log body, throw `HttpsError("internal", "Failed to generate embedding.")`
 - Any other thrown error that is not already an `HttpsError` → log, throw `HttpsError("internal", ...)`
 
@@ -98,9 +103,7 @@ Response path: `data.predictions[0].embeddings.values` → `number[]`
 ## Register in `index.ts`
 
 ```typescript
-export {
-  generateEmbedding,
-} from "./generateEmbedding.js";
+export { generateEmbedding } from './generateEmbedding.js'
 ```
 
 ---
@@ -157,17 +160,17 @@ export function createWikiLlmProvider() {
 
 ## Requirements Coverage
 
-| Requirement | Location |
-|-------------|----------|
-| Cloud function calls `text-embedding-004` via Vertex AI | `functions/src/generateEmbedding.ts` `defaultEmbedder` |
-| Auth check only — no user bootstrap, no subscription | `request.auth` check only |
-| App Check enforced | `onCall` config `enforceAppCheck: true` |
-| `taskType` support (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY / SEMANTIC_SIMILARITY) | Input validation + embedder arg |
-| Returns 768-dim float array | Response shape |
-| Wire up `embed` in `wikiLlmProvider` for web + native | `firebaseConfig.ts`, `firebaseConfig.web.ts`, `apiClient.ts`, `wikiLlmProvider.ts` |
-| `SEMANTIC_SIMILARITY` for all embeddings (fact storage + search queries) | `wikiLlmProvider.ts` `embed` closure |
-| No `@google-cloud/aiplatform` SDK — REST + firebase-admin ADC | `defaultEmbedder` |
-| 256MiB memory | `onCall` config |
+| Requirement                                                                     | Location                                                                           |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Cloud function calls `text-embedding-004` via Vertex AI                         | `functions/src/generateEmbedding.ts` `defaultEmbedder`                             |
+| Auth check only — no user bootstrap, no subscription                            | `request.auth` check only                                                          |
+| App Check enforced                                                              | `onCall` config `enforceAppCheck: true`                                            |
+| `taskType` support (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY / SEMANTIC_SIMILARITY) | Input validation + embedder arg                                                    |
+| Returns 768-dim float array                                                     | Response shape                                                                     |
+| Wire up `embed` in `wikiLlmProvider` for web + native                           | `firebaseConfig.ts`, `firebaseConfig.web.ts`, `apiClient.ts`, `wikiLlmProvider.ts` |
+| `SEMANTIC_SIMILARITY` for all embeddings (fact storage + search queries)        | `wikiLlmProvider.ts` `embed` closure                                               |
+| No `@google-cloud/aiplatform` SDK — REST + firebase-admin ADC                   | `defaultEmbedder`                                                                  |
+| 256MiB memory                                                                   | `onCall` config                                                                    |
 
 ---
 

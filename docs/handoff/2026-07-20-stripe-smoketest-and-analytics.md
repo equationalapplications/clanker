@@ -17,7 +17,7 @@ The fix was **repointing the endpoint URL**, not the secret. The stored `STRIPE_
 Two lessons worth carrying forward:
 
 - A `<region>-<projectId>.cloudfunctions.net` hostname encodes its project. Read the project id out of the URL before assuming which deployment it hits.
-- A self-signed probe returning 200 only proves the function *you aimed at* is healthy. It says nothing about where the vendor is delivering. Close a payments incident on real vendor traffic (`GET /v1/webhook_endpoints` plus a genuine delivery in the logs), never on a synthetic probe.
+- A self-signed probe returning 200 only proves the function _you aimed at_ is healthy. It says nothing about where the vendor is delivering. Close a payments incident on real vendor traffic (`GET /v1/webhook_endpoints` plus a genuine delivery in the logs), never on a synthetic probe.
 
 ### Second bug found in the same pass
 
@@ -40,7 +40,7 @@ The payload matched what `ga4MeasurementService` would have sent: `client_id` fr
 Three things to know if this ever needs repeating:
 
 - **The Measurement Protocol only backdates 72 hours.** This replay had ~29h of that window left. Any purchase discovered later than 72h after the fact cannot be placed on its real date — the event is dropped outright, not clamped.
-- **Realtime buckets by ingest time, not event timestamp**, so a backdated event *does* show up there immediately — but its presence only proves ingestion, never that the backdate was honored. Standard reports (Monetization → Ecommerce purchases) are the only place the recorded date can be confirmed, 24–48h later.
+- **Realtime buckets by ingest time, not event timestamp**, so a backdated event _does_ show up there immediately — but its presence only proves ingestion, never that the backdate was honored. Standard reports (Monetization → Ecommerce purchases) are the only place the recorded date can be confirmed, 24–48h later.
 - **BigQuery export was linked 2026-07-20**, so no `events_20260719` table will ever exist. The backdated event lands in the Jul 20 export carrying its Jul 19 timestamp. As of 19:55 UTC the `analytics_544289823` dataset had not been created yet — `bq ls` on the project returned nothing — so BigQuery was no help for same-day verification.
 
 Attribution is the one thing that can't be recovered: the synthetic `client_id` carries no session or source, so this purchase reports as direct / `(not set)`. Revenue totals are right; channel reporting for this one sale is not.
@@ -78,14 +78,19 @@ Still open until reports process: **which date the revenue lands on.** Jul 19 me
    NETRC=$(mktemp)
    chmod 600 "$NETRC"
    SK=$(gcloud secrets versions access latest --secret=STRIPE_SECRET_KEY --project=clanker-prod | tr -d '[:space:]')
+   ```
+
 printf 'machine api.stripe.com login %s password x\n' "$SK" > "$NETRC"
-   unset SK
-   # find the session for your test customer, then:
-   curl -s --netrc-file "$NETRC" "https://api.stripe.com/v1/checkout/sessions/<cs_id>" \
+unset SK
+
+# find the session for your test customer, then:
+
+curl -s --netrc-file "$NETRC" "https://api.stripe.com/v1/checkout/sessions/<cs_id>" \
      | python3 -c 'import sys,json;s=json.load(sys.stdin);print("mode:",s["mode"],"subscription:",s.get("subscription"))'
    rm -f "$NETRC"
-   ```
-   Expect `mode: payment`, `subscription: None`.
+
+```
+Expect `mode: payment`, `subscription: None`.
 4. Confirm credits landed: admin dashboard → your test user → credits increased by `CREDIT_PACK_AMOUNT` (10000 Power) with a ~31-day expiry.
 5. Confirm the GA4 `purchase` event fired — GA4 → Realtime or DebugView. This is the first live exercise of `ga4MeasurementService`.
 6. Refund the test charge if appropriate. `charge.refunded` is handled (and now actually subscribed), so it will deduct the granted credits proportionally.
@@ -127,3 +132,4 @@ Resend any recent event from the endpoint's *Event deliveries* tab and confirm a
 **General cautions:** live Stripe + prod DB + Secret Manager. gcloud auth may need `gcloud auth login` (interactive). Confirm hard-to-reverse / money / customer-facing actions with the owner before acting.
 
 **Delete this doc once Task A passes.**
+```

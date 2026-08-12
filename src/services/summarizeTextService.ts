@@ -9,10 +9,7 @@ interface SummarizeTextResponse {
   summary: string
 }
 
-export async function summarizeText({
-  text,
-  maxCharacters,
-}: SummarizeTextInput): Promise<string> {
+export async function summarizeText({ text, maxCharacters }: SummarizeTextInput): Promise<string> {
   const normalizedText = text.trim()
   if (!normalizedText) {
     throw new Error('text must be a non-empty string')

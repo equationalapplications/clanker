@@ -3,7 +3,9 @@ import { useAuthMachine } from '~/hooks/useMachines'
 import type { BootstrapRefreshReason } from '~/machines/authMachine'
 
 export function requestBootstrapRefresh(
-  authService: { send: (event: { type: 'REFRESH_BOOTSTRAP'; reason: BootstrapRefreshReason }) => void },
+  authService: {
+    send: (event: { type: 'REFRESH_BOOTSTRAP'; reason: BootstrapRefreshReason }) => void
+  },
   reason: BootstrapRefreshReason,
 ): void {
   authService.send({ type: 'REFRESH_BOOTSTRAP', reason })

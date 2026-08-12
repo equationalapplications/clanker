@@ -11,7 +11,9 @@ function startApp(overrides: Record<string, unknown> = {}) {
     verifyToken: async () => ({ uid: 'fb-uid-1' }),
     db: {} as never,
     runAgentFn: async () => ({ reply: 'x', toolCalls: [] }),
-    upsertDevice: async (uid: string, body: unknown) => { writes.push({ uid, body }) },
+    upsertDevice: async (uid: string, body: unknown) => {
+      writes.push({ uid, body })
+    },
     ...overrides,
   } as never)
   const server = app.listen(0)
@@ -22,7 +24,8 @@ function startApp(overrides: Record<string, unknown> = {}) {
 test('register-device rejects unauthenticated requests', async () => {
   const { server, port } = startApp()
   const res = await fetch(`http://127.0.0.1:${port}/agent/browser/register-device`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ fcmToken: 't', deviceId: 'd', deviceName: 'Mac' }),
   })
   assert.equal(res.status, 401)
@@ -34,7 +37,12 @@ test('register-device upserts on valid body', async () => {
   const res = await fetch(`http://127.0.0.1:${port}/agent/browser/register-device`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: 'Bearer good' },
-    body: JSON.stringify({ fcmToken: 'tok', deviceId: 'dev-1', deviceName: 'Home Mac — Chrome', isPaused: false }),
+    body: JSON.stringify({
+      fcmToken: 'tok',
+      deviceId: 'dev-1',
+      deviceName: 'Home Mac — Chrome',
+      isPaused: false,
+    }),
   })
   assert.equal(res.status, 200)
   assert.deepEqual(await res.json(), { ok: true })

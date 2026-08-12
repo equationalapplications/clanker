@@ -34,8 +34,7 @@ export const termsMachine = createMachine(
           target: '.checking',
           guard: ({ event }) => event.authState.matches('signedIn'),
           actions: assign({
-            subscription: ({ event }) =>
-              event.authState.context.subscription ?? null,
+            subscription: ({ event }) => event.authState.context.subscription ?? null,
           }),
         },
         {
@@ -52,7 +51,9 @@ export const termsMachine = createMachine(
             target: 'accepted',
             guard: ({ context }) => {
               const sub = context.subscription
-              return sub !== null && sub.termsVersion === TERMS.version && sub.termsAcceptedAt !== null
+              return (
+                sub !== null && sub.termsVersion === TERMS.version && sub.termsAcceptedAt !== null
+              )
             },
             actions: assign({ isUpdate: false, error: null }),
           },
@@ -62,7 +63,9 @@ export const termsMachine = createMachine(
               isUpdate: ({ context }) => {
                 const sub = context.subscription
                 // If they accepted a previous version, it's an update
-                return sub !== null && sub.termsVersion !== null && sub.termsVersion !== TERMS.version
+                return (
+                  sub !== null && sub.termsVersion !== null && sub.termsVersion !== TERMS.version
+                )
               },
               error: null,
             }),

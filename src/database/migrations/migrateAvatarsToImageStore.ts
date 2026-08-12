@@ -55,7 +55,7 @@ interface LegacyAvatarRow {
  * canvas encoding — so some stored rows are PNG bytes labelled WebP.
  */
 export function sniffImageMimeType(base64: string): string {
-  if (base64.startsWith('UklGR')) return 'image/webp'   // RIFF
+  if (base64.startsWith('UklGR')) return 'image/webp' // RIFF
   if (base64.startsWith('iVBORw0KGgo')) return 'image/png'
   if (base64.startsWith('/9j/')) return 'image/jpeg'
   return 'image/webp'

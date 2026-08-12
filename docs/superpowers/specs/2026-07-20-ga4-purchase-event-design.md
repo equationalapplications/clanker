@@ -9,6 +9,7 @@
 Follow-up to the "first paying customer got no credits" incident (`docs/handoff/2026-07-20-stripe-smoketest-and-analytics.md`, Task B). Owner observed GA4 "Drive sales" showing $0 revenue despite a real $10 sale.
 
 Investigation confirmed:
+
 1. **No `purchase`/revenue event exists anywhere in the codebase.** The original analytics design (`docs/superpowers/specs/2026-07-05-firebase-analytics-design.md`) explicitly scoped revenue out, reasoning "RevenueCat already covers subscription metrics." True for subscriptions, **not true for the Stripe credit-pack one-time purchase** — that path has no revenue signal in GA4 at all.
 2. `app/checkout/success.tsx` calls `refreshBootstrap('purchase')` — `'purchase'` there is a data-refresh reason string, not a GA4 event.
 3. BigQuery export is not enabled (`bq ls --project_id=clanker-prod` returns empty) — separate owner console action, out of scope for this code change.
@@ -33,13 +34,14 @@ Single-purpose fire-and-forget wrapper, mirroring the client `analyticsService` 
 function buildClientId(firebaseUid: string): string
 async function sendPurchaseEvent(params: {
   firebaseUid: string
-  transactionId: string   // session.id
-  valueCents: number      // summed amount_total of credit-pack line items only (not session.amount_total, which includes any subscription line items in a mixed cart)
-  currency: string        // session.currency
+  transactionId: string // session.id
+  valueCents: number // summed amount_total of credit-pack line items only (not session.amount_total, which includes any subscription line items in a mixed cart)
+  currency: string // session.currency
 }): Promise<void>
 ```
 
 `sendPurchaseEvent`:
+
 1. Builds MP payload: `{ client_id, user_id: firebaseUid, events: [{ name: 'purchase', params: { transaction_id, value: valueCents / 100, currency, items: [{ item_id: 'credit_pack', item_name: 'Credit Pack' }] } }] }`.
 2. POSTs to `https://www.google-analytics.com/mp/collect?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${GA4_MP_API_SECRET}` via global `fetch` (Node 22 runtime, no new dependency).
 3. Catches and logs any error (`logger.error`) — never rejects into the caller. Matches the credit-grant path's existing "analytics must never break app flow" principle from the 2026-07-05 design.

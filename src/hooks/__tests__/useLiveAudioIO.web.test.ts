@@ -125,14 +125,18 @@ describe('startRecording', () => {
 
   it('creates AudioContext at 16kHz sample rate', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(window.AudioContext).toHaveBeenCalledWith({ sampleRate: 16000 })
   })
 
   it('calls getUserMedia with mono + echoCancellation + noiseSuppression', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
@@ -141,7 +145,9 @@ describe('startRecording', () => {
 
   it('loads AudioWorklet via Blob URL and revokes it afterward', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1)
     expect(mockCtx.audioWorklet.addModule).toHaveBeenCalledWith('blob:mock-worklet')
@@ -150,7 +156,9 @@ describe('startRecording', () => {
 
   it('connects MediaStreamSource to AudioWorkletNode', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     const sourceNode = mockCtx.createMediaStreamSource.mock.results[0].value
     expect(sourceNode.connect).toHaveBeenCalledWith(mockWorkletNode)
@@ -158,7 +166,9 @@ describe('startRecording', () => {
 
   it('connects AudioWorkletNode to AudioContext destination so graph pulls audio through it', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(mockWorkletNode.connect).toHaveBeenCalledWith(mockCtx.destination)
   })
@@ -166,7 +176,9 @@ describe('startRecording', () => {
   it('resumes AudioContext when suspended before connecting the graph', async () => {
     mockCtx.state = 'suspended'
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(mockCtx.resume).toHaveBeenCalledTimes(1)
   })
@@ -177,7 +189,9 @@ describe('startRecording', () => {
 describe('onAudioChunk', () => {
   it('fires registered listener with base64 string when worklet posts PCM data', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     const received: string[] = []
     result.current.onAudioChunk((chunk) => received.push(chunk))
@@ -195,14 +209,18 @@ describe('onAudioChunk', () => {
 
   it('unsubscribes listener when returned cleanup is called', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     const received: string[] = []
     let unsubscribe!: () => void
     act(() => {
       unsubscribe = result.current.onAudioChunk((chunk) => received.push(chunk))
     })
-    act(() => { unsubscribe() })
+    act(() => {
+      unsubscribe()
+    })
 
     const int16 = new Int16Array(320).fill(500)
     act(() => {
@@ -222,32 +240,48 @@ describe('stopRecording', () => {
     ;(navigator.mediaDevices.getUserMedia as jest.Mock).mockResolvedValue(mockStream)
 
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    act(() => { result.current.stopRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    act(() => {
+      result.current.stopRecording()
+    })
 
     expect(track.stop).toHaveBeenCalledTimes(1)
   })
 
   it('disconnects worklet node', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    act(() => { result.current.stopRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    act(() => {
+      result.current.stopRecording()
+    })
 
     expect(mockWorkletNode.disconnect).toHaveBeenCalledTimes(1)
   })
 
   it('closes AudioContext', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    act(() => { result.current.stopRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    act(() => {
+      result.current.stopRecording()
+    })
 
     expect(mockCtx.close).toHaveBeenCalledTimes(1)
   })
 
   it('sets recordingState back to idle', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    act(() => { result.current.stopRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    act(() => {
+      result.current.stopRecording()
+    })
 
     expect(result.current.recordingState).toBe('idle')
   })
@@ -264,13 +298,17 @@ function makeSilentChunk(samples = 480): string {
 describe('playChunk', () => {
   async function startAndGetNode() {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
     return result
   }
 
   it('creates an AudioBuffer at 24kHz', async () => {
     const result = await startAndGetNode()
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     expect(mockCtx.createBuffer).toHaveBeenCalledWith(1, expect.any(Number), 24000)
   })
@@ -278,7 +316,9 @@ describe('playChunk', () => {
   it('schedules first chunk at currentTime', async () => {
     mockCtx.currentTime = 1.0
     const result = await startAndGetNode()
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     const node = mockCtx.createBufferSource.mock.results[0].value
     expect(node.start).toHaveBeenCalledWith(1.0)
@@ -300,18 +340,24 @@ describe('playChunk', () => {
 
   it('sets playbackState to playing', async () => {
     const result = await startAndGetNode()
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     expect(result.current.playbackState).toBe('playing')
   })
 
   it('removes node from scheduledNodes on ended and sets idle when queue empty', async () => {
     const result = await startAndGetNode()
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     const node = mockCtx.createBufferSource.mock.results[0].value
     // Simulate natural end of playback
-    act(() => { node.onended?.() })
+    act(() => {
+      node.onended?.()
+    })
 
     expect(result.current.playbackState).toBe('idle')
   })
@@ -321,7 +367,9 @@ describe('playChunk', () => {
     const result = await startAndGetNode()
 
     await expect(
-      act(async () => { await result.current.playChunk('not-valid-base64!!!') })
+      act(async () => {
+        await result.current.playChunk('not-valid-base64!!!')
+      }),
     ).resolves.not.toThrow()
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -335,7 +383,9 @@ describe('playChunk', () => {
     const result = await startAndGetNode()
     mockCtx.resume.mockClear()
     mockCtx.state = 'suspended'
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     expect(mockCtx.resume).toHaveBeenCalledTimes(1)
   })
@@ -346,13 +396,17 @@ describe('playChunk', () => {
 describe('clearPlaybackQueue', () => {
   it('calls stop() on all scheduled nodes', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
     await act(async () => {
       await result.current.playChunk(makeSilentChunk())
       await result.current.playChunk(makeSilentChunk())
     })
 
-    act(() => { result.current.clearPlaybackQueue() })
+    act(() => {
+      result.current.clearPlaybackQueue()
+    })
 
     const nodes = mockCtx.createBufferSource.mock.results
     expect(nodes[0].value.stop).toHaveBeenCalledTimes(1)
@@ -361,25 +415,39 @@ describe('clearPlaybackQueue', () => {
 
   it('sets playbackState to idle', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
-    act(() => { result.current.clearPlaybackQueue() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
+    act(() => {
+      result.current.clearPlaybackQueue()
+    })
 
     expect(result.current.playbackState).toBe('idle')
   })
 
   it('resets nextStartTime so next chunk schedules from currentTime', async () => {
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     mockCtx.currentTime = 5.0
-    await act(async () => { await result.current.playChunk(makeSilentChunk(480)) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk(480))
+    })
     // nextStartTime is now 5.02s
 
-    act(() => { result.current.clearPlaybackQueue() })
+    act(() => {
+      result.current.clearPlaybackQueue()
+    })
 
     mockCtx.currentTime = 6.0
-    await act(async () => { await result.current.playChunk(makeSilentChunk(480)) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk(480))
+    })
 
     // After clear, nextStartTime was reset to 0; clamped to currentTime (6.0)
     const nodes = mockCtx.createBufferSource.mock.results
@@ -393,12 +461,14 @@ describe('clearPlaybackQueue', () => {
 describe('error handling', () => {
   it('sets error and returns false when getUserMedia permission is denied', async () => {
     ;(navigator.mediaDevices.getUserMedia as jest.Mock).mockRejectedValue(
-      new Error('Permission denied')
+      new Error('Permission denied'),
     )
 
     const { result } = renderHook(() => useLiveAudioIO())
     let started: boolean | undefined
-    await act(async () => { started = await result.current.startRecording() })
+    await act(async () => {
+      started = await result.current.startRecording()
+    })
 
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
@@ -414,7 +484,9 @@ describe('error handling', () => {
 
     const { result } = renderHook(() => useLiveAudioIO())
     let started: boolean | undefined
-    await act(async () => { started = await result.current.startRecording() })
+    await act(async () => {
+      started = await result.current.startRecording()
+    })
 
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
@@ -426,7 +498,9 @@ describe('error handling', () => {
 
     const { result } = renderHook(() => useLiveAudioIO())
     let started: boolean | undefined
-    await act(async () => { started = await result.current.startRecording() })
+    await act(async () => {
+      started = await result.current.startRecording()
+    })
 
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
@@ -440,12 +514,14 @@ describe('error handling', () => {
 
     const { result } = renderHook(() => useLiveAudioIO())
     let started: boolean | undefined
-    await act(async () => { started = await result.current.startRecording() })
+    await act(async () => {
+      started = await result.current.startRecording()
+    })
 
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
     expect(result.current.error).toBe(
-      'Browser does not support AudioWorklet. Use Chrome, Firefox, or Safari 15+.'
+      'Browser does not support AudioWorklet. Use Chrome, Firefox, or Safari 15+.',
     )
   })
 
@@ -456,7 +532,9 @@ describe('error handling', () => {
     mockCtx.audioWorklet.addModule.mockRejectedValue(new Error('Not supported'))
 
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(track.stop).toHaveBeenCalledTimes(1)
     expect(mockCtx.close).toHaveBeenCalledTimes(1)
@@ -466,9 +544,13 @@ describe('error handling', () => {
     mockCtx.audioWorklet.addModule.mockRejectedValue(new Error('Not supported'))
 
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
     expect(mockCtx.createBuffer).not.toHaveBeenCalled()
   })
@@ -477,10 +559,14 @@ describe('error handling', () => {
     mockCtx.close.mockRejectedValue(new Error('Already closed'))
 
     const { result } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
     expect(() => {
-      act(() => { result.current.stopRecording() })
+      act(() => {
+        result.current.stopRecording()
+      })
     }).not.toThrow()
   })
 
@@ -494,7 +580,9 @@ describe('error handling', () => {
 
     const { result } = renderHook(() => useLiveAudioIO())
     let started: boolean | undefined
-    await act(async () => { started = await result.current.startRecording() })
+    await act(async () => {
+      started = await result.current.startRecording()
+    })
 
     expect(started).toBe(false)
     expect(result.current.recordingState).toBe('error')
@@ -512,9 +600,13 @@ describe('unmount cleanup', () => {
     ;(navigator.mediaDevices.getUserMedia as jest.Mock).mockResolvedValue(mockStream)
 
     const { result, unmount } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
+    await act(async () => {
+      await result.current.startRecording()
+    })
 
-    act(() => { unmount() })
+    act(() => {
+      unmount()
+    })
 
     expect(track.stop).toHaveBeenCalledTimes(1)
     expect(mockCtx.close).toHaveBeenCalledTimes(1)
@@ -522,10 +614,16 @@ describe('unmount cleanup', () => {
 
   it('stops scheduled playback nodes when hook unmounts', async () => {
     const { result, unmount } = renderHook(() => useLiveAudioIO())
-    await act(async () => { await result.current.startRecording() })
-    await act(async () => { await result.current.playChunk(makeSilentChunk()) })
+    await act(async () => {
+      await result.current.startRecording()
+    })
+    await act(async () => {
+      await result.current.playChunk(makeSilentChunk())
+    })
 
-    act(() => { unmount() })
+    act(() => {
+      unmount()
+    })
 
     const node = mockCtx.createBufferSource.mock.results[0].value
     expect(node.stop).toHaveBeenCalledTimes(1)

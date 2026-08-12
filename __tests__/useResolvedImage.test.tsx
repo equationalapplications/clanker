@@ -13,7 +13,12 @@ jest.mock('~/services/localImageStore', () => ({
 
 beforeEach(() => {
   jest.clearAllMocks()
-  mockGetById.mockResolvedValue({ id: 'img-1', storage_kind: 'inline', master_ref: 'M', mime_type: 'image/webp' })
+  mockGetById.mockResolvedValue({
+    id: 'img-1',
+    storage_kind: 'inline',
+    master_ref: 'M',
+    mime_type: 'image/webp',
+  })
   mockResolve.mockResolvedValue('data:image/webp;base64,M')
 })
 

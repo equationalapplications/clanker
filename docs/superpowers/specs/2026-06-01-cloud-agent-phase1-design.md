@@ -159,12 +159,15 @@ async function requireFirebaseAuth(req, res, next) {
 ## 7. Express Routes
 
 ### `GET /health`
+
 Unauthenticated. Returns `200 { status: 'ok' }`. Used by Cloud Run container probes.
 
 ### `POST /agent/run`
+
 Protected by `requireFirebaseAuth`.
 
 **Request body:**
+
 ```typescript
 {
   message: string           // user's current message
@@ -175,6 +178,7 @@ Protected by `requireFirebaseAuth`.
 ```
 
 **Response:**
+
 ```typescript
 {
   reply: string             // agent's final text response
@@ -229,17 +233,17 @@ export function buildAgent(
 
 ### `src/tools/tasks.ts`
 
-| Tool | LLM-visible params | Closure-injected | Action |
-|---|---|---|---|
-| `create_task` | `{ title: string }` | `userId`, `characterId` | Insert into `tasks`; return stable `taskId` |
-| `list_tasks` | _(none)_ | `userId`, `characterId` | Select open tasks for character; return array |
+| Tool          | LLM-visible params  | Closure-injected        | Action                                        |
+| ------------- | ------------------- | ----------------------- | --------------------------------------------- |
+| `create_task` | `{ title: string }` | `userId`, `characterId` | Insert into `tasks`; return stable `taskId`   |
+| `list_tasks`  | _(none)_            | `userId`, `characterId` | Select open tasks for character; return array |
 
 ### `src/tools/wiki.ts`
 
-| Tool | LLM-visible params | Closure-injected | Action |
-|---|---|---|---|
-| `wiki_read` | `{ query: string }` | `userId`, `characterId` | ILIKE substring search against `llm_wiki_events` summary (scoped by `userId` + `characterId`) |
-| `wiki_write` | `{ summary: string }` | `userId`, `characterId` | Insert `{ event_type: 'observation', summary }` into `llm_wiki_events` |
+| Tool         | LLM-visible params    | Closure-injected        | Action                                                                                        |
+| ------------ | --------------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| `wiki_read`  | `{ query: string }`   | `userId`, `characterId` | ILIKE substring search against `llm_wiki_events` summary (scoped by `userId` + `characterId`) |
+| `wiki_write` | `{ summary: string }` | `userId`, `characterId` | Insert `{ event_type: 'observation', summary }` into `llm_wiki_events`                        |
 
 All executors return strings. No executor throws — errors return a failure string to prevent unhandled rejections from triggering unintended escalation paths.
 
@@ -247,13 +251,13 @@ All executors return strings. No executor throws — errors return a failure str
 
 ## 10. Security Model
 
-| Threat | Mitigation |
-|---|---|
-| Unauthenticated request | `requireFirebaseAuth` returns 401 before reaching agent |
-| LLM hallucinating a different `userId` | `userId` never in tool schema; injected via closure only |
-| LLM hallucinating a different `characterId` | Same — closure-only |
-| Cross-user data read | All DB queries include `userId` from closure in WHERE clause |
-| Prompt injection via `unsyncedHistory` | Bulk insert sanitizes to schema columns only (`tasks`, `llm_wiki_events`); raw text never executed as SQL |
+| Threat                                      | Mitigation                                                                                                |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Unauthenticated request                     | `requireFirebaseAuth` returns 401 before reaching agent                                                   |
+| LLM hallucinating a different `userId`      | `userId` never in tool schema; injected via closure only                                                  |
+| LLM hallucinating a different `characterId` | Same — closure-only                                                                                       |
+| Cross-user data read                        | All DB queries include `userId` from closure in WHERE clause                                              |
+| Prompt injection via `unsyncedHistory`      | Bulk insert sanitizes to schema columns only (`tasks`, `llm_wiki_events`); raw text never executed as SQL |
 
 ---
 
@@ -269,14 +273,14 @@ All executors return strings. No executor throws — errors return a failure str
 
 ## 12. Acceptance Criteria
 
-| Scenario | Expected |
-|---|---|
-| `GET /health` | `200 { status: 'ok' }` with no auth header |
-| `POST /agent/run` with no token | `401 { error: 'Unauthorized' }` |
-| `POST /agent/run` with invalid token | `401 { error: 'Unauthorized' }` |
+| Scenario                                                 | Expected                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------- |
+| `GET /health`                                            | `200 { status: 'ok' }` with no auth header                    |
+| `POST /agent/run` with no token                          | `401 { error: 'Unauthorized' }`                               |
+| `POST /agent/run` with invalid token                     | `401 { error: 'Unauthorized' }`                               |
 | `POST /agent/run` with valid token, `create_task` intent | Task inserted with `userId` from token, not from request body |
-| `POST /agent/run` with valid token, `list_tasks` intent | Returns only tasks for `req.uid` |
-| `unsyncedHistory` provided | Bulk-inserted into Cloud SQL before ADK session starts |
-| `unsyncedHistory` empty or absent | Sync step skipped; agent runs normally |
-| `docker build` from `cloud-agent/` | Succeeds with no reference to `../functions/` |
-| `npm run build` | TypeScript compiles with no errors |
+| `POST /agent/run` with valid token, `list_tasks` intent  | Returns only tasks for `req.uid`                              |
+| `unsyncedHistory` provided                               | Bulk-inserted into Cloud SQL before ADK session starts        |
+| `unsyncedHistory` empty or absent                        | Sync step skipped; agent runs normally                        |
+| `docker build` from `cloud-agent/`                       | Succeeds with no reference to `../functions/`                 |
+| `npm run build`                                          | TypeScript compiles with no errors                            |

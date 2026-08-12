@@ -32,7 +32,7 @@ export interface UseEdgeAgentOptions {
   userId: string
   priorMessages: IMessage[]
   memoryBlock?: string
-  isCloudSynced: boolean  // NEW — derived from character.save_to_cloud or equivalent
+  isCloudSynced: boolean // NEW — derived from character.save_to_cloud or equivalent
 }
 ```
 
@@ -50,7 +50,7 @@ if (options.isCloudSynced) {
 const tools = [{ functionDeclarations }]
 ```
 
-**Result:** A local-only character's LLM literally cannot escalate — it has no `escalate_to_cloud` function in its tool list. If asked to do something requiring the cloud, it naturally responds: *"I'm running in local-only mode and can't access your deep cloud memory right now."*
+**Result:** A local-only character's LLM literally cannot escalate — it has no `escalate_to_cloud` function in its tool list. If asked to do something requiring the cloud, it naturally responds: _"I'm running in local-only mode and can't access your deep cloud memory right now."_
 
 ---
 
@@ -67,11 +67,12 @@ export const SCHEMA_VERSION = 18
 
 export const MIGRATIONS: Record<number, string> = {
   // ...existing migrations 2-17...
-  18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`,  // NULL = unsynced, Unix timestamp = synced
+  18: `ALTER TABLE messages ADD COLUMN synced_at INTEGER;`, // NULL = unsynced, Unix timestamp = synced
 }
 ```
 
 **Migration skip guard (for legacy DBs that already have the column):**
+
 ```typescript
 export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   // ...existing guards...
@@ -96,7 +97,7 @@ export interface LocalMessage {
   sent: number
   error: number
   edited: number
-  synced_at: number | null  // NEW — null = not synced to cloud
+  synced_at: number | null // NEW — null = not synced to cloud
 }
 ```
 
@@ -123,10 +124,10 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
   const db = await getDatabase()
   const now = Date.now()
   const placeholders = messageIds.map(() => '?').join(',')
-  await db.runAsync(
-    `UPDATE messages SET synced_at = ? WHERE id IN (${placeholders})`,
-    [now, ...messageIds],
-  )
+  await db.runAsync(`UPDATE messages SET synced_at = ? WHERE id IN (${placeholders})`, [
+    now,
+    ...messageIds,
+  ])
 }
 ```
 
@@ -140,10 +141,10 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
 // src/services/syncMessage.ts
 
 export interface SyncMessage {
-  id: string                    // message_id for cloud deduplication
-  role: 'user' | 'model'       // LLM role mapping
-  text: string                  // message content only
-  createdAt: number             // Unix timestamp for ordering
+  id: string // message_id for cloud deduplication
+  role: 'user' | 'model' // LLM role mapping
+  text: string // message content only
+  createdAt: number // Unix timestamp for ordering
 }
 ```
 
@@ -152,10 +153,7 @@ export interface SyncMessage {
 ```typescript
 // src/services/syncMessage.ts
 
-export function toSyncMessage(
-  msg: LocalMessage,
-  userId: string,
-): SyncMessage {
+export function toSyncMessage(msg: LocalMessage, userId: string): SyncMessage {
   return {
     id: msg.id,
     role: msg.sender_user_id === userId ? 'user' : 'model',
@@ -221,7 +219,7 @@ if (edgeResult.escalated) {
 export interface GenerateReplyInput {
   characterId: string
   currentMessage: string
-  unsyncedHistory?: SyncMessage[]  // NEW — lightweight sync payload
+  unsyncedHistory?: SyncMessage[] // NEW — lightweight sync payload
 }
 ```
 
@@ -232,16 +230,19 @@ export interface GenerateReplyInput {
 
 if (input.unsyncedHistory && input.unsyncedHistory.length > 0) {
   // Bulk insert with idempotency guard
-  await db.insert(messages)
-    .values(input.unsyncedHistory.map((msg) => ({
-      messageId: msg.id,
-      characterId: input.characterId,
-      senderUserId: msg.role === 'user' ? userId : character.userId,
-      text: msg.text,
-      createdAt: new Date(msg.createdAt),
-      messageData: {},
-    })))
-    .onConflictDoNothing({ target: messages.messageId })  // IDEMPOTENCY
+  await db
+    .insert(messages)
+    .values(
+      input.unsyncedHistory.map((msg) => ({
+        messageId: msg.id,
+        characterId: input.characterId,
+        senderUserId: msg.role === 'user' ? userId : character.userId,
+        text: msg.text,
+        createdAt: new Date(msg.createdAt),
+        messageData: {},
+      })),
+    )
+    .onConflictDoNothing({ target: messages.messageId }) // IDEMPOTENCY
 }
 
 // ...proceed with @google/adk agent execution using full context
@@ -253,42 +254,45 @@ if (input.unsyncedHistory && input.unsyncedHistory.length > 0) {
 
 ## 6. Acceptance Criteria
 
-| Test | Expected |
-|------|----------|
-| Local-only character, `escalate_to_cloud` not in tool list | Firebase never called; LLM responds with local-only fallback message |
-| Cloud-synced character escalates | `unsyncedHistory` sent; Firebase bulk-inserts with `ON CONFLICT DO NOTHING` |
-| Migration 18 runs on app startup | `synced_at` column exists; `getUnsyncedMessages()` works |
-| Retry after network failure | Cloud dedupes on `messageId`; no duplicate messages |
-| SyncMessage payload | Contains only `{id, role, text, createdAt}` — no `IMessage` bloat |
+| Test                                                       | Expected                                                                    |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Local-only character, `escalate_to_cloud` not in tool list | Firebase never called; LLM responds with local-only fallback message        |
+| Cloud-synced character escalates                           | `unsyncedHistory` sent; Firebase bulk-inserts with `ON CONFLICT DO NOTHING` |
+| Migration 18 runs on app startup                           | `synced_at` column exists; `getUnsyncedMessages()` works                    |
+| Retry after network failure                                | Cloud dedupes on `messageId`; no duplicate messages                         |
+| SyncMessage payload                                        | Contains only `{id, role, text, createdAt}` — no `IMessage` bloat           |
 
 ---
 
 ## 7. Files Changed
 
-| File | Change |
-|------|--------|
-| `src/database/schema.ts` | Add migration 18 (`synced_at` column); update `SCHEMA_VERSION` to 18 |
-| `src/database/messageDatabase.ts` | Add `synced_at` to `LocalMessage`; add `getUnsyncedMessages()`, `markMessagesAsSynced()`; update `saveAIMessage` to accept `syncedAt` |
-| `src/services/syncMessage.ts` | **New** — `SyncMessage` interface + `toSyncMessage()` mapper |
-| `src/hooks/useEdgeAgent.ts` | Add `isCloudSynced` to options; conditionally inject `escalateToCloudManifest` |
-| `src/hooks/useAIChat.ts` | Add unsynced history query + `markMessagesAsSynced()` after escalation; filter current message from sync payload; mark cloud replies as synced |
-| `functions/src/generateReply.ts` | Accept `unsyncedHistory`; bulk insert with `.onConflictDoNothing()` |
+| File                              | Change                                                                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/database/schema.ts`          | Add migration 18 (`synced_at` column); update `SCHEMA_VERSION` to 18                                                                           |
+| `src/database/messageDatabase.ts` | Add `synced_at` to `LocalMessage`; add `getUnsyncedMessages()`, `markMessagesAsSynced()`; update `saveAIMessage` to accept `syncedAt`          |
+| `src/services/syncMessage.ts`     | **New** — `SyncMessage` interface + `toSyncMessage()` mapper                                                                                   |
+| `src/hooks/useEdgeAgent.ts`       | Add `isCloudSynced` to options; conditionally inject `escalateToCloudManifest`                                                                 |
+| `src/hooks/useAIChat.ts`          | Add unsynced history query + `markMessagesAsSynced()` after escalation; filter current message from sync payload; mark cloud replies as synced |
+| `functions/src/generateReply.ts`  | Accept `unsyncedHistory`; bulk insert with `.onConflictDoNothing()`                                                                            |
 
 ---
 
 ## 8. Design Decisions
 
 ### Why `synced_at` timestamp over `isSyncedToCloud` boolean
+
 - Debuggable: "When was this message synced?"
 - Enables future "sync since X" incremental sync features
 - Matches the user's explicit choice during brainstorming
 
 ### Why lightweight `SyncMessage` over full `IMessage`
+
 - `IMessage` contains frontend UI state (avatars, pending flags, nested objects)
 - `SyncMessage` is ~80% smaller on the wire
 - Cloud can bulk-insert directly without sanitization
 
 ### Why `.onConflictDoNothing()` on cloud insert
+
 - Mobile networks are unreliable
 - Prevents duplicate rows when the phone retries after a dropped response
 - `messageId` (not the UUID primary key) is the deduplication target since it's stable across client/server

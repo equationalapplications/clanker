@@ -20,7 +20,8 @@ export function intentRequiresAuth(
   for (const step of steps) {
     const label = step.type === 'extract' || step.type === 'click' ? step.label : undefined
     if (classifyActionLabel(label) === 'requires_auth') return true
-    if ('selector' in step && step.selector && DESTRUCTIVE_ACTION_PATTERN.test(step.selector)) return true
+    if ('selector' in step && step.selector && DESTRUCTIVE_ACTION_PATTERN.test(step.selector))
+      return true
   }
   return false
 }

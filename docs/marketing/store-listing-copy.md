@@ -6,30 +6,39 @@ Rev 2: incorporates selling points from public landing pages (privacy mode, docu
 ## Apple App Store (App Store Connect → App Information / Version Page)
 
 **Name (30 max):**
+
 ```
 Clanker AI: Character Chat
 ```
+
 (26 chars)
 
 **Subtitle (30 max):**
+
 ```
 AI companions that remember
 ```
+
 (27 chars)
 
 **Keywords (100 max, comma-separated, no spaces after commas — do not repeat words from name/subtitle):**
+
 ```
 roleplay,chatbot,virtual friend,voice call,private,talk,memory,create,persona,open source,fantasy
 ```
+
 (97 chars. No competitor trademarks — Apple rejects them.)
 
 **Promotional text (170 max, editable anytime without review):**
+
 ```
 New: live voice calls. Talk hands-free, interrupt anytime, hear web results spoken aloud — and your companion remembers every conversation.
 ```
+
 (139 chars)
 
 **Description (not search-indexed on iOS — written for humans):**
+
 ```
 Create your own AI companions — characters with personality, a real voice, and a memory that lasts.
 
@@ -53,18 +62,23 @@ Questions or ideas? We read everything: https://clanker-ai.com/support
 ## Google Play (Play Console → Store presence → Main store listing)
 
 **App name (30 max):**
+
 ```
 Clanker: AI Character Chat
 ```
+
 (26 chars)
 
 **Short description (80 max):**
+
 ```
 Create AI characters with voice calls, lasting memory, and private local mode.
 ```
+
 (78 chars)
 
 **Full description (4000 max — IS search-indexed; keywords worked in naturally):**
+
 ```
 Create your own AI companions — AI characters with personality, real-time voice calls, and long-term memory that learns.
 

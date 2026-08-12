@@ -5,183 +5,175 @@
 import { Platform } from 'react-native'
 import * as SQLite from 'expo-sqlite'
 import {
-    CREATE_TABLES,
-    SCHEMA_VERSION,
-    MIGRATIONS,
-    LATEST_SCHEMA_REQUIRED_COLUMNS,
-    MIGRATION_SKIP_GUARDS,
-    type MigrationSkipGuard,
+  CREATE_TABLES,
+  SCHEMA_VERSION,
+  MIGRATIONS,
+  LATEST_SCHEMA_REQUIRED_COLUMNS,
+  MIGRATION_SKIP_GUARDS,
+  type MigrationSkipGuard,
 } from './schema'
 
 import { initWiki } from '~/services/wikiService'
-import {
-    clearOpfsAutoReloadFlag,
-    tryAutoReloadForOpfsConflict,
-} from './opfsRecovery'
+import { clearOpfsAutoReloadFlag, tryAutoReloadForOpfsConflict } from './opfsRecovery'
 import { installSqliteWorkerTracker } from './sqliteWebWorker'
 
 if (Platform.OS === 'web') {
-    installSqliteWorkerTracker()
+  installSqliteWorkerTracker()
 }
 
 let db: SQLite.SQLiteDatabase | null = null
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
 
 export type DatabaseExecutor = Pick<
-    SQLite.SQLiteDatabase,
-    'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
+  SQLite.SQLiteDatabase,
+  'execAsync' | 'runAsync' | 'getAllAsync' | 'getFirstAsync'
 >
 
 function isDatabaseOpenTimeoutError(error: unknown): boolean {
-    const msg = error instanceof Error ? error.message : String(error)
-    return msg.includes('timed out waiting for browser storage')
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg.includes('timed out waiting for browser storage')
 }
 
 function isOPFSLockError(error: unknown): boolean {
-    const msg = error instanceof Error ? error.message : String(error)
-    return (
-        msg.includes('NoModificationAllowedError') ||
-        msg.includes('createSyncAccessHandle') ||
-        msg.includes('Access Handles cannot be created') ||
-        msg.includes('Invalid VFS state')
-    )
+  const msg = error instanceof Error ? error.message : String(error)
+  return (
+    msg.includes('NoModificationAllowedError') ||
+    msg.includes('createSyncAccessHandle') ||
+    msg.includes('Access Handles cannot be created') ||
+    msg.includes('Invalid VFS state')
+  )
 }
 
 const OPEN_DATABASE_TIMEOUT_MS = 10_000
 
 async function openDatabaseWithTimeout(name: string): Promise<SQLite.SQLiteDatabase> {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
-    try {
-        return await Promise.race([
-            SQLite.openDatabaseAsync(name),
-            new Promise<never>((_, reject) => {
-                timeoutId = setTimeout(
-                    () =>
-                        reject(
-                            new Error(
-                                `Database "${name}" timed out waiting for browser storage`,
-                            ),
-                        ),
-                    OPEN_DATABASE_TIMEOUT_MS,
-                )
-            }),
-        ])
-    } finally {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-    }
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      SQLite.openDatabaseAsync(name),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`Database "${name}" timed out waiting for browser storage`)),
+          OPEN_DATABASE_TIMEOUT_MS,
+        )
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
 }
 
 /** User-actionable storage conflict (OPFS lock, open timeout, or poisoned expo-sqlite worker). */
 export function isDatabaseStorageConflictError(error: Error | null | undefined): boolean {
-    if (!error) return false
-    if (error.message.includes('locked in browser storage')) return true
-    return isOPFSLockError(error) || isDatabaseOpenTimeoutError(error)
+  if (!error) return false
+  if (error.message.includes('locked in browser storage')) return true
+  return isOPFSLockError(error) || isDatabaseOpenTimeoutError(error)
 }
 
 async function openDatabaseAsyncWithRetry(
-    name: string,
-    retries = 8,
-    baseDelayMs = 500,
+  name: string,
+  retries = 8,
+  baseDelayMs = 500,
 ): Promise<SQLite.SQLiteDatabase> {
-    let lastError: unknown
-    for (let attempt = 0; attempt < retries; attempt++) {
-        try {
-            const database = await openDatabaseWithTimeout(name)
-            if (Platform.OS === 'web') {
-                clearOpfsAutoReloadFlag()
-            }
-            return database
-        } catch (error) {
-            lastError = error
-            if (isDatabaseOpenTimeoutError(error)) throw error
-            if (!isOPFSLockError(error)) throw error
-            console.warn(`[DB] OPFS lock on attempt ${attempt + 1}/${retries}, retrying…`)
-            await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))
-        }
+  let lastError: unknown
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const database = await openDatabaseWithTimeout(name)
+      if (Platform.OS === 'web') {
+        clearOpfsAutoReloadFlag()
+      }
+      return database
+    } catch (error) {
+      lastError = error
+      if (isDatabaseOpenTimeoutError(error)) throw error
+      if (!isOPFSLockError(error)) throw error
+      console.warn(`[DB] OPFS lock on attempt ${attempt + 1}/${retries}, retrying…`)
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)))
     }
-    if (Platform.OS === 'web' && isOPFSLockError(lastError)) {
-        if (tryAutoReloadForOpfsConflict()) {
-            await new Promise(() => {
-                /* reload in progress */
-            })
-        }
-        console.error(
-            `[DB] Retries exhausted while opening "${name}". Preserving existing OPFS data and aborting instead of deleting the database.`,
-        )
-        throw new Error(
-            `Database "${name}" is locked in browser storage. Close other tabs or windows using this app and try again.`,
-            { cause: lastError instanceof Error ? lastError : undefined },
-        )
+  }
+  if (Platform.OS === 'web' && isOPFSLockError(lastError)) {
+    if (tryAutoReloadForOpfsConflict()) {
+      await new Promise(() => {
+        /* reload in progress */
+      })
     }
-    if (lastError instanceof Error) {
-        throw lastError
-    }
-    throw new Error(`Failed to open database "${name}" after ${retries} attempt(s).`, {
-        cause: lastError,
-    })
+    console.error(
+      `[DB] Retries exhausted while opening "${name}". Preserving existing OPFS data and aborting instead of deleting the database.`,
+    )
+    throw new Error(
+      `Database "${name}" is locked in browser storage. Close other tabs or windows using this app and try again.`,
+      { cause: lastError instanceof Error ? lastError : undefined },
+    )
+  }
+  if (lastError instanceof Error) {
+    throw lastError
+  }
+  throw new Error(`Failed to open database "${name}" after ${retries} attempt(s).`, {
+    cause: lastError,
+  })
 }
 
 /**
  * Initialize and return the database instance
  */
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-    if (dbPromise) {
-        return dbPromise
-    }
-
-    if (db && !dbPromise) {
-        try {
-            await db.closeAsync()
-        } catch (error) {
-            console.warn('Failed to close stale database connection:', error)
-        } finally {
-            db = null
-            dbPromise = null
-        }
-    }
-
-    dbPromise = (async () => {
-        try {
-            const database = await openDatabaseAsyncWithRetry('clanker.db')
-            await initializeDatabase(database)
-            db = database
-            return database
-        } catch (error) {
-            db = null
-            dbPromise = null
-            console.error('Failed to open database:', error)
-            throw error
-        }
-    })()
-
+  if (dbPromise) {
     return dbPromise
+  }
+
+  if (db && !dbPromise) {
+    try {
+      await db.closeAsync()
+    } catch (error) {
+      console.warn('Failed to close stale database connection:', error)
+    } finally {
+      db = null
+      dbPromise = null
+    }
+  }
+
+  dbPromise = (async () => {
+    try {
+      const database = await openDatabaseAsyncWithRetry('clanker.db')
+      await initializeDatabase(database)
+      db = database
+      return database
+    } catch (error) {
+      db = null
+      dbPromise = null
+      console.error('Failed to open database:', error)
+      throw error
+    }
+  })()
+
+  return dbPromise
 }
 
 /**
  * Initialize database schema
  */
 async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
-    try {
-        // On web (wa-sqlite + AccessHandlePoolVFS), the VFS cannot create the
-        // SQLite rollback journal file alongside the database, causing all writes
-        // to fail with SQLITE_CANTOPEN. Setting journal_mode=MEMORY stores the
-        // rollback journal in RAM instead of a file. On native we keep WAL mode
-        // for better durability (crash-safe rollback journal on disk).
-        if (Platform.OS === 'web') {
-            await database.execAsync('PRAGMA journal_mode=MEMORY;')
-        } else {
-            await database.execAsync('PRAGMA journal_mode=WAL;')
-        }
-
-        await database.execAsync('PRAGMA foreign_keys = ON;')
-        await applyInitializationPlan(database)
-        await initWiki(database)
-
-        console.log('✅ Database initialized successfully')
-    } catch (error) {
-        console.error('Failed to initialize database:', error)
-        throw error
+  try {
+    // On web (wa-sqlite + AccessHandlePoolVFS), the VFS cannot create the
+    // SQLite rollback journal file alongside the database, causing all writes
+    // to fail with SQLITE_CANTOPEN. Setting journal_mode=MEMORY stores the
+    // rollback journal in RAM instead of a file. On native we keep WAL mode
+    // for better durability (crash-safe rollback journal on disk).
+    if (Platform.OS === 'web') {
+      await database.execAsync('PRAGMA journal_mode=MEMORY;')
+    } else {
+      await database.execAsync('PRAGMA journal_mode=WAL;')
     }
+
+    await database.execAsync('PRAGMA foreign_keys = ON;')
+    await applyInitializationPlan(database)
+    await initWiki(database)
+
+    console.log('✅ Database initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+    throw error
+  }
 }
 
 // Split out of CREATE_TABLES: that block runs unconditionally on every boot,
@@ -193,264 +185,257 @@ async function initializeDatabase(database: SQLite.SQLiteDatabase): Promise<void
 // this point message_id exists on every path: CREATE_TABLES for a fresh
 // table, or migration 24 for an upgraded one.
 async function ensureCharacterImagesMessageIndex(executor: DatabaseExecutor): Promise<void> {
-    await executor.execAsync(
-        `CREATE INDEX IF NOT EXISTS idx_character_images_message
+  await executor.execAsync(
+    `CREATE INDEX IF NOT EXISTS idx_character_images_message
     ON character_images(message_id)
     WHERE message_id IS NOT NULL;`,
-    )
+  )
 }
 
 export async function applyInitializationPlan(executor: DatabaseExecutor): Promise<void> {
-    // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
-    await executor.execAsync(CREATE_TABLES)
+  // Create tables (uses IF NOT EXISTS — safe on both fresh and existing DBs)
+  await executor.execAsync(CREATE_TABLES)
 
-    // Check current schema version
-    const result = await executor.getFirstAsync<{ version: number }>(
-        'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
+  // Check current schema version
+  const result = await executor.getFirstAsync<{ version: number }>(
+    'SELECT version FROM schema_version ORDER BY version DESC LIMIT 1',
+  )
+
+  if (!result) {
+    // No recorded schema version. This can mean:
+    // - A true fresh install where CREATE_TABLES already created the latest schema
+    // - A legacy DB that predates schema_version and still needs migrations
+    //
+    // Distinguish between these by confirming the DB already has every
+    // required column on every table that has required columns. CREATE_TABLES
+    // runs before this check, so a missing table returns zero columns from
+    // PRAGMA table_info and is treated as "missing the latest schema" rather
+    // than a no-op — which is what sends a pre-Phase-1 DB into the migration
+    // path. Checking characters alone would miss migration 24 on a DB whose
+    // Phase-1 `character_images` table lacks the new `message_id` column.
+    const requiredTables = Object.keys(LATEST_SCHEMA_REQUIRED_COLUMNS)
+    const tableColumns = new Map<string, Set<string>>()
+    for (const tableName of requiredTables) {
+      const columns = await executor.getAllAsync<{ name: string }>(
+        `PRAGMA table_info(${tableName})`,
+      )
+      tableColumns.set(tableName, new Set(columns.map((column) => column.name)))
+    }
+    const hasLatestSchema = requiredTables.every((tableName) =>
+      LATEST_SCHEMA_REQUIRED_COLUMNS[tableName].every((requiredColumn) =>
+        tableColumns.get(tableName)?.has(requiredColumn),
+      ),
     )
 
-    if (!result) {
-        // No recorded schema version. This can mean:
-        // - A true fresh install where CREATE_TABLES already created the latest schema
-        // - A legacy DB that predates schema_version and still needs migrations
-        //
-        // Distinguish between these by confirming the DB already has every
-        // required column on every table that has required columns. CREATE_TABLES
-        // runs before this check, so a missing table returns zero columns from
-        // PRAGMA table_info and is treated as "missing the latest schema" rather
-        // than a no-op — which is what sends a pre-Phase-1 DB into the migration
-        // path. Checking characters alone would miss migration 24 on a DB whose
-        // Phase-1 `character_images` table lacks the new `message_id` column.
-        const requiredTables = Object.keys(LATEST_SCHEMA_REQUIRED_COLUMNS)
-        const tableColumns = new Map<string, Set<string>>()
-        for (const tableName of requiredTables) {
-            const columns = await executor.getAllAsync<{ name: string }>(
-                `PRAGMA table_info(${tableName})`,
-            )
-            tableColumns.set(
-                tableName,
-                new Set(columns.map((column) => column.name)),
-            )
-        }
-        const hasLatestSchema = requiredTables.every((tableName) =>
-            LATEST_SCHEMA_REQUIRED_COLUMNS[tableName].every((requiredColumn) =>
-                tableColumns.get(tableName)?.has(requiredColumn),
-            ),
-        )
-
-        if (hasLatestSchema) {
-            // Fresh DB already at latest schema: just record the current schema version
-            await executor.runAsync(
-                'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
-                [SCHEMA_VERSION, Date.now()],
-            )
-            await ensureCharacterImagesMessageIndex(executor)
-            return
-        }
-
-        // Legacy DB without schema_version can be partially migrated.
-        // Infer the nearest version so we only apply missing migrations.
-        const hasCharacterColumn = (columnName: string) =>
-            tableColumns.get('characters')?.has(columnName) ?? false
-        let inferredVersion = 0
-        if (hasCharacterColumn('deleted_at')) inferredVersion = 2
-        if (hasCharacterColumn('deleted_at') && hasCharacterColumn('avatar_data')) inferredVersion = 3
-        if (
-            hasCharacterColumn('deleted_at') &&
-            hasCharacterColumn('avatar_data') &&
-            hasCharacterColumn('avatar_mime_type')
-        ) {
-            inferredVersion = 4
-        }
-        if (
-            hasCharacterColumn('deleted_at') &&
-            hasCharacterColumn('avatar_data') &&
-            hasCharacterColumn('avatar_mime_type') &&
-            hasCharacterColumn('save_to_cloud')
-        ) {
-            inferredVersion = 5
-        }
-        if (
-            hasCharacterColumn('deleted_at') &&
-            hasCharacterColumn('avatar_data') &&
-            hasCharacterColumn('avatar_mime_type') &&
-            hasCharacterColumn('save_to_cloud') &&
-            hasCharacterColumn('summary_checkpoint')
-        ) {
-            inferredVersion = 6
-        }
-        if (
-            hasCharacterColumn('deleted_at') &&
-            hasCharacterColumn('avatar_data') &&
-            hasCharacterColumn('avatar_mime_type') &&
-            hasCharacterColumn('save_to_cloud') &&
-            hasCharacterColumn('summary_checkpoint') &&
-            hasCharacterColumn('owner_user_id')
-        ) {
-            inferredVersion = 7
-        }
-        await runMigrations(executor, inferredVersion)
-        await ensureCharacterImagesMessageIndex(executor)
-        return
+    if (hasLatestSchema) {
+      // Fresh DB already at latest schema: just record the current schema version
+      await executor.runAsync(
+        'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
+        [SCHEMA_VERSION, Date.now()],
+      )
+      await ensureCharacterImagesMessageIndex(executor)
+      return
     }
 
-    if (result.version < SCHEMA_VERSION) {
-        // Existing DB that needs upgrading
-        await runMigrations(executor, result.version)
+    // Legacy DB without schema_version can be partially migrated.
+    // Infer the nearest version so we only apply missing migrations.
+    const hasCharacterColumn = (columnName: string) =>
+      tableColumns.get('characters')?.has(columnName) ?? false
+    let inferredVersion = 0
+    if (hasCharacterColumn('deleted_at')) inferredVersion = 2
+    if (hasCharacterColumn('deleted_at') && hasCharacterColumn('avatar_data')) inferredVersion = 3
+    if (
+      hasCharacterColumn('deleted_at') &&
+      hasCharacterColumn('avatar_data') &&
+      hasCharacterColumn('avatar_mime_type')
+    ) {
+      inferredVersion = 4
     }
+    if (
+      hasCharacterColumn('deleted_at') &&
+      hasCharacterColumn('avatar_data') &&
+      hasCharacterColumn('avatar_mime_type') &&
+      hasCharacterColumn('save_to_cloud')
+    ) {
+      inferredVersion = 5
+    }
+    if (
+      hasCharacterColumn('deleted_at') &&
+      hasCharacterColumn('avatar_data') &&
+      hasCharacterColumn('avatar_mime_type') &&
+      hasCharacterColumn('save_to_cloud') &&
+      hasCharacterColumn('summary_checkpoint')
+    ) {
+      inferredVersion = 6
+    }
+    if (
+      hasCharacterColumn('deleted_at') &&
+      hasCharacterColumn('avatar_data') &&
+      hasCharacterColumn('avatar_mime_type') &&
+      hasCharacterColumn('save_to_cloud') &&
+      hasCharacterColumn('summary_checkpoint') &&
+      hasCharacterColumn('owner_user_id')
+    ) {
+      inferredVersion = 7
+    }
+    await runMigrations(executor, inferredVersion)
     await ensureCharacterImagesMessageIndex(executor)
+    return
+  }
+
+  if (result.version < SCHEMA_VERSION) {
+    // Existing DB that needs upgrading
+    await runMigrations(executor, result.version)
+  }
+  await ensureCharacterImagesMessageIndex(executor)
 }
 
 /**
  * Run database migrations
  */
 async function runMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
-    console.log(`Running migrations from version ${fromVersion} to ${SCHEMA_VERSION}`)
+  console.log(`Running migrations from version ${fromVersion} to ${SCHEMA_VERSION}`)
 
-    await applyMigrations(executor, fromVersion)
+  await applyMigrations(executor, fromVersion)
 }
 
 async function applyMigrations(executor: DatabaseExecutor, fromVersion: number): Promise<void> {
-    for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
-        const migration = MIGRATIONS[version]
-        if (migration) {
-            const skipGuards = MIGRATION_SKIP_GUARDS[version]
-            if (skipGuards && skipGuards.length > 0) {
-                // Skip migration if ANY guard is satisfied:
-                //   - column guard: the column already exists (migration already applied)
-                //   - skipIfTableMissing guard: the table doesn't exist (migration is not applicable)
-                const guardResults = await Promise.all(
-                    skipGuards.map((guard: MigrationSkipGuard) => {
-                        if (isSkipIfTableMissingGuard(guard)) {
-                            return hasTable(executor, guard.table).then((exists) => !exists)
-                        }
-                        return hasColumn(executor, guard.table, guard.column)
-                    })
-                )
-                if (guardResults.some((satisfied) => satisfied)) {
-                    const guardDescr = skipGuards
-                        .map((g: MigrationSkipGuard) =>
-                            isSkipIfTableMissingGuard(g) ? `${g.table} (table missing)` : `${g.table}.${g.column}`
-                        )
-                        .join(', ')
-                    console.log(`Skipping migration ${version}: ${guardDescr}`)
-                    continue
-                }
+  for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
+    const migration = MIGRATIONS[version]
+    if (migration) {
+      const skipGuards = MIGRATION_SKIP_GUARDS[version]
+      if (skipGuards && skipGuards.length > 0) {
+        // Skip migration if ANY guard is satisfied:
+        //   - column guard: the column already exists (migration already applied)
+        //   - skipIfTableMissing guard: the table doesn't exist (migration is not applicable)
+        const guardResults = await Promise.all(
+          skipGuards.map((guard: MigrationSkipGuard) => {
+            if (isSkipIfTableMissingGuard(guard)) {
+              return hasTable(executor, guard.table).then((exists) => !exists)
             }
-
-            console.log(`Applying migration ${version}`)
-            await execStatementsSequentially(executor, migration)
+            return hasColumn(executor, guard.table, guard.column)
+          }),
+        )
+        if (guardResults.some((satisfied) => satisfied)) {
+          const guardDescr = skipGuards
+            .map((g: MigrationSkipGuard) =>
+              isSkipIfTableMissingGuard(g)
+                ? `${g.table} (table missing)`
+                : `${g.table}.${g.column}`,
+            )
+            .join(', ')
+          console.log(`Skipping migration ${version}: ${guardDescr}`)
+          continue
         }
-    }
+      }
 
-    // Update schema version
-    await executor.runAsync(
-        'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
-        [SCHEMA_VERSION, Date.now()],
-    )
+      console.log(`Applying migration ${version}`)
+      await execStatementsSequentially(executor, migration)
+    }
+  }
+
+  // Update schema version
+  await executor.runAsync(
+    'INSERT OR REPLACE INTO schema_version (version, updated_at) VALUES (?, ?)',
+    [SCHEMA_VERSION, Date.now()],
+  )
 }
 
-async function hasTable(
-    database: DatabaseExecutor,
-    tableName: string,
-): Promise<boolean> {
-    const result = await database.getFirstAsync<{ count: number }>(
-        `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name=?`,
-        [tableName],
-    )
-    return (result?.count ?? 0) > 0
+async function hasTable(database: DatabaseExecutor, tableName: string): Promise<boolean> {
+  const result = await database.getFirstAsync<{ count: number }>(
+    `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name=?`,
+    [tableName],
+  )
+  return (result?.count ?? 0) > 0
 }
 
 function isSkipIfTableMissingGuard(
-    guard: MigrationSkipGuard,
+  guard: MigrationSkipGuard,
 ): guard is { table: string; skipIfTableMissing: true } {
-    return 'skipIfTableMissing' in guard
+  return 'skipIfTableMissing' in guard
 }
 
 async function hasColumn(
-    database: DatabaseExecutor,
-    tableName: string,
-    columnName: string,
+  database: DatabaseExecutor,
+  tableName: string,
+  columnName: string,
 ): Promise<boolean> {
-    const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName})`)
-    return columns.some((column) => column.name === columnName)
+  const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName})`)
+  return columns.some((column) => column.name === columnName)
 }
 
 async function execStatementsSequentially(
-    database: DatabaseExecutor,
-    sqlBatch: string,
+  database: DatabaseExecutor,
+  sqlBatch: string,
 ): Promise<void> {
-    const statements = sqlBatch
-        .split(';')
-        .map((statement) => statement.trim())
-        .filter(Boolean)
+  const statements = sqlBatch
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean)
 
-    for (const statement of statements) {
-        try {
-            await database.execAsync(`${statement};`)
-        } catch (error) {
-            console.error(`Failed SQL statement: ${statement};`, error)
-            throw error
-        }
+  for (const statement of statements) {
+    try {
+      await database.execAsync(`${statement};`)
+    } catch (error) {
+      console.error(`Failed SQL statement: ${statement};`, error)
+      throw error
     }
+  }
 }
 
 /**
  * Close database connection
  */
 export async function closeDatabase(): Promise<void> {
-    let databaseToClose = db
+  let databaseToClose = db
 
-    if (!databaseToClose && dbPromise) {
-        try {
-            databaseToClose = await dbPromise
-        } catch {
-            db = null
-            dbPromise = null
-            return
-        }
+  if (!databaseToClose && dbPromise) {
+    try {
+      databaseToClose = await dbPromise
+    } catch {
+      db = null
+      dbPromise = null
+      return
     }
+  }
 
-    if (databaseToClose) {
-        await databaseToClose.closeAsync()
-    }
+  if (databaseToClose) {
+    await databaseToClose.closeAsync()
+  }
 
-    db = null
-    dbPromise = null
-    console.log('Database closed')
+  db = null
+  dbPromise = null
+  console.log('Database closed')
 }
 
 /**
  * Clear all data (for testing/reset)
  */
 export async function clearAllData(): Promise<void> {
-    const database = await getDatabase()
-    await database.execAsync('DELETE FROM messages;')
-    console.log('All data cleared')
+  const database = await getDatabase()
+  await database.execAsync('DELETE FROM messages;')
+  console.log('All data cleared')
 }
 
 /**
  * Get database statistics
  */
 export async function getDatabaseStats(): Promise<{
-    messageCount: number
-    databaseSize: number
+  messageCount: number
+  databaseSize: number
 }> {
-    const database = await getDatabase()
+  const database = await getDatabase()
 
-    const messageCount =
-        (
-            await database.getFirstAsync<{ count: number }>(
-                'SELECT COUNT(*) as count FROM messages',
-            )
-        )?.count || 0
+  const messageCount =
+    (await database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM messages'))
+      ?.count || 0
 
-    // Note: Getting actual file size requires native module or file system access
-    // For now, return 0 or estimate based on row count
-    const databaseSize = 0
+  // Note: Getting actual file size requires native module or file system access
+  // For now, return 0 or estimate based on row count
+  const databaseSize = 0
 
-    return {
-        messageCount,
-        databaseSize,
-    }
+  return {
+    messageCount,
+    databaseSize,
+  }
 }

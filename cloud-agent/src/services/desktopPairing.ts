@@ -17,7 +17,9 @@ interface PairingQuery {
   get(): Promise<{ docs: Array<{ id: string; ref: { delete(): Promise<unknown> } }> }>
 }
 
-function now() { return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown) }
+function now() {
+  return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown)
+}
 
 const pairingPath = (tokenHash: string) => `desktopPairings/${tokenHash}`
 const devicePath = (uid: string, deviceId: string) => `users/${uid}/devices/${deviceId}`
@@ -36,9 +38,14 @@ export async function pairDesktopDevice(
   const { token, tokenHash } = generatePairingToken()
   const deviceId = randomUUID()
   await db.doc(devicePath(uid, deviceId)).set({
-    deviceId, type: 'desktop', deviceName,
-    active: true, isPaused: false, online: false,
-    connectedInstanceId: null, lastSeenAt: null,
+    deviceId,
+    type: 'desktop',
+    deviceName,
+    active: true,
+    isPaused: false,
+    online: false,
+    connectedInstanceId: null,
+    lastSeenAt: null,
     registeredAt: now(),
   })
   await db.doc(pairingPath(tokenHash)).set({ uid, deviceId, createdAt: now() })
@@ -60,12 +67,17 @@ export async function resolvePairingToken(
   return { uid: data.uid, deviceId: data.deviceId }
 }
 
-export async function revokeDesktopDevice(db: PairingFirestore, uid: string, deviceId: string): Promise<void> {
+export async function revokeDesktopDevice(
+  db: PairingFirestore,
+  uid: string,
+  deviceId: string,
+): Promise<void> {
   const deviceRef = db.doc(devicePath(uid, deviceId))
   if (deviceRef.delete) await deviceRef.delete()
 
   if (db.collection) {
-    const snap = await db.collection('desktopPairings')
+    const snap = await db
+      .collection('desktopPairings')
       .where('uid', '==', uid)
       .where('deviceId', '==', deviceId)
       .get()

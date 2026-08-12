@@ -1,4 +1,8 @@
-import { getCloudAgentBaseUrl, isLocalCloudAgentUrl, resolveCloudAgentCharacterId } from '../../shared/localCloudAgent'
+import {
+  getCloudAgentBaseUrl,
+  isLocalCloudAgentUrl,
+  resolveCloudAgentCharacterId,
+} from '../../shared/localCloudAgent'
 import {
   GCP_CREDENTIALS_DEV_CONSOLE_HINT,
   GCP_CREDENTIALS_EXPIRED_CODE,
@@ -117,8 +121,8 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
     }
     warnCloudAgentDevHint(
       errorBody?.code === 'INTERNAL_ERROR'
-        ? errorBody?.message ?? errorBody?.error
-        : errorBody?.error ?? errorBody?.message,
+        ? (errorBody?.message ?? errorBody?.error)
+        : (errorBody?.error ?? errorBody?.message),
       errorBody?.code,
     )
     throw new Error(`Cloud Agent responded with ${response.status}`)
@@ -201,15 +205,17 @@ async function runViaWebSocket(
     const handleOpen = () => {
       clearTimeout(connectTimeout)
       ws.send(JSON.stringify({ type: 'auth', token }))
-      ws.send(JSON.stringify({
-        type: 'agent_run',
-        message,
-        characterId,
-        history,
-        unsyncedHistory,
-        timezone,
-        attachments,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'agent_run',
+          message,
+          characterId,
+          history,
+          unsyncedHistory,
+          timezone,
+          attachments,
+        }),
+      )
     }
 
     const handleMessage = (event: MessageEvent) => {
@@ -225,7 +231,11 @@ async function runViaWebSocket(
 
         if (msg.type === 'error') {
           settle(() => {
-            try { ws.close() } catch { /* ignore */ }
+            try {
+              ws.close()
+            } catch {
+              /* ignore */
+            }
             reject(mapWebSocketError(msg.code ?? 'UNKNOWN', msg.message ?? 'Unknown error'))
           })
           return
@@ -257,7 +267,11 @@ async function runViaWebSocket(
         }
       } catch (err) {
         settle(() => {
-          try { ws.close() } catch { /* ignore */ }
+          try {
+            ws.close()
+          } catch {
+            /* ignore */
+          }
           reject(new Error(`Failed to parse WebSocket message: ${err}`))
         })
       }
@@ -275,7 +289,11 @@ async function runViaWebSocket(
     // Guard against sockets that never reach `open`.
     connectTimeout = setTimeout(() => {
       settle(() => {
-        try { ws.close() } catch { /* ignore */ }
+        try {
+          ws.close()
+        } catch {
+          /* ignore */
+        }
         reject(new Error('WebSocket connection timeout'))
       })
     }, WS_CONNECT_TIMEOUT_MS)

@@ -14,11 +14,7 @@
  */
 
 import type { SQLiteDatabase } from 'expo-sqlite'
-import {
-  getSourceTypeEnumMigrationSql,
-  initWiki,
-  _resetWikiForTests,
-} from '~/services/wikiService'
+import { getSourceTypeEnumMigrationSql, initWiki, _resetWikiForTests } from '~/services/wikiService'
 
 // Mock expo-sqlite to use better-sqlite3 for testing
 jest.mock('expo-sqlite', () => {

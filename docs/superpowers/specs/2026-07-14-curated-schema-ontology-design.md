@@ -12,6 +12,7 @@
 Clanker's warm-agent memory system needs a lightweight, high-precision ontology to type facts as they enter the knowledge graph. The ontology itself — a **9-node, 28-edge Schema.org-aligned manifest** — is now published as `@equationalapplications/schema-org-llm-wiki@4.22.0` (export: `schemaOrgWarmAgentManifest`), designed in the expo-llm-wiki spec `2026-07-14-polymorphic-edge-triples-schema-org-package-spec.md`. This document covers Clanker's adoption of that package: why this ontology fits the warm-agent domain, and how it deploys through Clanker's edge/cloud sync architecture.
 
 **Key properties:**
+
 - All types and properties are Schema.org-standard (future JSON-LD export compatibility)
 - 9 node types fit easily in LLM context (~2KB manifest, ~500 tokens per prompt)
 - 28 edges cover the full warm-agent domain; polymorphic Schema.org properties (`location`, `organizer`, `about`, `itemReviewed`) appear as multiple `(type, source, target)` rows, supported natively since core 4.22.0's triple-keyed edge validation
@@ -50,14 +51,15 @@ Select 9 high-value Schema.org types relevant to the warm-agent domain and expre
 
 The 9 types balance coverage across four knowledge domains:
 
-| Domain | Types | Purpose |
-|--------|-------|---------|
-| **Identity & Social** | `person`, `organization` | User's social graph (friends, family, colleagues, institutions) |
-| **Spatial & Temporal** | `place`, `event` | Locations and scheduled/historical events |
-| **Execution** | `project`, `action` | Goals, initiatives, and individual tasks/steps |
-| **Content & Opinion** | `creativework`, `review`, `product` | Media consumption, possessions, and personal evaluations |
+| Domain                 | Types                               | Purpose                                                         |
+| ---------------------- | ----------------------------------- | --------------------------------------------------------------- |
+| **Identity & Social**  | `person`, `organization`            | User's social graph (friends, family, colleagues, institutions) |
+| **Spatial & Temporal** | `place`, `event`                    | Locations and scheduled/historical events                       |
+| **Execution**          | `project`, `action`                 | Goals, initiatives, and individual tasks/steps                  |
+| **Content & Opinion**  | `creativework`, `review`, `product` | Media consumption, possessions, and personal evaluations        |
 
 **Omitted types and rationale:**
+
 - `Goal` — not Schema.org-standard; use `Project` (goals are multi-step initiatives) or `Action` (atomic tasks)
 - `LocalBusiness`, `SportsTeam`, `Team` — special cases of `Organization`; unified under one type reduces classification load
 - `Article`, `VideoObject` — subtypes of `CreativeWork`; LLM can extract video-specific properties inside a `CreativeWork` fact if needed
@@ -75,60 +77,60 @@ The authoritative edge list is `schemaOrgWarmAgentManifest.edge_types` in the pa
 
 #### A. Identity & Social (5 edges)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
-| `knows` | person | person | Friendship, acquaintance, or general connection |
-| `spouse` | person | person | Spousal or long-term partner relationship |
-| `parent` | person | person | Source is the **child**, target is the parent (Schema.org direction) |
-| `worksFor` | person | organization | Employment or primary professional affiliation |
-| `memberOf` | person | organization | Clubs, associations, communities |
+| Edge       | Source | Target       | Notes                                                                |
+| ---------- | ------ | ------------ | -------------------------------------------------------------------- |
+| `knows`    | person | person       | Friendship, acquaintance, or general connection                      |
+| `spouse`   | person | person       | Spousal or long-term partner relationship                            |
+| `parent`   | person | person       | Source is the **child**, target is the parent (Schema.org direction) |
+| `worksFor` | person | organization | Employment or primary professional affiliation                       |
+| `memberOf` | person | organization | Clubs, associations, communities                                     |
 
 #### B. Spatial Mapping (5 edges)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
-| `homeLocation` | person | place | Primary residence |
-| `workLocation` | person | place | Workplace |
-| `location` | event | place | Event venue |
-| `location` | organization | place | Headquarters or primary location |
-| `containedInPlace` | place | place | Source place is inside target place ("Paris is contained in France") |
+| Edge               | Source       | Target | Notes                                                                |
+| ------------------ | ------------ | ------ | -------------------------------------------------------------------- |
+| `homeLocation`     | person       | place  | Primary residence                                                    |
+| `workLocation`     | person       | place  | Workplace                                                            |
+| `location`         | event        | place  | Event venue                                                          |
+| `location`         | organization | place  | Headquarters or primary location                                     |
+| `containedInPlace` | place        | place  | Source place is inside target place ("Paris is contained in France") |
 
 #### C. Execution & Productivity (6 edges)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
-| `subOrganization` | project | project | Target is a sub-project of source (Schema.org: Project ⊂ Organization, so `subOrganization` is the standard containment property; `subProject` does not exist in Schema.org) |
-| `object` | action | project | The project this task advances |
-| `agent` | action | person | Person responsible for or performing the action |
-| `attendee` | event | person | Schema.org Event uses `attendee`, not `participant` |
-| `organizer` | event | person | Person who organized the event |
-| `organizer` | event | organization | Organization hosting the event |
+| Edge              | Source  | Target       | Notes                                                                                                                                                                        |
+| ----------------- | ------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subOrganization` | project | project      | Target is a sub-project of source (Schema.org: Project ⊂ Organization, so `subOrganization` is the standard containment property; `subProject` does not exist in Schema.org) |
+| `object`          | action  | project      | The project this task advances                                                                                                                                               |
+| `agent`           | action  | person       | Person responsible for or performing the action                                                                                                                              |
+| `attendee`        | event   | person       | Schema.org Event uses `attendee`, not `participant`                                                                                                                          |
+| `organizer`       | event   | person       | Person who organized the event                                                                                                                                               |
+| `organizer`       | event   | organization | Organization hosting the event                                                                                                                                               |
 
 #### D. Intellectual & Media (6 edges)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
-| `author` | creativework | person | Author, creator, artist, filmmaker |
+| Edge        | Source       | Target       | Notes                                    |
+| ----------- | ------------ | ------------ | ---------------------------------------- |
+| `author`    | creativework | person       | Author, creator, artist, filmmaker       |
 | `publisher` | creativework | organization | Publisher, platform, studio, distributor |
-| `about` | creativework | person | Content centered on a person |
-| `about` | creativework | organization | Content centered on a company or group |
-| `about` | creativework | place | Travel guide, local history |
-| `about` | creativework | event | Documentary, article about an event |
+| `about`     | creativework | person       | Content centered on a person             |
+| `about`     | creativework | organization | Content centered on a company or group   |
+| `about`     | creativework | place        | Travel guide, local history              |
+| `about`     | creativework | event        | Documentary, article about an event      |
 
 #### E. Subjective Sentiment (5 edges)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
-| `itemReviewed` | review | creativework | Review of a book, movie, article |
-| `itemReviewed` | review | organization | Review of a business, restaurant |
-| `itemReviewed` | review | place | Evaluation of a venue, park, location |
-| `itemReviewed` | review | event | Opinion of an attended event |
-| `itemReviewed` | review | product | Opinion of a tool, device, product |
+| Edge           | Source | Target       | Notes                                 |
+| -------------- | ------ | ------------ | ------------------------------------- |
+| `itemReviewed` | review | creativework | Review of a book, movie, article      |
+| `itemReviewed` | review | organization | Review of a business, restaurant      |
+| `itemReviewed` | review | place        | Evaluation of a venue, park, location |
+| `itemReviewed` | review | event        | Opinion of an attended event          |
+| `itemReviewed` | review | product      | Opinion of a tool, device, product    |
 
 #### F. Possessions (1 edge)
 
-| Edge | Source | Target | Notes |
-|------|--------|--------|-------|
+| Edge   | Source | Target  | Notes                                    |
+| ------ | ------ | ------- | ---------------------------------------- |
 | `owns` | person | product | Item owned (electronics, vehicles, etc.) |
 
 ---
@@ -142,6 +144,7 @@ import { schemaOrgWarmAgentManifest } from '@equationalapplications/schema-org-l
 ```
 
 The package (expo-llm-wiki monorepo, `packages/schema-org`) exports:
+
 - `schemaOrgWarmAgentManifest: OntologyManifest` — the 9-node / 28-edge constant
 - Re-exported types: `OntologyManifest`, `OntologyNodeType`, `OntologyEdgeType` (from `@equationalapplications/core-llm-wiki`)
 
@@ -188,15 +191,18 @@ All node types and properties are Schema.org-standard with standard domain/range
 Manifest correctness (9 types present, 28 valid edges, no duplicate triples, snapshot) is tested **in the package** (`packages/schema-org/__tests__/manifest.test.ts`) — Clanker does not re-test the constant. Clanker's tests cover the adoption seam:
 
 ### Unit: Seeding
+
 - New character with no local or cloud manifest → `setOntologyManifest` called with `schemaOrgWarmAgentManifest`, mode `strict`
 - Character with existing manifest (local or from cloud bundle) → seed skipped, existing manifest wins
 - Seed failure is reported (existing `reportWikiOpForCharacter` path), sync continues
 
 ### Integration: LLM Classification
+
 - Backfill and librarian prompts with this manifest classify facts into the 9 types
 - Sample 50 real warm-agent memory facts; confirm edge assignments, including polymorphic cases (`itemReviewed` resolving to different targets, `location` on event vs. organization)
 
 ### System: Graph Queries
+
 - `wiki_traverse_graph` filters correctly by type and edge on both edge and cloud
 - Queries like "all people Alice knows", "all restaurants Alice reviewed", "all projects containing this task"
 - Pre-ontology facts backfill into this schema without type conflicts
@@ -214,17 +220,17 @@ Manifest correctness (9 types present, 28 valid edges, no duplicate triples, sna
 
 ## Appendix: Schema.org Alignment
 
-| Clanker Type | Schema.org | Notes |
-|--------------|-----------|-------|
-| `person` | schema.org/Person | ✓ Standard |
-| `organization` | schema.org/Organization | ✓ Standard (covers Company, SportsTeam, LocalBusiness, School, etc.) |
-| `place` | schema.org/Place | ✓ Standard (covers City, Landmark, PostalAddress, etc.) |
-| `event` | schema.org/Event | ✓ Standard |
-| `project` | schema.org/Project | ✓ Standard (subtype of Organization — hence `subOrganization` for nesting) |
-| `action` | schema.org/Action | ✓ Standard |
-| `creativework` | schema.org/CreativeWork | ✓ Standard (parent of Article, VideoObject, Movie, Book, etc.) |
-| `review` | schema.org/Review | ✓ Standard (`itemReviewed` domain includes Review; Rating has no such property) |
-| `product` | schema.org/Product | ✓ Standard |
+| Clanker Type   | Schema.org              | Notes                                                                           |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `person`       | schema.org/Person       | ✓ Standard                                                                      |
+| `organization` | schema.org/Organization | ✓ Standard (covers Company, SportsTeam, LocalBusiness, School, etc.)            |
+| `place`        | schema.org/Place        | ✓ Standard (covers City, Landmark, PostalAddress, etc.)                         |
+| `event`        | schema.org/Event        | ✓ Standard                                                                      |
+| `project`      | schema.org/Project      | ✓ Standard (subtype of Organization — hence `subOrganization` for nesting)      |
+| `action`       | schema.org/Action       | ✓ Standard                                                                      |
+| `creativework` | schema.org/CreativeWork | ✓ Standard (parent of Article, VideoObject, Movie, Book, etc.)                  |
+| `review`       | schema.org/Review       | ✓ Standard (`itemReviewed` domain includes Review; Rating has no such property) |
+| `product`      | schema.org/Product      | ✓ Standard                                                                      |
 
 All 28 edge properties are Schema.org-standard with standard domain/range definitions; polymorphic domain/range pairs are preserved as separate manifest rows rather than renamed.
 

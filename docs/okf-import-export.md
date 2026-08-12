@@ -24,11 +24,11 @@ entities/
 
 ## Restore vs. Clone
 
-| Mode | Target | Behavior |
-|------|--------|----------|
-| Merge (default) | existing character | Upserts facts/tasks whose imported `updated_at` is newer than the local row. Events/edges are inserted if new (by id/tuple), never updated. |
-| Replace | existing character | Soft-deletes existing facts/tasks, hard-deletes edges, before importing. **Events are never cleared in either mode** — there is no bulk-delete for events in the underlying package. |
-| Clone | brand-new character | Regenerates fact/task ids before import (see ID Remapping) so the new character's rows can't collide with the source character's still-existing rows. |
+| Mode            | Target              | Behavior                                                                                                                                                                             |
+| --------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Merge (default) | existing character  | Upserts facts/tasks whose imported `updated_at` is newer than the local row. Events/edges are inserted if new (by id/tuple), never updated.                                          |
+| Replace         | existing character  | Soft-deletes existing facts/tasks, hard-deletes edges, before importing. **Events are never cleared in either mode** — there is no bulk-delete for events in the underlying package. |
+| Clone           | brand-new character | Regenerates fact/task ids before import (see ID Remapping) so the new character's rows can't collide with the source character's still-existing rows.                                |
 
 ## Known Gaps in the Underlying Package
 
@@ -41,9 +41,9 @@ entities/
   uniqueness constraint beyond `id` (unlike edges, which have
   `UNIQUE(entity_id, source_id, target_id, edge_type)`). `okfImportDedupe.ts`
   works around this by filtering events whose `(event_type, summary, UTC-day
-  of created_at)` tuple already exists on the target entity before import.
+of created_at)` tuple already exists on the target entity before import.
 - **Cross-entity id collision is silently skipped, not merged or overwritten.**
-  `doImportEntity` looks up each fact/task id across the *entire* local
+  `doImportEntity` looks up each fact/task id across the _entire_ local
   database, not scoped to the importing entity. If a row with that id exists
   under a different, still-live entity, the import skips it — no exception,
   no count of what was skipped. This is why cloning requires

@@ -42,21 +42,26 @@ Success path, after the `try/catch`:
 // Best-effort: type facts that bypassed the librarian (cloud-agent writes,
 // pre-ontology facts). One batch per sync; backlog converges across syncs.
 for (const char of cloudChars) {
-    try {
-        const result = await wiki.runOntologyBackfill(char.id)
-        if (__DEV__) console.log(`[ontology:backfill] ${char.id}`, result)
-        if (result.scanned > 0 && result.typed === 0) {
-            reportWikiOpForCharacter(
-                new Error(`Backfill batch classified nothing: ${JSON.stringify(result)}`),
-                `wiki:${char.id}:ontology:backfill:stalled`,
-                char.id,
-                'Ontology backfill stalled',
-            )
-        }
-    } catch (err) {
-        if (err instanceof WikiBusyError) continue
-        reportWikiOpForCharacter(err, `wiki:${char.id}:ontology:backfill`, char.id, 'Ontology backfill failed')
+  try {
+    const result = await wiki.runOntologyBackfill(char.id)
+    if (__DEV__) console.log(`[ontology:backfill] ${char.id}`, result)
+    if (result.scanned > 0 && result.typed === 0) {
+      reportWikiOpForCharacter(
+        new Error(`Backfill batch classified nothing: ${JSON.stringify(result)}`),
+        `wiki:${char.id}:ontology:backfill:stalled`,
+        char.id,
+        'Ontology backfill stalled',
+      )
     }
+  } catch (err) {
+    if (err instanceof WikiBusyError) continue
+    reportWikiOpForCharacter(
+      err,
+      `wiki:${char.id}:ontology:backfill`,
+      char.id,
+      'Ontology backfill failed',
+    )
+  }
 }
 ```
 

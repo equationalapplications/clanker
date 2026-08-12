@@ -9,7 +9,11 @@ import { useCharacter } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
-import { liveVoiceMachine, type LiveVoiceEvent, type LiveVoiceSyncPhase } from '~/machines/liveVoiceMachine'
+import {
+  liveVoiceMachine,
+  type LiveVoiceEvent,
+  type LiveVoiceSyncPhase,
+} from '~/machines/liveVoiceMachine'
 
 /** Return value of useLiveVoiceChat — exposes machine state and call controls. */
 export interface UseLiveVoiceChatReturn {
@@ -135,11 +139,10 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     }
 
     if (typeof remainingCredits === 'number' && remainingCredits < MIN_CREDITS_FOR_CALL) {
-      Alert.alert(
-        'Not Enough Power',
-        'Live voice calls need more Power. Recharge to continue.',
-        [{ text: 'Cancel' }, { text: 'Get More', onPress: () => router.push('/subscribe') }],
-      )
+      Alert.alert('Not Enough Power', 'Live voice calls need more Power. Recharge to continue.', [
+        { text: 'Cancel' },
+        { text: 'Get More', onPress: () => router.push('/subscribe') },
+      ])
       return
     }
 
@@ -149,7 +152,10 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
         'Live voice chat needs cloud sync enabled so your AI can access your memory. Enable it in character settings.',
         [
           { text: 'Cancel' },
-          { text: 'Enable Sync', onPress: () => router.push(`/characters/${characterId}/edit` as Href) },
+          {
+            text: 'Enable Sync',
+            onPress: () => router.push(`/characters/${characterId}/edit` as Href),
+          },
         ],
       )
       return

@@ -95,10 +95,7 @@ function escapeHtmlAttr(value) {
 function inlineFormat(value) {
   let out = escapeHtml(value)
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-  out = out.replace(
-    /(https?:\/\/[^\s<>()]+)/g,
-    '<a href="$1" rel="noopener noreferrer">$1</a>',
-  )
+  out = out.replace(/(https?:\/\/[^\s<>()]+)/g, '<a href="$1" rel="noopener noreferrer">$1</a>')
   out = out.replace(
     /([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g,
     '<a href="mailto:$1">$1</a>',
@@ -235,7 +232,16 @@ const FOOTER = `
       <a href="https://equationalapplications.com/" rel="noopener noreferrer">Equational Applications LLC</a>
     </footer>`
 
-function renderDocPage({ slug, pageTitle, h1, description, version, lastUpdated, bodyHtml, extraHtml }) {
+function renderDocPage({
+  slug,
+  pageTitle,
+  h1,
+  description,
+  version,
+  lastUpdated,
+  bodyHtml,
+  extraHtml,
+}) {
   const canonical = `${SITE}/${slug}`
   return `<!DOCTYPE html>
 <html lang="en">
@@ -471,16 +477,8 @@ function renderWelcomeFeatureCard(feature) {
 }
 
 function generateWelcome() {
-  const {
-    SITE_META,
-    SITE_BASE,
-    JSONLD,
-    HERO,
-    FEATURES,
-    FEATURES_SECTION,
-    VIDEO,
-    FOOTER_LINKS,
-  } = loadTsModule(path.join(ROOT, 'src/config/landingConfig.ts'))
+  const { SITE_META, SITE_BASE, JSONLD, HERO, FEATURES, FEATURES_SECTION, VIDEO, FOOTER_LINKS } =
+    loadTsModule(path.join(ROOT, 'src/config/landingConfig.ts'))
 
   const canonical = `${SITE_BASE}${SITE_META.canonicalPath}`
   const jsonLd = JSON.stringify({
@@ -665,7 +663,9 @@ function generateSitemap({ privacy, terms }) {
     .map((page) => {
       const lastmod = page.lastmod ?? lastmodFromFile(page.lastmodFile)
       const lastmodTag = lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''
-      const changefreqTag = page.changefreq ? `\n    <changefreq>${page.changefreq}</changefreq>` : ''
+      const changefreqTag = page.changefreq
+        ? `\n    <changefreq>${page.changefreq}</changefreq>`
+        : ''
       return `  <url>
     <loc>${SITE}${page.loc}</loc>${lastmodTag}${changefreqTag}
     <priority>${page.priority}</priority>
