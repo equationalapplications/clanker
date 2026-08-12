@@ -42,10 +42,7 @@ export async function handleWsUpgrade(
   const cs = options.creditService ?? createCreditService(db)
   const verifyToken =
     options.verifyToken ??
-    ((token: string) =>
-      services.auth
-        .verifyIdToken(token)
-        .then((d) => ({ uid: d.uid })))
+    ((token: string) => services.auth.verifyIdToken(token).then((d) => ({ uid: d.uid })))
 
   let userId: string | null = null
   let authTimer: ReturnType<typeof setTimeout>

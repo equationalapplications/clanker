@@ -160,10 +160,7 @@ export async function handleLiveWsUpgrade(
   const cs = options.creditService ?? createCreditService(db)
   const verifyToken =
     options.verifyToken ??
-    ((token: string) =>
-      services.auth
-        .verifyIdToken(token)
-        .then((d) => ({ uid: d.uid })))
+    ((token: string) => services.auth.verifyIdToken(token).then((d) => ({ uid: d.uid })))
   const liveConnect = options.liveConnect ?? defaultLiveConnect
   const billingIntervalMs = options.billingIntervalMs ?? 60_000
   const billingGraceMs = options.billingGraceMs

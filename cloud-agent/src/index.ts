@@ -715,9 +715,7 @@ if (process.env.NODE_ENV !== 'test') {
   const verifyToken = isMockAuth
     ? async (_token: string) => ({ uid: 'local_test_user_123' })
     : (token: string) =>
-        services.auth
-          .verifyIdToken(token)
-          .then((d: { uid: string }) => ({ uid: d.uid }))
+        services.auth.verifyIdToken(token).then((d: { uid: string }) => ({ uid: d.uid }))
   const appOptions = { verifyToken, db, runAgentFn: runAgentReal }
 
   const app = createApp(appOptions)

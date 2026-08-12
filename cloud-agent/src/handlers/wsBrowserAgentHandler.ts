@@ -52,10 +52,7 @@ export function handleBrowserWsUpgrade(
 ): void {
   const verifyToken =
     options.verifyToken ??
-    ((t: string) =>
-      services.auth
-        .verifyIdToken(t)
-        .then((d) => ({ uid: d.uid })))
+    ((t: string) => services.auth.verifyIdToken(t).then((d) => ({ uid: d.uid })))
   const resolveUserId = options.resolveUserId ?? (async (u: string) => u)
   const validateDevice = options.validateDevice ?? (async () => true)
   const fs = options.firestoreSession
