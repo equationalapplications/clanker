@@ -12,6 +12,11 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Every step below must be a *gate*: it reads the tree and fails, and never
+# rewrites it. A step that writes (prettier --write, eslint --fix) always exits 0
+# on anything it can auto-fix, so it reports success while proving nothing — and
+# it shifts line numbers out from under every stack trace in the log. Use the
+# `:check` variants here; use the writing variants locally.
 jobs:
   run-staging-tests:
     runs-on: ubuntu-latest
@@ -23,28 +28,63 @@ jobs:
       - name: 🏗 Setup repo
         uses: actions/checkout@v6
 
+      # Must match the deployed runtime: `node:24-slim` in the cloud-agent
+      # Dockerfile, `"runtime": "nodejs24"` in firebase.json, and
+      # `engines.node: "24"` in functions/package.json.
       - name: 🏗 Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: 'npm'
 
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: ✨ Format and Lint
-        run: |
-          npm run format
-          npm run lint
+      - name: 🎨 Check formatting
+        run: npm run format:check
+
+      - name: 🔍 Lint
+        run: npm run lint:check
+
+      # Jest transforms TypeScript through Babel, which strips types without
+      # checking them. Without these steps a type error reaches staging as long
+      # as the tests pass.
+      - name: 🧠 Typecheck root
+        run: npm run typecheck
 
       - name: 🧪 Test with Jest
         run: npm run test
 
+      - name: 📦 Install cloud-agent dependencies
+        run: cd cloud-agent && npm ci
+
+      - name: 🧠 Typecheck cloud-agent
+        run: cd cloud-agent && npm run typecheck
+
+      # shared/ is compiled into cloud-agent but its tests are excluded from that
+      # build (cloud-agent/tsconfig.json) and from root Jest
+      # (jest.config.js testPathIgnorePatterns), so they run here via tsx.
       - name: 🧪 Test shared bridge (node:test)
-        run: cd cloud-agent && npm ci && node --import tsx/esm --test ../shared/constants.test.ts ../shared/dsl-schema.test.ts ../shared/hostPolicy.test.ts
+        run: cd cloud-agent && node --import tsx/esm --test ../shared/constants.test.ts ../shared/dsl-schema.test.ts ../shared/hostPolicy.test.ts
+
+      - name: 🧪 Test Cloud Agent
+        run: cd cloud-agent && npm test
+
+      - name: 📦 Install functions dependencies
+        run: cd functions && npm ci
+
+      - name: 🧠 Typecheck functions
+        run: cd functions && npm run typecheck
+
+      - name: 🧪 Test functions
+        run: cd functions && npm test
 
       - name: 🧪 Test Desktop Bridge extension
         run: cd extension && npm ci && npm test
 
-      - name: 🧪 Test Cloud Agent
-        run: cd cloud-agent && npm test
+# Not run here, by design:
+#   - src/services/__tests__/edgeAgentEvals.int.test.ts — live edge-agent evals.
+#     Manual only, via `npm run edge-evals` (jest.evals.config.js). Costs money
+#     per run and needs live credentials.
+#   - cloud-agent/src/agent.live.test.ts — gated behind RUN_LIVE_TESTS=1 and
+#     reported as skipped. Manual only, via `npm run test:live` in cloud-agent.
