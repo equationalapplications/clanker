@@ -141,10 +141,7 @@
     "semantic-release-react-native": "^1.12.2",
     "typescript": "~6.0.3"
   },
-  "overrides": {
-    "@babel/core": "^7.29.7",
-    "postcss": "8.5.24"
-  },
+  "overrides": {},
   "license": "MIT",
   "expo": {
     "router": {
