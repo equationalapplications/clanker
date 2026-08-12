@@ -621,7 +621,7 @@ const handler = async (
 
   let reply: string
   let spendAllocations: CreditSpendAllocation[] | null = null
-  let remainingCredits = 0
+  let remainingCredits: number
 
   try {
     const cost = computeReplyCost(tools)

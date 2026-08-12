@@ -315,7 +315,7 @@ const handler = async (
 
   let imageResult: GeneratedImageResult
   let spendAllocations: CreditSpendAllocation[] | null = null
-  let remainingCredits = 0
+  let remainingCredits: number
 
   try {
     spendAllocations = await chargeForImage(user.id, credits)
