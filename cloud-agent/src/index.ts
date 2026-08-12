@@ -160,7 +160,19 @@ function corsOrigins(): string | string[] | boolean {
 export function selfOrigin(req: IncomingMessage): string | null {
   const host = req.headers.host
   if (!host) return null
-  const scheme = (req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http'
+  let scheme: 'http' | 'https'
+  if ((req.socket as { encrypted?: boolean }).encrypted) {
+    scheme = 'https'
+  } else {
+    // Behind a TLS-terminating proxy (Cloud Run, any managed LB) the public
+    // scheme is https but `req.socket.encrypted` is false inside the container.
+    // `trust proxy` is set for K_SERVICE in `createApp`, so X-Forwarded-Proto
+    // from the immediate hop is trustworthy here. Take the first value to be
+    // robust against an upstream chain that has already prepended entries.
+    const xfp = req.headers['x-forwarded-proto']
+    const forwarded = Array.isArray(xfp) ? xfp[0] : xfp
+    scheme = forwarded?.split(',')[0]?.trim() === 'https' ? 'https' : 'http'
+  }
   return `${scheme}://${host}`
 }
 
