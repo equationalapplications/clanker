@@ -61,7 +61,7 @@
     "@xstate/react": "^6.1.0",
     "dotenv": "^17.4.2",
     "expo": "~57.0.12",
-    "expo-age-range": "^56.0.5",
+    "expo-age-range": "^57.0.3",
     "expo-apple-authentication": "~57.0.1",
     "expo-asset": "~57.0.10",
     "expo-blur": "~57.0.2",
