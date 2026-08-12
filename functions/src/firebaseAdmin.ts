@@ -52,6 +52,9 @@ export { Timestamp, FieldValue }
 export function __setAuthForTest(auth: Auth | null): void {
   authInstance = auth
 }
+export function __getAuthRawForTest(): Auth | null {
+  return authInstance
+}
 export function __setFirestoreForTest(firestore: Firestore | null): void {
   firestoreInstance = firestore
 }

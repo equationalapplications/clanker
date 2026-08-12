@@ -1,4 +1,4 @@
-import { services, __setAuthForTest } from './firebaseAdmin.js'
+import { __getAuthRawForTest, __setAuthForTest } from './firebaseAdmin.js'
 import type { Auth } from 'firebase-admin/auth'
 
 export type FetchCall = {
@@ -22,7 +22,7 @@ export async function withAdminAuthPartialStub<T>(
   authPartial: Partial<Auth>,
   run: () => Promise<T>,
 ): Promise<T> {
-  const originalAuth = services.auth
+  const originalAuth = __getAuthRawForTest()
   __setAuthForTest(authPartial as Auth)
 
   try {
