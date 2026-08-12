@@ -3,17 +3,14 @@
  * Local-first message service with Firebase callable sync hooks
  */
 
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import * as messageDB from '../database/messageDatabase'
 import { logEvent } from '~/services/analyticsService'
 
 /**
  * Get messages for a specific character conversation
  */
-export const getMessages = async (
-  characterId: string,
-  userId: string,
-): Promise<IMessage[]> => {
+export const getMessages = async (characterId: string, userId: string): Promise<Message[]> => {
   try {
     return await messageDB.getMessages(characterId, userId)
   } catch (error) {
@@ -28,10 +25,10 @@ export const getMessages = async (
 export const sendMessage = async (
   characterId: string,
   userId: string,
-  message: Pick<IMessage, '_id' | 'text' | 'user'> & { [key: string]: any },
+  message: Pick<Message, '_id' | 'text' | 'user'> & { [key: string]: any },
 ): Promise<void> => {
   try {
-    // Extract IMessage properties
+    // Extract Message properties
     const { _id, text, user: messageUser, ...additionalData } = message
 
     await messageDB.sendMessage(characterId, userId, text, String(_id), additionalData)
@@ -91,7 +88,7 @@ export const getMessageCount = async (characterId: string, userId: string): Prom
 export const getLastMessage = async (
   characterId: string,
   userId: string,
-): Promise<IMessage | null> => {
+): Promise<Message | null> => {
   try {
     return await messageDB.getLastMessage(characterId, userId)
   } catch (error) {
@@ -107,7 +104,7 @@ export const searchMessages = async (
   characterId: string,
   userId: string,
   searchText: string,
-): Promise<IMessage[]> => {
+): Promise<Message[]> => {
   try {
     return await messageDB.searchMessages(characterId, userId, searchText)
   } catch (error) {
@@ -133,7 +130,7 @@ export const deleteCharacterMessages = async (characterId: string): Promise<void
  */
 export const getMostRecentMessage = async (
   userId: string,
-): Promise<(IMessage & { character_id: string }) | null> => {
+): Promise<(Message & { character_id: string }) | null> => {
   try {
     return await messageDB.getMostRecentMessage(userId)
   } catch (error) {

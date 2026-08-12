@@ -17,7 +17,7 @@ export const organizations = pgTable('organizations', {
   name: text('name').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+})
 ```
 
 Matches the `users` table's column style (`withTimezone`, `.notNull().defaultNow()` on both timestamps).
@@ -25,19 +25,31 @@ Matches the `users` table's column style (`withTimezone`, `.notNull().defaultNow
 ### `organization_members`
 
 ```ts
-export const organizationMembers = pgTable('organization_members', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
-  role: text('role').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  orgUserUniqueIdx: uniqueIndex('organization_members_org_user_unique_idx').on(table.organizationId, table.userId),
-  userIdIdx: index('organization_members_user_id_idx').on(table.userId),
-}));
+export const organizationMembers = pgTable(
+  'organization_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgUserUniqueIdx: uniqueIndex('organization_members_org_user_unique_idx').on(
+      table.organizationId,
+      table.userId,
+    ),
+    userIdIdx: index('organization_members_user_id_idx').on(table.userId),
+  }),
+)
 ```
 
 Decisions:
+
 - **Standalone `uuid` PK** instead of a composite PK on `(organization_id, user_id)`. Matches the `id`-per-row pattern used by `users`, `subscriptions`, `characters`, etc., and leaves room for future per-membership state (e.g. invitation status, soft-delete) without a PK migration.
 - **Unique index on `(organization_id, user_id)`** enforces one membership row per user/org pair — equivalent protection to a composite PK, without making it the primary key.
 - **Separate index on `user_id` alone** — the unique index covers "members of an org" lookups (org_id is the leading column); a standalone `user_id` index covers the reverse direction ("orgs a user belongs to").

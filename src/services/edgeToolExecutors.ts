@@ -1,6 +1,12 @@
 import { readFromWiki, writeToWiki } from './wikiService'
 import type { Wiki } from './wikiService'
-import { createTask, listTasks, updateTask, completeTask, deleteTask } from '~/database/taskDatabase'
+import {
+  createTask,
+  listTasks,
+  updateTask,
+  completeTask,
+  deleteTask,
+} from '~/database/taskDatabase'
 import type { LocalTask } from '~/database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 
@@ -19,7 +25,10 @@ export const edgeToolExecutors: Record<string, ToolExecutor> = {
     }),
 }
 
-export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null): Record<string, ToolExecutor> {
+export function createEdgeToolExecutors(
+  characterId: string,
+  wiki: Wiki | null,
+): Record<string, ToolExecutor> {
   return {
     ...edgeToolExecutors,
     wiki_read: async (args) => {
@@ -27,7 +36,8 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         const query = typeof args.query === 'string' ? args.query.trim() : ''
         if (!wiki || !query) return 'No relevant memories found.'
         const results = await readFromWiki(wiki, characterId, query)
-        const hasMemories = results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
+        const hasMemories =
+          results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
         return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
       } catch (error) {
         console.error('[EdgeAgent] wiki_read failed:', error)
@@ -37,7 +47,8 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
     wiki_write: async (args) => {
       try {
         const summary = typeof args.summary === 'string' ? args.summary.trim() : ''
-        if (!wiki || !summary) return 'Failed to record observation: Invalid input or missing database.'
+        if (!wiki || !summary)
+          return 'Failed to record observation: Invalid input or missing database.'
         await writeToWiki(wiki, characterId, { event_type: 'observation', summary })
         return 'Observation recorded successfully.'
       } catch (error) {
@@ -61,7 +72,9 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         const tasks = await listTasks(characterId)
         const open = tasks.filter((t: LocalTask) => t.status === 'pending' || t.status === 'open')
         if (open.length === 0) return 'No tasks found.'
-        return JSON.stringify(open.map((t: LocalTask) => ({ id: t.id, title: t.title, status: 'open' })))
+        return JSON.stringify(
+          open.map((t: LocalTask) => ({ id: t.id, title: t.title, status: 'open' })),
+        )
       } catch (error) {
         console.error('[EdgeAgent] list_tasks failed:', error)
         return 'Failed to list tasks due to an internal error.'
@@ -127,17 +140,27 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         if (!sourceId) return 'Failed to traverse graph: sourceId is required.'
         if (!wiki) return 'Failed to traverse graph: wiki database is unavailable.'
 
-        const maxDepthRaw = typeof args.maxDepth === 'number' && Number.isFinite(args.maxDepth) ? Math.trunc(args.maxDepth) : undefined
-        const maxDepth = maxDepthRaw !== undefined ? Math.max(1, Math.min(maxDepthRaw, 3)) : undefined
+        const maxDepthRaw =
+          typeof args.maxDepth === 'number' && Number.isFinite(args.maxDepth)
+            ? Math.trunc(args.maxDepth)
+            : undefined
+        const maxDepth =
+          maxDepthRaw !== undefined ? Math.max(1, Math.min(maxDepthRaw, 3)) : undefined
         const direction =
           args.direction === 'inbound' || args.direction === 'outbound' || args.direction === 'both'
             ? args.direction
             : undefined
-        const edgeTypes = Array.isArray(args.edgeTypes) && args.edgeTypes.every((t) => typeof t === 'string')
-          ? (args.edgeTypes as string[])
-          : undefined
+        const edgeTypes =
+          Array.isArray(args.edgeTypes) && args.edgeTypes.every((t) => typeof t === 'string')
+            ? (args.edgeTypes as string[])
+            : undefined
 
-        const neighborhood = await wiki.traverseGraph(characterId, { sourceId, maxDepth, direction, edgeTypes })
+        const neighborhood = await wiki.traverseGraph(characterId, {
+          sourceId,
+          maxDepth,
+          direction,
+          edgeTypes,
+        })
         return formatGraphContext(neighborhood)
       } catch (error) {
         console.error('[EdgeAgent] wiki_traverse_graph failed:', error)

@@ -30,10 +30,16 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </Paragraph>
         </Dialog.Content>
         <Dialog.Actions style={[styles.actions, isLargeScreen && styles.actionsWide]}>
-          {onCancel ? [
-            <Button key="cancel" onPress={onCancel}>Cancel</Button>,
-            <Button key="confirm" onPress={onConfirm}>Confirm</Button>,
-          ] : (
+          {onCancel ? (
+            [
+              <Button key="cancel" onPress={onCancel}>
+                Cancel
+              </Button>,
+              <Button key="confirm" onPress={onConfirm}>
+                Confirm
+              </Button>,
+            ]
+          ) : (
             <Button onPress={onConfirm}>Okay</Button>
           )}
         </Dialog.Actions>

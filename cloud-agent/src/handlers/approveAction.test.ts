@@ -6,12 +6,17 @@ test('handleApproveAction writes approved to auth doc with approvalToken', async
   const updates: Array<{ path: string; data: Record<string, unknown> }> = []
   const fakeDb = {
     doc: (path: string) => ({
-      update: async (data: Record<string, unknown>) => { updates.push({ path, data }) },
+      update: async (data: Record<string, unknown>) => {
+        updates.push({ path, data })
+      },
     }),
   }
 
   await handleApproveAction(fakeDb as never, 'uid1', {
-    sessionId: 'sid1', taskId: 'tid1', approve: true, approvalToken: 'firebase-id-token-abc',
+    sessionId: 'sid1',
+    taskId: 'tid1',
+    approve: true,
+    approvalToken: 'firebase-id-token-abc',
   })
 
   assert.equal(updates.length, 1)
@@ -25,12 +30,17 @@ test('handleApproveAction writes denied to auth doc', async () => {
   const updates: Array<{ path: string; data: Record<string, unknown> }> = []
   const fakeDb = {
     doc: (path: string) => ({
-      update: async (data: Record<string, unknown>) => { updates.push({ path, data }) },
+      update: async (data: Record<string, unknown>) => {
+        updates.push({ path, data })
+      },
     }),
   }
 
   await handleApproveAction(fakeDb as never, 'uid1', {
-    sessionId: 'sid1', taskId: 'tid1', approve: false, approvalToken: 'ignored-on-deny',
+    sessionId: 'sid1',
+    taskId: 'tid1',
+    approve: false,
+    approvalToken: 'ignored-on-deny',
   })
 
   assert.equal(updates[0].data.status, 'denied')

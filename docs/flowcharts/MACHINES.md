@@ -1,6 +1,7 @@
 # machines file dependencies
 
 _Auto-generated. Run `npm run docs:charts` to regenerate._
+
 ```mermaid
 graph LR
   authMachine --> googleSignin
@@ -23,7 +24,6 @@ graph LR
   liveVoiceMachine --> messageDatabase
   liveVoiceMachine --> characterDatabase
   liveVoiceMachine --> groundingMetadata
-  liveVoiceMachine --> aiChatService
   liveVoiceMachine --> characterWikiQueue
   liveVoiceMachine --> liveMemoryQuery
   termsMachine --> apiClient

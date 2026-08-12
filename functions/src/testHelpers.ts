@@ -1,86 +1,76 @@
-import admin from "firebase-admin";
+import { __getAuthRawForTest, __setAuthForTest } from './firebaseAdmin.js'
+import type { Auth } from 'firebase-admin/auth'
 
 export type FetchCall = {
-  url: string;
-  body: string;
-};
+  url: string
+  body: string
+}
 
-export type GetUserStub = (uid: string) => Promise<{email?: string}>;
+export type GetUserStub = (uid: string) => Promise<{ email?: string }>
 
 export type FetchResponder = (
   url: string,
   init: RequestInit | undefined,
-  calls: FetchCall[]
-) => Promise<Response>;
+  calls: FetchCall[],
+) => Promise<Response>
 
 /**
- * General-purpose helper for stubbing partial admin.auth() implementation.
- * Safely shadows and restores the admin.auth function for the test scope.
+ * General-purpose helper for stubbing partial services.auth implementation.
+ * Safely shadows and restores the cached services.auth instance for the test scope.
  */
 export async function withAdminAuthPartialStub<T>(
-  authPartial: Partial<ReturnType<typeof admin.auth>>,
-  run: () => Promise<T>
+  authPartial: Partial<Auth>,
+  run: () => Promise<T>,
 ): Promise<T> {
-  const hadOwnAuth = Object.prototype.hasOwnProperty.call(admin, "auth");
-  const ownAuthDescriptor = hadOwnAuth ? Object.getOwnPropertyDescriptor(admin, "auth") : undefined;
-
-  Object.defineProperty(admin, "auth", {
-    value: (() => authPartial) as typeof admin.auth,
-    writable: true,
-    configurable: true,
-  });
+  const originalAuth = __getAuthRawForTest()
+  __setAuthForTest(authPartial as Auth)
 
   try {
-    return await run();
+    return await run()
   } finally {
-    if (ownAuthDescriptor) {
-      Object.defineProperty(admin, "auth", ownAuthDescriptor);
-    } else {
-      // Remove temporary shadow so prototype getter is used again.
-      delete (admin as Record<string, unknown>).auth;
-    }
+    __setAuthForTest(originalAuth)
   }
 }
 
 /**
- * Convenience wrapper: stubs admin.auth() with just getUser.
+ * Convenience wrapper: stubs services.auth with just getUser.
  * Equivalent to withAdminAuthPartialStub({getUser}, run).
  */
 export async function withAdminAuthStub<T>(
   getUser: GetUserStub,
-  run: () => Promise<T>
+  run: () => Promise<T>,
 ): Promise<T> {
-  return withAdminAuthPartialStub({getUser} as Partial<ReturnType<typeof admin.auth>>, run);
+  return withAdminAuthPartialStub({ getUser } as Partial<Auth>, run)
 }
 
 export async function withFetchStub<T>(
   responder: FetchResponder,
-  run: (calls: FetchCall[]) => Promise<T>
+  run: (calls: FetchCall[]) => Promise<T>,
 ): Promise<T> {
-  const originalFetch = globalThis.fetch;
-  const calls: FetchCall[] = [];
+  const originalFetch = globalThis.fetch
+  const calls: FetchCall[] = []
 
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
+    const url = String(input)
     calls.push({
       url,
-      body: typeof init?.body === "string" ? init.body : "",
-    });
+      body: typeof init?.body === 'string' ? init.body : '',
+    })
 
-    return responder(url, init, calls);
-  }) as typeof fetch;
+    return responder(url, init, calls)
+  }) as typeof fetch
 
   try {
-    return await run(calls);
+    return await run(calls)
   } finally {
-    globalThis.fetch = originalFetch;
+    globalThis.fetch = originalFetch
   }
 }
 
 export async function withAdminAuthAndFetchStubs<T>(
   getUser: GetUserStub,
   responder: FetchResponder,
-  run: (calls: FetchCall[]) => Promise<T>
+  run: (calls: FetchCall[]) => Promise<T>,
 ): Promise<T> {
-  return withAdminAuthStub(getUser, () => withFetchStub(responder, run));
+  return withAdminAuthStub(getUser, () => withFetchStub(responder, run))
 }

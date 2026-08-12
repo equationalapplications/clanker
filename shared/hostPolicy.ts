@@ -30,7 +30,9 @@ export function isBlockedUrl(url: string): { blocked: boolean; reason?: string }
   }
 }
 
-export function findBlockedNavigation(action: SingleAction | SequenceAction): { message: string } | null {
+export function findBlockedNavigation(
+  action: SingleAction | SequenceAction,
+): { message: string } | null {
   if (action.type === 'sequence') {
     for (const step of action.steps) {
       const hit = findBlockedNavigation(step)

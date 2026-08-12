@@ -1,6 +1,4 @@
-import {
-  DEV_CLOUD_CHARACTER_ID,
-} from '../shared/dev-sandbox'
+import { DEV_CLOUD_CHARACTER_ID } from '../shared/dev-sandbox'
 import {
   getCloudAgentBaseUrl,
   isLocalCloudAgentUrl,
@@ -18,9 +16,7 @@ describe('isLocalCloudAgentUrl', () => {
   })
 
   it('returns false for production Cloud Run URLs', () => {
-    expect(
-      isLocalCloudAgentUrl('https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'),
-    ).toBe(false)
+    expect(isLocalCloudAgentUrl('https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app')).toBe(false)
   })
 
   it('returns false for empty input', () => {
@@ -32,8 +28,7 @@ describe('getCloudAgentBaseUrl', () => {
   it('rejects production Cloud Run URL when mock auth is enabled', () => {
     const previousUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
     const previousMockAuth = process.env.EXPO_PUBLIC_USE_MOCK_AUTH
-    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL =
-      'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
     process.env.EXPO_PUBLIC_USE_MOCK_AUTH = 'true'
     try {
       expect(() => getCloudAgentBaseUrl()).toThrow(/mock_token_123/)
@@ -69,8 +64,7 @@ describe('resolveCloudAgentCharacterId', () => {
 
   it('passes through production character IDs when URL is Cloud Run', () => {
     const previousUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
-    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL =
-      'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'https://clanker-cloud-agent-zbvqu57cca-uc.a.run.app'
     try {
       expect(resolveCloudAgentCharacterId(PROD_CHAR_ID)).toBe(PROD_CHAR_ID)
     } finally {

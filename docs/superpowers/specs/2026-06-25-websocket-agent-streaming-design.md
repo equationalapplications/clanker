@@ -24,21 +24,21 @@ Replace the single-awaited HTTP response model of `/agent/run` with server-sent 
 
 ### New Files
 
-| File | Responsibility |
-|---|---|
-| `cloud-agent/src/services/agentCore.ts` | Shared ADK setup: `buildAgent(db, userId, characterId, systemInstruction, timezone, embed)`, tool registration, system prompt assembly. Exported for reuse by both HTTP and WebSocket handlers. |
-| `cloud-agent/src/handlers/wsAgentHandler.ts` | WebSocket `/agent/stream` handler: stateful auth handshake, parallel credit saga, disconnect listener, ADK event→JSON streaming. |
+| File                                         | Responsibility                                                                                                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cloud-agent/src/services/agentCore.ts`      | Shared ADK setup: `buildAgent(db, userId, characterId, systemInstruction, timezone, embed)`, tool registration, system prompt assembly. Exported for reuse by both HTTP and WebSocket handlers. |
+| `cloud-agent/src/handlers/wsAgentHandler.ts` | WebSocket `/agent/stream` handler: stateful auth handshake, parallel credit saga, disconnect listener, ADK event→JSON streaming.                                                                |
 
 ### Modified Files
 
-| File | Change |
-|---|---|
-| `cloud-agent/src/index.ts` | Extract HTTP `/agent/run` handler core logic into `agentCore.ts`. Attach WebSocket server via `ws` library on `/agent/stream`. Keep HTTP handler unchanged for regression safety. |
-| `cloud-agent/src/agent.ts` | Move `buildAgent(...)` function to `agentCore.ts`. Re-export from there in tests and HTTP handler. |
-| `cloud-agent/package.json` | Add `ws` dependency (native WebSocket library). |
-| `src/services/cloudAgentService.ts` (frontend) | Add WebSocket client with optional streaming callbacks (`onToken`, `onToolStart`, `onToolEnd`). If WebSocket connection or auth handshake fails, retry with `POST /agent/run` HTTP endpoint. Mid-stream drops show error toast; user manually retries. |
-| `src/hooks/useAIChat.ts` | Capture WebSocket stream events via `callCloudAgent` callbacks; expose `activeTool: string \| null` and `streamingMessage: IMessage \| null` for real-time UI updates during the Cloud Agent path. |
-| `src/components/ChatView.tsx` | Read `activeTool` from the hook and render a dynamic status indicator in the existing top banner (`accessibilityLiveRegion="polite"`). Prepend `streamingMessage` to GiftedChat messages so reply text streams token-by-token. |
+| File                                                          | Change                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cloud-agent/src/index.ts`                                    | Extract HTTP `/agent/run` handler core logic into `agentCore.ts`. Attach WebSocket server via `ws` library on `/agent/stream`. Keep HTTP handler unchanged for regression safety.                                                                                                                                 |
+| `cloud-agent/src/agent.ts`                                    | Move `buildAgent(...)` function to `agentCore.ts`. Re-export from there in tests and HTTP handler.                                                                                                                                                                                                                |
+| `cloud-agent/package.json`                                    | Add `ws` dependency (native WebSocket library).                                                                                                                                                                                                                                                                   |
+| `src/services/cloudAgentService.ts` (frontend)                | Add WebSocket client with optional streaming callbacks (`onToken`, `onToolStart`, `onToolEnd`). If WebSocket connection or auth handshake fails, retry with `POST /agent/run` HTTP endpoint. Mid-stream drops show error toast; user manually retries.                                                            |
+| `src/hooks/useAIChat.ts`                                      | Capture WebSocket stream events via `callCloudAgent` callbacks; expose `activeTool: string \| null` and `streamingMessage: IMessage \| null` for real-time UI updates during the Cloud Agent path.                                                                                                                |
+| `src/components/ChatView.tsx`                                 | Read `activeTool` from the hook and render a dynamic status indicator in the existing top banner (`accessibilityLiveRegion="polite"`). Prepend `streamingMessage` to GiftedChat messages so reply text streams token-by-token.                                                                                    |
 | Cloud Run deployment config (`cloud-agent/scripts/deploy.sh`) | Set container memory: **512MiB** (up from prior), request timeout: **540 seconds** (9 minutes). Rationale: ADK multi-step tool execution (wiki reads, web searches, task management) requires sustained memory and long timeout to avoid premature Cloud Run eviction. Precedent: `convertDocumentText` callable. |
 
 ---
@@ -50,6 +50,7 @@ Replace the single-awaited HTTP response model of `/agent/run` with server-sent 
 **Client → Server**
 
 Auth handshake (must arrive within 5 seconds of connection):
+
 ```json
 {
   "type": "auth",
@@ -58,6 +59,7 @@ Auth handshake (must arrive within 5 seconds of connection):
 ```
 
 Agent execution request (after auth succeeds):
+
 ```json
 {
   "type": "agent_run",
@@ -78,6 +80,7 @@ Agent execution request (after auth succeeds):
 **Server → Client (streaming)**
 
 Real-time tool visibility (fires when ADK begins tool invocation):
+
 ```json
 {
   "type": "tool_start",
@@ -86,6 +89,7 @@ Real-time tool visibility (fires when ADK begins tool invocation):
 ```
 
 Tool completion (fires when tool finishes, before LLM generates text tokens):
+
 ```json
 {
   "type": "tool_end",
@@ -94,6 +98,7 @@ Tool completion (fires when tool finishes, before LLM generates text tokens):
 ```
 
 Streamed response token (fires repeatedly as LLM generates):
+
 ```json
 {
   "type": "token",
@@ -102,6 +107,7 @@ Streamed response token (fires repeatedly as LLM generates):
 ```
 
 Terminal event (final state after agent loop completes):
+
 ```json
 {
   "type": "usage_snapshot",
@@ -110,6 +116,7 @@ Terminal event (final state after agent loop completes):
 ```
 
 Error event (fired if auth fails, user not found, or other fatal errors; socket closes after):
+
 ```json
 {
   "type": "error",
@@ -123,10 +130,12 @@ Error event (fired if auth fails, user not found, or other fatal errors; socket 
 ### Connection & Authentication Flow
 
 **Step 1: Client Connects**
+
 - Client initiates WebSocket: `new WebSocket('wss://cloud-agent.example.com/agent/stream')`
 - Server accepts connection, pauses. Awaits first message within 5-second timeout.
 
 **Step 2: Auth Handshake**
+
 - Client sends: `{ type: 'auth', token: '<firebaseIdToken>' }`
 - Server extracts token, validates via `admin.auth().verifyIdToken(token)` (identical to HTTP middleware)
 - Server maps Firebase UID → internal `userId` via Cloud SQL `users.firebase_uid` lookup
@@ -134,6 +143,7 @@ Error event (fired if auth fails, user not found, or other fatal errors; socket 
 - On validation failure or timeout: send `{ type: 'error', code: 'UNAUTHORIZED', message: '...' }`, close socket with code 4001
 
 **Step 3: Agent Loop Authorization**
+
 - Server now accepts `{ type: 'agent_run', ... }` payloads
 - Only one `agent_run` per connection allowed; subsequent payloads are rejected
 
@@ -159,6 +169,7 @@ Error event (fired if auth fails, user not found, or other fatal errors; socket 
 **Failure Path (Disconnect Before Completion)**
 
 If socket emits `close` or `error` and `isCompleted === false`:
+
 1. Immediately call `abortController.abort()` on ADK async generator (cancels remaining token fetches, stops tool execution)
 2. Call `refundCredit(userId, transactionId)` to restore the deducted credit
 3. Log event: `{ userId, transactionId, event: 'refund_due_to_disconnect', timestamp }`
@@ -167,6 +178,7 @@ If socket emits `close` or `error` and `isCompleted === false`:
 **Failure Path (Pre-Agent Errors)**
 
 If auth, wiki context query, or system instruction assembly fails before agent loop starts:
+
 1. Call `refundCredit(userId, transactionId)`
 2. Send `{ type: 'error', code: '...', message: '...' }`, close socket
 
@@ -175,6 +187,7 @@ If auth, wiki context query, or system instruction assembly fails before agent l
 ### Frontend Fallback Strategy
 
 **Initial Connection Failure (Connection Refused or Auth Timeout)**
+
 ```typescript
 try {
   const ws = new WebSocket(wsUrl)
@@ -190,6 +203,7 @@ try {
 ```
 
 **Mid-Stream Drop (After Auth, During Agent Execution)**
+
 - Do NOT attempt to resume, reconnect, or fallback to HTTP
 - Reason: Resuming after credit spend creates risk of double-charging if the server-side refund hasn't completed
 - Instead: Show error toast: `"Connection lost. Tap to retry."`
@@ -201,6 +215,7 @@ try {
 ### Frontend UI — Real-Time Tool & Token Display
 
 **`useAIChat.ts`**
+
 - During the Cloud Agent path, pass streaming callbacks to `callCloudAgent`:
   - `onToolStart(name)` → set `activeTool = name`
   - `onToolEnd(name)` → set `activeTool = null`
@@ -209,14 +224,15 @@ try {
 - Return `{ activeTool, streamingMessage }` alongside existing hook values.
 
 **`ChatView.tsx`**
+
 - Merge `streamingMessage` into GiftedChat: `displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages`.
 - In the existing top banner container (`accessibilityLiveRegion="polite"`), render tool-specific status when `activeTool` is set:
 
-| Tool name | Banner text |
-|---|---|
-| `wiki_read` | ⏳ Reading your memory… |
-| `google_search` | ⏳ Searching the web… |
-| *(other)* | ⏳ Using {tool_name}… |
+| Tool name       | Banner text             |
+| --------------- | ----------------------- |
+| `wiki_read`     | ⏳ Reading your memory… |
+| `google_search` | ⏳ Searching the web…   |
+| _(other)_       | ⏳ Using {tool_name}…   |
 
 - Suppress the generic "💭 Thinking…" banner once `activeTool` is set or `streamingMessage.text` is non-empty (tool/status or streamed tokens provide feedback instead).
 
@@ -224,13 +240,13 @@ try {
 
 ### Error Codes & Handling
 
-| Code | Condition | HTTP Status (if applicable) | Socket Close Code |
-|---|---|---|---|
-| `UNAUTHORIZED` | Invalid token, token expired, or UID lookup failed | 401 | 4001 |
-| `CHARACTER_NOT_FOUND` | Character does not exist or does not belong to user | 404 | 4004 |
-| `INSUFFICIENT_CREDITS` | User has zero credits | 402 | 4402 |
-| `INVALID_REQUEST` | Missing required fields in `agent_run` payload | 400 | 4400 |
-| `INTERNAL_ERROR` | ADK failure, wiki context failure, or other unrecoverable error | 500 | 1011 |
+| Code                   | Condition                                                       | HTTP Status (if applicable) | Socket Close Code |
+| ---------------------- | --------------------------------------------------------------- | --------------------------- | ----------------- |
+| `UNAUTHORIZED`         | Invalid token, token expired, or UID lookup failed              | 401                         | 4001              |
+| `CHARACTER_NOT_FOUND`  | Character does not exist or does not belong to user             | 404                         | 4004              |
+| `INSUFFICIENT_CREDITS` | User has zero credits                                           | 402                         | 4402              |
+| `INVALID_REQUEST`      | Missing required fields in `agent_run` payload                  | 400                         | 4400              |
+| `INTERNAL_ERROR`       | ADK failure, wiki context failure, or other unrecoverable error | 500                         | 1011              |
 
 All error codes are sent as `{ type: 'error', code: '...', message: '...' }` before socket close.
 
@@ -239,12 +255,14 @@ All error codes are sent as `{ type: 'error', code: '...', message: '...' }` bef
 ### Infrastructure Requirements
 
 **Cloud Run Container**
+
 - Memory: 512MiB (bumped from prior; provides buffer for WebSocket overhead + sustained multi-step tool execution)
 - Request timeout: 540 seconds (9 minutes; allows for long wiki queries, web searches, and task management loops)
 - Concurrency per instance: default (typically 80–100); WebSocket connections count toward concurrency limits
 
 **Deployment Config**
 Update `cloudbuild.yaml` or `app.yaml`:
+
 ```yaml
 # cloudbuild.yaml example
 steps:
@@ -279,6 +297,7 @@ timeout: 540s
 ## Testing Strategy
 
 ### Unit Tests
+
 - `agentCore.test.ts`: Test `buildAgent()` produces identical output for identical inputs (HTTP and WebSocket share this)
 - `wsAgentHandler.test.ts`: Test auth validation, credit saga, disconnect listener behavior
   - Auth success path (valid token)
@@ -290,11 +309,13 @@ timeout: 540s
   - `ChatView` banner renders `activeTool` labels; GiftedChat shows `streamingMessage`
 
 ### Integration Tests
+
 - HTTP `/agent/run` continues to pass all existing tests (regression guard)
 - WebSocket `/agent/stream` vs. HTTP `/agent/run` produce identical reply text for identical input (contract parity)
 - Credit balance reconciliation: HTTP spend + WebSocket spend + refunds = expected balance
 
 ### Manual QA
+
 - Open WebSocket on slow 3G connection; simulate mid-stream disconnect → verify server refunds credit
 - Auth timeout: delay client auth message >5s → verify socket closes with 4001
 - Token refresh: test with expired Firebase token → verify 4001 close, no credit deduction
@@ -306,17 +327,20 @@ timeout: 540s
 ## Rollout Strategy
 
 **Phase 1: Backend Implementation & Testing**
+
 - Implement `agentCore.ts`, `wsAgentHandler.ts`
 - All tests pass; HTTP endpoint remains unmodified and fully functional
 - Deploy to staging; run integration tests
 
 **Phase 2: Frontend Fallback Implementation**
+
 - Add WebSocket + fallback logic to `cloudAgentService.ts`
 - Feature flag: WebSocket enabled/disabled via environment variable
 - Canary: 5% of Expo app clients → WebSocket (95% continue HTTP)
 - Monitor: connection success rate, refund event frequency, error logs
 
 **Phase 3: Full Rollout**
+
 - Gradually increase WebSocket percentage (10% → 25% → 50% → 100%)
 - Maintain HTTP endpoint indefinitely for legacy app versions and fallback
 - No breaking changes; legacy clients never forced to upgrade
@@ -349,4 +373,3 @@ timeout: 540s
 - **Firebase Auth Verification:** `/cloud-agent/src/index.ts` (lines 335–352, `requireAuth` middleware)
 - **Frontend Cloud Agent Service:** `/src/services/cloudAgentService.ts`
 - **Infrastructure Precedent:** `convertDocumentText` callable Cloud Function (512MiB memory, 540s timeout)
-

@@ -39,7 +39,9 @@ jest.mock('~/config/firebaseConfig', () => ({
 describe('useRegisterExpoPushToken', () => {
   beforeEach(() => {
     __setJestPlatformOS('ios')
-    jest.mocked(Constants).expoConfig = { ...defaultExpoConfig } as unknown as typeof Constants.expoConfig
+    jest.mocked(Constants).expoConfig = {
+      ...defaultExpoConfig,
+    } as unknown as typeof Constants.expoConfig
     window.localStorage.clear()
     mockRegisterExpoPushTokenFn.mockClear()
     jest.clearAllMocks()
@@ -55,7 +57,9 @@ describe('useRegisterExpoPushToken', () => {
     renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
     await waitFor(() => {
       expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: 'test-proj' })
-      expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({ expoPushToken: 'ExponentPushToken[test]' })
+      expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({
+        expoPushToken: 'ExponentPushToken[test]',
+      })
     })
   })
 
@@ -81,7 +85,10 @@ describe('useRegisterExpoPushToken', () => {
     window.localStorage.setItem('EXPO_NOTIFICATIONS_INSTALLATION_ID', 'install-1')
 
     renderHook(() =>
-      useRegisterExpoPushToken({ enabled: true, projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e' }),
+      useRegisterExpoPushToken({
+        enabled: true,
+        projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
+      }),
     )
     await waitFor(() => {
       expect(Notifications.getDevicePushTokenAsync).toHaveBeenCalled()

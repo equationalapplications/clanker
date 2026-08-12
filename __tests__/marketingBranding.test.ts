@@ -13,7 +13,10 @@ const PUBLIC_DIR = path.resolve(__dirname, '..', 'public')
  * output and are out of scope for the rebrand.
  */
 const PAGES = [
-  { slug: 'welcome', title: 'Clanker AI — Personal AI Assistant with Real-Time Voice & OKF Memory' },
+  {
+    slug: 'welcome',
+    title: 'Clanker AI — Personal AI Assistant with Real-Time Voice & OKF Memory',
+  },
   { slug: 'real-time-voice', title: 'Live Real-Time Voice Calls — Clanker AI' },
   { slug: 'advanced-memory', title: 'Advanced AI Memory That Learns — Clanker AI' },
   {
@@ -48,10 +51,7 @@ function extractTitle(html: string): string {
 }
 
 function extractMeta(html: string, attr: 'name' | 'property', key: string): string | null {
-  const pattern = new RegExp(
-    `<meta\\s+${attr}="${key}"\\s+content="([\\s\\S]*?)"\\s*/>`,
-    'i'
-  )
+  const pattern = new RegExp(`<meta\\s+${attr}="${key}"\\s+content="([\\s\\S]*?)"\\s*/>`, 'i')
   const match = html.match(pattern)
   return match ? decodeEntities(match[1].trim()) : null
 }
@@ -67,7 +67,10 @@ function extractJsonLdBlocks(html: string): unknown[] {
 }
 
 /** Flattens a JSON-LD document (including `@graph`) into a list of nodes. */
-function flattenNodes(value: unknown, acc: Record<string, unknown>[] = []): Record<string, unknown>[] {
+function flattenNodes(
+  value: unknown,
+  acc: Record<string, unknown>[] = [],
+): Record<string, unknown>[] {
   if (Array.isArray(value)) {
     value.forEach((item) => flattenNodes(item, acc))
     return acc
@@ -111,9 +114,7 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
 
   it('has a self-referential canonical and og:url', () => {
     expect(html).toContain(`<link rel="canonical" href="https://clanker-ai.com/${slug}" />`)
-    expect(extractMeta(html, 'property', 'og:url')).toBe(
-      `https://clanker-ai.com/${slug}`
-    )
+    expect(extractMeta(html, 'property', 'og:url')).toBe(`https://clanker-ai.com/${slug}`)
   })
 
   it('has valid JSON-LD with no bare-brand product text', () => {
@@ -149,7 +150,7 @@ describe('marketing pages as a whole', () => {
 
   it('declares exactly one SoftwareApplication, named "Clanker AI" with alternateName "Clanker"', () => {
     const apps = all.flatMap(({ html }) =>
-      allNodes(html).filter((node) => node['@type'] === 'SoftwareApplication')
+      allNodes(html).filter((node) => node['@type'] === 'SoftwareApplication'),
     )
     expect(apps).toHaveLength(1)
     expect(apps[0].name).toBe('Clanker AI')
@@ -164,7 +165,7 @@ describe('marketing pages as a whole', () => {
   it('keeps the generator template and public/welcome in agreement on the hero alt', () => {
     const script = fs.readFileSync(
       path.resolve(__dirname, '..', 'scripts', 'generate-static-pages.js'),
-      'utf8'
+      'utf8',
     )
     expect(script).toContain('alt="Clanker AI logo"')
   })

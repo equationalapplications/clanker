@@ -1,39 +1,17 @@
+/**
+ * Height-loop regression tests for ChatComposer.
+ *
+ * With the unified ChatComposer, height is internal state derived from
+ * `onContentSizeChange` and clamped to `[MIN_INPUT_HEIGHT, MAX_INPUT_HEIGHT]`.
+ * There is deliberately no `composerHeight` prop coming in — that is what
+ * kills the height-on-height feedback loop that gifted-chat's Composer
+ * triggered on web. These tests pin that invariant against the real
+ * ChatComposer: it grows with text, clamps at MAX, collapses when emptied,
+ * and terminates under a hostile onContentSizeChange cycle.
+ */
+
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-
-// Regression coverage for ChatComposer.web.tsx specifically: the platform-bare
-// `~/components/ChatComposer` import used by chatComposer.test.tsx resolves to
-// the native module under jest's default haste platform, so it never exercised
-// this file. Importing the .web module directly here closes that gap.
-
-// Simulates the real browser: react-native-web's TextInput re-measures its own
-// scrollHeight whenever the CSS `height` (composerHeight) changes, and reports
-// it via onContentSizeChange → onInputSizeChanged. A static mock can't exercise
-// the feedback loop this causes, so this one re-fires onInputSizeChanged with an
-// alternating height every time it receives a new composerHeight — exactly the
-// adversarial sequence a real textarea produces when our own state update is
-// what caused the next measurement to differ.
-// Module-level switch so the growth test (which wants one clean measurement,
-// not an adversarial feedback simulation) can opt out.
-;(globalThis as any).__composerMockAdversarial__ = true
-
-jest.mock('react-native-gifted-chat', () => {
-  const ReactLib = require('react')
-  // Plain module-scoped toggle rather than a ref: only one composer mounts at
-  // a time in these tests, and a ref mutation here trips react-compiler's
-  // "don't mutate a hook's return value" rule for what is test-only scaffolding.
-  let bumped = false
-  const MockComposer = (props: any) => {
-    ReactLib.useEffect(() => {
-      if (!(globalThis as any).__composerMockAdversarial__) return
-      const delta = bumped ? -20 : 20
-      bumped = !bumped
-      props.onInputSizeChanged?.({ width: 300, height: props.composerHeight + delta })
-    }, [props.composerHeight, props.onInputSizeChanged])
-    return ReactLib.createElement('Composer', { __chatComposerMock: true, ...props })
-  }
-  return { Composer: MockComposer }
-})
 
 jest.mock('~/hooks/useCharacterWiki', () => ({
   useCharacterWiki: () => ({
@@ -72,7 +50,8 @@ jest.mock('react-native-paper', () => {
     Portal: ({ children }: any) => children,
     Button: ({ children, onPress }: any) => ReactLib.createElement(RNText, { onPress }, children),
     Dialog: Object.assign(
-      ({ children, visible }: any) => (visible ? ReactLib.createElement(View, null, children) : null),
+      ({ children, visible }: any) =>
+        visible ? ReactLib.createElement(View, null, children) : null,
       {
         Title: ({ children }: any) => ReactLib.createElement(RNText, null, children),
         Content: ({ children }: any) => ReactLib.createElement(RNText, null, children),
@@ -89,105 +68,238 @@ jest.mock('react-native-paper', () => {
 
 jest.mock('~/components/composer/IngestProgressBar', () => () => null)
 
-import ChatComposerWeb, { MIN_INPUT_HEIGHT } from '~/components/ChatComposer.web'
+import ChatComposer, { MIN_INPUT_HEIGHT, MAX_INPUT_HEIGHT } from '~/components/ChatComposer'
 
-describe('ChatComposer.web — composer height / onInputSizeChanged', () => {
-  // Reproduces the production crash: gifted-chat's Composer only re-fires
-  // onInputSizeChanged when the measured dimensions differ from what it last
-  // reported — it does not know or care that our own state update is what
-  // caused the next measurement to differ. Before the fix, feeding it a
-  // measurement while text is empty fed straight into setInputHeight, which
-  // the collapse-effect immediately fought back to MIN_INPUT_HEIGHT, which
-  // (in a real browser) changes the textarea's own scrollHeight and re-fires
-  // onInputSizeChanged — an infinite loop that trips React error #185
-  // ("Maximum update depth exceeded") on every empty-composer mount.
-  it('ignores size measurements while the input is empty, so the mock browser feedback cannot drive an update loop', () => {
-    // With an empty composer, mounting alone is enough to trigger the loop
-    // pre-fix: the mock's effect fires on the initial composerHeight, reports
-    // a different size, the (old) handler applies it, the collapse-effect
-    // fights it back to MIN_INPUT_HEIGHT, which is itself a composerHeight
-    // change that re-fires the mock's effect — forever. Pre-fix, this mount
-    // throws React's real "Maximum update depth exceeded" invariant.
-    let tree: ReturnType<typeof create>
+const noop = () => {}
+const asyncNoop = async () => true
+const baseProps = {
+  text: '',
+  onChangeText: noop,
+  onSubmit: noop,
+  characterId: 'c',
+  userId: 'u',
+  onSendPhoto: asyncNoop,
+}
+
+describe('ChatComposer — composer height loop', () => {
+  // The unified composer measures via plain TextInput.onContentSizeChange and
+  // clamps the resulting height to [MIN, MAX]. While text is empty, the
+  // collapse pass is the sole authority on the idle height — measurements
+  // do NOT trigger a re-render. Pre-fix (height fed by a composerHeight prop
+  // while the browser re-measured and re-fired), this caused an infinite
+  // render loop (React error #185) on every empty-composer mount.
+  it('ignores size measurements while the input is empty, so the browser feedback cannot drive an update loop', () => {
+    let tree!: ReturnType<typeof create>
     expect(() => {
       act(() => {
-        tree = create(
-          <ChatComposerWeb text="" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
-        )
+        tree = create(<ChatComposer {...baseProps} text="" />)
       })
     }).not.toThrow()
 
-    const composer = tree!.root.findByProps({ __chatComposerMock: true })
-    expect(composer.props.composerHeight).toBe(MIN_INPUT_HEIGHT)
+    const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    // The mount-time height is the idle size — but the test must also
+    // exercise the measurement path it claims to cover. Fire a measurement
+    // while text is empty and assert the height stays at MIN: a regression
+    // that fed the measurement back as the new height would push it above
+    // MIN and the assertion below would fail.
+    act(() => {
+      input.props.onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: 400 } } })
+    })
+    expect(input.props.style.height).toBe(MIN_INPUT_HEIGHT)
   })
 
   it('still grows the composer for non-empty text', () => {
-    ;(globalThis as any).__composerMockAdversarial__ = false
-    let tree: ReturnType<typeof create>
+    let tree!: ReturnType<typeof create>
     act(() => {
-      tree = create(
-        <ChatComposerWeb text="hello" onSend={jest.fn()} characterId="char-1" userId="user-1" />,
-      )
+      tree = create(<ChatComposer {...baseProps} text="hello" />)
     })
 
     act(() => {
-      tree!.root
-        .findByProps({ __chatComposerMock: true })
-        .props.onInputSizeChanged({ width: 300, height: MIN_INPUT_HEIGHT + 20 })
+      tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+        nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 20 } },
+      })
     })
 
-    const composerAfter = tree!.root.findByProps({ __chatComposerMock: true })
-    expect(composerAfter.props.composerHeight).toBeGreaterThan(MIN_INPUT_HEIGHT)
+    const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    expect(input.props.style.height).toBeGreaterThan(MIN_INPUT_HEIGHT)
   })
 
-  // The empty-text loop guard returns early from the measurement handler, so
-  // the upstream onInputSizeChanged no longer fires for those measurements.
-  // That would leave GiftedChat's internal composerHeight state at its last
-  // text-grown value while we render at the collapsed MIN_INPUT_HEIGHT — a
-  // stale offset between the input and the message list. The collapse-effect
-  // is the authority on the idle height, so it must replay a synthetic size
-  // to keep upstream in sync.
-  it('forwards a MIN-height size to upstream onInputSizeChanged when text empties after growth', () => {
-    ;(globalThis as any).__composerMockAdversarial__ = false
-    const upstreamOnInputSizeChanged = jest.fn()
-    let tree: ReturnType<typeof create>
+  it('clamps to MAX_INPUT_HEIGHT when contentSize reports a huge height', () => {
+    let tree!: ReturnType<typeof create>
     act(() => {
-      tree = create(
-        <ChatComposerWeb
-          text="hello"
-          onSend={jest.fn()}
-          characterId="char-1"
-          userId="user-1"
-          onInputSizeChanged={upstreamOnInputSizeChanged}
-        />,
-      )
+      tree = create(<ChatComposer {...baseProps} text="hello" />)
+    })
+
+    act(() => {
+      tree.root
+        .findByProps({ accessibilityLabel: 'Message input' })
+        .props.onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: 9999 } } })
+    })
+
+    const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    expect(input.props.style.height).toBe(MAX_INPUT_HEIGHT)
+  })
+
+  it('collapses to MIN when text empties after growth', () => {
+    let tree!: ReturnType<typeof create>
+    act(() => {
+      tree = create(<ChatComposer {...baseProps} text="hello" />)
     })
 
     // Grow first so the collapse pass has something to fold back down.
     act(() => {
-      tree!.root
-        .findByProps({ __chatComposerMock: true })
-        .props.onInputSizeChanged({ width: 300, height: MIN_INPUT_HEIGHT + 40 })
+      tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+        nativeEvent: { contentSize: { width: 300, height: MIN_INPUT_HEIGHT + 40 } },
+      })
     })
-    upstreamOnInputSizeChanged.mockClear()
 
     act(() => {
-      tree!.update(
-        <ChatComposerWeb
-          text=""
-          onSend={jest.fn()}
-          characterId="char-1"
-          userId="user-1"
-          onInputSizeChanged={upstreamOnInputSizeChanged}
-        />,
+      tree.update(<ChatComposer {...baseProps} text="" />)
+    })
+
+    const input = tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    expect(input.props.style.height).toBe(MIN_INPUT_HEIGHT)
+  })
+
+  it("converges to MIN when the browser ResizeObserver reports the textarea's own scrollHeight (the web-platform loop)", () => {
+    // jest-expo defaults `Platform.OS` to `'ios'`. The web-platform split in
+    // the `onContentSizeChange` handler only fires when `isWeb` is true, so
+    // this test pins that path explicitly.
+    const Platform = require('react-native').Platform as {
+      OS: string
+      setOS?: (os: string) => void
+    }
+    const originalOS = Platform.OS
+    Platform.OS = 'web'
+    try {
+      // On react-native-web the multiline TextInput is a <textarea>. Its
+      // `scrollHeight` includes the textarea's own `paddingVertical`. Once we
+      // drive the textarea's `style.height` above the content's natural size,
+      // `scrollHeight` equals `style.height` exactly — the box reports
+      // itself. The old `onContentSizeChange` handler added
+      // `+ 2*COMPOSER_VERTICAL_PADDING` on top of that, so every setState
+      // produced a height strictly greater than the one we just set, and the
+      // collapse-on-empty effect kept re-asserting `MIN_INPUT_HEIGHT`. The
+      // two fought: 71 → 87 → 71 → 87 → … ResizeObserver fired on every
+      // render, React tripped the 50-update limit, error #185.
+      //
+      // Simulate the browser exactly: each `onContentSizeChange` reports the
+      // textarea's current `style.height` (which is what its `scrollHeight`
+      // would return). The composer must hold at `MIN_INPUT_HEIGHT` and stay
+      // there without driving a render loop.
+      let renderCount = 0
+      const onProfileRender = () => {
+        renderCount += 1
+      }
+
+      let tree!: ReturnType<typeof create>
+      act(() => {
+        tree = create(
+          <React.Profiler id="ChatComposer" onRender={onProfileRender}>
+            <ChatComposer {...baseProps} text="" />
+          </React.Profiler>,
+        )
+      })
+
+      const initialHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props
+        .style.height as number
+      expect(initialHeight).toBe(MIN_INPUT_HEIGHT)
+
+      // Browser ResizeObserver: every layout pass reports the current box
+      // height as `scrollHeight`. Walk the loop the production code triggered
+      // and assert it converges to MIN, with a bounded render count.
+      for (let i = 0; i < 12; i += 1) {
+        const currentHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props
+          .style.height as number
+        act(() => {
+          tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.onContentSizeChange({
+            nativeEvent: { contentSize: { width: 300, height: currentHeight } },
+          })
+        })
+      }
+
+      const finalHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.style
+        .height as number
+      expect(finalHeight).toBe(MIN_INPUT_HEIGHT)
+      // The old loop produced a render per onContentSizeChange. Healthy
+      // behavior is 0 extra renders — the handler's guard short-circuits.
+      expect(renderCount).toBeLessThan(5)
+    } finally {
+      Platform.OS = originalOS
+    }
+  })
+
+  it('terminates under an adversarial onContentSizeChange cycle (no infinite re-render)', () => {
+    // The pre-fix loop: TextInput re-measures its own height whenever the
+    // CSS height changes; the wrapper would re-fire onContentSizeChange with
+    // a different contentSize, which the wrapper would feed back as the
+    // next height, ad infinitum. With the unified composer, every height
+    // passes through the [MIN, MAX] clamp and the empty-text collapse is
+    // the only authority on the idle height — so the cycle has nowhere to
+    // close. Verify the loop terminates: a fixed number of
+    // onContentSizeChange calls produces a bounded render count.
+    //
+    // Counting renders of ChatComposer itself (not a wrapper) — ChatComposer
+    // updates its `inputHeight` state internally, which does not re-render
+    // any parent. React.Profiler counts every commit of its subtree, so its
+    // onRender fires once for the initial mount and once for each internal
+    // re-render.
+    let renderCount = 0
+    const onProfileRender = () => {
+      renderCount += 1
+    }
+
+    let tree!: ReturnType<typeof create>
+    act(() => {
+      tree = create(
+        <React.Profiler id="ChatComposer" onRender={onProfileRender}>
+          <ChatComposer {...baseProps} text="hello" />
+        </React.Profiler>,
       )
     })
 
-    expect(upstreamOnInputSizeChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 300, height: MIN_INPUT_HEIGHT }),
-    )
+    // Hostile sequence: alternates ±50 to drive the measurements back and forth.
+    const heights = [
+      MIN_INPUT_HEIGHT + 50,
+      MIN_INPUT_HEIGHT + 100,
+      MIN_INPUT_HEIGHT + 50,
+      MIN_INPUT_HEIGHT + 200,
+    ]
+    act(() => {
+      for (const h of heights) {
+        tree.root
+          .findByProps({ accessibilityLabel: 'Message input' })
+          .props.onContentSizeChange({ nativeEvent: { contentSize: { width: 300, height: h } } })
+      }
+    })
 
-    const composerAfter = tree!.root.findByProps({ __chatComposerMock: true })
-    expect(composerAfter.props.composerHeight).toBe(MIN_INPUT_HEIGHT)
+    // After the cycle, the height must be one of the clamped values,
+    // and the render count must be bounded (no infinite loop). An infinite
+    // loop would blow past this bound immediately; a healthy cycle clamps
+    // to a handful of distinct heights so the render count is small.
+    const finalHeight = tree.root.findByProps({ accessibilityLabel: 'Message input' }).props.style
+      .height
+    expect(finalHeight).toBeGreaterThanOrEqual(MIN_INPUT_HEIGHT)
+    expect(finalHeight).toBeLessThanOrEqual(MAX_INPUT_HEIGHT)
+    expect(renderCount).toBeLessThan(50)
+  })
+
+  it('fills the composer wrapper on web (textarea must not fall back to cols=20)', () => {
+    // react-native-web 0.21.2 renders <TextInput multiline> as a <textarea>.
+    // Without an explicit `width` in the style, the browser falls back to
+    // `cols=20` (~150–200px) — even inside a `flex: 1` parent, because
+    // <textarea> is `display: inline-block` and a flex row shrinks inline
+    // children to their intrinsic size. Result on the live web deploy: the
+    // wrapper stretched to the Send button but the editable area was a
+    // narrow column on the left. Pin the width here.
+    const input = (() => {
+      let tree!: ReturnType<typeof create>
+      act(() => {
+        tree = create(<ChatComposer {...baseProps} text="" />)
+      })
+      return tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    })()
+
+    expect(input.props.style.width).toBe('100%')
   })
 })

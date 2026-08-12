@@ -1,391 +1,425 @@
-import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import type {DecodedIdToken} from "firebase-admin/auth";
-import {inArray, and, eq, sql} from "drizzle-orm";
-import {CLOUD_SQL_SECRETS} from "./cloudSqlSecrets.js";
-import {userRepository} from "./services/userRepository.js";
-import {creditService as defaultCreditService} from "./services/creditService.js";
-import {getDb} from "./db/cloudSql.js";
-import {WIKI_CREDIT_COST} from "./constants/credits.js";
-import {llmWikiEntries, llmWikiTasks, llmWikiEvents, llmWikiEdges, llmWikiOntology, characters} from "./db/schema.js";
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import type { DecodedIdToken } from 'firebase-admin/auth'
+import { inArray, and, eq, sql } from 'drizzle-orm'
+import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import { userRepository } from './services/userRepository.js'
+import { creditService as defaultCreditService } from './services/creditService.js'
+import { getDb } from './db/cloudSql.js'
+import { WIKI_CREDIT_COST } from './constants/credits.js'
+import {
+  llmWikiEntries,
+  llmWikiTasks,
+  llmWikiEvents,
+  llmWikiEdges,
+  llmWikiOntology,
+  characters,
+} from './db/schema.js'
 import {
   normalizeSourceTypeForExport,
   normalizeSourceTypeForStorage,
   VALID_SYNC_SOURCE_TYPES,
-} from "./wikiSourceType.js";
+} from './wikiSourceType.js'
 
-const DEFAULT_REGION = "us-central1";
+const DEFAULT_REGION = 'us-central1'
 
 interface WikiFact {
-  id: string;
-  entity_id: string;
-  title: string;
-  body: string;
-  confidence: string;
-  tags: string[];
-  source_type?: string | null;
-  source_ref?: string | null;
-  source_hash?: string | null;
-  last_accessed_at?: number | null;
-  access_count?: number | null;
-  created_at: number;
-  updated_at: number;
-  deleted_at?: number | null;
+  id: string
+  entity_id: string
+  title: string
+  body: string
+  confidence: string
+  tags: string[]
+  source_type?: string | null
+  source_ref?: string | null
+  source_hash?: string | null
+  last_accessed_at?: number | null
+  access_count?: number | null
+  created_at: number
+  updated_at: number
+  deleted_at?: number | null
 }
 
 interface WikiTask {
-  id: string;
-  entity_id: string;
-  description: string;
-  status: string;
-  priority: number;
-  created_at: number;
-  updated_at: number;
-  resolved_at?: number | null;
-  deleted_at?: number | null;
+  id: string
+  entity_id: string
+  description: string
+  status: string
+  priority: number
+  created_at: number
+  updated_at: number
+  resolved_at?: number | null
+  deleted_at?: number | null
 }
 
 interface WikiEvent {
-  id: string;
-  entity_id: string;
-  event_type: string;
-  summary: string;
-  created_at: number;
+  id: string
+  entity_id: string
+  event_type: string
+  summary: string
+  created_at: number
 }
 
 interface WikiEdge {
-  id: string;
-  entity_id: string;
-  source_id: string;
-  target_id: string;
-  edge_type: string;
-  created_at: number;
+  id: string
+  entity_id: string
+  source_id: string
+  target_id: string
+  edge_type: string
+  created_at: number
 }
 
 interface WikiOntologyManifest {
-  node_types: { type: string; description: string }[];
-  edge_types: { type: string; source_type: string; target_type: string; description: string }[];
+  node_types: { type: string; description: string }[]
+  edge_types: { type: string; source_type: string; target_type: string; description: string }[]
 }
 
 interface WikiOntology {
-  mode: 'strict' | 'emergent' | 'off';
-  manifest: WikiOntologyManifest | null;
+  mode: 'strict' | 'emergent' | 'off'
+  manifest: WikiOntologyManifest | null
 }
 
 interface MemoryBundle {
-  facts: WikiFact[];
-  tasks: WikiTask[];
-  events: WikiEvent[];
-  edges?: WikiEdge[];
-  ontology?: WikiOntology;
+  facts: WikiFact[]
+  tasks: WikiTask[]
+  events: WikiEvent[]
+  edges?: WikiEdge[]
+  ontology?: WikiOntology
 }
 
 export interface MemoryDump {
-  generatedAt: number;
-  entities: Record<string, MemoryBundle>;
+  generatedAt: number
+  entities: Record<string, MemoryBundle>
 }
 
 interface WikiSyncOptions {
   /** Full-dump upsert override (preferred for tests; supersedes upsertEntries). */
-  upsertData?: (dump: MemoryDump, userId: string) => Promise<void>;
+  upsertData?: (dump: MemoryDump, userId: string) => Promise<void>
   /** Legacy fact-only upsert override; ignored when upsertData is provided. */
-  upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>;
-  validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>;
-  fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>;
-  getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity;
-  creditService?: Pick<typeof defaultCreditService, "spendCredits" | "refundCredit">;
+  upsertEntries?: (entries: WikiFact[], userId: string) => Promise<void>
+  validateEntityOwnership?: (entityIds: string[], userId: string) => Promise<void>
+  fetchMergedDump?: (entityIds: string[], userId: string) => Promise<MemoryDump>
+  getUser?: typeof userRepository.getOrCreateUserByFirebaseIdentity
+  creditService?: Pick<typeof defaultCreditService, 'spendCredits' | 'refundCredit'>
 }
 
-const MAX_ENTITIES = 50;
-const MAX_FACTS_PER_ENTITY = 500;
-const MAX_TASKS_PER_ENTITY = 200;
-const MAX_EVENTS_PER_ENTITY = 500;
-const MAX_EDGES_PER_ENTITY = 500;
+const MAX_ENTITIES = 50
+const MAX_FACTS_PER_ENTITY = 500
+const MAX_TASKS_PER_ENTITY = 200
+const MAX_EVENTS_PER_ENTITY = 500
+const MAX_EDGES_PER_ENTITY = 500
 /** 30-day event retention window in milliseconds — matches runPrune retainEventsFor policy. */
-const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const WIKI_EVENTS_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const VALID_CONFIDENCE = new Set(["certain", "inferred", "tentative"]);
-const VALID_SOURCE_TYPE = VALID_SYNC_SOURCE_TYPES;
+const VALID_CONFIDENCE = new Set(['certain', 'inferred', 'tentative'])
+const VALID_SOURCE_TYPE = VALID_SYNC_SOURCE_TYPES
 
 function assertString(value: unknown, label: string): void {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new HttpsError("invalid-argument", `${label} must be a non-empty string.`);
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new HttpsError('invalid-argument', `${label} must be a non-empty string.`)
   }
 }
 
 function assertNumber(value: unknown, label: string): void {
-  if (typeof value !== "number" || !isFinite(value)) {
-    throw new HttpsError("invalid-argument", `${label} must be a finite number.`);
+  if (typeof value !== 'number' || !isFinite(value)) {
+    throw new HttpsError('invalid-argument', `${label} must be a finite number.`)
   }
 }
 
-const VALID_ONTOLOGY_MODE = new Set(["strict", "emergent", "off"]);
+const VALID_ONTOLOGY_MODE = new Set(['strict', 'emergent', 'off'])
 
 function validateOntology(ontology: unknown, label: string): void {
-  if (!ontology || typeof ontology !== "object" || Array.isArray(ontology)) {
-    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  if (!ontology || typeof ontology !== 'object' || Array.isArray(ontology)) {
+    throw new HttpsError('invalid-argument', `${label} must be an object.`)
   }
-  const o = ontology as Record<string, unknown>;
-  assertString(o.mode, `${label}.mode`);
+  const o = ontology as Record<string, unknown>
+  assertString(o.mode, `${label}.mode`)
   if (!VALID_ONTOLOGY_MODE.has(o.mode as string)) {
-    throw new HttpsError("invalid-argument", `${label}.mode must be one of: strict, emergent, off.`);
+    throw new HttpsError('invalid-argument', `${label}.mode must be one of: strict, emergent, off.`)
   }
-  if (o.mode === "off" && o.manifest == null) {
-    return;
+  if (o.mode === 'off' && o.manifest == null) {
+    return
   }
-  if (!o.manifest || typeof o.manifest !== "object" || Array.isArray(o.manifest)) {
-    throw new HttpsError("invalid-argument", `${label}.manifest must be an object (or null when mode is "off").`);
+  if (!o.manifest || typeof o.manifest !== 'object' || Array.isArray(o.manifest)) {
+    throw new HttpsError(
+      'invalid-argument',
+      `${label}.manifest must be an object (or null when mode is "off").`,
+    )
   }
-  const m = o.manifest as Record<string, unknown>;
+  const m = o.manifest as Record<string, unknown>
   if (!Array.isArray(m.node_types)) {
-    throw new HttpsError("invalid-argument", `${label}.manifest.node_types must be an array.`);
+    throw new HttpsError('invalid-argument', `${label}.manifest.node_types must be an array.`)
   }
   if (!Array.isArray(m.edge_types)) {
-    throw new HttpsError("invalid-argument", `${label}.manifest.edge_types must be an array.`);
+    throw new HttpsError('invalid-argument', `${label}.manifest.edge_types must be an array.`)
   }
   m.node_types.forEach((n, i) => {
-    if (!n || typeof n !== "object" || Array.isArray(n)) {
-      throw new HttpsError("invalid-argument", `${label}.manifest.node_types[${i}] must be an object.`);
+    if (!n || typeof n !== 'object' || Array.isArray(n)) {
+      throw new HttpsError(
+        'invalid-argument',
+        `${label}.manifest.node_types[${i}] must be an object.`,
+      )
     }
-    const node = n as Record<string, unknown>;
-    assertString(node.type, `${label}.manifest.node_types[${i}].type`);
-    assertString(node.description, `${label}.manifest.node_types[${i}].description`);
-  });
+    const node = n as Record<string, unknown>
+    assertString(node.type, `${label}.manifest.node_types[${i}].type`)
+    assertString(node.description, `${label}.manifest.node_types[${i}].description`)
+  })
   m.edge_types.forEach((e, i) => {
-    if (!e || typeof e !== "object" || Array.isArray(e)) {
-      throw new HttpsError("invalid-argument", `${label}.manifest.edge_types[${i}] must be an object.`);
+    if (!e || typeof e !== 'object' || Array.isArray(e)) {
+      throw new HttpsError(
+        'invalid-argument',
+        `${label}.manifest.edge_types[${i}] must be an object.`,
+      )
     }
-    const edge = e as Record<string, unknown>;
-    assertString(edge.type, `${label}.manifest.edge_types[${i}].type`);
-    assertString(edge.source_type, `${label}.manifest.edge_types[${i}].source_type`);
-    assertString(edge.target_type, `${label}.manifest.edge_types[${i}].target_type`);
-    assertString(edge.description, `${label}.manifest.edge_types[${i}].description`);
-  });
+    const edge = e as Record<string, unknown>
+    assertString(edge.type, `${label}.manifest.edge_types[${i}].type`)
+    assertString(edge.source_type, `${label}.manifest.edge_types[${i}].source_type`)
+    assertString(edge.target_type, `${label}.manifest.edge_types[${i}].target_type`)
+    assertString(edge.description, `${label}.manifest.edge_types[${i}].description`)
+  })
 }
 
 function validateFact(fact: unknown, entityId: string, label: string): void {
-  if (!fact || typeof fact !== "object" || Array.isArray(fact)) {
-    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  if (!fact || typeof fact !== 'object' || Array.isArray(fact)) {
+    throw new HttpsError('invalid-argument', `${label} must be an object.`)
   }
-  const f = fact as Record<string, unknown>;
-  assertString(f.id, `${label}.id`);
+  const f = fact as Record<string, unknown>
+  assertString(f.id, `${label}.id`)
   if (f.entity_id !== entityId) {
     throw new HttpsError(
-      "invalid-argument",
-      `${label}.entity_id must match the entity key "${entityId}".`
-    );
+      'invalid-argument',
+      `${label}.entity_id must match the entity key "${entityId}".`,
+    )
   }
-  assertString(f.title, `${label}.title`);
-  assertString(f.body, `${label}.body`);
-  assertString(f.confidence, `${label}.confidence`);
+  assertString(f.title, `${label}.title`)
+  assertString(f.body, `${label}.body`)
+  assertString(f.confidence, `${label}.confidence`)
   if (!VALID_CONFIDENCE.has(f.confidence as string)) {
     throw new HttpsError(
-      "invalid-argument",
-      `${label}.confidence must be one of: certain, inferred, tentative.`
-    );
+      'invalid-argument',
+      `${label}.confidence must be one of: certain, inferred, tentative.`,
+    )
   }
   if (!Array.isArray(f.tags)) {
-    throw new HttpsError("invalid-argument", `${label}.tags must be an array.`);
+    throw new HttpsError('invalid-argument', `${label}.tags must be an array.`)
   }
   f.tags.forEach((tag: unknown, i: number) => {
-    if (typeof tag !== "string") {
-      throw new HttpsError("invalid-argument", `${label}.tags[${i}] must be a string.`);
+    if (typeof tag !== 'string') {
+      throw new HttpsError('invalid-argument', `${label}.tags[${i}] must be a string.`)
     }
-  });
-  if (f.source_ref !== undefined && f.source_ref !== null && typeof f.source_ref !== "string") {
-    throw new HttpsError("invalid-argument", `${label}.source_ref must be a string or null.`);
+  })
+  if (f.source_ref !== undefined && f.source_ref !== null && typeof f.source_ref !== 'string') {
+    throw new HttpsError('invalid-argument', `${label}.source_ref must be a string or null.`)
   }
-  if (f.source_hash !== undefined && f.source_hash !== null && typeof f.source_hash !== "string") {
-    throw new HttpsError("invalid-argument", `${label}.source_hash must be a string or null.`);
+  if (f.source_hash !== undefined && f.source_hash !== null && typeof f.source_hash !== 'string') {
+    throw new HttpsError('invalid-argument', `${label}.source_hash must be a string or null.`)
   }
   if (f.source_type !== undefined && f.source_type !== null) {
-    if (typeof f.source_type !== "string" || !VALID_SOURCE_TYPE.has(f.source_type as string)) {
+    if (typeof f.source_type !== 'string' || !VALID_SOURCE_TYPE.has(f.source_type as string)) {
       throw new HttpsError(
-        "invalid-argument",
-        `${label}.source_type must be one of: ${[...VALID_SOURCE_TYPE].join(", ")}.`
-      );
+        'invalid-argument',
+        `${label}.source_type must be one of: ${[...VALID_SOURCE_TYPE].join(', ')}.`,
+      )
     }
   }
   if (f.last_accessed_at !== undefined && f.last_accessed_at !== null) {
     if (
-      typeof f.last_accessed_at !== "number" ||
+      typeof f.last_accessed_at !== 'number' ||
       !isFinite(f.last_accessed_at as number) ||
       !Number.isInteger(f.last_accessed_at as number)
     ) {
-      throw new HttpsError("invalid-argument", `${label}.last_accessed_at must be an integer or null.`);
+      throw new HttpsError(
+        'invalid-argument',
+        `${label}.last_accessed_at must be an integer or null.`,
+      )
     }
   }
   if (f.access_count !== undefined && f.access_count !== null) {
     if (
-      typeof f.access_count !== "number" ||
+      typeof f.access_count !== 'number' ||
       !isFinite(f.access_count as number) ||
       !Number.isInteger(f.access_count as number) ||
       (f.access_count as number) < 0
     ) {
-      throw new HttpsError("invalid-argument", `${label}.access_count must be a non-negative integer or null.`);
+      throw new HttpsError(
+        'invalid-argument',
+        `${label}.access_count must be a non-negative integer or null.`,
+      )
     }
   }
-  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== "number") {
-    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  if (f.deleted_at !== undefined && f.deleted_at !== null && typeof f.deleted_at !== 'number') {
+    throw new HttpsError('invalid-argument', `${label}.deleted_at must be a number or null.`)
   }
-  assertNumber(f.created_at, `${label}.created_at`);
-  assertNumber(f.updated_at, `${label}.updated_at`);
+  assertNumber(f.created_at, `${label}.created_at`)
+  assertNumber(f.updated_at, `${label}.updated_at`)
 }
 
 function validateTask(task: unknown, entityId: string, label: string): void {
-  if (!task || typeof task !== "object" || Array.isArray(task)) {
-    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  if (!task || typeof task !== 'object' || Array.isArray(task)) {
+    throw new HttpsError('invalid-argument', `${label} must be an object.`)
   }
-  const t = task as Record<string, unknown>;
-  assertString(t.id, `${label}.id`);
+  const t = task as Record<string, unknown>
+  assertString(t.id, `${label}.id`)
   if (t.entity_id !== entityId) {
     throw new HttpsError(
-      "invalid-argument",
-      `${label}.entity_id must match the entity key "${entityId}".`
-    );
+      'invalid-argument',
+      `${label}.entity_id must match the entity key "${entityId}".`,
+    )
   }
-  assertString(t.description, `${label}.description`);
-  assertString(t.status, `${label}.status`);
-  assertNumber(t.priority, `${label}.priority`);
-  assertNumber(t.created_at, `${label}.created_at`);
-  assertNumber(t.updated_at, `${label}.updated_at`);
-  if (t.resolved_at !== undefined && t.resolved_at !== null && typeof t.resolved_at !== "number") {
-    throw new HttpsError("invalid-argument", `${label}.resolved_at must be a number or null.`);
+  assertString(t.description, `${label}.description`)
+  assertString(t.status, `${label}.status`)
+  assertNumber(t.priority, `${label}.priority`)
+  assertNumber(t.created_at, `${label}.created_at`)
+  assertNumber(t.updated_at, `${label}.updated_at`)
+  if (t.resolved_at !== undefined && t.resolved_at !== null && typeof t.resolved_at !== 'number') {
+    throw new HttpsError('invalid-argument', `${label}.resolved_at must be a number or null.`)
   }
-  if (t.deleted_at !== undefined && t.deleted_at !== null && typeof t.deleted_at !== "number") {
-    throw new HttpsError("invalid-argument", `${label}.deleted_at must be a number or null.`);
+  if (t.deleted_at !== undefined && t.deleted_at !== null && typeof t.deleted_at !== 'number') {
+    throw new HttpsError('invalid-argument', `${label}.deleted_at must be a number or null.`)
   }
 }
 
 function validateEvent(event: unknown, entityId: string, label: string): void {
-  if (!event || typeof event !== "object" || Array.isArray(event)) {
-    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
+    throw new HttpsError('invalid-argument', `${label} must be an object.`)
   }
-  const e = event as Record<string, unknown>;
-  assertString(e.id, `${label}.id`);
+  const e = event as Record<string, unknown>
+  assertString(e.id, `${label}.id`)
   if (e.entity_id !== entityId) {
     throw new HttpsError(
-      "invalid-argument",
-      `${label}.entity_id must match the entity key "${entityId}".`
-    );
+      'invalid-argument',
+      `${label}.entity_id must match the entity key "${entityId}".`,
+    )
   }
-  assertString(e.event_type, `${label}.event_type`);
-  assertString(e.summary, `${label}.summary`);
-  assertNumber(e.created_at, `${label}.created_at`);
+  assertString(e.event_type, `${label}.event_type`)
+  assertString(e.summary, `${label}.summary`)
+  assertNumber(e.created_at, `${label}.created_at`)
 }
 
 function validateEdge(edge: unknown, entityId: string, label: string): void {
-  if (!edge || typeof edge !== "object" || Array.isArray(edge)) {
-    throw new HttpsError("invalid-argument", `${label} must be an object.`);
+  if (!edge || typeof edge !== 'object' || Array.isArray(edge)) {
+    throw new HttpsError('invalid-argument', `${label} must be an object.`)
   }
-  const e = edge as Record<string, unknown>;
-  assertString(e.id, `${label}.id`);
+  const e = edge as Record<string, unknown>
+  assertString(e.id, `${label}.id`)
   if (e.entity_id !== entityId) {
     throw new HttpsError(
-      "invalid-argument",
-      `${label}.entity_id must match the entity key "${entityId}".`
-    );
+      'invalid-argument',
+      `${label}.entity_id must match the entity key "${entityId}".`,
+    )
   }
-  assertString(e.source_id, `${label}.source_id`);
-  assertString(e.target_id, `${label}.target_id`);
-  assertString(e.edge_type, `${label}.edge_type`);
-  assertNumber(e.created_at, `${label}.created_at`);
+  assertString(e.source_id, `${label}.source_id`)
+  assertString(e.target_id, `${label}.target_id`)
+  assertString(e.edge_type, `${label}.edge_type`)
+  assertNumber(e.created_at, `${label}.created_at`)
 }
 
 function parseInput(data: unknown): MemoryDump {
-  if (!data || typeof data !== "object") {
-    throw new HttpsError("invalid-argument", "Request body must be an object.");
+  if (!data || typeof data !== 'object') {
+    throw new HttpsError('invalid-argument', 'Request body must be an object.')
   }
 
-  const d = data as Record<string, unknown>;
-  if (!d.dump || typeof d.dump !== "object") {
-    throw new HttpsError("invalid-argument", "dump is required.");
+  const d = data as Record<string, unknown>
+  if (!d.dump || typeof d.dump !== 'object') {
+    throw new HttpsError('invalid-argument', 'dump is required.')
   }
 
-  const rawDump = d.dump as Record<string, unknown>;
-  assertNumber(rawDump.generatedAt, "dump.generatedAt");
-  if (!rawDump.entities || typeof rawDump.entities !== "object" || Array.isArray(rawDump.entities)) {
-    throw new HttpsError("invalid-argument", "dump.entities must be an object.");
+  const rawDump = d.dump as Record<string, unknown>
+  assertNumber(rawDump.generatedAt, 'dump.generatedAt')
+  if (
+    !rawDump.entities ||
+    typeof rawDump.entities !== 'object' ||
+    Array.isArray(rawDump.entities)
+  ) {
+    throw new HttpsError('invalid-argument', 'dump.entities must be an object.')
   }
 
-  const entities = rawDump.entities as Record<string, unknown>;
-  const entityIds = Object.keys(entities);
+  const entities = rawDump.entities as Record<string, unknown>
+  const entityIds = Object.keys(entities)
   if (entityIds.length > MAX_ENTITIES) {
     throw new HttpsError(
-      "invalid-argument",
-      `dump.entities may not contain more than ${MAX_ENTITIES} entities.`
-    );
+      'invalid-argument',
+      `dump.entities may not contain more than ${MAX_ENTITIES} entities.`,
+    )
   }
 
   for (const entityId of entityIds) {
     if (!UUID_PATTERN.test(entityId)) {
-      throw new HttpsError("invalid-argument", `Entity key "${entityId}" is not a valid UUID.`);
+      throw new HttpsError('invalid-argument', `Entity key "${entityId}" is not a valid UUID.`)
     }
   }
 
   for (const [entityId, bundle] of Object.entries(entities)) {
-    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) {
-      throw new HttpsError("invalid-argument", `Entity "${entityId}" must be an object.`);
+    if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
+      throw new HttpsError('invalid-argument', `Entity "${entityId}" must be an object.`)
     }
-    const b = bundle as Record<string, unknown>;
+    const b = bundle as Record<string, unknown>
     if (!Array.isArray(b.facts)) {
-      throw new HttpsError("invalid-argument", `Entity "${entityId}".facts must be an array.`);
+      throw new HttpsError('invalid-argument', `Entity "${entityId}".facts must be an array.`)
     }
     if (!Array.isArray(b.tasks)) {
-      throw new HttpsError("invalid-argument", `Entity "${entityId}".tasks must be an array.`);
+      throw new HttpsError('invalid-argument', `Entity "${entityId}".tasks must be an array.`)
     }
     if (!Array.isArray(b.events)) {
-      throw new HttpsError("invalid-argument", `Entity "${entityId}".events must be an array.`);
+      throw new HttpsError('invalid-argument', `Entity "${entityId}".events must be an array.`)
     }
     if (b.edges !== undefined && !Array.isArray(b.edges)) {
-      throw new HttpsError("invalid-argument", `Entity "${entityId}".edges must be an array.`);
+      throw new HttpsError('invalid-argument', `Entity "${entityId}".edges must be an array.`)
     }
-    const edges = (b.edges as unknown[] | undefined) ?? [];
+    const edges = (b.edges as unknown[] | undefined) ?? []
 
     if (b.facts.length > MAX_FACTS_PER_ENTITY) {
       throw new HttpsError(
-        "invalid-argument",
-        `Entity "${entityId}" may not contain more than ${MAX_FACTS_PER_ENTITY} facts.`
-      );
+        'invalid-argument',
+        `Entity "${entityId}" may not contain more than ${MAX_FACTS_PER_ENTITY} facts.`,
+      )
     }
     if (b.tasks.length > MAX_TASKS_PER_ENTITY) {
       throw new HttpsError(
-        "invalid-argument",
-        `Entity "${entityId}" may not contain more than ${MAX_TASKS_PER_ENTITY} tasks.`
-      );
+        'invalid-argument',
+        `Entity "${entityId}" may not contain more than ${MAX_TASKS_PER_ENTITY} tasks.`,
+      )
     }
     if (b.events.length > MAX_EVENTS_PER_ENTITY) {
       throw new HttpsError(
-        "invalid-argument",
-        `Entity "${entityId}" may not contain more than ${MAX_EVENTS_PER_ENTITY} events.`
-      );
+        'invalid-argument',
+        `Entity "${entityId}" may not contain more than ${MAX_EVENTS_PER_ENTITY} events.`,
+      )
     }
     if (edges.length > MAX_EDGES_PER_ENTITY) {
       throw new HttpsError(
-        "invalid-argument",
-        `Entity "${entityId}" may not contain more than ${MAX_EDGES_PER_ENTITY} edges.`
-      );
+        'invalid-argument',
+        `Entity "${entityId}" may not contain more than ${MAX_EDGES_PER_ENTITY} edges.`,
+      )
     }
 
-    b.facts.forEach((f: unknown, i: number) => validateFact(f, entityId, `Entity "${entityId}".facts[${i}]`));
-    b.tasks.forEach((t: unknown, i: number) => validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`));
-    b.events.forEach((e: unknown, i: number) => validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`));
-    edges.forEach((e: unknown, i: number) => validateEdge(e, entityId, `Entity "${entityId}".edges[${i}]`));
+    b.facts.forEach((f: unknown, i: number) =>
+      validateFact(f, entityId, `Entity "${entityId}".facts[${i}]`),
+    )
+    b.tasks.forEach((t: unknown, i: number) =>
+      validateTask(t, entityId, `Entity "${entityId}".tasks[${i}]`),
+    )
+    b.events.forEach((e: unknown, i: number) =>
+      validateEvent(e, entityId, `Entity "${entityId}".events[${i}]`),
+    )
+    edges.forEach((e: unknown, i: number) =>
+      validateEdge(e, entityId, `Entity "${entityId}".edges[${i}]`),
+    )
     if (b.ontology !== undefined) {
-      validateOntology(b.ontology, `Entity "${entityId}".ontology`);
+      validateOntology(b.ontology, `Entity "${entityId}".ontology`)
     }
   }
 
-  return d.dump as unknown as MemoryDump;
+  return d.dump as unknown as MemoryDump
 }
 
 async function fetchMergedDump(entityIds: string[], userId: string): Promise<MemoryDump> {
   if (entityIds.length === 0) {
-    return {generatedAt: Date.now(), entities: {}};
+    return { generatedAt: Date.now(), entities: {} }
   }
-  const db = await getDb();
-  const retentionCutoff = Date.now() - WIKI_EVENTS_RETENTION_MS;
+  const db = await getDb()
+  const retentionCutoff = Date.now() - WIKI_EVENTS_RETENTION_MS
 
   // Use SQL window functions (ROW_NUMBER OVER PARTITION BY entity_id) to enforce
   // per-entity caps directly in the database with a single query per table.
@@ -394,52 +428,52 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   // cross-device deletions are always included within the per-entity cap —
   // matching the LWW deletion propagation requirement from the spec.
   type FactRow = {
-    id: string;
-    entity_id: string;
-    title: string;
-    body: string;
-    confidence: string;
-    tags: unknown;
-    source_ref: string | null;
-    source_hash: string | null;
-    source_type: string;
-    last_accessed_at: string | null;
-    access_count: string | number | null;
-    created_at: string;
-    updated_at: string;
-    deleted_at: string | null;
-  };
+    id: string
+    entity_id: string
+    title: string
+    body: string
+    confidence: string
+    tags: unknown
+    source_ref: string | null
+    source_hash: string | null
+    source_type: string
+    last_accessed_at: string | null
+    access_count: string | number | null
+    created_at: string
+    updated_at: string
+    deleted_at: string | null
+  }
   type TaskRow = {
-    id: string;
-    entity_id: string;
-    description: string;
-    status: string;
-    priority: string | number;
-    created_at: string;
-    updated_at: string;
-    resolved_at: string | null;
-    deleted_at: string | null;
-  };
+    id: string
+    entity_id: string
+    description: string
+    status: string
+    priority: string | number
+    created_at: string
+    updated_at: string
+    resolved_at: string | null
+    deleted_at: string | null
+  }
   type EventRow = {
-    id: string;
-    entity_id: string;
-    event_type: string;
-    summary: string;
-    created_at: string;
-  };
+    id: string
+    entity_id: string
+    event_type: string
+    summary: string
+    created_at: string
+  }
   type EdgeRow = {
-    id: string;
-    entity_id: string;
-    source_id: string;
-    target_id: string;
-    edge_type: string;
-    created_at: string;
-  };
+    id: string
+    entity_id: string
+    source_id: string
+    target_id: string
+    edge_type: string
+    created_at: string
+  }
   type OntologyRow = {
-    entity_id: string;
-    mode: string;
-    manifest: unknown;
-  };
+    entity_id: string
+    mode: string
+    manifest: unknown
+  }
 
   // Format entity IDs as PostgreSQL array literal for ANY() operator.
   // Build the SQL dynamically to avoid parameterization issues with array casts.
@@ -447,9 +481,7 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
   // Entity IDs are pre-validated against UUID_PATTERN at the call boundary before
   // fetchMergedDump is ever invoked, so sql.raw() is safe — no unvalidated input
   // can reach this point.
-  const arrayLiteral = sql.raw(
-    `ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`
-  );
+  const arrayLiteral = sql.raw(`ARRAY[${entityIds.map((id) => `'${id}'::uuid`).join(',')}]`)
 
   const [factResult, taskResult, eventResult, edgeResult, ontologyResult] = await Promise.all([
     db.execute<FactRow>(sql`
@@ -509,16 +541,16 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       SELECT entity_id, mode, manifest FROM llm_wiki_ontology
       WHERE entity_id = ANY(${arrayLiteral}) AND user_id = ${userId}::uuid
     `),
-  ]);
+  ])
 
-  const entities: Record<string, MemoryBundle> = {};
+  const entities: Record<string, MemoryBundle> = {}
   for (const entityId of entityIds) {
-    entities[entityId] = {facts: [], tasks: [], events: [], edges: []};
+    entities[entityId] = { facts: [], tasks: [], events: [], edges: [] }
   }
 
   for (const r of factResult.rows) {
-    const entity = entities[r.entity_id];
-    if (!entity) continue;
+    const entity = entities[r.entity_id]
+    if (!entity) continue
     entity.facts.push({
       id: r.id,
       entity_id: r.entity_id,
@@ -534,12 +566,12 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       created_at: Number(r.created_at),
       updated_at: Number(r.updated_at),
       deleted_at: r.deleted_at != null ? Number(r.deleted_at) : null,
-    });
+    })
   }
 
   for (const r of taskResult.rows) {
-    const entity = entities[r.entity_id];
-    if (!entity) continue;
+    const entity = entities[r.entity_id]
+    if (!entity) continue
     entity.tasks.push({
       id: r.id,
       entity_id: r.entity_id,
@@ -550,24 +582,24 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       updated_at: Number(r.updated_at),
       resolved_at: r.resolved_at != null ? Number(r.resolved_at) : null,
       deleted_at: r.deleted_at != null ? Number(r.deleted_at) : null,
-    });
+    })
   }
 
   for (const r of eventResult.rows) {
-    const entity = entities[r.entity_id];
-    if (!entity) continue;
+    const entity = entities[r.entity_id]
+    if (!entity) continue
     entity.events.push({
       id: r.id,
       entity_id: r.entity_id,
       event_type: r.event_type,
       summary: r.summary,
       created_at: Number(r.created_at),
-    });
+    })
   }
 
   for (const r of edgeResult.rows) {
-    const entity = entities[r.entity_id];
-    if (!entity) continue;
+    const entity = entities[r.entity_id]
+    if (!entity) continue
     entity.edges!.push({
       id: r.id,
       entity_id: r.entity_id,
@@ -575,23 +607,23 @@ async function fetchMergedDump(entityIds: string[], userId: string): Promise<Mem
       target_id: r.target_id,
       edge_type: r.edge_type,
       created_at: Number(r.created_at),
-    });
+    })
   }
 
   for (const r of ontologyResult.rows) {
-    const entity = entities[r.entity_id];
-    if (!entity) continue;
+    const entity = entities[r.entity_id]
+    if (!entity) continue
     entity.ontology = {
       mode: r.mode as WikiOntology['mode'],
       manifest: (r.manifest ?? null) as WikiOntology['manifest'],
-    };
+    }
   }
 
-  return {generatedAt: Date.now(), entities};
+  return { generatedAt: Date.now(), entities }
 }
 
 async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
-  const db = await getDb();
+  const db = await getDb()
 
   await db.transaction(async (tx) => {
     for (const [entityId, bundle] of Object.entries(dump.entities)) {
@@ -615,7 +647,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               createdAt: f.created_at,
               updatedAt: f.updated_at,
               deletedAt: f.deleted_at ?? null,
-            }))
+            })),
           )
           .onConflictDoUpdate({
             target: [llmWikiEntries.id, llmWikiEntries.userId],
@@ -633,7 +665,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiEntries.updatedAt}`,
-          });
+          })
       }
 
       if (bundle.tasks && bundle.tasks.length > 0) {
@@ -651,7 +683,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               updatedAt: t.updated_at,
               resolvedAt: t.resolved_at ?? null,
               deletedAt: t.deleted_at ?? null,
-            }))
+            })),
           )
           .onConflictDoUpdate({
             target: [llmWikiTasks.id, llmWikiTasks.userId],
@@ -664,7 +696,7 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               deletedAt: sql`excluded.deleted_at`,
             },
             where: sql`excluded.updated_at > ${llmWikiTasks.updatedAt}`,
-          });
+          })
       }
 
       if (bundle.events && bundle.events.length > 0) {
@@ -678,9 +710,9 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               eventType: e.event_type,
               summary: e.summary,
               createdAt: e.created_at,
-            }))
+            })),
           )
-          .onConflictDoNothing();
+          .onConflictDoNothing()
       }
 
       if (bundle.edges && bundle.edges.length > 0) {
@@ -695,9 +727,9 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               targetId: e.target_id,
               edgeType: e.edge_type,
               createdAt: e.created_at,
-            }))
+            })),
           )
-          .onConflictDoNothing();
+          .onConflictDoNothing()
       }
 
       if (bundle.ontology) {
@@ -717,117 +749,123 @@ async function upsertWikiData(dump: MemoryDump, userId: string): Promise<void> {
               manifest: sql`excluded.manifest`,
               updatedAt: sql`excluded.updated_at`,
             },
-          });
+          })
       }
     }
-  });
+  })
 }
 
 export const wikiSyncHandler = async (
   request: CallableRequest,
-  options: WikiSyncOptions = {}
-): Promise<{remoteDump: MemoryDump}> => {
+  options: WikiSyncOptions = {},
+): Promise<{ remoteDump: MemoryDump }> => {
   if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication required.");
+    throw new HttpsError('unauthenticated', 'Authentication required.')
   }
 
-  const decoded: DecodedIdToken = request.auth.token as DecodedIdToken;
+  const decoded: DecodedIdToken = request.auth.token as DecodedIdToken
   if (!decoded || decoded.uid !== request.auth.uid) {
-    throw new HttpsError("unauthenticated", "Invalid Firebase authentication token.");
+    throw new HttpsError('unauthenticated', 'Invalid Firebase authentication token.')
   }
 
-  const email = decoded.email;
+  const email = decoded.email
   if (!email) {
-    throw new HttpsError("failed-precondition", "Firebase user email is required.");
+    throw new HttpsError('failed-precondition', 'Firebase user email is required.')
   }
 
-  const dump = parseInput(request.data);
+  const dump = parseInput(request.data)
 
-  const getUser = options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args));
-  const credits = options.creditService ?? defaultCreditService;
+  const getUser =
+    options.getUser ?? ((args) => userRepository.getOrCreateUserByFirebaseIdentity(args))
+  const credits = options.creditService ?? defaultCreditService
 
-  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>;
+  let user: Awaited<ReturnType<typeof userRepository.getOrCreateUserByFirebaseIdentity>>
   try {
     user = await getUser({
       firebaseUid: request.auth.uid,
       email,
       displayName: decoded.name || null,
       avatarUrl: decoded.picture || null,
-    });
+    })
   } catch (error: unknown) {
-    logger.error("Failed to bootstrap user in wikiSync", {firebaseUid: request.auth.uid, error});
-    throw new HttpsError("internal", "Failed to bootstrap user.");
+    logger.error('Failed to bootstrap user in wikiSync', { firebaseUid: request.auth.uid, error })
+    throw new HttpsError('internal', 'Failed to bootstrap user.')
   }
 
   // Validate that every entity in the dump belongs to this user and is saved to cloud.
-  const entityIds = Object.keys(dump.entities);
+  const entityIds = Object.keys(dump.entities)
   if (entityIds.length > 0) {
     if (options.validateEntityOwnership) {
-      await options.validateEntityOwnership(entityIds, user.id);
+      await options.validateEntityOwnership(entityIds, user.id)
     } else {
-      const db = await getDb();
+      const db = await getDb()
       const ownedChars = await db
         .select({ id: characters.id })
         .from(characters)
-        .where(and(
-          inArray(characters.id, entityIds),
-          eq(characters.userId, user.id),
-          eq(characters.saveToCloud, true),
-        ));
-      const ownedIds = new Set(ownedChars.map((c) => c.id));
+        .where(
+          and(
+            inArray(characters.id, entityIds),
+            eq(characters.userId, user.id),
+            eq(characters.saveToCloud, true),
+          ),
+        )
+      const ownedIds = new Set(ownedChars.map((c) => c.id))
       for (const entityId of entityIds) {
         if (!ownedIds.has(entityId)) {
-          throw new HttpsError("permission-denied", "One or more entities do not belong to this user.");
+          throw new HttpsError(
+            'permission-denied',
+            'One or more entities do not belong to this user.',
+          )
         }
       }
     }
   }
 
-  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST);
+  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST)
   if (spendAllocations === null) {
-    throw new HttpsError("failed-precondition", "Insufficient credits.");
+    throw new HttpsError('failed-precondition', 'Insufficient credits.')
   }
 
   try {
     if (options.upsertData) {
-      await options.upsertData(dump, user.id);
+      await options.upsertData(dump, user.id)
     } else if (options.upsertEntries) {
-      const allFacts = Object.values(dump.entities).flatMap((b) => b.facts ?? []);
-      await options.upsertEntries(allFacts, user.id);
+      const allFacts = Object.values(dump.entities).flatMap((b) => b.facts ?? [])
+      await options.upsertEntries(allFacts, user.id)
     } else {
-      await upsertWikiData(dump, user.id);
+      await upsertWikiData(dump, user.id)
     }
   } catch (error) {
-    logger.error("wikiSync upsert failed", {userId: user.id, entityIds, error});
+    logger.error('wikiSync upsert failed', { userId: user.id, entityIds, error })
     try {
-      await credits.refundCredit(user.id, spendAllocations);
+      await credits.refundCredit(user.id, spendAllocations)
     } catch (refundError) {
-      logger.error("Failed to refund credits after wikiSync failure", {
+      logger.error('Failed to refund credits after wikiSync failure', {
         userId: user.id,
         spendAllocations,
         error: refundError,
-      });
+      })
     }
 
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Failed to sync wiki data.");
+    if (error instanceof HttpsError) throw error
+    throw new HttpsError('internal', 'Failed to sync wiki data.')
   }
 
   const remoteDump = options.fetchMergedDump
     ? await options.fetchMergedDump(entityIds, user.id)
     : entityIds.length > 0
       ? await fetchMergedDump(entityIds, user.id)
-      : {generatedAt: Date.now(), entities: {}};
+      : { generatedAt: Date.now(), entities: {} }
 
-  return {remoteDump};
-};
+  return { remoteDump }
+}
 
 export const wikiSync = onCall(
   {
     region: DEFAULT_REGION,
     enforceAppCheck: true,
-    invoker: "public",
+    invoker: 'public',
     secrets: [...CLOUD_SQL_SECRETS],
   },
-  (request) => wikiSyncHandler(request)
-);
+  (request) => wikiSyncHandler(request),
+)

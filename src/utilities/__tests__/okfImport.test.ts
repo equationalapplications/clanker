@@ -55,10 +55,7 @@ function setupPickerWithoutSize(fileSize?: number) {
     size: fileSize,
     arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(8)),
   }
-  MockFile.mockImplementation(
-    () =>
-      pickedFile as any,
-  )
+  MockFile.mockImplementation(() => pickedFile as any)
   return pickedFile
 }
 

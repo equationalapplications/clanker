@@ -1,12 +1,5 @@
-import {
-  CONSENT_STORAGE_KEY,
-  COOKIE_POLICY_VERSION,
-} from '~/utilities/cookieConsentTypes'
-import {
-  readConsent,
-  writeConsent,
-  clearConsent,
-} from '~/utilities/cookieConsentStorage.web'
+import { CONSENT_STORAGE_KEY, COOKIE_POLICY_VERSION } from '~/utilities/cookieConsentTypes'
+import { readConsent, writeConsent, clearConsent } from '~/utilities/cookieConsentStorage.web'
 
 function setItem(value: string) {
   window.localStorage.setItem(CONSENT_STORAGE_KEY, value)

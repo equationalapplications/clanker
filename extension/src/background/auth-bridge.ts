@@ -15,7 +15,10 @@ export async function ensureOffscreen(): Promise<void> {
 
 export async function requestIdToken(): Promise<string> {
   await ensureOffscreen()
-  const res = (await chrome.runtime.sendMessage({ target: 'offscreen-auth', type: 'GET_ID_TOKEN' })) as { idToken?: string; error?: string } | undefined
+  const res = (await chrome.runtime.sendMessage({
+    target: 'offscreen-auth',
+    type: 'GET_ID_TOKEN',
+  })) as { idToken?: string; error?: string } | undefined
   if (!res?.idToken) throw new Error(res?.error ?? 'Not signed in. Open the side panel to sign in.')
   return res.idToken
 }

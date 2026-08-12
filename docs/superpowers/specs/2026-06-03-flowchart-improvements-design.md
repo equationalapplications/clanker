@@ -17,16 +17,16 @@ Diagram type: `C4Context`
 
 Actors and systems:
 
-| Element | Type | Notes |
-|---|---|---|
-| User | Person | Mobile or web |
-| Clanker | System | The app itself |
-| Firebase | System_Ext | Auth, Cloud Functions, Firestore |
-| Google Sign-In | System_Ext | Identity provider |
-| Google Gemini | System_Ext | LLM responses (Gemini 2.5 Flash) via Cloud Functions |
-| Stripe | System_Ext | Web subscription payments |
-| RevenueCat | System_Ext | Mobile in-app purchases |
-| Crashlytics | System_Ext | Error reporting |
+| Element        | Type       | Notes                                                |
+| -------------- | ---------- | ---------------------------------------------------- |
+| User           | Person     | Mobile or web                                        |
+| Clanker        | System     | The app itself                                       |
+| Firebase       | System_Ext | Auth, Cloud Functions, Firestore                     |
+| Google Sign-In | System_Ext | Identity provider                                    |
+| Google Gemini  | System_Ext | LLM responses (Gemini 2.5 Flash) via Cloud Functions |
+| Stripe         | System_Ext | Web subscription payments                            |
+| RevenueCat     | System_Ext | Mobile in-app purchases                              |
+| Crashlytics    | System_Ext | Error reporting                                      |
 
 Relations: User→Clanker (uses), Clanker→each external system.
 
@@ -36,14 +36,14 @@ Diagram type: `C4Container`
 
 Scope: inside Clanker.
 
-| Container | Tech | Notes |
-|---|---|---|
-| Clanker App | Expo React Native (shared mobile/web) | Main client |
-| Firebase Auth | Firebase | Identity, session tokens |
-| Cloud Functions | Firebase Functions | Backend logic, AI orchestration |
-| Cloud SQL | PostgreSQL via Functions | Relational store |
-| Local SQLite | expo-sqlite | Offline-first on-device DB |
-| Firestore | Firebase Firestore | Real-time sync, direct client reads |
+| Container       | Tech                                  | Notes                               |
+| --------------- | ------------------------------------- | ----------------------------------- |
+| Clanker App     | Expo React Native (shared mobile/web) | Main client                         |
+| Firebase Auth   | Firebase                              | Identity, session tokens            |
+| Cloud Functions | Firebase Functions                    | Backend logic, AI orchestration     |
+| Cloud SQL       | PostgreSQL via Functions              | Relational store                    |
+| Local SQLite    | expo-sqlite                           | Offline-first on-device DB          |
+| Firestore       | Firebase Firestore                    | Real-time sync, direct client reads |
 
 Key relations:
 
@@ -62,6 +62,7 @@ Key relations:
 Replace the five per-module files (`database.md`, `services.md`, `hooks.md`, `machines.md`, `components.md`) with a single `docs/flowcharts/overview.md`. One `graph LR` Mermaid diagram with folder-level nodes and edges.
 
 Example output shape:
+
 ```
 hooks --> services
 hooks --> database
@@ -108,24 +109,25 @@ WHERE s_dir NOT IN ('utilities', 'types', 'config', 'root')
 ### README update
 
 `docs/flowcharts/README.md` updated to:
+
 - Point to `overview.md` instead of the five per-module files
 - Document the `c4/` subdirectory and its two files
 - Remove the per-module file table
 
 ## Files changed
 
-| Action | Path |
-|---|---|
-| Create | `docs/flowcharts/c4/system-context.md` |
-| Create | `docs/flowcharts/c4/containers.md` |
+| Action | Path                                           |
+| ------ | ---------------------------------------------- |
+| Create | `docs/flowcharts/c4/system-context.md`         |
+| Create | `docs/flowcharts/c4/containers.md`             |
 | Create | `docs/flowcharts/overview.md` (auto-generated) |
-| Modify | `scripts/generate-charts.js` |
-| Modify | `docs/flowcharts/README.md` |
-| Delete | `docs/flowcharts/database.md` |
-| Delete | `docs/flowcharts/services.md` |
-| Delete | `docs/flowcharts/hooks.md` |
-| Delete | `docs/flowcharts/machines.md` |
-| Delete | `docs/flowcharts/components.md` |
+| Modify | `scripts/generate-charts.js`                   |
+| Modify | `docs/flowcharts/README.md`                    |
+| Delete | `docs/flowcharts/database.md`                  |
+| Delete | `docs/flowcharts/services.md`                  |
+| Delete | `docs/flowcharts/hooks.md`                     |
+| Delete | `docs/flowcharts/machines.md`                  |
+| Delete | `docs/flowcharts/components.md`                |
 
 ## Out of scope
 

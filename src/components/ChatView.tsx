@@ -1,32 +1,27 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react'
-import { BottomTabBarHeightContext } from 'expo-router/build/react-navigation/bottom-tabs/utils/BottomTabBarHeightContext'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { View, Text as RNText, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native'
-import type { FlatListProps, TextStyle } from 'react-native'
-import { GiftedChat, Bubble, InputToolbar, Send, MessageText } from 'react-native-gifted-chat'
-import type { IMessage, User, ComposerProps, SendProps, InputToolbarProps, MessageTextProps } from 'react-native-gifted-chat'
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
 import { useAIChat } from '~/hooks/useAIChat'
-import { Text, useTheme, Avatar, ActivityIndicator } from 'react-native-paper'
+import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
 import CharacterAvatar from '~/components/CharacterAvatar'
-import ChatComposer, {
-  MIN_INPUT_HEIGHT,
-  type DocumentUploadPhase,
-} from '~/components/ChatComposer'
-import { GroundingHtml } from '~/components/GroundingHtml'
+import type { DocumentUploadPhase } from '~/components/ChatComposer'
+import { ChatInputBar } from '~/components/ChatInputBar'
+import { MessageList } from '~/components/MessageList'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
-import { isSafeHttpUrl } from '~/utils/isSafeHttpUrl'
+import { useTabBarHeight } from '~/utils/useTabBarHeight'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
-import type { GroundedIMessage, Character as AIChatCharacter } from '~/services/aiChatService'
+import type { Character as AIChatCharacter } from '~/services/aiChatService'
+import type { Message, ChatUser } from '~/types/chat'
 import type { Character } from '~/services/characterService'
 import { setActiveCharacterId } from '~/hooks/useActiveCharacterId'
-import ChatImageBubble from '~/components/ChatImageBubble'
 import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 
 function getInitials(name?: string): string {
   return (
@@ -70,15 +65,6 @@ function toolStatusAccessibilityLabel(toolName: string): string {
   }
 }
 
-const webMessageTextWrapStyle = {
-  wordBreak: 'break-word',
-  overflowWrap: 'anywhere',
-} as TextStyle
-
-/** Native WebViews in inverted lists can paint over sibling rows unless clipping is disabled. */
-const groundingListViewProps: Pick<FlatListProps<unknown>, 'removeClippedSubviews'> | undefined =
-  Platform.OS === 'web' ? undefined : { removeClippedSubviews: false }
-
 interface ChatViewProps {
   characterId: string
 }
@@ -112,16 +98,31 @@ function ChatViewContent({
   userPhotoUrl,
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
-  const { colors, roundness } = useTheme()
-  // Screen sits inside the bottom tab navigator, which reserves this height below
-  // the content even when the keyboard covers it — feed it back to GiftedChat so
-  // the input toolbar tracks the keyboard instead of leaving a gap under it.
-  const tabBarHeight = useContext(BottomTabBarHeightContext) ?? 0
+  const { colors } = useTheme()
+  // The tab bar sits below ChatView on Android. The previous gifted-chat
+  // screen compensated with `bottomOffset={-tabBarHeight}`; the new
+  // KeyboardAvoidingView from react-native-keyboard-controller uses
+  // `keyboardVerticalOffset` for the same purpose. That offset is only honoured
+  // when `behavior` is a concrete supported value — with `undefined` the
+  // component emits an empty style and Android would ignore `tabBarHeight`
+  // entirely, leaving the composer behind the keyboard. iOS keeps `padding`;
+  // Android uses `translate-with-padding`.
+  const tabBarHeight = useTabBarHeight()
 
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
 
-  const { messages, sendMessage, sendPhoto, canSendPhoto, escalationState, isGeneratingResponse, activeTool, streamingMessage, error: chatError } = useAIChat({
+  const {
+    messages,
+    sendMessage,
+    sendPhoto,
+    canSendPhoto,
+    escalationState,
+    isGeneratingResponse,
+    activeTool,
+    streamingMessage,
+    error: chatError,
+  } = useAIChat({
     characterId,
     userId: currentUserId,
     character: toAIChatCharacter(character),
@@ -129,11 +130,17 @@ function ChatViewContent({
 
   const displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages
 
-  const chatUser: User = {
-    _id: currentUserId,
-    name: userDisplayName || '',
-    avatar: userPhotoUrl || undefined,
-  }
+  // Memoized from primitives: a fresh literal here would change the identity of
+  // `handleSend` every render, re-rendering ChatInputBar's send button on every
+  // keystroke (the composer's text state lives above it).
+  const chatUser: ChatUser = useMemo(
+    () => ({
+      _id: currentUserId,
+      name: userDisplayName || '',
+      avatar: userPhotoUrl || undefined,
+    }),
+    [currentUserId, userDisplayName, userPhotoUrl],
+  )
 
   const navigation = useNavigation()
 
@@ -190,253 +197,124 @@ function ChatViewContent({
   }, [character, characterAvatar, characterName, handleEdit, navigation])
 
   const handleSend = useCallback(
-    async (newMessages: IMessage[] = []) => {
+    async (text: string) => {
       if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
         return
       }
 
-      // Photo sends reuse `onSend` with an empty message purely to trigger
-      // gifted-chat's input reset — that path must not produce a text bubble.
-      const first = newMessages[0]
-      if (newMessages.length > 0 && first && first.text.trim().length > 0) {
-        await sendMessage(first)
+      // Slice 3 owns the outgoing-message constructor: GiftedChat used to stamp
+      // `_id`/`createdAt`/`user` before invoking `onSend`. With the lib gone,
+      // ChatInputBar hands us text only, so we mint `_id` here. The `_id`
+      // expression is the body of `messageIdGenerator` (now deleted) so the
+      // shape of persisted rows does not change.
+      const outgoingMessage: Message = {
+        _id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        text,
+        createdAt: new Date(),
+        user: chatUser,
       }
+      await sendMessage(outgoingMessage)
     },
-    [sendMessage, credits, creditsLoading],
+    [sendMessage, credits, creditsLoading, chatUser],
   )
 
   const handleSendPhoto = useCallback(
     async (photo: PendingChatPhoto, caption: string) => {
       if (!creditsLoading && credits <= 0) {
         router.push('/subscribe')
-        return
+        return false
       }
-      await sendPhoto(photo, caption)
+      return await sendPhoto(photo, caption)
     },
     [sendPhoto, credits, creditsLoading],
   )
 
-  const renderBubble = useCallback(
-    (props: any) => {
-      const hasGrounding = Boolean(
-        (props.currentMessage as GroundedIMessage | undefined)?.groundingMetadata,
-      )
-      const webBubbleConstraints =
-        Platform.OS === 'web'
-          ? ({ maxWidth: '80%', minWidth: 0, overflow: 'hidden' } as const)
-          : {}
+  const renderAvatar = useCallback(
+    (message: Message) => {
+      const isUser = message.user._id === currentUserId
 
-      return (
-        <Bubble
-          {...props}
-          touchableProps={
-            Platform.OS === 'web' && hasGrounding ? { disabled: true } : undefined
-          }
-          wrapperStyle={{
-            left: {
-              backgroundColor: colors.secondary,
-              borderRadius: roundness,
-              ...webBubbleConstraints,
-            },
-            right: {
-              backgroundColor: colors.primary,
-              borderRadius: roundness,
-              ...webBubbleConstraints,
-            },
-          }}
-          textStyle={{
-            left: { color: colors.onSecondary },
-            right: { color: colors.onPrimary },
-          }}
-          renderMessageText={(msgProps: MessageTextProps<IMessage>) => (
-            <View
-              style={{
-                paddingVertical: 10,
-                ...(Platform.OS === 'web' ? { minWidth: 0, maxWidth: '100%' } : {}),
-              }}
-            >
-              <MessageText
-                {...msgProps}
-                textStyle={
-                  Platform.OS === 'web'
-                    ? {
-                        left: [msgProps.textStyle?.left, webMessageTextWrapStyle],
-                        right: [msgProps.textStyle?.right, webMessageTextWrapStyle],
-                      }
-                    : msgProps.textStyle
-                }
-              />
-            </View>
-          )}
-        />
-      )
-    },
-    [colors, roundness],
-  )
+      if (isUser) {
+        const displayName = userDisplayName?.trim()
+        const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
+        const userAvatarUri = chatUser.avatar
 
-  const renderInputToolbar = useCallback(
-    (props: InputToolbarProps<IMessage>) => (
-      <InputToolbar
-        {...props}
-        containerStyle={{
-          backgroundColor: colors.surface,
-          borderTopColor: colors.outlineVariant,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-        }}
-      />
-    ),
-    [colors],
-  )
-
-  const renderSend = useCallback(
-    (props: SendProps<IMessage>) => {
-      if (isGeneratingResponse) {
+        if (userAvatarUri) {
+          return (
+            <Avatar.Image
+              accessible
+              accessibilityRole="image"
+              size={36}
+              source={{ uri: userAvatarUri }}
+              accessibilityLabel={accessibilityLabel}
+            />
+          )
+        }
         return (
-          <View
-            style={styles.sendSpinnerContainer}
+          <Avatar.Text
             accessible
-            accessibilityRole="progressbar"
-            accessibilityLabel="Generating response"
-            accessibilityState={{ busy: true }}
-          >
-            <ActivityIndicator size={20} />
-          </View>
+            accessibilityRole="image"
+            size={36}
+            label={getInitials(displayName)}
+            accessibilityLabel={accessibilityLabel}
+          />
         )
       }
 
-      return (
-        <Send
-          {...props}
-          containerStyle={{ justifyContent: 'center', alignSelf: 'center', marginRight: 4 }}
-          sendButtonProps={{
-            accessibilityLabel: 'Send message',
-            accessibilityRole: 'button',
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.primaryContainer,
-              borderRadius: roundness * 4,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <RNText style={{ color: colors.onPrimaryContainer, fontWeight: '600', fontSize: 15 }}>
-              Send
-            </RNText>
-          </View>
-        </Send>
-      )
+      return <CharacterAvatar size={36} imageUrl={characterAvatar} characterName={characterName} />
     },
-    [colors, roundness, isGeneratingResponse],
-  )
-
-  const renderComposer = useCallback(
-    // GiftedChat currently passes full internal input toolbar props to renderComposer,
-    // including onSend from SendProps in addition to ComposerProps.
-    (props: ComposerProps & Pick<SendProps<IMessage>, 'onSend'>) => (
-      <ChatComposer
-        {...props}
-        characterId={characterId}
-        userId={currentUserId}
-        onPhaseChange={setDocumentPhase}
-        canSendPhoto={canSendPhoto}
-        isSending={isGeneratingResponse}
-        onSendPhoto={handleSendPhoto}
-      />
-    ),
-    [characterId, currentUserId, canSendPhoto, isGeneratingResponse, handleSendPhoto],
-  )
-
-  const renderCustomView = useCallback(
-    (props: { currentMessage?: GroundedIMessage }) => {
-      const metadata = props.currentMessage?.groundingMetadata
-      if (!metadata) {
-        return null
-      }
-
-      const chunks = metadata.groundingChunks ?? []
-      const renderedContent = metadata.searchEntryPoint?.renderedContent
-
-      if (chunks.length === 0 && !renderedContent) {
-        return null
-      }
-
-      return (
-        <View style={styles.groundingContainer}>
-          {chunks.length > 0 && (
-            <View
-              style={styles.citationRow}
-              accessibilityRole={Platform.OS === 'web' ? ('list' as any) : undefined}
-              accessibilityLabel="Search sources"
-            >
-              {chunks.map((chunk, index) => {
-                const uri = chunk.web?.uri
-                const title = chunk.web?.title ?? uri
-                if (!uri || !title || !isSafeHttpUrl(uri)) {
-                  return null
-                }
-                return (
-                  <TouchableOpacity
-                    key={`${uri}-${index}`}
-                    style={styles.citationChip}
-                    onPress={() => {
-                      void Linking.openURL(uri).catch((error) => {
-                        console.warn('Failed to open citation URL', error)
-                      })
-                    }}
-                    accessibilityRole="link"
-                    accessibilityLabel={title}
-                  >
-                    <RNText style={styles.citationChipText} numberOfLines={1}>
-                      {title}
-                    </RNText>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-          )}
-          {renderedContent && (
-            <GroundingHtml html={renderedContent} style={styles.searchSuggestions} />
-          )}
-        </View>
-      )
-    },
-    [],
+    [currentUserId, userDisplayName, chatUser.avatar, characterAvatar, characterName],
   )
 
   return (
-    <View style={styles.container}>
-      {(wikiStatus.ingesting || wikiStatus.librarian || isGeneratingResponse || documentPhase !== null || activeTool) && (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? tabBarHeight : 0}
+    >
+      {(wikiStatus.ingesting ||
+        wikiStatus.librarian ||
+        isGeneratingResponse ||
+        documentPhase !== null ||
+        activeTool) && (
         <View
           accessibilityLiveRegion="polite"
           accessibilityRole={Platform.OS === 'web' ? ('status' as any) : undefined}
         >
           {documentPhase === 'reading' && (
-            <Text style={styles.statusText} accessibilityLabel="Reading file">⏳ Reading file…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Reading file">
+              ⏳ Reading file…
+            </Text>
           )}
           {documentPhase === 'converting' && (
-            <Text style={styles.statusText} accessibilityLabel="Converting document">⏳ Converting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Converting document">
+              ⏳ Converting document…
+            </Text>
           )}
           {documentPhase === 'checking' && (
-            <Text style={styles.statusText} accessibilityLabel="Checking for changes">⏳ Checking for changes…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Checking for changes">
+              ⏳ Checking for changes…
+            </Text>
           )}
           {documentPhase === 'forgetting' && (
-            <Text style={styles.statusText} accessibilityLabel="Removing previous version">⏳ Removing previous version…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Removing previous version">
+              ⏳ Removing previous version…
+            </Text>
           )}
           {wikiStatus.ingesting && (
-            <Text style={styles.statusText} accessibilityLabel="Ingesting document">⏳ Ingesting document…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Ingesting document">
+              ⏳ Ingesting document…
+            </Text>
           )}
           {wikiStatus.librarian && (
-            <Text style={styles.statusText} accessibilityLabel="Updating memory">🧠 Updating memory…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Updating memory">
+              🧠 Updating memory…
+            </Text>
           )}
           {escalationState === 'escalating' && (
-            <Text style={styles.statusText} accessibilityLabel="Thinking deeply">🧠 Thinking deeply…</Text>
+            <Text style={styles.statusText} accessibilityLabel="Thinking deeply">
+              🧠 Thinking deeply…
+            </Text>
           )}
           {activeTool && (
             <Text
@@ -450,8 +328,10 @@ function ChatViewContent({
             escalationState !== 'escalating' &&
             !activeTool &&
             !streamingMessage?.text && (
-            <Text style={styles.statusText} accessibilityLabel="Thinking">💭 Thinking…</Text>
-          )}
+              <Text style={styles.statusText} accessibilityLabel="Thinking">
+                💭 Thinking…
+              </Text>
+            )}
         </View>
       )}
       {chatError && (
@@ -469,68 +349,22 @@ function ChatViewContent({
         </View>
       )}
       <LowPowerBanner />
-      <GiftedChat
+      <MessageList
         messages={displayMessages}
-        onSend={handleSend}
-        user={chatUser}
-        renderComposer={renderComposer}
-        renderBubble={renderBubble}
-        renderMessageImage={(props) => <ChatImageBubble currentMessage={props.currentMessage} />}
-        renderInputToolbar={renderInputToolbar}
-        renderSend={renderSend}
-        alwaysShowSend={isGeneratingResponse}
-        renderCustomView={renderCustomView}
-        isCustomViewBottom
-        messageIdGenerator={() => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`}
-        listViewProps={groundingListViewProps}
-        renderAvatarOnTop
-        messagesContainerStyle={styles.messagesContainer}
-        minInputToolbarHeight={MIN_INPUT_HEIGHT + 16}
-        minComposerHeight={MIN_INPUT_HEIGHT}
-        // GiftedChat translates content by (keyboardHeight - bottomOffset) where
-        // keyboardHeight is negative, so a NEGATIVE offset shifts the toolbar down
-        // by the tab bar height that already separates it from the screen bottom.
-        bottomOffset={-tabBarHeight}
-        renderAvatar={(props) => {
-          const isUser = props.currentMessage?.user._id === currentUserId
-
-          if (isUser) {
-            const displayName = userDisplayName?.trim()
-            const accessibilityLabel = displayName ? `${displayName}'s avatar` : 'Your avatar'
-            const userAvatarUri = chatUser.avatar as string | undefined
-
-            if (userAvatarUri) {
-              return (
-                <Avatar.Image
-                  accessible
-                  accessibilityRole="image"
-                  size={36}
-                  source={{ uri: userAvatarUri }}
-                  accessibilityLabel={accessibilityLabel}
-                />
-              )
-            }
-            return (
-              <Avatar.Text
-                accessible
-                accessibilityRole="image"
-                size={36}
-                label={getInitials(displayName)}
-                accessibilityLabel={accessibilityLabel}
-              />
-            )
-          }
-
-          return (
-            <CharacterAvatar
-              size={36}
-              imageUrl={characterAvatar}
-              characterName={characterName}
-            />
-          )
-        }}
+        currentUserId={currentUserId}
+        renderAvatar={renderAvatar}
+        contentContainerStyle={styles.messagesContainer}
       />
-    </View>
+      <ChatInputBar
+        characterId={characterId}
+        userId={currentUserId}
+        onSubmit={handleSend}
+        onSendPhoto={handleSendPhoto}
+        onPhaseChange={setDocumentPhase}
+        canSendPhoto={canSendPhoto}
+        isGenerating={isGeneratingResponse}
+      />
+    </KeyboardAvoidingView>
   )
 }
 
@@ -624,44 +458,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     fontSize: 12,
-  },
-  sendSpinnerContainer: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  groundingContainer: {
-    paddingHorizontal: 8,
-    paddingBottom: Platform.OS === 'web' ? 0 : 8,
-    gap: 6,
-    overflow: 'hidden',
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-  },
-  citationRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  citationChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    maxWidth: 220,
-  },
-  citationChipText: {
-    fontSize: 12,
-  },
-  searchSuggestions: {
-    backgroundColor: 'transparent',
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-    alignSelf: 'stretch',
   },
   headerTitle: {
     flexDirection: 'row',

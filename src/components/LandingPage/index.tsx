@@ -54,10 +54,7 @@ export default function LandingPage() {
           Skip to main content
         </a>
       )}
-      <View
-        nativeID={MAIN_CONTENT_ID}
-        tabIndex={-1}
-      >
+      <View nativeID={MAIN_CONTENT_ID} tabIndex={-1}>
         <HeroSection />
         <VideoSection />
         <FeaturesSection />

@@ -17,11 +17,13 @@ Run the full chat loop locally: Expo web frontend → Docker cloud-agent → loc
 ## What This Sandbox Is (and Is Not)
 
 **In scope:**
+
 - Cloud agent `/agent/run` endpoint with real credit deduction
 - Expo web frontend (`npx expo start -w`) hot-reloading
 - Mock auth bypass through both frontend paths (cloud agent + Firebase callable fallback)
 
 **Out of scope:**
+
 - Firebase Emulator
 - `generateImage`, `generateVoiceReply`, or any other Firebase callable
 - Staging/production databases
@@ -70,9 +72,14 @@ No schema changes. Existing tests unaffected (they inject mock DrizzleClient).
 When `MOCK_FIREBASE_AUTH=true`, pass a mock `verifyToken` to `createApp()`:
 
 ```typescript
-const verifyToken = process.env.MOCK_FIREBASE_AUTH === 'true'
-  ? async (_token: string) => ({ uid: 'local_test_user_123' })
-  : (token: string) => admin.auth().verifyIdToken(token).then(d => ({ uid: d.uid }))
+const verifyToken =
+  process.env.MOCK_FIREBASE_AUTH === 'true'
+    ? async (_token: string) => ({ uid: 'local_test_user_123' })
+    : (token: string) =>
+        admin
+          .auth()
+          .verifyIdToken(token)
+          .then((d) => ({ uid: d.uid }))
 ```
 
 `creditService` is **not** mocked — real `createCreditService(db)` runs against local Postgres.
@@ -82,6 +89,7 @@ const verifyToken = process.env.MOCK_FIREBASE_AUTH === 'true'
 Creates all required tables and seeds one test user + character. Tables not in `schema.ts` are created via raw SQL.
 
 Tables created:
+
 - `users` — via drizzle schema
 - `characters` — via drizzle schema
 - `tasks` — via drizzle schema
@@ -90,6 +98,7 @@ Tables created:
 - `credit_transactions` — raw SQL (not in cloud-agent schema.ts)
 
 Seeded data:
+
 - `users`: `id = 11111111-1111-1111-1111-111111111111`, `firebase_uid = 'local_test_user_123'`, `email = 'dev@localhost.com'`
 - `characters`: one row linked to above user (provides a valid `characterId` for testing)
 - `subscriptions`: one row for the user
@@ -118,7 +127,7 @@ services:
       context: ./cloud-agent
       dockerfile: Dockerfile.dev
     ports:
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       - ./cloud-agent:/app
       - /app/node_modules
@@ -138,9 +147,9 @@ services:
       - POSTGRES_PASSWORD=local_pass
       - POSTGRES_DB=clanker
     ports:
-      - "5432:5432"
+      - '5432:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U clanker_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U clanker_dev']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -269,15 +278,15 @@ With `EXPO_PUBLIC_USE_MOCK_AUTH=false`: real Firebase login, real staging bootst
 
 ## Files Changed Summary
 
-| File | Change |
-|------|--------|
-| `docker-compose.local.yml` | New |
-| `cloud-agent/Dockerfile.dev` | New |
-| `cloud-agent/scripts/seedLocal.ts` | New |
-| `cloud-agent/src/db/client.ts` | Add `DATABASE_URL` branch |
-| `cloud-agent/src/index.ts` | Mock `verifyToken` when `MOCK_FIREBASE_AUTH=true` |
-| `src/config/firebaseConfig.ts` | Mock `onAuthStateChanged` |
-| `src/config/firebaseConfig.web.ts` | Mock `onAuthStateChanged` |
-| `src/auth/bootstrapSession.ts` | Mock return before `getCurrentUser()` |
-| `src/services/chatReplyService.ts` | Mock return before `await appCheckReady` |
-| `.env.local` | New (gitignored) |
+| File                               | Change                                            |
+| ---------------------------------- | ------------------------------------------------- |
+| `docker-compose.local.yml`         | New                                               |
+| `cloud-agent/Dockerfile.dev`       | New                                               |
+| `cloud-agent/scripts/seedLocal.ts` | New                                               |
+| `cloud-agent/src/db/client.ts`     | Add `DATABASE_URL` branch                         |
+| `cloud-agent/src/index.ts`         | Mock `verifyToken` when `MOCK_FIREBASE_AUTH=true` |
+| `src/config/firebaseConfig.ts`     | Mock `onAuthStateChanged`                         |
+| `src/config/firebaseConfig.web.ts` | Mock `onAuthStateChanged`                         |
+| `src/auth/bootstrapSession.ts`     | Mock return before `getCurrentUser()`             |
+| `src/services/chatReplyService.ts` | Mock return before `await appCheckReady`          |
+| `.env.local`                       | New (gitignored)                                  |

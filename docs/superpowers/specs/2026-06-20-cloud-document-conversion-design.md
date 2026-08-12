@@ -11,7 +11,7 @@ The document-ingest pipeline (`ChatComposer` "+" button → `expo-document-picke
 
 What's missing: users can't upload PDFs, DOCX files, or photographed/scanned documents, because there's no step that turns binary formats into the plain text/markdown string the existing pipeline expects.
 
-A previous spec ([2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md)) added a `documentExtract` Firebase callable to solve a related but different problem (server-side *fact extraction*, pre-dating `core-llm-wiki`). The architecture moved on; `documentExtract` is registered (`functions/src/index.ts`, `firebaseConfig.ts`/`.web.ts`) but never called from any client code path. It is dead code.
+A previous spec ([2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md)) added a `documentExtract` Firebase callable to solve a related but different problem (server-side _fact extraction_, pre-dating `core-llm-wiki`). The architecture moved on; `documentExtract` is registered (`functions/src/index.ts`, `firebaseConfig.ts`/`.web.ts`) but never called from any client code path. It is dead code.
 
 ## Goals
 
@@ -34,6 +34,7 @@ A previous spec ([2026-04-28-document-ingest.md](./2026-04-28-document-ingest.md
 Confirmed dead: `documentExtractFn` is registered in `src/config/firebaseConfig.ts` / `.web.ts` but never invoked anywhere in `src/`. `ChatComposer.tsx` calls `useCharacterWiki().ingest()` directly with locally-read text — no callable in that path.
 
 Remove:
+
 - `functions/src/documentExtract.ts`
 - `functions/src/documentExtract.test.ts`
 - `documentExtract` export + import in `functions/src/index.ts`
@@ -47,23 +48,23 @@ New file `functions/src/convertDocumentText.ts`. Pattern mirrors `documentExtrac
 
 ```ts
 interface ConvertDocumentTextInput {
-  filename: string;        // for provenance/error messages only; sanitized server-side
-  mimeType: string;        // must be in ALLOWED_MIME_TYPES
-  contentBase64: string;   // raw file bytes, base64-encoded
+  filename: string // for provenance/error messages only; sanitized server-side
+  mimeType: string // must be in ALLOWED_MIME_TYPES
+  contentBase64: string // raw file bytes, base64-encoded
 }
 
 interface ConvertDocumentTextOutput {
-  text: string;             // extracted/converted markdown or plain text
-  truncated: boolean;       // true if output exceeded MAX_DOCUMENT_CHARS and was clipped
+  text: string // extracted/converted markdown or plain text
+  truncated: boolean // true if output exceeded MAX_DOCUMENT_CHARS and was clipped
 }
 ```
 
 ### Allowed MIME types → conversion engine
 
 ```ts
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']);
-const ALLOWED_MIME_TYPES = new Set([DOCX_MIME, ...GEMINI_MIME_TYPES]);
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const GEMINI_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'])
+const ALLOWED_MIME_TYPES = new Set([DOCX_MIME, ...GEMINI_MIME_TYPES])
 ```
 
 - `DOCX_MIME` → **mammoth** (`mammoth.extractRawText({ buffer })`) — deterministic, no LLM call, no credit-cost variance from model latency/availability. Mammoth has no `convertToMarkdown` API (only `convertToHtml` and `extractRawText`); `extractRawText` returns plain text, which is sufficient — the existing ingest pipeline chunks prose regardless of Markdown formatting.
@@ -77,7 +78,7 @@ Any other `mimeType` → `HttpsError('invalid-argument', 'Unsupported file type.
 2. **Parse + validate input** — `filename` non-empty string (sanitize: strip everything outside `[A-Za-z0-9._\- ]`, truncate to 255 chars, same regex as old `documentExtract`); `mimeType` must be in `ALLOWED_MIME_TYPES`; `contentBase64` must be a non-empty string matching base64 charset.
 3. **Size cap** — `contentBase64.length > MAX_BASE64_LENGTH` (`12_000_000`, ~9MB raw) → `HttpsError('invalid-argument', 'File too large.')`. Rejected before any credit charge or decode. Mirrors `generateImage.ts`'s `MAX_BASE64_LENGTH = 8_000_000` constant for output; input cap set slightly higher since source documents run larger than generated images.
 4. **User identity** — `userRepository.getOrCreateUserByFirebaseIdentity`, same as every other callable.
-5. **Charge 1 credit** — `creditService.spendCredits(userId, 1)`; insufficient balance → `HttpsError('failed-precondition', 'Insufficient credits to convert document.')`. Charged *before* conversion (matches old `documentExtract`'s `chargeForDocumentExtract`), refunded on any failure in the try/catch below.
+5. **Charge 1 credit** — `creditService.spendCredits(userId, 1)`; insufficient balance → `HttpsError('failed-precondition', 'Insufficient credits to convert document.')`. Charged _before_ conversion (matches old `documentExtract`'s `chargeForDocumentExtract`), refunded on any failure in the try/catch below.
 6. **Decode + convert**:
    - DOCX → `Buffer.from(contentBase64, 'base64')` → `mammoth.extractRawText({ buffer })` → `.value` is the plain text. Mammoth conversion errors (corrupt/non-OOXML file) caught and rethrown as `HttpsError('invalid-argument', 'Could not read DOCX file.')`.
    - PDF/image → Gemini multimodal call: `ai.models.generateContent({ model: 'gemini-3.5-flash', contents: [{ inlineData: { mimeType, data: contentBase64 } }, { text: CONVERSION_PROMPT }] })`. `CONVERSION_PROMPT`: "Transcribe all text content from this document into clean markdown. Preserve headings, lists, and tables where present. Output only the transcribed markdown — no commentary, no preamble." No structured-output schema needed (output is Markdown text, not JSON) — use default `responseMimeType` (text).
@@ -98,8 +99,8 @@ Reuses the exact `GoogleGenAI` client construction pattern already in `documentE
 new GoogleGenAI({
   vertexai: true,
   project: getProjectId(), // GCLOUD_PROJECT / GCP_PROJECT / GOOGLE_CLOUD_PROJECT
-  location: 'global',      // Gemini 3.5 family is global-only on Vertex AI
-});
+  location: 'global', // Gemini 3.5 family is global-only on Vertex AI
+})
 ```
 
 No API key anywhere — authentication is ADC (metadata server in deployed Cloud Functions, same as `cloud-agent`). Model: `gemini-3.5-flash`, matching the rest of the codebase's current model choice.
@@ -107,10 +108,10 @@ No API key anywhere — authentication is ADC (metadata server in deployed Cloud
 ### Constants
 
 ```ts
-const MAX_BASE64_LENGTH = 12_000_000;   // ~9MB raw file
-const MAX_DOCUMENT_CHARS = 200_000;     // matches old documentExtract cap
-const CONVERT_MODEL = 'gemini-3.5-flash';
-const GEMINI_LOCATION = 'global';
+const MAX_BASE64_LENGTH = 12_000_000 // ~9MB raw file
+const MAX_DOCUMENT_CHARS = 200_000 // matches old documentExtract cap
+const CONVERT_MODEL = 'gemini-3.5-flash'
+const GEMINI_LOCATION = 'global'
 ```
 
 ## Client: `ChatComposer.tsx` / `ChatComposer.web.tsx`
@@ -121,10 +122,13 @@ Extend `DocumentPicker.getDocumentAsync({ type: [...] })`:
 
 ```ts
 type: [
-  'text/plain', 'text/markdown',                                              // existing
+  'text/plain',
+  'text/markdown', // existing
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  // .docx
-  'image/png', 'image/jpeg', 'image/webp',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'image/png',
+  'image/jpeg',
+  'image/webp',
 ]
 ```
 
@@ -151,6 +155,7 @@ From `documentChunk` onward, **zero changes** — same `sourceHash` computation 
 ### Error handling
 
 Add one more `catch` arm in `handlePlusPress`, mapping `convertDocumentText` `HttpsError` codes to toast copy:
+
 - `failed-precondition` → "Insufficient credits to convert this document."
 - `invalid-argument` → "File too large or unsupported format."
 - anything else → "Failed to convert document."
@@ -164,21 +169,25 @@ Existing `WikiBusyError` / JSON-parse-error toast branches (for the `ingest` cal
 ## Files Touched
 
 **New**:
+
 - `functions/src/convertDocumentText.ts`
 - `functions/src/convertDocumentText.test.ts`
 - `src/services/convertDocumentTextService.ts` (or addition to `src/services/apiClient.ts`)
 
 **Modified**:
+
 - `functions/src/index.ts` — remove `documentExtract` export, add `convertDocumentText` export
 - `src/config/firebaseConfig.ts` / `.web.ts` — remove `documentExtractFn`, add `convertDocumentTextFn`
 - `src/components/ChatComposer.tsx` / `.web.tsx` — extend picker MIME filter, add base64-read + convert branch, add error-toast mapping
 - `functions/package.json` — add `mammoth` dependency
 
 **Deleted**:
+
 - `functions/src/documentExtract.ts`
 - `functions/src/documentExtract.test.ts`
 
 **Unchanged**:
+
 - `@equationalapplications/core-llm-wiki`, `wikiMachine.ts`, `useCharacterWiki.ts` — `ingestDocument`'s `source_type: 'immutable_document'` tagging and `runLibrarian`/`runHeal` skip behavior already correct, verified against package `.d.ts`
 - `wikiLlm.ts`, `wikiSync.ts` — unrelated callables, no changes
 

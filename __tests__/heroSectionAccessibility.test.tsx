@@ -10,7 +10,9 @@ jest.mock('expo-router', () => {
   }
 })
 jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: jest.fn() }))
-jest.mock('@xstate/react', () => ({ useSelector: (_: any, sel: any) => sel({ context: { user: null }, matches: () => false }) }))
+jest.mock('@xstate/react', () => ({
+  useSelector: (_: any, sel: any) => sel({ context: { user: null }, matches: () => false }),
+}))
 jest.mock('react-native-reanimated', () => {
   const React = require('react')
   return {
@@ -45,8 +47,11 @@ jest.mock('expo-image', () => {
 jest.mock('react-native-paper', () => {
   const React = require('react')
   return {
-    useTheme: () => ({ colors: { primary: '#000', onPrimary: '#fff', onBackground: '#000', background: '#fff' } }),
-    Button: ({ children, onPress, ...props }: any) => React.createElement('Button', { onPress, ...props }, children),
+    useTheme: () => ({
+      colors: { primary: '#000', onPrimary: '#fff', onBackground: '#000', background: '#fff' },
+    }),
+    Button: ({ children, onPress, ...props }: any) =>
+      React.createElement('Button', { onPress, ...props }, children),
     Text: ({ children, ...props }: any) => React.createElement('Text', props, children),
   }
 })
@@ -63,7 +68,9 @@ import HeroSection from '~/components/LandingPage/HeroSection'
 describe('HeroSection accessibility', () => {
   it('logo image has accessibilityLabel "Clanker application logo"', () => {
     let tree: any
-    act(() => { tree = create(<HeroSection />) })
+    act(() => {
+      tree = create(<HeroSection />)
+    })
     const images = tree.root.findAllByType('ExpoImage')
     expect(images.length).toBeGreaterThan(0)
     const logoImage = images[0]
@@ -72,7 +79,9 @@ describe('HeroSection accessibility', () => {
 
   it('logo image has accessibilityRole "image"', () => {
     let tree: any
-    act(() => { tree = create(<HeroSection />) })
+    act(() => {
+      tree = create(<HeroSection />)
+    })
     const images = tree.root.findAllByType('ExpoImage')
     const logoImage = images[0]
     expect(logoImage.props.accessibilityRole).toBe('image')

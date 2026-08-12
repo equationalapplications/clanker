@@ -2,14 +2,14 @@
 
 **Date:** 2026-07-05
 **Status:** Implemented
- The wire protocol in §5 is a frozen contract: Curated Thoughts v1.9.0 already conforms to it (`curated-thoughts/docs/superpowers/specs/2026-07-05-clanker-desktop-bridge-alignment-design.md`), so implementation must not deviate from §5 without a paired CT amendment.
+The wire protocol in §5 is a frozen contract: Curated Thoughts v1.9.0 already conforms to it (`curated-thoughts/docs/superpowers/specs/2026-07-05-clanker-desktop-bridge-alignment-design.md`), so implementation must not deviate from §5 without a paired CT amendment.
 **Amended:** 2026-07-06 architecture review — device-doc listener on revoke/pause (§5), timeout-aware call-cap decay (§7), liveness refresh cadence (§5), prompt-injection posture (§9).
 **Counterpart spec (approved):** `curated-thoughts/docs/superpowers/specs/2026-07-01-clanker-cloud-bridge-design.md` — defines the Curated Thoughts `CloudBridgeClient`, the five read-only tool contracts, and the §5 contract this spec implements.
 **Structural precedents in this repo:** `cloud-agent/src/handlers/wsBrowserAgentHandler.ts` (WS auth/lifecycle), `cloud-agent/src/tools/browserAction.ts` (fail-fast device resolution, contextual billing, durable `watchTask` result delivery), `docs/browser-bridge.md` (three-node architecture and Firestore-as-bus invariant).
 
 ## 1. Summary
 
-Adds the Clanker side of the desktop vault bridge: a persistent WebSocket route (`/agent/desktop`) that Curated Thoughts connects to outbound, a `type: "desktop"` device registration with pasted-pairing-token auth, and a family of five `vault_*` ADK tools (§7) available to Cloud Agent text (`/agent/run`) and voice (`/agent/live`) paths. The tools let Gemini query the user's home knowledge vault (wiki entries, graph edges, semantic chunks) mid-turn via the five read-only tool contracts defined in the Curated Thoughts spec, whose wire protocol is reused verbatim. *(The CT spec §5 sketch named a single `query_local_vault` dispatcher; this spec fans it out into five named ADK tools for model ergonomics while keeping the wire contract identical — see §7.)*
+Adds the Clanker side of the desktop vault bridge: a persistent WebSocket route (`/agent/desktop`) that Curated Thoughts connects to outbound, a `type: "desktop"` device registration with pasted-pairing-token auth, and a family of five `vault_*` ADK tools (§7) available to Cloud Agent text (`/agent/run`) and voice (`/agent/live`) paths. The tools let Gemini query the user's home knowledge vault (wiki entries, graph edges, semantic chunks) mid-turn via the five read-only tool contracts defined in the Curated Thoughts spec, whose wire protocol is reused verbatim. _(The CT spec §5 sketch named a single `query_local_vault` dispatcher; this spec fans it out into five named ADK tools for model ergonomics while keeping the wire contract identical — see §7.)_
 
 Like `browser_action`, the edge agent and Firebase `generateReply` path never see these tools.
 
@@ -75,17 +75,17 @@ If the same device connects twice (e.g. reconnect racing the dead socket), the n
 
 **Steady state frames:**
 
-| Direction | Frame |
-|---|---|
+| Direction    | Frame                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------- |
 | CT → Clanker | `{ "type": "ping" }` every 20s (same shape/interval as `extension/src/background/ws-client.ts`) |
-| Clanker → CT | `{ "type": "pong" }` |
-| Clanker → CT | `{ "type": "task", "taskId", "tool", "params" }` |
-| CT → Clanker | `{ "type": "task_result", "taskId", "result" }` |
-| CT → Clanker | `{ "type": "task_error", "taskId", "error": { "code", "message" } }` |
+| Clanker → CT | `{ "type": "pong" }`                                                                            |
+| Clanker → CT | `{ "type": "task", "taskId", "tool", "params" }`                                                |
+| CT → Clanker | `{ "type": "task_result", "taskId", "result" }`                                                 |
+| CT → Clanker | `{ "type": "task_error", "taskId", "error": { "code", "message" } }`                            |
 
 All frames validated with zod; malformed frames are ignored pre-auth-style (auth frame errors close `4001`, post-auth malformed frames are dropped and logged).
 
-**Liveness:** device doc `lastSeenAt` is refreshed at most once per 40s (every other heartbeat) to bound Firestore write volume. *(Amended from 60s: against `getActiveDesktopDevice`'s 90s staleness filter, a 60s cadence left only a 30s margin — 1.5 heartbeats — so a single delayed Firestore write under load could make a live device look offline. 40s gives a 50s margin, ~2.5 heartbeats.)* No pong received by CT, or no ping received by Clanker, for 45s → each side treats the connection as dead (CT spec §4); Clanker's close handler runs the disconnect path.
+**Liveness:** device doc `lastSeenAt` is refreshed at most once per 40s (every other heartbeat) to bound Firestore write volume. _(Amended from 60s: against `getActiveDesktopDevice`'s 90s staleness filter, a 60s cadence left only a 30s margin — 1.5 heartbeats — so a single delayed Firestore write under load could make a live device look offline. 40s gives a 50s margin, ~2.5 heartbeats.)_ No pong received by CT, or no ping received by Clanker, for 45s → each side treats the connection as dead (CT spec §4); Clanker's close handler runs the disconnect path.
 
 **Disconnect path (`close`/`error`):** deregister from `desktopBridge`, unsubscribe both listeners (task queue and device doc), update device doc `{ online: false, connectedInstanceId: null }` (skipped if the doc was deleted by revocation). In-flight tasks dispatched over this socket are failed immediately with `DESKTOP_DISCONNECTED` so the tool-calling instance's `watchTask` resolves without waiting out its timeout.
 
@@ -93,10 +93,10 @@ All frames validated with zod; malformed frames are ignored pre-auth-style (auth
 
 ## 6. Firestore schema changes
 
-| Path | Change |
-|---|---|
-| `users/{uid}/devices/{deviceId}` | New optional fields: `type` (`'desktop'`; absent = browser), `online`, `connectedInstanceId`. Browser device docs untouched. |
-| `desktopPairings/{tokenHash}` | **New top-level collection**: `{ uid, deviceId, createdAt }`. `firestore.rules`: deny all client reads/writes. |
+| Path                                | Change                                                                                                                                                                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users/{uid}/devices/{deviceId}`    | New optional fields: `type` (`'desktop'`; absent = browser), `online`, `connectedInstanceId`. Browser device docs untouched.                                                                                                                                      |
+| `desktopPairings/{tokenHash}`       | **New top-level collection**: `{ uid, deviceId, createdAt }`. `firestore.rules`: deny all client reads/writes.                                                                                                                                                    |
 | `users/{uid}/desktopTasks/{taskId}` | **New collection**: `{ status: 'pending' \| 'executing' \| 'complete' \| 'failed', deviceId, tool, params, result, error, createdAt, updatedAt, expiresAt }`. Client access denied (Admin SDK only). `expiresAt` + Firestore TTL policy handles cleanup (1 hour). |
 
 `getActiveDevice` (browser path) adds an in-memory filter `data.type !== 'desktop'` next to the existing `isPaused` filter — desktop devices must never be selected for `browser_action` wake. New `getActiveDesktopDevice(uid)`: same query, filters `type === 'desktop' && !isPaused && online === true && lastSeenAt within 90s`, most-recent first. Requires no new composite index (same `active`/`lastSeenAt` query shape); desktop registration writes `active: true` the same way `deviceUpsert.ts` does for browser devices, so both device types share the one indexed query.
@@ -107,13 +107,13 @@ New `cloud-agent/src/tools/vaultTools.ts`, wired exactly where `browser_action` 
 
 **Five distinct ADK tools, one shared executor.** LLMs degrade on nested tool routing — a single dispatcher tool with a `tool` enum dilutes attention across five unrelated param shapes and invites hallucinated parameters. Worse, the CT wire names collide with existing Cloud Agent tools for the Cloud SQL wiki (`wiki_traverse_graph` already exists in `tools/graph.ts`; `wiki_get_ontology_manifest`, `wiki_read`, `wiki_write` in `tools/ontology.ts`/`tools/wiki.ts`) — the model must never see one name meaning two different memories. So Gemini gets five named tools with real, typed param schemas, all prefixed `vault_` (= the home computer), mapped to CT wire names at dispatch:
 
-| ADK tool (Gemini-facing) | CT wire `tool` value |
-|---|---|
-| `vault_wiki_search` | `wiki_search` |
-| `vault_get_ontology` | `wiki_get_ontology` |
-| `vault_traverse_graph` | `wiki_traverse_graph` |
-| `vault_semantic_search` | `vault_semantic_search` |
-| `vault_related_chunks` | `vault_related_chunks` |
+| ADK tool (Gemini-facing) | CT wire `tool` value    |
+| ------------------------ | ----------------------- |
+| `vault_wiki_search`      | `wiki_search`           |
+| `vault_get_ontology`     | `wiki_get_ontology`     |
+| `vault_traverse_graph`   | `wiki_traverse_graph`   |
+| `vault_semantic_search`  | `vault_semantic_search` |
+| `vault_related_chunks`   | `vault_related_chunks`  |
 
 Param schemas are copied from the CT tool contracts (`2026-06-23-mcp-wiki-graph-tools-design.md`) as zod schemas, one per tool. **The CT wire contract is unchanged**: every call still serializes to the same `{ taskId, tool, params }` frame (§5) carrying the wire name; the fan-out exists only on the ADK surface. Tool descriptions distinguish the vault from Clanker's own memory: "the user's home computer knowledge vault (Curated Thoughts)" vs. the existing character-wiki tools.
 
@@ -127,6 +127,7 @@ Param schemas are copied from the CT tool contracts (`2026-06-23-mcp-wiki-graph-
 6. Format result for the model: JSON-stringified `result` (these are compact retrieval payloads — entries/chunks — not DOM dumps; no truncation in v1 beyond the existing model context limits).
 
 **Billing: no flat credit spend.** Decision: vault reads execute on the user's own hardware and return in sub-second steady state.
+
 - Text path: no additional spend — vault calls never call `spendCredit`.
 - Voice path: billed per minute of wall clock; `pauseBilling`/`resumeBilling` around the call (mirror `browser_action`) so the per-minute timer doesn't tick during a vault fetch, and **no** `spendCredit` — unlike `browser_action`, there is no scarce device wake or long execution to meter. Revisit only if per-turn chaining abuse shows up (the 5-call cap bounds it).
 
@@ -134,22 +135,22 @@ Param schemas are copied from the CT tool contracts (`2026-06-23-mcp-wiki-graph-
 
 ## 8. Error codes
 
-| Code | Meaning | Surfaced to model as |
-|---|---|---|
-| `DESKTOP_OFFLINE` | No connected, unpaused desktop device | "No home computer is connected…" |
-| `DESKTOP_TIMEOUT` | No result within the call timeout (12s default) | "Your home computer didn't respond in time." |
-| `DESKTOP_DISCONNECTED` | Socket died mid-call | same as timeout |
-| `TOOL_ERROR` | CT returned `task_error` (bad params, vault error) | CT's error message, prefixed |
+| Code                   | Meaning                                            | Surfaced to model as                         |
+| ---------------------- | -------------------------------------------------- | -------------------------------------------- |
+| `DESKTOP_OFFLINE`      | No connected, unpaused desktop device              | "No home computer is connected…"             |
+| `DESKTOP_TIMEOUT`      | No result within the call timeout (12s default)    | "Your home computer didn't respond in time." |
+| `DESKTOP_DISCONNECTED` | Socket died mid-call                               | same as timeout                              |
+| `TOOL_ERROR`           | CT returned `task_error` (bad params, vault error) | CT's error message, prefixed                 |
 
 ## 8a. Failure modes and orphan cleanup
 
 Every `desktopTasks` doc has exactly one active watcher — the tool call that created it — with a hard timeout. That watcher is the primary janitor; layered backstops cover the crash permutations:
 
-| Failure | What happens | Cleanup layer |
-|---|---|---|
-| Socket-owning instance hard-crashes (OOM) with task `pending` | No listener picks it up; tool's `watchTask` times out at 12s, marks doc `failed` (`DESKTOP_TIMEOUT`) | Caller timeout |
-| Socket-owner crashes after dispatch (`executing`); CT replies into dead socket | Result never written; same caller timeout marks doc `failed`. CT detects the dead connection within 45s, reconnects (possibly to another instance), and is available for the next call | Caller timeout + CT reconnect |
-| Tool-calling instance *also* dies before marking failed (double crash) | Doc stays `pending`/`executing` with no watcher — harmless (nothing polls it) and reaped by the Firestore TTL policy on `expiresAt` (1h) | Firestore TTL |
+| Failure                                                                                | What happens                                                                                                                                                                                                                            | Cleanup layer                        |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Socket-owning instance hard-crashes (OOM) with task `pending`                          | No listener picks it up; tool's `watchTask` times out at 12s, marks doc `failed` (`DESKTOP_TIMEOUT`)                                                                                                                                    | Caller timeout                       |
+| Socket-owner crashes after dispatch (`executing`); CT replies into dead socket         | Result never written; same caller timeout marks doc `failed`. CT detects the dead connection within 45s, reconnects (possibly to another instance), and is available for the next call                                                  | Caller timeout + CT reconnect        |
+| Tool-calling instance _also_ dies before marking failed (double crash)                 | Doc stays `pending`/`executing` with no watcher — harmless (nothing polls it) and reaped by the Firestore TTL policy on `expiresAt` (1h)                                                                                                | Firestore TTL                        |
 | Crashed socket-owner leaves device doc `online: true` with stale `connectedInstanceId` | `getActiveDesktopDevice`'s `lastSeenAt within 90s` filter marks the device effectively offline once refreshes stop (≤90s window); calls dispatched inside that window die by caller timeout. CT's reconnect re-marks the doc truthfully | Liveness staleness bound + reconnect |
 
 No cron, no sweeper process: the TTL policy is the only scheduled mechanism, and it only ever reaps docs that have already lost their watcher. Monitoring hook: count `DESKTOP_TIMEOUT` results and TTL-reaped docs (log on write-failure paths) — a spike in either signals instance churn or listener lag worth investigating.

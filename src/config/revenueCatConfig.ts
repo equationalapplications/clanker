@@ -69,10 +69,7 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
 
       // Fallback for products that exist in RevenueCat but are not assigned
       // to an offering package (common with one-time consumables).
-      const inAppProducts = await Purchases.getProducts(
-        [productIdentifier],
-        PURCHASE_TYPE.INAPP,
-      )
+      const inAppProducts = await Purchases.getProducts([productIdentifier], PURCHASE_TYPE.INAPP)
       const subsProducts = await Purchases.getProducts([productIdentifier], PURCHASE_TYPE.SUBS)
 
       const matchedProduct: PurchasesStoreProduct | undefined = [
@@ -83,10 +80,10 @@ export async function purchaseProduct(productIdentifier: string): Promise<Custom
       if (!matchedProduct) {
         throw new Error(
           `Product "${productIdentifier}" not found. ` +
-          `Offerings: [${Object.keys(offerings.all).join(', ')}]. ` +
-          `Offering products: [${allProductIds.join(', ')}]. ` +
-          `INAPP: [${inAppProducts.map((p) => p.identifier).join(', ')}]. ` +
-          `SUBS: [${subsProducts.map((p) => p.identifier).join(', ')}].`,
+            `Offerings: [${Object.keys(offerings.all).join(', ')}]. ` +
+            `Offering products: [${allProductIds.join(', ')}]. ` +
+            `INAPP: [${inAppProducts.map((p) => p.identifier).join(', ')}]. ` +
+            `SUBS: [${subsProducts.map((p) => p.identifier).join(', ')}].`,
         )
       }
 

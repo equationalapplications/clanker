@@ -1,4 +1,4 @@
-import admin from 'firebase-admin'
+import { Timestamp } from '../firebaseAdmin.js'
 
 export interface DeviceUpsertBody {
   fcmToken: string
@@ -20,19 +20,22 @@ export async function upsertDeviceRecord(
   body: DeviceUpsertBody,
 ): Promise<void> {
   const ref = fs.doc(`users/${uid}/devices/${body.deviceId}`)
-  const now = admin.firestore.Timestamp.now()
+  const now = Timestamp.now()
   const existing = await ref.get()
-  await ref.set({
-    deviceId: body.deviceId,
-    fcmToken: body.fcmToken,
-    deviceName: body.deviceName,
-    active: true,
-    lastSeenAt: now,
-    ...(body.isPaused !== undefined
-      ? { isPaused: body.isPaused }
-      : !existing.exists
-        ? { isPaused: false }
-        : {}),
-    ...(!existing.exists ? { registeredAt: now } : {}),
-  }, { merge: true })
+  await ref.set(
+    {
+      deviceId: body.deviceId,
+      fcmToken: body.fcmToken,
+      deviceName: body.deviceName,
+      active: true,
+      lastSeenAt: now,
+      ...(body.isPaused !== undefined
+        ? { isPaused: body.isPaused }
+        : !existing.exists
+          ? { isPaused: false }
+          : {}),
+      ...(!existing.exists ? { registeredAt: now } : {}),
+    },
+    { merge: true },
+  )
 }

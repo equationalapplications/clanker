@@ -12,9 +12,7 @@ export default function WebIndex() {
   const isLoading = useSelector(
     authService,
     (state) =>
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   )
 
   if (isLoading) {

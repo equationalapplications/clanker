@@ -105,7 +105,7 @@ Restore the `MAX_ITERATIONS = 5` while-loop structure from `git show 014ecaa1^:s
 ### Request: accept `tools` and richer `contents`
 
 - `GenerateReplyData` gains `tools?: { name: string; description: string; parameters: object }[]`.
-- Validate each tool's `name` against a server-side allow-list of known tool names (the full `agentToolSpec` name list from `shared/agent-tools-spec.ts`'s edge/both tiers, hardcoded as a `Set<string>` in `generateReply.ts` — not imported from `shared/`, since `functions/`'s `tsconfig.json` has `rootDir: "src"` and can't reach the repo-root `shared/` directory without restructuring its build; the client already constructs the schema array itself via `getSchemasForEdge()` and sends it as data, so the server only needs to defend against unexpected tool *names*, not re-derive the schemas). Reject with `invalid-argument` on any unrecognized name.
+- Validate each tool's `name` against a server-side allow-list of known tool names (the full `agentToolSpec` name list from `shared/agent-tools-spec.ts`'s edge/both tiers, hardcoded as a `Set<string>` in `generateReply.ts` — not imported from `shared/`, since `functions/`'s `tsconfig.json` has `rootDir: "src"` and can't reach the repo-root `shared/` directory without restructuring its build; the client already constructs the schema array itself via `getSchemasForEdge()` and sends it as data, so the server only needs to defend against unexpected tool _names_, not re-derive the schemas). Reject with `invalid-argument` on any unrecognized name.
 - `validateStructuredContents` (currently requires every part to have a string `text`) must also accept `functionCall: { name: string; args?: object }` and `functionResponse: { name: string; response: object }` parts, since the loop pushes those into `contents` between rounds. A content item's parts array may now contain a mix of `text`, `functionCall`, and `functionResponse` parts.
 
 ### Response: surface `functionCalls`
@@ -133,13 +133,20 @@ No changes to the Character Edit screen. `strict` mode and the taxonomy builder 
 On actor creation (not on cache-hit return), before returning the actor:
 
 ```ts
-void wiki.getOntologyManifest(entityId).then((existing) => {
-  if (!existing || existing.mode === 'off') {
-    return wiki.setOntologyManifest(entityId, { node_types: [], edge_types: [] }, { mode: 'emergent' })
-  }
-}).catch((error) => {
-  console.warn(`Failed to bootstrap emergent ontology mode for ${entityId}:`, error)
-})
+void wiki
+  .getOntologyManifest(entityId)
+  .then((existing) => {
+    if (!existing || existing.mode === 'off') {
+      return wiki.setOntologyManifest(
+        entityId,
+        { node_types: [], edge_types: [] },
+        { mode: 'emergent' },
+      )
+    }
+  })
+  .catch((error) => {
+    console.warn(`Failed to bootstrap emergent ontology mode for ${entityId}:`, error)
+  })
 ```
 
 Fire-and-forget (matches the existing pattern for non-blocking wiki writes elsewhere in the app, e.g. `useAIChat.ts`'s `onWriteObservation`). Idempotent: once a row exists with `mode: 'emergent'`, subsequent app sessions see `existing.mode === 'emergent'` and skip the write. Self-healing for characters created before this phase shipped — no migration script needed. Characters created after this phase ships get the row on their first `getOrSpawn` call, which happens as part of normal wiki setup (`useCharacterWiki`'s underlying actor spawn), not as a separate "character creation" hook.

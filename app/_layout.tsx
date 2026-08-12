@@ -58,18 +58,16 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   const termsService = useTermsMachine()
   const characterService = useCharacterMachine()
 
-  const previousAuthSnapshotRef = useRef<
-    {
-      isSignedInState: boolean
-      firebaseUserId: string | null
-      dbUserId: string | null
-      planTier: string | null
-      planStatus: string | null
-      currentCredits: number | null
-      termsVersion: string | null
-      termsAcceptedAt: string | null
-    } | null
-  >(null)
+  const previousAuthSnapshotRef = useRef<{
+    isSignedInState: boolean
+    firebaseUserId: string | null
+    dbUserId: string | null
+    planTier: string | null
+    planStatus: string | null
+    currentCredits: number | null
+    termsVersion: string | null
+    termsAcceptedAt: string | null
+  } | null>(null)
 
   // authMachine → characterMachine: forward user changes (deduplicated)
   const previousCharacterUserIdRef = useRef<string | null>(null)
@@ -152,7 +150,8 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
   const { settings } = useSettings()
   useRegisterExpoPushToken({
     enabled: isSignedIn && settings.notifications,
-    projectId: Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
+    projectId:
+      Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
   })
   useBrowserActionApproval()
 
@@ -187,9 +186,7 @@ function RootLayoutNav() {
   const { user, isLoading } = useSelector(authService, (state) => ({
     user: state.context.user,
     isLoading:
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   }))
   const prevUserRef = useRef<typeof user>(null)
 
@@ -228,12 +225,10 @@ function RootLayoutNav() {
         // same character_images rows).
         let migrationSucceeded = false
         try {
-          const { migrateAvatarsToImageStore } = await import(
-            '~/database/migrations/migrateAvatarsToImageStore'
-          )
-          const { LEGACY_DEFAULT_AVATAR_BASE64 } = await import(
-            '~/database/migrations/legacyDefaultAvatarBase64'
-          )
+          const { migrateAvatarsToImageStore } =
+            await import('~/database/migrations/migrateAvatarsToImageStore')
+          const { LEGACY_DEFAULT_AVATAR_BASE64 } =
+            await import('~/database/migrations/legacyDefaultAvatarBase64')
           await migrateAvatarsToImageStore(uid, LEGACY_DEFAULT_AVATAR_BASE64)
           characterService.send({ type: 'LOAD' })
           migrationSucceeded = true
@@ -293,81 +288,81 @@ function RootLayoutNav() {
 
   const stack = (
     <Stack>
-        {/* Landing page - always accessible, no header */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
+      {/* Landing page - always accessible, no header */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
 
-        {/* Protected routes - only available when logged in */}
-        <Stack.Protected guard={!!user}>
-          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-          <Stack.Screen name="admin" options={{ headerShown: false }} />
-        </Stack.Protected>
+      {/* Protected routes - only available when logged in */}
+      <Stack.Protected guard={!!user}>
+        <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+      </Stack.Protected>
 
-        {/* Public routes - only available when NOT logged in */}
-        <Stack.Protected guard={!user}>
-          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        </Stack.Protected>
+      {/* Public routes - only available when NOT logged in */}
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      </Stack.Protected>
 
-        {/* Info pages - always available */}
-        <Stack.Screen
-          name="privacy"
-          options={({ navigation }) => ({
-            presentation: 'modal',
-            title: 'Privacy Policy',
-            headerBackButtonDisplayMode: 'minimal',
-            headerLeft: () => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-                hitSlop={8}
-                style={styles.headerBackButton}
-                onPress={() => {
-                  if (navigation.canGoBack()) {
-                    navigation.goBack()
-                    return
-                  }
-                  router.replace('/')
-                }}
-              >
-                <Icon source="arrow-left" size={24} color={colors.onSurface} />
-              </Pressable>
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="terms"
-          options={({ navigation }) => ({
-            presentation: 'modal',
-            title: 'Terms and Conditions',
-            headerBackButtonDisplayMode: 'minimal',
-            headerLeft: () => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-                hitSlop={8}
-                style={styles.headerBackButton}
-                onPress={() => {
-                  if (navigation.canGoBack()) {
-                    navigation.goBack()
-                    return
-                  }
-                  router.replace('/')
-                }}
-              >
-                <Icon source="arrow-left" size={24} color={colors.onSurface} />
-              </Pressable>
-            ),
-          })}
-        />
-        <Stack.Screen
-          name="support"
-          options={{
-            title: 'Support',
-            headerBackTitle: 'Back',
-          }}
-        />
-        <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
-        <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
-      </Stack>
+      {/* Info pages - always available */}
+      <Stack.Screen
+        name="privacy"
+        options={({ navigation }) => ({
+          presentation: 'modal',
+          title: 'Privacy Policy',
+          headerBackButtonDisplayMode: 'minimal',
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={8}
+              style={styles.headerBackButton}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack()
+                  return
+                }
+                router.replace('/')
+              }}
+            >
+              <Icon source="arrow-left" size={24} color={colors.onSurface} />
+            </Pressable>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="terms"
+        options={({ navigation }) => ({
+          presentation: 'modal',
+          title: 'Terms and Conditions',
+          headerBackButtonDisplayMode: 'minimal',
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={8}
+              style={styles.headerBackButton}
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack()
+                  return
+                }
+                router.replace('/')
+              }}
+            >
+              <Icon source="arrow-left" size={24} color={colors.onSurface} />
+            </Pressable>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="support"
+        options={{
+          title: 'Support',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen name="checkout/success" options={{ headerShown: false }} />
+      <Stack.Screen name="checkout/cancel" options={{ headerShown: false }} />
+    </Stack>
   )
 
   return <WikiProvider wiki={wiki!}>{stack}</WikiProvider>

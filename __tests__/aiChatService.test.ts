@@ -241,7 +241,14 @@ describe('sendMessageWithAIResponse', () => {
 
     await sendMessageWithAIResponse(
       userMessage as any,
-      { id: 'char-1', name: 'Nova', appearance: 'avatar', traits: 'calm', emotions: 'encouraging', context: 'coach' },
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'coach',
+      },
       'user-1',
       [userMessage] as any,
       {},
@@ -270,7 +277,14 @@ describe('sendMessageWithAIResponse', () => {
         createdAt: new Date('2026-04-27T00:00:00.000Z'),
         user: { _id: 'user-1' },
       } as any,
-      { id: 'char-1', name: 'Nova', appearance: 'avatar', traits: 'calm', emotions: 'encouraging', context: 'coach' },
+      {
+        id: 'char-1',
+        name: 'Nova',
+        appearance: 'avatar',
+        traits: 'calm',
+        emotions: 'encouraging',
+        context: 'coach',
+      },
       'user-1',
       [] as any,
       { onWriteObservation: mockOnWrite },
@@ -283,7 +297,14 @@ describe('sendMessageWithAIResponse', () => {
   })
 
   it('proceeds without memory when no memoryBlock or onWriteObservation provided', async () => {
-    mockGetCharacter.mockResolvedValue({ id: 'char-1', name: 'Nova', appearance: '', traits: '', emotions: '', context: '' })
+    mockGetCharacter.mockResolvedValue({
+      id: 'char-1',
+      name: 'Nova',
+      appearance: '',
+      traits: '',
+      emotions: '',
+      context: '',
+    })
     mockGetMessageCount.mockResolvedValue(0)
     mockGetMessagesForContextSummary.mockResolvedValue([])
     mockGenerateChatReply.mockResolvedValue({

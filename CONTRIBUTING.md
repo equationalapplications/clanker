@@ -49,15 +49,17 @@ Quick start:
 ### Installation
 
 1. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 2. **Set up environment variables**:
+
    ```bash
    cp .env.example .env
    ```
-   
+
    Fill in the required values in `.env` (see README.md for details)
 
 3. **Start the development server**:
@@ -68,6 +70,7 @@ Quick start:
 ### Important Files to Review
 
 Before contributing, please read:
+
 - [README.md](README.md) — Project overview and documentation index
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) — Development patterns and architecture
 - Documentation in `/docs` folder — Detailed implementation guides
@@ -159,12 +162,12 @@ git checkout -b hotfix/critical-bug main
 
 ### Quick Reference
 
-| Action | Method | Commit Message |
-|---|---|---|
-| Feature → staging | Merge Commit | `feat(scope): description` |
-| staging → main | Merge Commit | `chore(release): promote staging to production` |
-| main → staging | Merge Commit | `chore: sync main into staging` |
-| Hotfix → main | Merge Commit | `fix(scope): description` |
+| Action            | Method       | Commit Message                                  |
+| ----------------- | ------------ | ----------------------------------------------- |
+| Feature → staging | Merge Commit | `feat(scope): description`                      |
+| staging → main    | Merge Commit | `chore(release): promote staging to production` |
+| main → staging    | Merge Commit | `chore: sync main into staging`                 |
+| Hotfix → main     | Merge Commit | `fix(scope): description`                       |
 
 ### Common Pitfalls
 
@@ -282,18 +285,18 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for automate
 
 ### Types & Version Impact
 
-| Type | Description | Version Bump |
-|------|-------------|-------------|
-| `feat` | New feature | Minor |
-| `fix` | Bug fix | Patch |
-| `perf` | Performance improvement | Patch |
-| `docs` | Documentation only | None |
-| `style` | Code style (formatting) | None |
-| `refactor` | Code refactoring | None |
-| `test` | Adding/updating tests | None |
-| `chore` | Maintenance tasks | None |
-| `ci` | CI/CD changes | None |
-| `build` | Build system changes | None |
+| Type       | Description             | Version Bump |
+| ---------- | ----------------------- | ------------ |
+| `feat`     | New feature             | Minor        |
+| `fix`      | Bug fix                 | Patch        |
+| `perf`     | Performance improvement | Patch        |
+| `docs`     | Documentation only      | None         |
+| `style`    | Code style (formatting) | None         |
+| `refactor` | Code refactoring        | None         |
+| `test`     | Adding/updating tests   | None         |
+| `chore`    | Maintenance tasks       | None         |
+| `ci`       | CI/CD changes           | None         |
+| `build`    | Build system changes    | None         |
 
 ### Breaking Changes
 
@@ -356,6 +359,7 @@ The root `npm run typecheck` excludes `extension/` and `cloud-agent/` — run ea
 ### Manual Testing
 
 Before submitting a PR:
+
 1. Test on iOS simulator/device
 2. Test on Android emulator/device
 3. Test on web (if applicable)
@@ -367,6 +371,7 @@ Before submitting a PR:
 ## Firebase Functions Testing
 
 Cloud Functions tests live in `functions/src/*.test.ts` and focus on:
+
 - Callable auth and input validation
 - Webhook request validation
 - Happy-path Cloud SQL bootstrap/repository flow with mocked dependencies
@@ -385,6 +390,7 @@ npm run test           # Compile + run Node test runner
 ### Runtime Config
 
 Some flows depend on non-sensitive params in the target environment:
+
 - `STRIPE_SUCCESS_URL=https://clanker-ai.com/checkout/success`
 - `STRIPE_CANCEL_URL=https://clanker-ai.com/checkout/cancel`
 
@@ -410,14 +416,17 @@ Stripe checkout tests also assume `STRIPE_SECRET_KEY` is set to a valid key-like
 ### Quick Start: Live Debug Session
 
 1. **Start Metro in a terminal:**
+
    ```bash
    npx expo start --web --port 8081
    ```
+
    Wait for `Web: http://localhost:8081` to appear.
 
 2. **Open `http://localhost:8081`** in Chrome/Edge.
 
 3. **Simulate a fresh user by clearing storage:**
+
    ```js
    window.localStorage.clear()
    location.reload()
@@ -426,8 +435,8 @@ Stripe checkout tests also assume `STRIPE_SECRET_KEY` is set to a valid key-like
 4. **Capture all errors via Playwright:**
    ```js
    const errors = []
-   page.on('pageerror', err => errors.push({ text: err.message, stack: err.stack }))
-   page.on('console', msg => {
+   page.on('pageerror', (err) => errors.push({ text: err.message, stack: err.stack }))
+   page.on('console', (msg) => {
      if (msg.type() === 'warning' || msg.type() === 'error')
        errors.push({ type: msg.type(), text: msg.text(), location: msg.location() })
    })
@@ -457,13 +466,13 @@ Stripe checkout tests also assume `STRIPE_SECRET_KEY` is set to a valid key-like
 
 ### Remaining Noise (safe to ignore)
 
-| Warning | Source |
-|---|---|
-| `shadow* style props are deprecated. Use boxShadow.` | React Native Paper |
-| `props.pointerEvents is deprecated. Use style.pointerEvents` | React Native Web |
-| `[Reanimated] Property [transform] may be overwritten` | Reanimated + Paper |
-| `useNativeDriver is not supported` | Animated without `useNativeDriver: false` |
-| Firebase App Check 403 | Debug token not configured for localhost |
+| Warning                                                      | Source                                    |
+| ------------------------------------------------------------ | ----------------------------------------- |
+| `shadow* style props are deprecated. Use boxShadow.`         | React Native Paper                        |
+| `props.pointerEvents is deprecated. Use style.pointerEvents` | React Native Web                          |
+| `[Reanimated] Property [transform] may be overwritten`       | Reanimated + Paper                        |
+| `useNativeDriver is not supported`                           | Animated without `useNativeDriver: false` |
+| Firebase App Check 403                                       | Debug token not configured for localhost  |
 
 ---
 
@@ -485,6 +494,7 @@ Stripe checkout tests also assume `STRIPE_SECRET_KEY` is set to a valid key-like
 ### API Documentation
 
 When adding new APIs or changing existing ones:
+
 1. Document parameters and return types
 2. Provide usage examples
 3. Note any breaking changes
@@ -499,6 +509,7 @@ When adding new APIs or changing existing ones:
 ## Recognition
 
 Contributors will be recognized in:
+
 - GitHub contributors page
 - Release notes (for significant contributions)
 

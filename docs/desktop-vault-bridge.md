@@ -12,11 +12,11 @@ Counterpart spec: `curated-thoughts/docs/superpowers/specs/2026-07-01-clanker-cl
 
 ## Three-Node Architecture
 
-| Node | Role | Connection |
-|------|------|------------|
-| Mobile app | Pair/revoke desktop, chat I/O | `POST /agent/desktop/pair`, `/agent/run` |
-| Cloud Agent | Task writer, socket-owning instance dispatches | `/agent/desktop` WebSocket + `desktopBridge` same-instance shortcut |
-| Curated Thoughts | Vault executor on user hardware | Persistent outbound WS with pairing-token auth |
+| Node             | Role                                           | Connection                                                          |
+| ---------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| Mobile app       | Pair/revoke desktop, chat I/O                  | `POST /agent/desktop/pair`, `/agent/run`                            |
+| Cloud Agent      | Task writer, socket-owning instance dispatches | `/agent/desktop` WebSocket + `desktopBridge` same-instance shortcut |
+| Curated Thoughts | Vault executor on user hardware                | Persistent outbound WS with pairing-token auth                      |
 
 **Key invariant:** Cloud Run instances never communicate directly. All cross-instance routing flows through Firestore (`users/{uid}/desktopTasks/{taskId}`). The socket-owning instance runs a snapshot listener on pending tasks; tool-calling instances write task docs and `watchTask` for results.
 
@@ -45,14 +45,14 @@ Tool-calling instance                     Socket-owning instance
 
 ## WebSocket Frames
 
-| Direction | Frame |
-|---|---|
-| CT → Clanker | `{ "type": "auth", "pairingToken" }` (first frame, 5s timeout) |
-| Clanker → CT | `{ "type": "ready" }` |
-| CT → Clanker | `{ "type": "ping" }` every 20s |
-| Clanker → CT | `{ "type": "pong" }` |
-| Clanker → CT | `{ "type": "task", "taskId", "tool", "params" }` |
-| CT → Clanker | `{ "type": "task_result", "taskId", "result" }` |
+| Direction    | Frame                                                                |
+| ------------ | -------------------------------------------------------------------- |
+| CT → Clanker | `{ "type": "auth", "pairingToken" }` (first frame, 5s timeout)       |
+| Clanker → CT | `{ "type": "ready" }`                                                |
+| CT → Clanker | `{ "type": "ping" }` every 20s                                       |
+| Clanker → CT | `{ "type": "pong" }`                                                 |
+| Clanker → CT | `{ "type": "task", "taskId", "tool", "params" }`                     |
+| CT → Clanker | `{ "type": "task_result", "taskId", "result" }`                      |
 | CT → Clanker | `{ "type": "task_error", "taskId", "error": { "code", "message" } }` |
 
 **Liveness:** `lastSeenAt` refreshed at most every 40s. `getActiveDesktopDevice` requires `lastSeenAt` within 90s.
@@ -61,13 +61,13 @@ Tool-calling instance                     Socket-owning instance
 
 ## ADK Tools (`vault_*`)
 
-| ADK tool (Gemini) | CT wire `tool` value |
-|---|---|
-| `vault_wiki_search` | `wiki_search` |
-| `vault_get_ontology` | `wiki_get_ontology` |
-| `vault_traverse_graph` | `wiki_traverse_graph` |
+| ADK tool (Gemini)       | CT wire `tool` value    |
+| ----------------------- | ----------------------- |
+| `vault_wiki_search`     | `wiki_search`           |
+| `vault_get_ontology`    | `wiki_get_ontology`     |
+| `vault_traverse_graph`  | `wiki_traverse_graph`   |
 | `vault_semantic_search` | `vault_semantic_search` |
-| `vault_related_chunks` | `vault_related_chunks` |
+| `vault_related_chunks`  | `vault_related_chunks`  |
 
 Wiring: `buildAgent` in `agentCore.ts` (text), `buildLiveTools` in `liveToolAdapter.ts` (voice).
 
@@ -79,12 +79,12 @@ Wiring: `buildAgent` in `agentCore.ts` (text), `buildLiveTools` in `liveToolAdap
 
 ## Error Codes
 
-| Code | Surfaced to model |
-|---|---|
-| `DESKTOP_OFFLINE`* | No home computer connected |
-| `DESKTOP_TIMEOUT` | Didn't respond in time |
-| `DESKTOP_DISCONNECTED` | Same as timeout |
-| `TOOL_ERROR` | CT error message, prefixed |
+| Code                   | Surfaced to model          |
+| ---------------------- | -------------------------- |
+| `DESKTOP_OFFLINE`*     | No home computer connected |
+| `DESKTOP_TIMEOUT`      | Didn't respond in time     |
+| `DESKTOP_DISCONNECTED` | Same as timeout            |
+| `TOOL_ERROR`           | CT error message, prefixed |
 
 *`DESKTOP_OFFLINE` is a synthesized message returned by `vaultTools` before any task doc is written; it is not a `DesktopTaskError.code` value stored in Firestore. Only `DESKTOP_TIMEOUT`, `DESKTOP_DISCONNECTED`, and `TOOL_ERROR` are persisted.
 
@@ -92,12 +92,12 @@ Wiring: `buildAgent` in `agentCore.ts` (text), `buildLiveTools` in `liveToolAdap
 
 ## Failure Modes
 
-| Failure | Cleanup |
-|---|---|
+| Failure                                  | Cleanup                                         |
+| ---------------------------------------- | ----------------------------------------------- |
 | Socket-owner crashes with task `pending` | Caller's 12s `watchTask` timeout marks `failed` |
-| Socket dies mid-call | `DESKTOP_DISCONNECTED` + caller timeout |
-| Tool-calling instance dies | Firestore TTL on `expiresAt` (1h) |
-| Stale `online: true` after crash | `lastSeenAt` staleness (90s) + CT reconnect |
+| Socket dies mid-call                     | `DESKTOP_DISCONNECTED` + caller timeout         |
+| Tool-calling instance dies               | Firestore TTL on `expiresAt` (1h)               |
+| Stale `online: true` after crash         | `lastSeenAt` staleness (90s) + CT reconnect     |
 
 No cron or sweeper — the caller timeout is the primary janitor.
 
@@ -105,11 +105,11 @@ No cron or sweeper — the caller timeout is the primary janitor.
 
 ## Firestore Schema
 
-| Path | Access |
-|---|---|
-| `users/{uid}/devices/{deviceId}` | Client read; `type: 'desktop'` for CT devices |
-| `desktopPairings/{tokenHash}` | Admin SDK only (denied in rules) |
-| `users/{uid}/desktopTasks/{taskId}` | Admin SDK only (denied in rules) |
+| Path                                | Access                                        |
+| ----------------------------------- | --------------------------------------------- |
+| `users/{uid}/devices/{deviceId}`    | Client read; `type: 'desktop'` for CT devices |
+| `desktopPairings/{tokenHash}`       | Admin SDK only (denied in rules)              |
+| `users/{uid}/desktopTasks/{taskId}` | Admin SDK only (denied in rules)              |
 
 **Ops:** Enable TTL on `desktopTasks.expiresAt`:
 

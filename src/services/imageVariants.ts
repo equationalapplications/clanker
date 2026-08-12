@@ -106,10 +106,7 @@ export async function prepareImageVariants(source: VariantSource): Promise<Image
     })
     thumbFile = new File(thumb.uri)
 
-    const [masterBase64, thumbBase64] = await Promise.all([
-      masterFile.base64(),
-      thumbFile.base64(),
-    ])
+    const [masterBase64, thumbBase64] = await Promise.all([masterFile.base64(), thumbFile.base64()])
 
     return {
       master: { base64: masterBase64, mimeType },

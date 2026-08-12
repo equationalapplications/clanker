@@ -1,4 +1,8 @@
-import { DrawerContentScrollView, DrawerItem, DrawerItemList } from 'expo-router/build/react-navigation/drawer'
+import {
+  DrawerContentScrollView,
+  DrawerItem,
+  DrawerItemList,
+} from 'expo-router/build/react-navigation/drawer'
 import { router, useNavigation, type Href } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
 import { useTheme, Icon } from 'react-native-paper'
@@ -93,7 +97,9 @@ const AppLayout = () => {
           {termsAccepted ? (
             <DrawerItem
               label="Support"
-              icon={({ color, size }) => <Icon source="lifebuoy" color={String(color)} size={size} />}
+              icon={({ color, size }) => (
+                <Icon source="lifebuoy" color={String(color)} size={size} />
+              )}
               onPress={() => router.push('/support' as Href)}
             />
           ) : null}
@@ -124,7 +130,10 @@ const AppLayout = () => {
         headerRight: () => <PowerMeter />,
       })}
     >
-      <Drawer.Screen name="(tabs)" options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS} />
+      <Drawer.Screen
+        name="(tabs)"
+        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+      />
       <Drawer.Screen
         name="profile"
         options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}

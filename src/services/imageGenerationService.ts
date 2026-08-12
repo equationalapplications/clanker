@@ -49,7 +49,9 @@ function parseResponse(payload: unknown): GenerateImageViaCallableResponse {
 
   const planTier = typeof record.planTier === 'string' ? record.planTier : null
   const planStatus =
-    record.planStatus === 'active' || record.planStatus === 'cancelled' || record.planStatus === 'expired'
+    record.planStatus === 'active' ||
+    record.planStatus === 'cancelled' ||
+    record.planStatus === 'expired'
       ? record.planStatus
       : null
   const verifiedAt = typeof record.verifiedAt === 'string' ? record.verifiedAt.trim() : ''

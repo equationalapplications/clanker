@@ -47,7 +47,11 @@ function parsePayload(data: unknown): RegisterExpoPushTokenPayload {
   }
 
   const tokenData = webDevicePushToken.data
-  if (!isRecord(tokenData) || typeof tokenData.endpoint !== 'string' || tokenData.endpoint.length === 0) {
+  if (
+    !isRecord(tokenData) ||
+    typeof tokenData.endpoint !== 'string' ||
+    tokenData.endpoint.length === 0
+  ) {
     throw new HttpsError('invalid-argument', 'webDevicePushToken.data.endpoint is required.')
   }
 

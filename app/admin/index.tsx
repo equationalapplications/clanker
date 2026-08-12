@@ -78,8 +78,14 @@ export default function AdminDashboardScreen() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const debouncedSearch = useDebouncedValue(search, 300)
-  const normalizedPlanTierFilter = useMemo(() => normalizePlanTierFilter(planTierFilter), [planTierFilter])
-  const planStatusFilter = useMemo(() => normalizePlanStatusFilter(planStatusInput), [planStatusInput])
+  const normalizedPlanTierFilter = useMemo(
+    () => normalizePlanTierFilter(planTierFilter),
+    [planTierFilter],
+  )
+  const planStatusFilter = useMemo(
+    () => normalizePlanStatusFilter(planStatusInput),
+    [planStatusInput],
+  )
   const hasPlanTierInput = planTierFilter.trim().length > 0
   const hasPlanStatusInput = planStatusInput.trim().length > 0
   const isPlanTierFilterInvalid = hasPlanTierInput && !normalizedPlanTierFilter
@@ -118,7 +124,9 @@ export default function AdminDashboardScreen() {
 
   const totalCount = usersQuery.data?.totalCount
   const totalPages =
-    typeof totalCount === 'number' && totalCount >= 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : null
+    typeof totalCount === 'number' && totalCount >= 0
+      ? Math.max(1, Math.ceil(totalCount / pageSize))
+      : null
 
   const palette = useMemo(
     () => ({
@@ -234,9 +242,14 @@ export default function AdminDashboardScreen() {
   }
 
   return (
-    <ScrollView style={[styles.page, { backgroundColor: palette.pageBackground }]} contentContainerStyle={styles.pageContent}>
+    <ScrollView
+      style={[styles.page, { backgroundColor: palette.pageBackground }]}
+      contentContainerStyle={styles.pageContent}
+    >
       <Text variant="headlineMedium">Admin Dashboard</Text>
-      <Text style={[styles.subtitle, { color: palette.subduedText }]}>Web-only controls for privileged user management.</Text>
+      <Text style={[styles.subtitle, { color: palette.subduedText }]}>
+        Web-only controls for privileged user management.
+      </Text>
 
       <Card style={[styles.filtersCard, { backgroundColor: palette.cardBackground }]}>
         <Card.Content>
@@ -252,7 +265,8 @@ export default function AdminDashboardScreen() {
               }}
             />
             <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
-              Email/name search runs server-side across all users; plan filters apply to the current page.
+              Email/name search runs server-side across all users; plan filters apply to the current
+              page.
             </Text>
             <TextInput
               mode="outlined"
@@ -267,7 +281,8 @@ export default function AdminDashboardScreen() {
             />
             {isPlanTierFilterInvalid ? (
               <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
-                Plan tier must be one of: free, monthly_20, monthly_50, payg. Current input is ignored until valid.
+                Plan tier must be one of: free, monthly_20, monthly_50, payg. Current input is
+                ignored until valid.
               </Text>
             ) : null}
             <TextInput
@@ -283,12 +298,17 @@ export default function AdminDashboardScreen() {
             />
             {isPlanStatusFilterInvalid ? (
               <Text style={[styles.filtersHint, { color: palette.subduedText }]}>
-                Plan status must be one of: active, cancelled, expired. Current input is ignored until valid.
+                Plan status must be one of: active, cancelled, expired. Current input is ignored
+                until valid.
               </Text>
             ) : null}
           </View>
           <View style={styles.toolbar}>
-            <Button mode="outlined" onPress={() => usersQuery.refetch()} disabled={usersQuery.isFetching}>
+            <Button
+              mode="outlined"
+              onPress={() => usersQuery.refetch()}
+              disabled={usersQuery.isFetching}
+            >
               Refresh
             </Button>
             <Text>Rows per page</Text>
@@ -305,15 +325,25 @@ export default function AdminDashboardScreen() {
                 {size}
               </Button>
             ))}
-            <Button mode="contained" onPress={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1 || usersQuery.isFetching}>
+            <Button
+              mode="contained"
+              onPress={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page === 1 || usersQuery.isFetching}
+            >
               Previous
             </Button>
             <Text>{totalPages ? `Page ${page} of ${totalPages}` : `Page ${page}`}</Text>
-            <Button mode="contained" onPress={() => setPage((prev) => prev + 1)} disabled={usersQuery.isFetching || !usersQuery.data?.hasMore}>
+            <Button
+              mode="contained"
+              onPress={() => setPage((prev) => prev + 1)}
+              disabled={usersQuery.isFetching || !usersQuery.data?.hasMore}
+            >
               Next
             </Button>
             {usersQuery.isFetching && !usersQuery.isLoading ? (
-              <Text style={[styles.fetchingHint, { color: palette.subduedText }]}>Refreshing...</Text>
+              <Text style={[styles.fetchingHint, { color: palette.subduedText }]}>
+                Refreshing...
+              </Text>
             ) : null}
           </View>
         </Card.Content>
@@ -332,8 +362,12 @@ export default function AdminDashboardScreen() {
           <UserActionPanel
             user={selectedUser}
             isBusy={busy}
-            onSetCredits={({ userId, credits }) => setPendingAction({ type: 'setCredits', userId, credits })}
-            onSetSubscription={(payload) => setPendingAction({ type: 'setSubscription', ...payload })}
+            onSetCredits={({ userId, credits }) =>
+              setPendingAction({ type: 'setCredits', userId, credits })
+            }
+            onSetSubscription={(payload) =>
+              setPendingAction({ type: 'setSubscription', ...payload })
+            }
             onClearTerms={({ userId }) => setPendingAction({ type: 'clearTerms', userId })}
             onResetUserState={({ userId }) => setPendingAction({ type: 'resetUser', userId })}
             onDeleteUser={({ userId }) => setPendingAction({ type: 'deleteUser', userId })}

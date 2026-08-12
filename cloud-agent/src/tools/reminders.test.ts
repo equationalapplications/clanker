@@ -11,7 +11,9 @@ test('setReminderTool: name is set_reminder', () => {
 
 test('setReminderTool: returns acknowledgement', async () => {
   const tool = setReminderTool({} as DrizzleClient, 'u', 'c')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> })
-    .execute({ message: 'Call dentist', remind_at: '2026-07-01T09:00:00Z' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    message: 'Call dentist',
+    remind_at: '2026-07-01T09:00:00Z',
+  })
   assert.ok(typeof result === 'string')
 })

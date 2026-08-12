@@ -7,13 +7,21 @@ test('openTab requires host permission; throws HOST_PERMISSION_REQUIRED when abs
   installChromeStub({
     permissions: { contains: async () => false, request: async () => false },
     notifications: { create: () => {} },
-    storage: { local: {
-      get: async (keys: string | string[] | Record<string, unknown>) => {
-        const list = Array.isArray(keys) ? keys : typeof keys === 'string' ? [keys] : Object.keys(keys)
-        return Object.fromEntries(list.map((k) => [k, store[k]]))
+    storage: {
+      local: {
+        get: async (keys: string | string[] | Record<string, unknown>) => {
+          const list = Array.isArray(keys)
+            ? keys
+            : typeof keys === 'string'
+              ? [keys]
+              : Object.keys(keys)
+          return Object.fromEntries(list.map((k) => [k, store[k]]))
+        },
+        set: async (o: Record<string, unknown>) => {
+          Object.assign(store, o)
+        },
       },
-      set: async (o: Record<string, unknown>) => { Object.assign(store, o) },
-    } },
+    },
   })
   const { createInjector } = await import('./content-bridge.js')
   const inj = createInjector()

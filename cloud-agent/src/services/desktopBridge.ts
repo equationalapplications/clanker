@@ -23,7 +23,12 @@ export function createDesktopBridge() {
   let nextGeneration = 1
   return {
     /** Registers ws for uid:deviceId, closing any previous socket. Returns the generation. */
-    register(uid: string, deviceId: string, ws: WebSocket, dispatchTask: DesktopConnection['dispatchTask']): number {
+    register(
+      uid: string,
+      deviceId: string,
+      ws: WebSocket,
+      dispatchTask: DesktopConnection['dispatchTask'],
+    ): number {
       const k = key(uid, deviceId)
       const prev = map.get(k)
       const generation = nextGeneration++
@@ -31,7 +36,11 @@ export function createDesktopBridge() {
       // `close` handler sees the new generation and deregister is a no-op (spec §5).
       map.set(k, { ws, generation, dispatchTask })
       if (prev) {
-        try { prev.ws.close(4000, 'Replaced by new connection') } catch { /* ignore */ }
+        try {
+          prev.ws.close(4000, 'Replaced by new connection')
+        } catch {
+          /* ignore */
+        }
       }
       return generation
     },

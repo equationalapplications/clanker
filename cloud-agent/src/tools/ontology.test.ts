@@ -78,36 +78,70 @@ test('wikiTraverseGraphTool: schema exposes GraphTraversalOptions params', () =>
 test('wikiTraverseGraphTool: returns failure string when sourceId is missing', async () => {
   const db = makeMockExecuteDb([])
   const tool = wikiTraverseGraphTool(db, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ sourceId: '' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    sourceId: '',
+  })
   assert.equal(result, 'Failed to traverse graph: sourceId is required.')
 })
 
 test('wikiTraverseGraphTool: returns "No graph data found" when traversal is empty', async () => {
   const db = makeMockExecuteDb([[]])
   const tool = wikiTraverseGraphTool(db, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ sourceId: 'missing' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    sourceId: 'missing',
+  })
   assert.equal(result, 'No graph data found for that node.')
 })
 
 test('wikiTraverseGraphTool: formats a found neighborhood via formatGraphContext', async () => {
   const nodeRows = [
     {
-      id: 'fact-1', title: 'Anchor', body: 'B1', tags: [], confidence: 'certain', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-      created_at: '100', updated_at: '300', deleted_at: null, depth: 0,
+      id: 'fact-1',
+      title: 'Anchor',
+      body: 'B1',
+      tags: [],
+      confidence: 'certain',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: null,
+      access_count: 0,
+      created_at: '100',
+      updated_at: '300',
+      deleted_at: null,
+      depth: 0,
     },
     {
-      id: 'fact-2', title: 'Neighbor', body: 'B2', tags: [], confidence: 'inferred', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-      created_at: '150', updated_at: '350', deleted_at: null, depth: 1,
+      id: 'fact-2',
+      title: 'Neighbor',
+      body: 'B2',
+      tags: [],
+      confidence: 'inferred',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: null,
+      access_count: 0,
+      created_at: '150',
+      updated_at: '350',
+      deleted_at: null,
+      depth: 1,
     },
   ]
   const edgeRows = [
-    { id: 'edge-1', source_id: 'fact-1', target_id: 'fact-2', edge_type: 'knows', created_at: '120' },
+    {
+      id: 'edge-1',
+      source_id: 'fact-1',
+      target_id: 'fact-2',
+      edge_type: 'knows',
+      created_at: '120',
+    },
   ]
   const db = makeMockExecuteDb([nodeRows, edgeRows])
   const tool = wikiTraverseGraphTool(db, 'user-1', 'char-1')
-  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({ sourceId: 'fact-1' })
+  const result = await (tool as unknown as { execute: (a: unknown) => Promise<string> }).execute({
+    sourceId: 'fact-1',
+  })
   assert.ok(result.includes('Anchor'))
   assert.ok(result.includes('Neighbor'))
   assert.ok(result.includes('knows'))

@@ -9,7 +9,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('transitions pending to succeeded and pending to cancelled', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     const base = {
       attemptId: 'attempt-1',
@@ -45,7 +48,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('ignores an older event for the same attempt', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     upsertCheckoutAttempt(uid, {
       attemptId: 'attempt-3',
@@ -70,7 +76,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('uses lexicographic sourceTabId tie-break for equal timestamps', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     upsertCheckoutAttempt(uid, {
       attemptId: 'attempt-4',
@@ -107,7 +116,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('allows same-tab overwrite for equal timestamps', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     upsertCheckoutAttempt(uid, {
       attemptId: 'attempt-4b',
@@ -132,7 +144,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('rejects records with invalid status or invalid timestamp', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     const invalidStatus = upsertCheckoutAttempt(uid, {
       attemptId: 'attempt-invalid-status',
@@ -159,8 +174,12 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('expires stale pending attempts older than TTL', () => {
-    const { CHECKOUT_TTL_MS, expireStalePendingAttempts, readCheckoutAttempts, upsertCheckoutAttempt } =
-      require('~/utilities/checkoutStateStore.web')
+    const {
+      CHECKOUT_TTL_MS,
+      expireStalePendingAttempts,
+      readCheckoutAttempts,
+      upsertCheckoutAttempt,
+    } = require('~/utilities/checkoutStateStore.web')
 
     const now = Date.parse('2026-04-22T11:00:00.000Z')
     const staleAt = new Date(now - CHECKOUT_TTL_MS - 1).toISOString()
@@ -182,7 +201,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('ignores unknown schemaVersion records silently', () => {
-    const { upsertCheckoutAttempt, readCheckoutAttempts } = require('~/utilities/checkoutStateStore.web')
+    const {
+      upsertCheckoutAttempt,
+      readCheckoutAttempts,
+    } = require('~/utilities/checkoutStateStore.web')
 
     const result = upsertCheckoutAttempt(uid, {
       attemptId: 'attempt-6',
@@ -198,7 +220,10 @@ describe('checkoutStateStore.web', () => {
   })
 
   it('keeps uid keyspaces isolated', () => {
-    const { readCheckoutAttempts, upsertCheckoutAttempt } = require('~/utilities/checkoutStateStore.web')
+    const {
+      readCheckoutAttempts,
+      upsertCheckoutAttempt,
+    } = require('~/utilities/checkoutStateStore.web')
 
     upsertCheckoutAttempt('user-a', {
       attemptId: 'attempt-7',

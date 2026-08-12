@@ -18,16 +18,17 @@ export function createExpoSqliteBetterSqlite3Mock() {
           const result = stmt.run(...(params || []))
           return {
             changes: result.changes,
-            lastInsertRowId: typeof result.lastInsertRowid === 'bigint'
-              ? Number(result.lastInsertRowid)
-              : result.lastInsertRowid,
+            lastInsertRowId:
+              typeof result.lastInsertRowid === 'bigint'
+                ? Number(result.lastInsertRowid)
+                : result.lastInsertRowid,
           }
         },
-        getFirstSync: <T,>(sql: string, params?: unknown[]): T | null => {
+        getFirstSync: <T>(sql: string, params?: unknown[]): T | null => {
           const stmt = betterDb.prepare(sql)
-          return ((stmt.get(...(params || [])) as T | undefined) ?? null)
+          return (stmt.get(...(params || [])) as T | undefined) ?? null
         },
-        getAllSync: <T,>(sql: string, params?: unknown[]): T[] => {
+        getAllSync: <T>(sql: string, params?: unknown[]): T[] => {
           const stmt = betterDb.prepare(sql)
           return stmt.all(...(params || [])) as T[]
         },
@@ -38,23 +39,24 @@ export function createExpoSqliteBetterSqlite3Mock() {
           const result = stmt.run(...(params || []))
           return {
             changes: result.changes,
-            lastInsertRowId: typeof result.lastInsertRowid === 'bigint'
-              ? Number(result.lastInsertRowid)
-              : result.lastInsertRowid,
+            lastInsertRowId:
+              typeof result.lastInsertRowid === 'bigint'
+                ? Number(result.lastInsertRowid)
+                : result.lastInsertRowid,
           }
         },
-        getFirstAsync: async <T,>(sql: string, params?: unknown[]): Promise<T | null> => {
+        getFirstAsync: async <T>(sql: string, params?: unknown[]): Promise<T | null> => {
           const stmt = betterDb.prepare(sql)
-          return ((stmt.get(...(params || [])) as T | undefined) ?? null)
+          return (stmt.get(...(params || [])) as T | undefined) ?? null
         },
-        getAllAsync: async <T,>(sql: string, params?: unknown[]): Promise<T[]> => {
+        getAllAsync: async <T>(sql: string, params?: unknown[]): Promise<T[]> => {
           const stmt = betterDb.prepare(sql)
           return stmt.all(...(params || [])) as T[]
         },
         closeAsync: async () => betterDb.close(),
         withTransactionAsync: (() => {
           let transactionDepth = 0
-          return async <T,>(callback: () => Promise<T>): Promise<T> => {
+          return async <T>(callback: () => Promise<T>): Promise<T> => {
             const isOutermost = transactionDepth === 0
             try {
               if (isOutermost) {

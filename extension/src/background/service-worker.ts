@@ -35,12 +35,19 @@ async function registerDevice(gcmToken: string): Promise<void> {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.gcm.register([FIREBASE_SENDER_ID], (registrationToken) => {
     if (chrome.runtime.lastError || !registrationToken) return
-    void chrome.storage.local.set({ gcmToken: registrationToken }).then(() => registerDevice(registrationToken))
+    void chrome.storage.local
+      .set({ gcmToken: registrationToken })
+      .then(() => registerDevice(registrationToken))
   })
 })
 
 chrome.gcm.onMessage.addListener((message) => {
-  const data = message.data as { type?: string; sessionId?: string; taskId?: string; resume?: string }
+  const data = message.data as {
+    type?: string
+    sessionId?: string
+    taskId?: string
+    resume?: string
+  }
   if (data.type !== 'WAKE_AND_CONNECT' || !data.sessionId) return
   void wakeAndConnect(data.sessionId)
 })
@@ -50,12 +57,20 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
   if (paused) return
   await ensureOffscreen()
   let idToken: string
-  try { idToken = await requestIdToken() } catch (e) { console.error('No auth for wake:', e); return }
+  try {
+    idToken = await requestIdToken()
+  } catch (e) {
+    console.error('No auth for wake:', e)
+    return
+  }
   const deviceId = await getDeviceId()
   const injector = createInjector()
 
   const client = createWsClient({
-    url: CLOUD_WS_URL, idToken, sessionId, deviceId,
+    url: CLOUD_WS_URL,
+    idToken,
+    sessionId,
+    deviceId,
     onSessionReady: () => {
       void chrome.storage.local.get('gcmToken').then(({ gcmToken }) => {
         if (gcmToken) void upsertDeviceRegistration(idToken, gcmToken as string)
@@ -65,7 +80,12 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
       void (async () => {
         const outcome = await dispatchTask(intent, injector)
         if (outcome.status === 'awaiting_auth') {
-          client.sendAwaitingAuth(outcome.taskId, outcome.haltedStepIndex, outcome.partialData, outcome.partialActiveUrl)
+          client.sendAwaitingAuth(
+            outcome.taskId,
+            outcome.haltedStepIndex,
+            outcome.partialData,
+            outcome.partialActiveUrl,
+          )
           await appendActionLog(intent, 'awaiting_auth')
           client.close()
           void closeOffscreen()
@@ -76,7 +96,10 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
         client.sendResult(result)
       })()
     },
-    onSessionEnd: () => { client.close(); void closeOffscreen() },
+    onSessionEnd: () => {
+      client.close()
+      void closeOffscreen()
+    },
   })
   client.connect()
 }
@@ -84,11 +107,16 @@ async function wakeAndConnect(sessionId: string): Promise<void> {
 async function appendActionLog(intent: TaskIntent, status: string): Promise<void> {
   const { actionLog = [] } = await chrome.storage.local.get('actionLog')
   const actionType = intent.action.type === 'sequence' ? 'sequence' : intent.action.type
-  const next = [{ ts: Date.now(), action: actionType, status }, ...(actionLog as unknown[])].slice(0, 50)
+  const next = [{ ts: Date.now(), action: actionType, status }, ...(actionLog as unknown[])].slice(
+    0,
+    50,
+  )
   await chrome.storage.local.set({ actionLog: next })
 }
 
-chrome.action?.onClicked?.addListener?.(() => { void chrome.sidePanel.open({ windowId: chrome.windows?.WINDOW_ID_CURRENT }) })
+chrome.action?.onClicked?.addListener?.(() => {
+  void chrome.sidePanel.open({ windowId: chrome.windows?.WINDOW_ID_CURRENT })
+})
 
 chrome.notifications.onClicked.addListener((notificationId) => {
   if (notificationId === 'host-permission') {

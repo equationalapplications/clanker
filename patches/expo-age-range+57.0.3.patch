@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-age-range/ios/AgeRangeModule.swift b/node_modules/expo-age-range/ios/AgeRangeModule.swift
-index 8dafec6..c012b15 100644
+index 8dafec6..59cd7fd 100644
 --- a/node_modules/expo-age-range/ios/AgeRangeModule.swift
 +++ b/node_modules/expo-age-range/ios/AgeRangeModule.swift
 @@ -47,43 +47,14 @@ public class AgeRangeModule: Module, @unchecked Sendable {
@@ -25,7 +25,7 @@ index 8dafec6..c012b15 100644
 -        throw AgeRangeNotAvailableException()
 -      }
 +    AsyncFunction("showSignificantUpdateAcknowledgmentAsync") { (_: String) in
-+      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+56.0.5.patch
++      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+57.0.3.patch
 +      return
      }
  
@@ -46,7 +46,7 @@ index 8dafec6..c012b15 100644
 -      } catch AgeRangeService.Error.notAvailable {
 -        throw AgeRangeNotAvailableException()
 -      }
-+      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+56.0.5.patch
++      // iOS 26.4+ only. Stubbed for Xcode SDK < 26.4 — see patches/expo-age-range+57.0.3.patch
 +      return nil
      }
    }

@@ -14,11 +14,11 @@ For C4 architecture diagrams, see [Architecture Charts — C4](flowcharts/c4/sys
 
 ## Three-Node Architecture
 
-| Node | Role | Connection |
-|------|------|------------|
-| Mobile app | Voice/text I/O, approval UI, Expo Push receiver | `/agent/live` or `/agent/run` |
-| Cloud Agent | Session router, Firestore writer, FCM dispatcher | Per-instance `sessionBridge` (same-instance shortcut only) |
-| Desktop Bridge extension | DOM executor | Idle (FCM) → active (`/agent/browser` WebSocket) |
+| Node                     | Role                                             | Connection                                                 |
+| ------------------------ | ------------------------------------------------ | ---------------------------------------------------------- |
+| Mobile app               | Voice/text I/O, approval UI, Expo Push receiver  | `/agent/live` or `/agent/run`                              |
+| Cloud Agent              | Session router, Firestore writer, FCM dispatcher | Per-instance `sessionBridge` (same-instance shortcut only) |
+| Desktop Bridge extension | DOM executor                                     | Idle (FCM) → active (`/agent/browser` WebSocket)           |
 
 **Key invariant:** Cloud Run instances never communicate directly. All cross-instance routing flows through Firestore (`users/{uid}/sessions/{sessionId}/tasks/{taskId}`). Voice and browser WebSockets may land on different instances; the voice-side `watchTask` listener is the primary result-delivery path.
 
@@ -37,10 +37,10 @@ Gemini invokes the `browser_action` ADK tool (`cloud-agent/src/tools/browserActi
 
 Wiring:
 
-| Entry point | Injection site |
-|-------------|----------------|
+| Entry point           | Injection site                           |
+| --------------------- | ---------------------------------------- |
 | Voice (`/agent/live`) | `buildLiveTools` in `liveToolAdapter.ts` |
-| Text (`/agent/run`) | `buildAgent` in `agentCore.ts` |
+| Text (`/agent/run`)   | `buildAgent` in `agentCore.ts`           |
 
 Bridge routes are registered only when Firebase Admin is initialized (`admin.apps.length > 0`).
 
@@ -67,10 +67,10 @@ FCM WAKE_AND_CONNECT
 
 ## Task DSL (summary)
 
-| Tier | Actions |
-|------|---------|
-| Read + navigation | `extract`, `summarize_visible_text`, `read_dom`, `open_tab`, `focus_tab`, `scroll` |
-| Stateful (approval-gated) | `fill_field`, `click` |
+| Tier                      | Actions                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| Read + navigation         | `extract`, `summarize_visible_text`, `read_dom`, `open_tab`, `focus_tab`, `scroll` |
+| Stateful (approval-gated) | `fill_field`, `click`                                                              |
 
 Destructive actions use a two-layer classifier sharing `DESTRUCTIVE_ACTION_PATTERN` in `shared/constants.ts`:
 
@@ -98,12 +98,12 @@ Canonical types: `shared/dsl-types.ts` (mirrored in `extension/src/shared/dsl-ty
 
 ## HTTP / WebSocket Endpoints
 
-| Route | Purpose |
-|-------|---------|
-| `POST /agent/browser/register-device` | Upsert device doc (fcmToken, deviceId, deviceName, isPaused) |
-| `POST /agent/browser/approve-action` | Mobile approval/denial for destructive actions |
-| `POST /agent/browser/scheduler-trigger` | Cloud Scheduler proactive tasks (Phase 2+) |
-| WebSocket `/agent/browser` | Extension auth frame, task dispatch, results |
+| Route                                   | Purpose                                                      |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `POST /agent/browser/register-device`   | Upsert device doc (fcmToken, deviceId, deviceName, isPaused) |
+| `POST /agent/browser/approve-action`    | Mobile approval/denial for destructive actions               |
+| `POST /agent/browser/scheduler-trigger` | Cloud Scheduler proactive tasks (Phase 2+)                   |
+| WebSocket `/agent/browser`              | Extension auth frame, task dispatch, results                 |
 
 ---
 
@@ -111,10 +111,10 @@ Canonical types: `shared/dsl-types.ts` (mirrored in `extension/src/shared/dsl-ty
 
 `browser_action` uses **contextual billing** to avoid double-charging:
 
-| Path | Timer billing | `browser_action` flat billing |
-|------|--------------|-------------------------------|
-| Voice (`/agent/live`) | Wall-clock timer **paused** during wake + execution | `spendCredit` after device found |
-| Text (`/agent/run`) | N/A (1 credit pre-spent per turn) | Skip `spendCredit` (`preBilled: true`) |
+| Path                  | Timer billing                                       | `browser_action` flat billing          |
+| --------------------- | --------------------------------------------------- | -------------------------------------- |
+| Voice (`/agent/live`) | Wall-clock timer **paused** during wake + execution | `spendCredit` after device found       |
+| Text (`/agent/run`)   | N/A (1 credit pre-spent per turn)                   | Skip `spendCredit` (`preBilled: true`) |
 
 Refunds apply on `EXTENSION_OFFLINE` (voice path only, when a credit was spent). No refund on execution errors — the extension connected and attempted the task.
 
@@ -126,12 +126,12 @@ See [Billing & Credits](billing-and-credits.md#browser-action-billing) for detai
 
 All docs under `users/{uid}/` for tenant isolation. Clients read; Cloud Agent Admin SDK owns writes.
 
-| Path | Purpose |
-|------|---------|
-| `sessions/{sessionId}` | Bridge session status, instance IDs, TTL |
-| `sessions/{sessionId}/tasks/{taskId}` | Task intent, status, result, `haltedStepIndex` |
-| `sessions/{sessionId}/auth/{taskId}` | Approval status, `approvalToken` (mobile writes approval only) |
-| `devices/{deviceId}` | FCM token, `isPaused`, `lastSeenAt` |
+| Path                                  | Purpose                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `sessions/{sessionId}`                | Bridge session status, instance IDs, TTL                       |
+| `sessions/{sessionId}/tasks/{taskId}` | Task intent, status, result, `haltedStepIndex`                 |
+| `sessions/{sessionId}/auth/{taskId}`  | Approval status, `approvalToken` (mobile writes approval only) |
+| `devices/{deviceId}`                  | FCM token, `isPaused`, `lastSeenAt`                            |
 
 Security rules: `firestore.rules` at repo root.
 
@@ -151,13 +151,13 @@ Load `extension/dist/` as an unpacked extension in Chrome. Requires repo-root `.
 
 Key directories:
 
-| Path | Role |
-|------|------|
-| `extension/src/background/service-worker.ts` | FCM receiver, WS lifecycle |
-| `extension/src/background/ws-client.ts` | WebSocket + heartbeat |
-| `extension/src/background/task-dispatcher.ts` | Task DSL routing |
-| `extension/src/content/executor.ts` | DOM action runners |
-| `extension/src/ui/side-panel/` | Sign-in, status, pause, host grant |
+| Path                                          | Role                               |
+| --------------------------------------------- | ---------------------------------- |
+| `extension/src/background/service-worker.ts`  | FCM receiver, WS lifecycle         |
+| `extension/src/background/ws-client.ts`       | WebSocket + heartbeat              |
+| `extension/src/background/task-dispatcher.ts` | Task DSL routing                   |
+| `extension/src/content/executor.ts`           | DOM action runners                 |
+| `extension/src/ui/side-panel/`                | Sign-in, status, pause, host grant |
 
 ---
 

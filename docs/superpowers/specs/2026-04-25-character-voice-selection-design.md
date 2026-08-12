@@ -20,6 +20,7 @@ Additionally, align the app with the latest [`expo-audio` docs](https://docs.exp
 ### Problem
 
 The `Character` TypeScript type and `CharacterSnapshot`/`SyncCharacterPayload` client types already include a voice field shape, but:
+
 1. The SQLite schema has no `voice` column — values are silently dropped on every save
 2. `CharacterInsert` / `CharacterUpdate` don't include `voice` — the DB layer can't write it
 3. `DEFAULT_CHARACTER_INSERT` in `characterMachine.ts` doesn't set `voice`
@@ -36,28 +37,28 @@ Add `voice` to the SQLite schema via migrations v8→v9 (add column) and v9→v1
 
 ### New Files
 
-| File | Responsibility |
-|---|---|
-| `src/constants/geminiVoices.ts` | Typed list of all 30 Gemini TTS voice names + style descriptors; imported by edit screen and tests |
-| `functions/drizzle/0003_character_voice.sql` | Cloud Postgres migration: `ALTER TABLE characters ADD COLUMN voice text` |
+| File                                         | Responsibility                                                                                     |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/constants/geminiVoices.ts`              | Typed list of all 30 Gemini TTS voice names + style descriptors; imported by edit screen and tests |
+| `functions/drizzle/0003_character_voice.sql` | Cloud Postgres migration: `ALTER TABLE characters ADD COLUMN voice text`                           |
 
 ### Modified Files
 
-| File | Change |
-|---|---|
-| `src/database/schema.ts` | Bump `SCHEMA_VERSION` to 10; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 9 skip guard (ADD COLUMN) and migration 10 backfill |
-| `src/database/characterDatabase.ts` | Add `voice` to `LocalCharacter`, `CharacterInsert`, `CharacterUpdate`, `toAppFormat()`, `createCharacter()` INSERT, and `updateCharacter()` SET builder |
-| `src/machines/characterMachine.ts` | Add `voice: 'Umbriel'` to `DEFAULT_CHARACTER_INSERT` |
-| `src/services/characterService.ts` | Add `voice: 'Umbriel'` to the `createCharacter()` call inside `createNewCharacter()` |
-| `src/services/characterSyncService.ts` | Include `voice` in `syncUnsyncedToCloud` payload; map `voice` in `restoreFromCloud` and `importSharedCharacterFromCloud` |
-| `functions/src/db/schema.ts` | Add `voice: text('voice')` to the `characters` Drizzle table definition |
-| `functions/src/characterFunctions.ts` | Add `voice` to `SyncCharacterPayload` type; parse with `parseOptionalTextField`; pass to `upsertCharacter`; include in `serializeCharacter` output |
-| `functions/src/services/characterService.ts` | Add `'voice'` to `CharacterUpdateInput` Pick; handle `voice` in `buildCharacterUpdateValues` |
-| `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Add `voice` state, load from character, include in `handleSave`, include in dirty-state tracking, add dropdown UI |
-| `app.config.ts` | Register `expo-audio` config plugin with `microphonePermission`, `enableBackgroundPlayback: true`, `enableBackgroundRecording: false` |
-| `src/hooks/useVoiceChat.ts` | Remove web guard from `startListening`; make permissions web-aware (web: STT only, native: STT + audio recording); make playback web-aware (web: data URI `data:<mime>;base64,…` passed to `createAudioPlayer`, native: `new File(Paths.cache, name)` with `file.write(Uint8Array)` decoded from base64); call `setAudioModeAsync` once on mount (native only); update mocks in test file for new `File`/`Paths` API |
-| `__tests__/editCharacterScreen.test.tsx` | Add tests: voice selector renders, selecting a voice calls `update` with correct value |
-| `__tests__/useVoiceChat.test.tsx` | Update mocks for new `File(Paths.cache, name)` API; add web branch tests: STT-only permissions, data-URI playback (no file write), browser error message, no `setAudioModeAsync` |
+| File                                           | Change                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/database/schema.ts`                       | Bump `SCHEMA_VERSION` to 10; add `voice` to `LATEST_SCHEMA_REQUIRED_COLUMNS`; add migration 9 skip guard (ADD COLUMN) and migration 10 backfill                                                                                                                                                                                                                                                                      |
+| `src/database/characterDatabase.ts`            | Add `voice` to `LocalCharacter`, `CharacterInsert`, `CharacterUpdate`, `toAppFormat()`, `createCharacter()` INSERT, and `updateCharacter()` SET builder                                                                                                                                                                                                                                                              |
+| `src/machines/characterMachine.ts`             | Add `voice: 'Umbriel'` to `DEFAULT_CHARACTER_INSERT`                                                                                                                                                                                                                                                                                                                                                                 |
+| `src/services/characterService.ts`             | Add `voice: 'Umbriel'` to the `createCharacter()` call inside `createNewCharacter()`                                                                                                                                                                                                                                                                                                                                 |
+| `src/services/characterSyncService.ts`         | Include `voice` in `syncUnsyncedToCloud` payload; map `voice` in `restoreFromCloud` and `importSharedCharacterFromCloud`                                                                                                                                                                                                                                                                                             |
+| `functions/src/db/schema.ts`                   | Add `voice: text('voice')` to the `characters` Drizzle table definition                                                                                                                                                                                                                                                                                                                                              |
+| `functions/src/characterFunctions.ts`          | Add `voice` to `SyncCharacterPayload` type; parse with `parseOptionalTextField`; pass to `upsertCharacter`; include in `serializeCharacter` output                                                                                                                                                                                                                                                                   |
+| `functions/src/services/characterService.ts`   | Add `'voice'` to `CharacterUpdateInput` Pick; handle `voice` in `buildCharacterUpdateValues`                                                                                                                                                                                                                                                                                                                         |
+| `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Add `voice` state, load from character, include in `handleSave`, include in dirty-state tracking, add dropdown UI                                                                                                                                                                                                                                                                                                    |
+| `app.config.ts`                                | Register `expo-audio` config plugin with `microphonePermission`, `enableBackgroundPlayback: true`, `enableBackgroundRecording: false`                                                                                                                                                                                                                                                                                |
+| `src/hooks/useVoiceChat.ts`                    | Remove web guard from `startListening`; make permissions web-aware (web: STT only, native: STT + audio recording); make playback web-aware (web: data URI `data:<mime>;base64,…` passed to `createAudioPlayer`, native: `new File(Paths.cache, name)` with `file.write(Uint8Array)` decoded from base64); call `setAudioModeAsync` once on mount (native only); update mocks in test file for new `File`/`Paths` API |
+| `__tests__/editCharacterScreen.test.tsx`       | Add tests: voice selector renders, selecting a voice calls `update` with correct value                                                                                                                                                                                                                                                                                                                               |
+| `__tests__/useVoiceChat.test.tsx`              | Update mocks for new `File(Paths.cache, name)` API; add web branch tests: STT-only permissions, data-URI playback (no file write), browser error message, no `setAudioModeAsync`                                                                                                                                                                                                                                     |
 
 ---
 
@@ -82,6 +83,7 @@ Add `expo-audio` to the `plugins` array, alongside the existing `expo-speech-rec
 ```
 
 Rationale per [latest docs](https://docs.expo.dev/versions/latest/sdk/audio/#configurable-properties):
+
 - `microphonePermission` — sets `NSMicrophoneUsageDescription` on iOS. Reuses the same wording as the existing `expo-speech-recognition` permission for consistency. (Decision Q1.)
 - `enableBackgroundPlayback: true` — adds the `audio` `UIBackgroundMode` on iOS and the `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permissions plus the `AudioControlsService` declaration on Android, so a voice reply that started playing keeps playing if the user briefly backgrounds the app.
 - `enableBackgroundRecording: false` — Talk tab is foreground-only; we explicitly opt out so we don't add unnecessary `FOREGROUND_SERVICE_MICROPHONE` / `POST_NOTIFICATIONS` permissions or a persistent recording notification.
@@ -94,11 +96,7 @@ Rationale per [latest docs](https://docs.expo.dev/versions/latest/sdk/audio/#con
 Import `setAudioModeAsync` from `expo-audio` (alongside the existing `createAudioPlayer` and `requestRecordingPermissionsAsync` imports) and call it once on mount, guarded by `canUseNativeVoice` (web is excluded). Failure is non-fatal — log and continue:
 
 ```ts
-import {
-  createAudioPlayer,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-} from 'expo-audio'
+import { createAudioPlayer, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio'
 
 // inside useVoiceChat, after existing refs/state
 useEffect(() => {
@@ -115,6 +113,7 @@ useEffect(() => {
 ```
 
 Rationale per [`AudioMode` docs](https://docs.expo.dev/versions/latest/sdk/audio/#audiomode):
+
 - `playsInSilentMode: true` — voice replies are the primary content of the Talk tab, so they should be audible even with the iOS ringer switch off.
 - `allowsRecording: true` — required on iOS for the audio session category to permit microphone access during the recording phase.
 - `shouldPlayInBackground: true` — pairs with the plugin's `enableBackgroundPlayback` so the audio session stays active when the app backgrounds.
@@ -145,7 +144,11 @@ if (Platform.OS === 'web') {
   playerUri = `data:${response.audioMimeType};base64,${response.audioBase64}`
 } else {
   const file = new File(Paths.cache, `voice-reply-${Date.now()}.${ext}`)
-  const bytes = new Uint8Array(atob(response.audioBase64).split('').map(c => c.charCodeAt(0)))
+  const bytes = new Uint8Array(
+    atob(response.audioBase64)
+      .split('')
+      .map((c) => c.charCodeAt(0)),
+  )
   file.write(bytes)
   playerUri = file.uri
 }
@@ -216,7 +219,7 @@ const DEFAULT_CHARACTER_INSERT: CharacterInsert = {
   traits: 'Loyal, curious, resourceful, and a little sarcastic.',
   emotions: 'Calm, attentive, and eager to help.',
   context: 'A newly created companion character ready to chat and develop its personality.',
-  voice: 'Umbriel',  // ← new
+  voice: 'Umbriel', // ← new
 }
 ```
 
@@ -231,7 +234,7 @@ const character = await createCharacter({
   context: 'A helpful companion ready for meaningful conversations.',
   is_public: false,
   avatar_data: avatarData,
-  voice: 'Umbriel',  // ← new
+  voice: 'Umbriel', // ← new
 })
 ```
 
@@ -248,36 +251,36 @@ export interface GeminiVoice {
 }
 
 export const GEMINI_VOICES: GeminiVoice[] = [
-  { name: 'Zephyr',        style: 'Bright' },
-  { name: 'Puck',          style: 'Upbeat' },
-  { name: 'Charon',        style: 'Informative' },
-  { name: 'Kore',          style: 'Firm' },
-  { name: 'Fenrir',        style: 'Excitable' },
-  { name: 'Leda',          style: 'Youthful' },
-  { name: 'Orus',          style: 'Firm' },
-  { name: 'Aoede',         style: 'Breezy' },
-  { name: 'Callirrhoe',    style: 'Easy-going' },
-  { name: 'Autonoe',       style: 'Bright' },
-  { name: 'Enceladus',     style: 'Breathy' },
-  { name: 'Iapetus',       style: 'Clear' },
-  { name: 'Umbriel',       style: 'Easy-going' },
-  { name: 'Algieba',       style: 'Smooth' },
-  { name: 'Despina',       style: 'Smooth' },
-  { name: 'Erinome',       style: 'Clear' },
-  { name: 'Algenib',       style: 'Gravelly' },
-  { name: 'Rasalgethi',    style: 'Informative' },
-  { name: 'Laomedeia',     style: 'Upbeat' },
-  { name: 'Achernar',      style: 'Soft' },
-  { name: 'Alnilam',       style: 'Firm' },
-  { name: 'Schedar',       style: 'Even' },
-  { name: 'Gacrux',        style: 'Mature' },
-  { name: 'Pulcherrima',   style: 'Forward' },
-  { name: 'Achird',        style: 'Friendly' },
+  { name: 'Zephyr', style: 'Bright' },
+  { name: 'Puck', style: 'Upbeat' },
+  { name: 'Charon', style: 'Informative' },
+  { name: 'Kore', style: 'Firm' },
+  { name: 'Fenrir', style: 'Excitable' },
+  { name: 'Leda', style: 'Youthful' },
+  { name: 'Orus', style: 'Firm' },
+  { name: 'Aoede', style: 'Breezy' },
+  { name: 'Callirrhoe', style: 'Easy-going' },
+  { name: 'Autonoe', style: 'Bright' },
+  { name: 'Enceladus', style: 'Breathy' },
+  { name: 'Iapetus', style: 'Clear' },
+  { name: 'Umbriel', style: 'Easy-going' },
+  { name: 'Algieba', style: 'Smooth' },
+  { name: 'Despina', style: 'Smooth' },
+  { name: 'Erinome', style: 'Clear' },
+  { name: 'Algenib', style: 'Gravelly' },
+  { name: 'Rasalgethi', style: 'Informative' },
+  { name: 'Laomedeia', style: 'Upbeat' },
+  { name: 'Achernar', style: 'Soft' },
+  { name: 'Alnilam', style: 'Firm' },
+  { name: 'Schedar', style: 'Even' },
+  { name: 'Gacrux', style: 'Mature' },
+  { name: 'Pulcherrima', style: 'Forward' },
+  { name: 'Achird', style: 'Friendly' },
   { name: 'Zubenelgenubi', style: 'Casual' },
-  { name: 'Vindemiatrix',  style: 'Gentle' },
-  { name: 'Sadachbia',     style: 'Lively' },
-  { name: 'Sadaltager',    style: 'Knowledgeable' },
-  { name: 'Sulafat',       style: 'Warm' },
+  { name: 'Vindemiatrix', style: 'Gentle' },
+  { name: 'Sadachbia', style: 'Lively' },
+  { name: 'Sadaltager', style: 'Knowledgeable' },
+  { name: 'Sulafat', style: 'Warm' },
 ]
 ```
 
@@ -323,11 +326,11 @@ const result = await syncCharacterFn({
     traits: char.traits,
     emotions: char.emotions,
     context: char.context,
-    voice: char.voice,         // ← new
+    voice: char.voice, // ← new
     isPublic: Boolean(char.is_public),
     createdAt: new Date(char.created_at).toISOString(),
     updatedAt: new Date(char.updated_at).toISOString(),
-  }
+  },
 })
 ```
 
@@ -336,8 +339,6 @@ const result = await syncCharacterFn({
 **`importSharedCharacterFromCloud`** — normalize cloud voice before local write: trim and fallback to `DEFAULT_VOICE` when null/blank.
 
 ---
-
-
 
 ### State additions
 
@@ -371,7 +372,7 @@ update(id, {
   context,
   save_to_cloud: saveToCloud,
   is_public: saveToCloud ? isCharacterShareable : false,
-  voice,  // ← new
+  voice, // ← new
 })
 ```
 

@@ -8,9 +8,34 @@ import { useWiki } from '@equationalapplications/expo-llm-wiki'
 import { useMemoryBundle } from '~/hooks/useMemoryBundle'
 
 const BUNDLE = {
-  facts: [{ id: 'f1', entity_id: 'char1', title: 'Likes cats', body: 'User said they like cats', tags: [], confidence: 'certain' as const, source_type: 'user_stated' as const, source_hash: null, source_ref: null, created_at: 1, updated_at: 1, last_accessed_at: null, access_count: 0, deleted_at: null }],
+  facts: [
+    {
+      id: 'f1',
+      entity_id: 'char1',
+      title: 'Likes cats',
+      body: 'User said they like cats',
+      tags: [],
+      confidence: 'certain' as const,
+      source_type: 'user_stated' as const,
+      source_hash: null,
+      source_ref: null,
+      created_at: 1,
+      updated_at: 1,
+      last_accessed_at: null,
+      access_count: 0,
+      deleted_at: null,
+    },
+  ],
   tasks: [],
-  events: [{ id: 'e1', entity_id: 'char1', event_type: 'observation' as const, summary: 'Mentioned cats', created_at: 1 }],
+  events: [
+    {
+      id: 'e1',
+      entity_id: 'char1',
+      event_type: 'observation' as const,
+      summary: 'Mentioned cats',
+      created_at: 1,
+    },
+  ],
 }
 
 describe('useMemoryBundle', () => {
@@ -43,7 +68,9 @@ describe('useMemoryBundle', () => {
     const { result } = renderHook(() => useMemoryBundle('char1'))
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    await act(async () => { await result.current.refetch() })
+    await act(async () => {
+      await result.current.refetch()
+    })
 
     expect(getMemoryBundle).toHaveBeenCalledTimes(2)
   })

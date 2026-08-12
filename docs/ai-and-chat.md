@@ -40,6 +40,7 @@ Client prompt → generateReply (Firebase callable) → Vertex AI → response +
 ```
 
 Auth requirements:
+
 - Firebase auth context must be present
 - Context UID must match token UID
 - Email must exist in Firebase token
@@ -69,18 +70,19 @@ Auth requirements:
 
 ### Error Mapping
 
-| Error Code | Condition |
-|---|---|
-| `unauthenticated` | Missing auth context or token UID mismatch |
-| `invalid-argument` | Prompt missing, empty, exceeds 12000 chars, or `referenceId` exceeds 128 chars |
-| `failed-precondition` | Missing token email, missing server config, or insufficient credits |
-| `internal` | User lookup/create failures, downstream failures, model invocation errors |
+| Error Code            | Condition                                                                      |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `unauthenticated`     | Missing auth context or token UID mismatch                                     |
+| `invalid-argument`    | Prompt missing, empty, exceeds 12000 chars, or `referenceId` exceeds 128 chars |
+| `failed-precondition` | Missing token email, missing server config, or insufficient credits            |
+| `internal`            | User lookup/create failures, downstream failures, model invocation errors      |
 
 Operational logs include debug signals for Cloud SQL users with no active subscription rows.
 
 ### Testing
 
 Tests in `functions/src/generateReply.test.ts` cover:
+
 - Unauthenticated rejection
 - Empty prompt rejection
 - Pay-as-you-go spend flow
@@ -115,6 +117,7 @@ The app summarizes a conversation to reduce SQLite growth and prompt bloat.
 ### Input Strategy
 
 Each new summary is generated from:
+
 1. The previous stored summary in `characters.context` (older memory)
 2. The most recent 20 conversation messages (higher priority)
 
@@ -129,6 +132,7 @@ Prompt instructions explicitly prioritize recent messages over older summarized 
 ### SQLite Retention
 
 After a successful summary update:
+
 - Keep latest 20 messages for the conversation
 - Delete older conversation messages for that `(characterId, userId)` pair
 
@@ -137,6 +141,7 @@ After a successful summary update:
 A Firebase callable that performs summarization on Vertex AI using `gemini-3.5-flash` via the `global` endpoint (Gemini 3 family models are global-only on Vertex AI; the function itself still deploys to `us-central1`).
 
 **Input:**
+
 ```json
 {
   "text": "string (required, non-empty, max 16000 chars)",
@@ -145,6 +150,7 @@ A Firebase callable that performs summarization on Vertex AI using `gemini-3.5-f
 ```
 
 **Response:**
+
 ```json
 {
   "summary": "string"
@@ -165,13 +171,13 @@ LLM Wiki Memory extends chat summarization with structured, queryable memory tha
 
 ### Why Wiki Memory?
 
-| Problem | Solution |
-|---|---|
-| No single-fact lookup | FTS5 full-text search on local SQLite |
-| Atomic fact updates | `wiki_entries` table with upsert semantics |
+| Problem                          | Solution                                     |
+| -------------------------------- | -------------------------------------------- |
+| No single-fact lookup            | FTS5 full-text search on local SQLite        |
+| Atomic fact updates              | `wiki_entries` table with upsert semantics   |
 | No "when did we last discuss X?" | `last_accessed_at` + `access_count` tracking |
-| No goal tracking | `agent_tasks` table for pending objectives |
-| Conflicting facts accumulate | `confidence` levels + stale entry downgrade |
+| No goal tracking                 | `agent_tasks` table for pending objectives   |
+| Conflicting facts accumulate     | `confidence` levels + stale entry downgrade  |
 
 ### Data Model
 
@@ -207,6 +213,7 @@ Mirror of `wiki_entries`, `agent_tasks`, `memory_events` when `character.save_to
    - Return with `[MEMORY]` block budget of 1,500 chars (truncated entry-by-entry)
 
 **Prompt injection format:**
+
 ```
 [MEMORY]
 Facts:
@@ -228,8 +235,9 @@ Post-turn, fire-and-forget. After each AI response, `useAIChat` calls `useCharac
 3. **Credit gate** — Each `wikiLlm` call reserves 1 credit via `creditService.spendCredits` on the server; refunded on failure. Available to any user with sufficient credits (including `payg` with positive balance).
 
 Invoked post-turn from `src/hooks/useAIChat.ts`:
+
 ```ts
-void characterWiki.write(text).catch(/* WikiBusyError tolerated */)
+void (characterWiki.write(text).catch(/* WikiBusyError tolerated */))
 ```
 
 > **Legacy note:** The old `memoryWrite` callable and `dispatchWikiWrite` dispatcher were removed from the client. `functions/src/memoryFunctions.ts` still exports `memoryWrite` for backward compatibility only.
@@ -249,11 +257,11 @@ Triggered by `@equationalapplications/expo-llm-wiki` when entry count crosses `a
 
 ### Coexistence with Existing Memory
 
-| System | Trigger | Scope | Gate |
-|---|---|---|---|
-| `characters.context` (summary blob) | Every 20 messages via `triggerConversationSummary` | All users | None |
-| Wiki observation write | Post-turn (each AI reply) | All users | None (local SQLite only) |
-| Wiki auto-librarian / auto-heal | Entry-count thresholds in `wikiService.ts` | Credit gated | sufficient credits for `wikiLlm` |
+| System                              | Trigger                                            | Scope        | Gate                             |
+| ----------------------------------- | -------------------------------------------------- | ------------ | -------------------------------- |
+| `characters.context` (summary blob) | Every 20 messages via `triggerConversationSummary` | All users    | None                             |
+| Wiki observation write              | Post-turn (each AI reply)                          | All users    | None (local SQLite only)         |
+| Wiki auto-librarian / auto-heal     | Entry-count thresholds in `wikiService.ts`         | Credit gated | sufficient credits for `wikiLlm` |
 
 Summary flow (`triggerConversationSummary`) is unchanged. Wiki reads/writes run in parallel on every turn; LLM-backed librarian/heal passes run when package thresholds are met and credits are available. Prompt includes both `[MEMORY]` block (from `useCharacterWiki.read`) and the existing summary section.
 
@@ -326,14 +334,16 @@ The app stores the returned base64 in SQLite `characters.avatar_data` and render
 ### Callable Contract
 
 **Input:**
+
 ```ts
 type GenerateImageRequest = {
-  prompt: string     // non-empty, trimmed, max 2000 chars
+  prompt: string // non-empty, trimmed, max 2000 chars
   referenceId?: string
 }
 ```
 
 **Output:**
+
 ```ts
 type GenerateImageResponse = {
   imageBase64: string
@@ -392,6 +402,7 @@ gcloud auth application-default set-quota-project clanker-prod
 ```
 
 **`docker-compose.local.yml` wiring** (already in place):
+
 - Mounts `${HOME}/.config/gcloud` read-only into the container, so the container sees the host's ADC.
 - Sets `GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}`, `GOOGLE_CLOUD_LOCATION=global` — the `@google/genai` SDK auto-detects these three env vars when no explicit client config is passed (this is how `agent.ts`'s `LlmAgent` picks up Vertex AI without any code wiring). `GCP_PROJECT` must be set explicitly; compose fails fast if it is missing.
 - Sets `DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker` — `cloud-agent/src/db/client.ts` uses this **before** the Cloud SQL connector path, so all local queries (tasks, wiki, credits) hit the Docker `postgres_db` container, not production Cloud SQL.

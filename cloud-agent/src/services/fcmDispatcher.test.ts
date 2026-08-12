@@ -6,7 +6,12 @@ const { createFcmDispatcher } = await import('./fcmDispatcher.js')
 
 test('wakeExtension sends WAKE_AND_CONNECT data payload to the token', async () => {
   const sent: unknown[] = []
-  const messaging = { send: async (msg: unknown) => { sent.push(msg); return 'msg-id' } }
+  const messaging = {
+    send: async (msg: unknown) => {
+      sent.push(msg)
+      return 'msg-id'
+    },
+  }
   const fcm = createFcmDispatcher(messaging as never)
   await fcm.wakeExtension('tok-123', 's1', 't1')
   assert.equal(sent.length, 1)
@@ -18,7 +23,12 @@ test('wakeExtension sends WAKE_AND_CONNECT data payload to the token', async () 
 
 test('wakeExtension marks resume=true when requested', async () => {
   const sent: Array<{ data: { resume: string } }> = []
-  const messaging = { send: async (msg: never) => { sent.push(msg); return 'm' } }
+  const messaging = {
+    send: async (msg: never) => {
+      sent.push(msg)
+      return 'm'
+    },
+  }
   const fcm = createFcmDispatcher(messaging as never)
   await fcm.wakeExtension('tok', 's', 't', true)
   assert.equal(sent[0].data.resume, 'true')
@@ -60,7 +70,12 @@ test('sendTaskComplete POSTs correct Expo Push payload', async () => {
     fakeFetch as unknown as typeof fetch,
   )
 
-  await dispatcher.sendTaskComplete('ExponentPushToken[xyz]', 'sid1', 'tid1', 'Article summary ready.')
+  await dispatcher.sendTaskComplete(
+    'ExponentPushToken[xyz]',
+    'sid1',
+    'tid1',
+    'Article summary ready.',
+  )
 
   const body = fetched[0].body as Record<string, unknown>
   assert.equal(body.to, 'ExponentPushToken[xyz]')

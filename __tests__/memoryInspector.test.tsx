@@ -35,7 +35,7 @@ jest.mock('react-native-paper', () => {
     List: {
       ...actual.List,
       Icon: (props: any) => React.createElement(View, props),
-    }
+    },
   }
 })
 
@@ -96,7 +96,9 @@ const BUNDLE = {
   ],
 }
 
-const wrapper = ({ children }: { children: React.ReactNode }) => <PaperProvider>{children}</PaperProvider>
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <PaperProvider>{children}</PaperProvider>
+)
 
 describe('MemoryInspectorScreen', () => {
   beforeEach(() => {
@@ -233,10 +235,7 @@ describe('MemoryInspectorScreen', () => {
     fireEvent.press(deleteButtons[0])
 
     await waitFor(() => {
-      expect(reportError).toHaveBeenCalledWith(
-        expect.any(Error),
-        'wiki:char1:memory-forget-fact',
-      )
+      expect(reportError).toHaveBeenCalledWith(expect.any(Error), 'wiki:char1:memory-forget-fact')
       expect(Alert.alert).toHaveBeenCalledWith('Delete failed', 'Wiki forgetting timed out')
     })
     expect(refetchMock).not.toHaveBeenCalled()

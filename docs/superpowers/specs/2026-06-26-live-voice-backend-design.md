@@ -21,18 +21,18 @@ Phase 2 builds the Cloud Run `/agent/live` WebSocket proxy. It authenticates the
 
 ### New files
 
-| File | Role |
-|------|------|
-| `cloud-agent/src/handlers/wsLiveAgentHandler.ts` | Main handler — auth, Gemini Live bridge, tool intercept, billing loop |
-| `cloud-agent/src/services/liveToolAdapter.ts` | `buildLiveTools()` — extracts declarations + executors from ADK FunctionTool factories |
+| File                                             | Role                                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `cloud-agent/src/handlers/wsLiveAgentHandler.ts` | Main handler — auth, Gemini Live bridge, tool intercept, billing loop                  |
+| `cloud-agent/src/services/liveToolAdapter.ts`    | `buildLiveTools()` — extracts declarations + executors from ADK FunctionTool factories |
 
 ### Updated files
 
-| File | Change |
-|------|--------|
-| `cloud-agent/src/index.ts` | Replace two separate upgrade listeners with single centralized `attachWebSocketRoutes()` router; remove `else { socket.destroy() }` from stream handler |
-| `src/constants/geminiVoices.ts` | Replace 30-voice TTS list with 5 Live API voices |
-| `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Update voice picker to use new `GEMINI_LIVE_VOICES` constant |
+| File                                           | Change                                                                                                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cloud-agent/src/index.ts`                     | Replace two separate upgrade listeners with single centralized `attachWebSocketRoutes()` router; remove `else { socket.destroy() }` from stream handler |
+| `src/constants/geminiVoices.ts`                | Replace 30-voice TTS list with 5 Live API voices                                                                                                        |
+| `app/(drawer)/(tabs)/characters/[id]/edit.tsx` | Update voice picker to use new `GEMINI_LIVE_VOICES` constant                                                                                            |
 
 No changes to `wsAgentHandler.ts`, `creditService.ts`, or any existing tool files.
 
@@ -137,11 +137,11 @@ await ai.live.connect({
     systemInstruction: assembleSystemInstruction(character, ''),
     speechConfig: {
       voiceConfig: {
-        prebuiltVoiceConfig: { voiceName: resolveVoice(character.voice) }
-      }
+        prebuiltVoiceConfig: { voiceName: resolveVoice(character.voice) },
+      },
     },
     tools: [{ functionDeclarations: declarations }, { googleSearch: {} }],
-    responseModalities: ['AUDIO'],   // Live API supports one modality; transcripts come via inputAudioTranscription/outputAudioTranscription
+    responseModalities: ['AUDIO'], // Live API supports one modality; transcripts come via inputAudioTranscription/outputAudioTranscription
     inputAudioTranscription: {},
     outputAudioTranscription: {},
   },
@@ -191,13 +191,13 @@ const adkTools = [
   setReminderTool(db, userId, characterId),
 ]
 
-const declarations = adkTools.map(t => t._getDeclaration())
+const declarations = adkTools.map((t) => t._getDeclaration())
 const executors = new Map(
-  adkTools.map(t => [
+  adkTools.map((t) => [
     t.name,
     // FunctionTool.execute is private; cast matches existing test patterns in the codebase
     (t as unknown as { execute: (args: unknown) => Promise<unknown> }).execute.bind(t),
-  ])
+  ]),
 )
 ```
 
@@ -252,7 +252,13 @@ msg.toolCall
 
 ```typescript
 function handleGeminiClose() {
-  ws.send(JSON.stringify({ type: 'error', code: 'GEMINI_DISCONNECTED', message: 'Upstream connection lost' }))
+  ws.send(
+    JSON.stringify({
+      type: 'error',
+      code: 'GEMINI_DISCONNECTED',
+      message: 'Upstream connection lost',
+    }),
+  )
   clearAndClose()
 }
 ```
@@ -286,11 +292,13 @@ if (msg.toolCall?.functionCalls?.length) {
     }
 
     geminiSession.sendToolResponse({
-      functionResponses: [{
-        id: call.id,
-        name: call.name,
-        response: { output: result },
-      }]
+      functionResponses: [
+        {
+          id: call.id,
+          name: call.name,
+          response: { output: result },
+        },
+      ],
     })
 
     ws.send(JSON.stringify({ type: 'tool_end', name: call.name }))
@@ -301,6 +309,7 @@ if (msg.toolCall?.functionCalls?.length) {
 > **Implementation note:** `sendToolResponse()` is confirmed in `@google/genai` v1.50.1 type definitions (line 9968). If the installed version differs, use `session.send({ toolResponse: { functionResponses: [...] } })`.
 
 **Constraints:**
+
 - `for...of` (sequential), not `Promise.all` — Gemini Live queues tool calls one at a time; concurrent sends corrupt response order.
 - Tool errors return `{ error: '...' }` as the function response so Gemini voices the failure rather than crashing the session.
 - Gemini automatically pauses audio output while awaiting `sendToolResponse`.
@@ -328,7 +337,13 @@ billingTimer = setInterval(async () => {
     if (msg === 'INSUFFICIENT_CREDITS') {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'usage_snapshot', remainingCredits: 0 }))
-        ws.send(JSON.stringify({ type: 'error', code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits' }))
+        ws.send(
+          JSON.stringify({
+            type: 'error',
+            code: 'INSUFFICIENT_CREDITS',
+            message: 'Insufficient credits',
+          }),
+        )
       }
       clearAndClose()
     } else {
@@ -352,14 +367,21 @@ function clearAndClose() {
     billingTimer = null
   }
   // Session.close() returns void (synchronous) in @google/genai v1.50.1
-  try { geminiSession.close() } catch { /* ignore */ }
+  try {
+    geminiSession.close()
+  } catch {
+    /* ignore */
+  }
   try {
     if (ws.readyState === WebSocket.OPEN) ws.close(1000, 'Session ended')
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 ```
 
 Called from:
+
 1. `end_session` message from client (graceful)
 2. `INSUFFICIENT_CREDITS` in billing loop
 3. `handleGeminiClose()` (unexpected Gemini disconnect)
@@ -369,19 +391,19 @@ Called from:
 
 ## 9. Error Handling
 
-| Scenario | Close code | Client payload |
-|---|---|---|
-| Auth timeout (5s) | 4001 | `{ type: 'error', code: 'UNAUTHORIZED' }` |
-| Invalid token | 4001 | `{ type: 'error', code: 'UNAUTHORIZED' }` |
-| User not in DB | 4001 | `{ type: 'error', code: 'UNAUTHORIZED' }` |
-| Character not found | 4404 | `{ type: 'error', code: 'CHARACTER_NOT_FOUND' }` |
-| Zero credits at open | 4402 | `{ type: 'error', code: 'INSUFFICIENT_CREDITS' }` |
-| Credits exhausted mid-call | 1000 | `usage_snapshot(0)` + `error INSUFFICIENT_CREDITS` |
-| `ai.live.connect()` fails | 1011 | `{ type: 'error', code: 'GEMINI_UNAVAILABLE' }` |
-| Gemini drops mid-call | 1000 | `{ type: 'error', code: 'GEMINI_DISCONNECTED' }` |
-| Tool executor throws | — | none (Gemini voices the failure) |
-| Unknown client message type | — | ignore silently |
-| Client drops unexpectedly | — | `clearAndClose()` internally |
+| Scenario                    | Close code | Client payload                                     |
+| --------------------------- | ---------- | -------------------------------------------------- |
+| Auth timeout (5s)           | 4001       | `{ type: 'error', code: 'UNAUTHORIZED' }`          |
+| Invalid token               | 4001       | `{ type: 'error', code: 'UNAUTHORIZED' }`          |
+| User not in DB              | 4001       | `{ type: 'error', code: 'UNAUTHORIZED' }`          |
+| Character not found         | 4404       | `{ type: 'error', code: 'CHARACTER_NOT_FOUND' }`   |
+| Zero credits at open        | 4402       | `{ type: 'error', code: 'INSUFFICIENT_CREDITS' }`  |
+| Credits exhausted mid-call  | 1000       | `usage_snapshot(0)` + `error INSUFFICIENT_CREDITS` |
+| `ai.live.connect()` fails   | 1011       | `{ type: 'error', code: 'GEMINI_UNAVAILABLE' }`    |
+| Gemini drops mid-call       | 1000       | `{ type: 'error', code: 'GEMINI_DISCONNECTED' }`   |
+| Tool executor throws        | —          | none (Gemini voices the failure)                   |
+| Unknown client message type | —          | ignore silently                                    |
+| Client drops unexpectedly   | —          | `clearAndClose()` internally                       |
 
 ---
 
@@ -411,7 +433,7 @@ Replace the existing 30-voice standard TTS list with the 5 voices supported by G
 
 ```typescript
 export const GEMINI_LIVE_VOICES = ['Aoede', 'Charon', 'Fenrir', 'Kore', 'Puck'] as const
-export type GeminiLiveVoice = typeof GEMINI_LIVE_VOICES[number]
+export type GeminiLiveVoice = (typeof GEMINI_LIVE_VOICES)[number]
 ```
 
 ### `app/(drawer)/(tabs)/characters/[id]/edit.tsx`
@@ -431,7 +453,7 @@ Replace the two separate `attachAgent*WebSocket` calls with a single centralized
 // Both WSS instances are created once, routing happens in one shared listener.
 
 const streamWss = new WebSocketServer({ noServer: true })
-const liveWss   = new WebSocketServer({ noServer: true })
+const liveWss = new WebSocketServer({ noServer: true })
 
 server.on('upgrade', (req, socket, head) => {
   const pathname = new URL(req.url ?? '', `http://${req.headers.host}`).pathname
@@ -464,6 +486,7 @@ attachWebSocketRoutes(server, appOptions)
 ## 13. Testing Strategy
 
 ### Unit — `liveToolAdapter.test.ts`
+
 - `buildLiveTools()` returns declaration count matching tool list length
 - `_getDeclaration()` produces a valid `FunctionDeclaration` with `{ name, description, parameters }` for each tool
 - `executors` map contains every declared tool name

@@ -1,12 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   sendMessageWithAIResponse,
   Character,
   getRecentConversationHistory,
   triggerConversationSummary,
-  type GroundedIMessage,
 } from '~/services/aiChatService'
 import { useChatMessages, messageKeys } from '~/hooks/useMessages'
 import { useAuthMachine } from '~/hooks/useMachines'
@@ -14,7 +13,11 @@ import { usageSnapshotFromError } from '~/services/usageSnapshot'
 import { formatContext, WikiBusyError, useWiki } from '@equationalapplications/expo-llm-wiki'
 import { useCharacterWiki } from '~/hooks/useCharacterWiki'
 import { reportError } from '~/utilities/reportError'
-import { saveAIMessage, getUnsyncedMessages, markMessagesAsSynced } from '~/database/messageDatabase'
+import {
+  saveAIMessage,
+  getUnsyncedMessages,
+  markMessagesAsSynced,
+} from '~/database/messageDatabase'
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 import { toSyncMessage } from '~/services/syncMessage'
@@ -34,16 +37,16 @@ interface UseAIChatProps {
 }
 
 interface UseAIChatReturn {
-  messages: IMessage[]
-  sendMessage: (message: IMessage) => Promise<void>
+  messages: Message[]
+  sendMessage: (message: Message) => Promise<void>
   /** Vision turn. Cloud-agent only — see `canSendPhoto`. */
-  sendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<void>
+  sendPhoto: (photo: PendingChatPhoto, caption: string) => Promise<boolean>
   canSendPhoto: boolean
   isGeneratingResponse: boolean
   error: string | null
   escalationState: EscalationState
   activeTool: string | null
-  streamingMessage: IMessage | null
+  streamingMessage: Message | null
 }
 
 /**
@@ -65,7 +68,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   // marking the hook idle while the other was still streaming.
   const turnInFlightRef = useRef(false)
   const [activeTool, setActiveTool] = useState<string | null>(null)
-  const [streamingMessage, setStreamingMessage] = useState<IMessage | null>(null)
+  const [streamingMessage, setStreamingMessage] = useState<Message | null>(null)
   const messages = useChatMessages({ id: characterId, userId, pauseRefetch: isSendingMessage })
 
   const characterWiki = useCharacterWiki(character.id)
@@ -75,8 +78,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   const raw = character.save_to_cloud
   const isCloudSynced = !!(raw ?? 0)
   const devSandbox = isDevSandboxEnabled()
-  const cloudAgentCharacterId =
-    character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
+  const cloudAgentCharacterId = character.cloud_id ?? (devSandbox ? DEV_CLOUD_CHARACTER_ID : null)
   const canUseCloudAgent =
     !!process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim() &&
     !!cloudAgentCharacterId &&
@@ -97,12 +99,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
    * is byte-for-byte the same.
    */
   const runCloudAgentTurn = useCallback(
-    async (message: IMessage, attachments?: CloudAgentAttachment[]) => {
+    async (message: Message, attachments?: CloudAgentAttachment[]) => {
       const cloudCharacterId = cloudAgentCharacterId as string
 
-      const priorHistory = messages.filter(
-        (msg) => String(msg._id) !== String(message._id),
-      )
+      const priorHistory = messages.filter((msg) => String(msg._id) !== String(message._id))
       const recentHistory = getRecentConversationHistory(priorHistory, 20)
       const history = buildContentHistory(recentHistory, userId)
 
@@ -152,7 +152,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       )
 
       const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-      const aiMessageData: Partial<GroundedIMessage> = {
+      const aiMessageData: Partial<Message> = {
         user: {
           _id: character.id,
           name: character.name,
@@ -162,7 +162,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       if (agentResult.groundingMetadata) {
         aiMessageData.groundingMetadata = agentResult.groundingMetadata
       }
-      const savedAIMessage = await saveAIMessage(
+      const savedAMessage = await saveAIMessage(
         character.id,
         userId,
         agentResult.reply,
@@ -179,24 +179,26 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       // it keeps the wiki transcript coherent without the model re-receiving
       // the bytes on every future turn.
       const recentMessages = getRecentConversationHistory(
-        [...priorHistory, message, savedAIMessage],
+        [...priorHistory, message, savedAMessage],
         20,
       )
       const recentHistoryContent = buildContentHistory(recentMessages, userId)
       const chunk = recentHistoryContent
         .map((entry) =>
-          entry.role === 'user' ? `User: ${entry.parts.map((p) => p.text).join('')}` : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
+          entry.role === 'user'
+            ? `User: ${entry.parts.map((p) => p.text).join('')}`
+            : `${character.name}: ${entry.parts.map((p) => p.text).join('')}`,
         )
         .join('\n')
 
       try {
-        void Promise.resolve(
-          characterWiki.write(chunk || message.text),
-        ).catch((obsErr: unknown) => {
-          if (!(obsErr instanceof WikiBusyError)) {
-            reportError(obsErr, `wiki:${character.id}:write:observation`)
-          }
-        })
+        void Promise.resolve(characterWiki.write(chunk || message.text)).catch(
+          (obsErr: unknown) => {
+            if (!(obsErr instanceof WikiBusyError)) {
+              reportError(obsErr, `wiki:${character.id}:write:observation`)
+            }
+          },
+        )
       } catch (obsErr) {
         if (!(obsErr instanceof WikiBusyError)) {
           reportError(obsErr, `wiki:${character.id}:write:observation`)
@@ -221,7 +223,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
   // Mutation for sending message with AI response
   const aiMessageMutation = useMutation({
-    mutationFn: async (message: IMessage) => {
+    mutationFn: async (message: Message) => {
       if (devSandbox && !process.env.EXPO_PUBLIC_CLOUD_AGENT_URL?.trim()) {
         throw new Error(
           'Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL (e.g. http://localhost:8080). ' +
@@ -236,7 +238,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       let memoryBlock: string | undefined
       try {
         const bundle = await characterWiki.read(message.text)
-        if (bundle) memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
+        if (bundle)
+          memoryBlock = formatContext(bundle, { maxFacts: 10, maxTasks: 5, maxEvents: 10 })
       } catch (err) {
         if (!(err instanceof WikiBusyError)) reportError(err, `wiki:${character.id}:read`)
       }
@@ -248,13 +251,16 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Try edge agent first
-      const { escalated, text: edgeText, usageSnapshot: edgeUsageSnapshot } =
-        await edgeAgent.sendMessage(message.text, memoryBlock)
+      const {
+        escalated,
+        text: edgeText,
+        usageSnapshot: edgeUsageSnapshot,
+      } = await edgeAgent.sendMessage(message.text, memoryBlock)
 
       if (!escalated && edgeText !== undefined) {
         // Edge resolved — save AI reply locally (user message already persisted above).
         const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-        const savedAIMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
+        const savedAMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
           user: {
             _id: character.id,
             name: character.name,
@@ -266,11 +272,9 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
         // Filter out the current user message — the optimistic update may have injected
         // it into messages before mutationFn executes, which would duplicate it in history.
-        const priorHistory = messages.filter(
-          (msg) => String(msg._id) !== String(message._id),
-        )
+        const priorHistory = messages.filter((msg) => String(msg._id) !== String(message._id))
         const recentMessages = getRecentConversationHistory(
-          [...priorHistory, message, savedAIMessage],
+          [...priorHistory, message, savedAMessage],
           20,
         )
         // See the cloud path: go through buildContentHistory so a captionless
@@ -285,13 +289,13 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           .join('\n')
 
         try {
-          void Promise.resolve(
-            onWriteObservation(character.id, chunk || message.text),
-          ).catch((observationError: unknown) => {
-            if (!(observationError instanceof WikiBusyError)) {
-              reportError(observationError, `wiki:${character.id}:write:observation`)
-            }
-          })
+          void Promise.resolve(onWriteObservation(character.id, chunk || message.text)).catch(
+            (observationError: unknown) => {
+              if (!(observationError instanceof WikiBusyError)) {
+                reportError(observationError, `wiki:${character.id}:write:observation`)
+              }
+            },
+          )
         } catch (observationError) {
           if (!(observationError instanceof WikiBusyError)) {
             reportError(observationError, `wiki:${character.id}:write:observation`)
@@ -346,18 +350,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         queryKey: messageKeys.list(characterId, userId),
       })
 
-      const previousMessages = queryClient.getQueryData<IMessage[]>(
+      const previousMessages = queryClient.getQueryData<Message[]>(
         messageKeys.list(characterId, userId),
       )
 
       // Add user message optimistically
-      const optimisticUserMessage: IMessage = {
+      const optimisticUserMessage: Message = {
         ...message,
         pending: true,
         createdAt: new Date(),
       }
 
-      queryClient.setQueryData<IMessage[]>(messageKeys.list(characterId, userId), (old) => [
+      queryClient.setQueryData<Message[]>(messageKeys.list(characterId, userId), (old) => [
         optimisticUserMessage,
         ...(old || []),
       ])
@@ -444,10 +448,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
 
       // Refetch from SQLite on transient failures — the user message was already persisted
       // at the start of mutationFn, so rolling back the optimistic cache would hide it.
-      if (
-        firebaseCode !== 'functions/failed-precondition' &&
-        !isInsufficientCredits
-      ) {
+      if (firebaseCode !== 'functions/failed-precondition' && !isInsufficientCredits) {
         queryClient.invalidateQueries({
           queryKey: messageKeys.list(characterId, userId),
         })
@@ -456,7 +457,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
   })
 
   const sendMessage = useCallback(
-    async (message: IMessage) => {
+    async (message: Message) => {
       // Second line of defence behind the composer's disabled controls — see
       // `turnInFlightRef` above.
       if (turnInFlightRef.current) return
@@ -475,18 +476,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       if (!canUseCloudAgent || !cloudAgentCharacterId) {
         // Explicit refusal, never a quiet text-only fallback.
         setError('This character cannot see photos. Turn on cloud sync to send images.')
-        return
+        return false
       }
 
       // Second line of defence behind the composer's disabled controls — see
       // `turnInFlightRef` above.
-      if (turnInFlightRef.current) return
+      if (turnInFlightRef.current) return false
       turnInFlightRef.current = true
 
       setError(null)
       setIsSendingMessage(true)
       try {
-        const message: IMessage & { imageId: string; image: string } = {
+        const message: Message & { imageId: string } = {
           _id: photo.messageId,
           text: caption.trim(),
           createdAt: new Date(),
@@ -498,11 +499,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
           // whose message synced first show a placeholder rather than a bare
           // text bubble that silently gains an image later.
           imageId: photo.imageId,
-          // gifted-chat's `Bubble` gates `renderMessageImage` on `image` being
-          // truthy; without this the photo never reaches the bubble at all.
-          // `ChatImageBubble` reads `imageId`, not `image`, so the value is a
-          // sentinel only and is never dereferenced as a URI.
-          image: photo.imageId,
         }
 
         // Bubble first, so it is visible while the model is thinking.
@@ -538,9 +534,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         // `~/services/imageModelBytes` as the fallback resolver.
 
         await runCloudAgentTurn(message, [attachment])
+        return true
       } catch (err) {
         reportError(err, `chat:${character.id}:sendPhoto`)
         setError(err instanceof Error ? err.message : 'Failed to send photo')
+        return false
       } finally {
         turnInFlightRef.current = false
         setIsSendingMessage(false)

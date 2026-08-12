@@ -25,7 +25,13 @@ jest.mock('expo-router/build/react-navigation/drawer', () => {
 jest.mock('expo-router/drawer', () => {
   const React = require('react')
 
-  const Drawer = ({ children, screenOptions }: { children: React.ReactNode; screenOptions?: any }) => {
+  const Drawer = ({
+    children,
+    screenOptions,
+  }: {
+    children: React.ReactNode
+    screenOptions?: any
+  }) => {
     if (screenOptions) {
       mockDrawerScreenOptions(screenOptions)
     }

@@ -26,10 +26,7 @@ config.resolver.blockList = [
 // exports resolve to undefined and the app crashes at startup.
 config.resolver.assetExts.push('wasm')
 
-config.watchFolders = [
-  ...(config.watchFolders ?? []),
-  path.resolve(__dirname, 'shared'),
-]
+config.watchFolders = [...(config.watchFolders ?? []), path.resolve(__dirname, 'shared')]
 
 config.server = {
   ...config.server,

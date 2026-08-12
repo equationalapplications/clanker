@@ -4,8 +4,11 @@ import { getCurrentTimeTool } from '../tools/time.js'
 import { wikiReadTool, wikiWriteTool } from '../tools/wiki.js'
 import { wikiGetOntologyManifestTool, wikiTraverseGraphTool } from '../tools/ontology.js'
 import {
-  createTaskTool, listTasksTool, updateTaskTool,
-  completeTaskTool, deleteTaskTool,
+  createTaskTool,
+  listTasksTool,
+  updateTaskTool,
+  completeTaskTool,
+  deleteTaskTool,
 } from '../tools/tasks.js'
 import { documentSearchTool } from '../tools/documents.js'
 import { setReminderTool } from '../tools/reminders.js'
@@ -21,11 +24,36 @@ export interface LiveToolSet {
 }
 
 const LIVE_VOICES = new Set([
-  'Achernar', 'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Aoede', 'Autonoe',
-  'Callirrhoe', 'Charon', 'Despina', 'Enceladus', 'Erinome', 'Fenrir', 'Gacrux',
-  'Iapetus', 'Kore', 'Laomedeia', 'Leda', 'Orus', 'Puck', 'Pulcherrima',
-  'Rasalgethi', 'Sadachbia', 'Sadaltager', 'Schedar', 'Sulafat', 'Umbriel',
-  'Vindemiatrix', 'Zephyr', 'Zubenelgenubi',
+  'Achernar',
+  'Achird',
+  'Algenib',
+  'Algieba',
+  'Alnilam',
+  'Aoede',
+  'Autonoe',
+  'Callirrhoe',
+  'Charon',
+  'Despina',
+  'Enceladus',
+  'Erinome',
+  'Fenrir',
+  'Gacrux',
+  'Iapetus',
+  'Kore',
+  'Laomedeia',
+  'Leda',
+  'Orus',
+  'Puck',
+  'Pulcherrima',
+  'Rasalgethi',
+  'Sadachbia',
+  'Sadaltager',
+  'Schedar',
+  'Sulafat',
+  'Umbriel',
+  'Vindemiatrix',
+  'Zephyr',
+  'Zubenelgenubi',
 ])
 const LIVE_VOICE_FALLBACK = 'Aoede'
 
@@ -40,7 +68,10 @@ export function buildLiveTools(
   characterId: string,
   embed: EmbedFn,
   timezone: string,
-  bridge?: Omit<BrowserActionDeps, 'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'> & {
+  bridge?: Omit<
+    BrowserActionDeps,
+    'pushToLive' | 'pauseBilling' | 'resumeBilling' | 'registerLiveCall'
+  > & {
     pushToLive?: (taskId: string, sessionId: string, t: string) => void
     pauseBilling?: () => void
     resumeBilling?: () => void

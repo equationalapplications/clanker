@@ -10,7 +10,9 @@ import {
 
 function ApiProbe({ onReady }: { onReady: (api: ReturnType<typeof useCookieConsent>) => void }) {
   const api = useCookieConsent()
-  React.useEffect(() => { onReady(api) }, [api, onReady])
+  React.useEffect(() => {
+    onReady(api)
+  }, [api, onReady])
   return null
 }
 
@@ -43,7 +45,11 @@ describe('CookieConsentBanner', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <ApiProbe onReady={(a) => { api = a }} />
+          <ApiProbe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -58,7 +64,11 @@ describe('CookieConsentBanner', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <ApiProbe onReady={(a) => { api = a }} />
+          <ApiProbe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -74,7 +84,11 @@ describe('CookieConsentBanner', () => {
       act(() => {
         tree = create(
           <CookieConsentProvider>
-            <ApiProbe onReady={(a) => { api = a }} />
+            <ApiProbe
+              onReady={(a) => {
+                api = a
+              }}
+            />
             <CookiePreferencesModal />
           </CookieConsentProvider>,
         )
@@ -97,7 +111,11 @@ describe('CookieConsentBanner', () => {
       act(() => {
         tree = create(
           <CookieConsentProvider>
-            <ApiProbe onReady={(a) => { api = a }} />
+            <ApiProbe
+              onReady={(a) => {
+                api = a
+              }}
+            />
             <CookiePreferencesModal />
           </CookieConsentProvider>,
         )

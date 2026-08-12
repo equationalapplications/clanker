@@ -36,9 +36,7 @@ describe('localImageStore (web)', () => {
   })
 
   it('falls back to the master when thumb_ref is NULL', async () => {
-    await expect(resolveImageUri(row({}), 'thumb')).resolves.toBe(
-      'data:image/webp;base64,MASTER64',
-    )
+    await expect(resolveImageUri(row({}), 'thumb')).resolves.toBe('data:image/webp;base64,MASTER64')
   })
 
   it('returns the base64 unchanged as the ref — bytes live in the row on web', async () => {

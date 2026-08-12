@@ -25,9 +25,9 @@ Fixes #
 
 <!-- Provide a detailed list of changes made in this PR -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Testing
 
@@ -41,9 +41,9 @@ Fixes #
 
 ### Test Steps
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Screenshots
 
@@ -51,9 +51,7 @@ Fixes #
 
 ### Before
 
-
 ### After
-
 
 ## Checklist
 

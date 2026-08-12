@@ -42,19 +42,19 @@ A third pre-existing bug: `useEdgeAgent.ts:84` checks for `'escalate_to_cloud'` 
 
 ### Files Changed
 
-| File | Change |
-|---|---|
-| `src/services/clankerManifests.ts` | **NEW** — tool schema overrides |
-| `src/services/edgeToolExecutors.ts` | Add `createEdgeToolExecutors(characterId, wiki)` factory |
-| `src/hooks/useEdgeAgent.ts` | Add `wiki` to options; use clanker manifests; async loop |
-| `src/hooks/useAIChat.ts` | Add `useWiki()` call; pass wiki into `useEdgeAgent` options |
+| File                                | Change                                                      |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `src/services/clankerManifests.ts`  | **NEW** — tool schema overrides                             |
+| `src/services/edgeToolExecutors.ts` | Add `createEdgeToolExecutors(characterId, wiki)` factory    |
+| `src/hooks/useEdgeAgent.ts`         | Add `wiki` to options; use clanker manifests; async loop    |
+| `src/hooks/useAIChat.ts`            | Add `useWiki()` call; pass wiki into `useEdgeAgent` options |
 
 ### Tests Updated (no new test files)
 
-| File | Change |
-|---|---|
-| `src/hooks/__tests__/useEdgeAgent.test.ts` | Update mock for new manifest import path; add `search_memory` mock; fix `escalate_to_cloud_agent` name |
-| `src/services/__tests__/edgeToolExecutors.test.ts` | Add factory + `search_memory` tests |
+| File                                               | Change                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `src/hooks/__tests__/useEdgeAgent.test.ts`         | Update mock for new manifest import path; add `search_memory` mock; fix `escalate_to_cloud_agent` name |
+| `src/services/__tests__/edgeToolExecutors.test.ts` | Add factory + `search_memory` tests                                                                    |
 
 ---
 
@@ -67,17 +67,20 @@ Imports `getCurrentTimeManifest` and `escalateToCloudManifest` from `@equational
 ```ts
 export const clankerTimeSchema = {
   ...getCurrentTimeManifest.schema,
-  description: 'CRITICAL: ALWAYS call this tool immediately if the user asks for the current time, date, day of the week, or uses relative temporal words (today, tomorrow). Do not guess or fabricate the time.',
+  description:
+    'CRITICAL: ALWAYS call this tool immediately if the user asks for the current time, date, day of the week, or uses relative temporal words (today, tomorrow). Do not guess or fabricate the time.',
 }
 
 export const clankerEscalationSchema = {
   ...escalateToCloudManifest.schema,
-  description: 'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for reading memory, checking the time, or casual chatting.',
+  description:
+    'Escalate complex workflows or writing tasks. CRITICAL: Do NOT use this tool for reading memory, checking the time, or casual chatting.',
 }
 
 export const clankerMemorySchema = {
   name: 'search_memory',
-  description: "Search the user's local long-term memory and wiki. ALWAYS use this tool if the user asks you to recall something previously discussed or look up a fact.",
+  description:
+    "Search the user's local long-term memory and wiki. ALWAYS use this tool if the user asks you to recall something previously discussed or look up a fact.",
   parameters: {
     type: 'object',
     properties: { query: { type: 'string' } },
@@ -97,7 +100,10 @@ export const clankerMemorySchema = {
 Static map retained for stateless tools. New factory added:
 
 ```ts
-export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null): Record<string, ToolExecutor> {
+export function createEdgeToolExecutors(
+  characterId: string,
+  wiki: Wiki | null,
+): Record<string, ToolExecutor> {
   return {
     ...edgeToolExecutors,
     search_memory: async (args) => {
@@ -105,7 +111,8 @@ export function createEdgeToolExecutors(characterId: string, wiki: Wiki | null):
         const query = typeof args.query === 'string' ? args.query.trim() : ''
         if (!wiki || !query) return 'No relevant memories found.'
         const results = await readFromWiki(wiki, characterId, query)
-        const hasMemories = results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
+        const hasMemories =
+          results.facts.length > 0 || results.tasks.length > 0 || results.events.length > 0
         return hasMemories ? JSON.stringify(results) : 'No relevant memories found.'
       } catch (error) {
         console.error('[EdgeAgent] Local memory search failed:', error)
@@ -130,16 +137,22 @@ export interface UseEdgeAgentOptions {
   userId: string
   priorMessages: IMessage[]
   isCloudSynced: boolean
-  wiki: Wiki | null   // injected by caller
+  wiki: Wiki | null // injected by caller
 }
 ```
 
 **Manifest imports** — remove `@equationalapplications/core-llm-tools` import; add:
+
 ```ts
-import { clankerTimeSchema, clankerEscalationSchema, clankerMemorySchema } from '~/services/clankerManifests'
+import {
+  clankerTimeSchema,
+  clankerEscalationSchema,
+  clankerMemorySchema,
+} from '~/services/clankerManifests'
 ```
 
 **Tool declarations:**
+
 ```ts
 const functionDeclarations = [clankerTimeSchema]
 if (wiki) functionDeclarations.push(clankerMemorySchema)
@@ -147,6 +160,7 @@ if (isCloudSynced) functionDeclarations.push(clankerEscalationSchema)
 ```
 
 **Executor instantiation** (inside `sendMessage`, before the while loop):
+
 ```ts
 const toolExecutors = createEdgeToolExecutors(character.id, wiki)
 ```
@@ -166,7 +180,7 @@ const responseParts = await Promise.all(
     const executor = toolExecutors[name]
     const output = executor ? await executor(fc.args ?? {}) : null
     return { functionResponse: { name, response: { output } } }
-  })
+  }),
 )
 
 if (escalated) {
@@ -252,19 +266,20 @@ args.query
 
 ## Error Handling
 
-| Scenario | Behavior |
-|---|---|
-| `wiki` is null (not initialized) | `search_memory` returns "No relevant memories found." — no throw |
-| `query` is empty/missing | Same — early return |
-| `readFromWiki` throws | Propagates up; caught by outer `try/catch` in `sendMessage` → escalates to Firebase (existing behavior) |
-| Executor not found for tool name | `output = null` — existing behavior retained |
-| Escalation detected mid-`Promise.all` | Flag set; loop breaks after `Promise.all` resolves; no unhandled rejections |
+| Scenario                              | Behavior                                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `wiki` is null (not initialized)      | `search_memory` returns "No relevant memories found." — no throw                                        |
+| `query` is empty/missing              | Same — early return                                                                                     |
+| `readFromWiki` throws                 | Propagates up; caught by outer `try/catch` in `sendMessage` → escalates to Firebase (existing behavior) |
+| Executor not found for tool name      | `output = null` — existing behavior retained                                                            |
+| Escalation detected mid-`Promise.all` | Flag set; loop breaks after `Promise.all` resolves; no unhandled rejections                             |
 
 ---
 
 ## Testing
 
 ### `edgeToolExecutors.test.ts`
+
 - `createEdgeToolExecutors` returns map containing `search_memory`
 - `search_memory` returns JSON string when `readFromWiki` returns data
 - `search_memory` returns "No relevant memories found." when all arrays empty
@@ -272,6 +287,7 @@ args.query
 - `get_current_time` still works from factory output
 
 ### `useEdgeAgent.test.ts`
+
 - Mock import changed from `@equationalapplications/core-llm-tools` to `~/services/clankerManifests`
 - Escalation test uses `escalate_to_cloud_agent` (was `escalate_to_cloud`)
 - Tool-not-included test checks `escalate_to_cloud_agent` name

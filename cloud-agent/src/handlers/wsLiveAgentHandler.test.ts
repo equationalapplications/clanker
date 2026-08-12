@@ -3,7 +3,11 @@ import test from 'node:test'
 import { createServer, type Server } from 'node:http'
 import { WebSocket, WebSocketServer } from 'ws'
 import type { DrizzleClient } from '../db/client.js'
-import { handleLiveWsUpgrade, makeBillingController, type WsLiveHandlerOptions } from './wsLiveAgentHandler.js'
+import {
+  handleLiveWsUpgrade,
+  makeBillingController,
+  type WsLiveHandlerOptions,
+} from './wsLiveAgentHandler.js'
 import { createApp, attachWebSocketRoutes, type AppOptions } from '../index.js'
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
@@ -34,9 +38,10 @@ function makeMockDb(queryRowSets: Record<string, unknown>[][] = []) {
           return Object.assign(p, {
             limit: (_n: unknown) => Promise.resolve(rows),
             // queryWikiContext chains .orderBy(...).limit(n) on the vector path.
-            orderBy: (_ord: unknown) => Object.assign(Promise.resolve(rows), {
-              limit: (_n: unknown) => Promise.resolve(rows),
-            }),
+            orderBy: (_ord: unknown) =>
+              Object.assign(Promise.resolve(rows), {
+                limit: (_n: unknown) => Promise.resolve(rows),
+              }),
           })
         },
       }),
@@ -45,8 +50,13 @@ function makeMockDb(queryRowSets: Record<string, unknown>[][] = []) {
 }
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 500 }],
-  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [
+    { transactionId: 'mock-txid', amount: 500 },
+  ],
+  refundCredit: async (
+    _userId: string,
+    _allocations: { transactionId: string; amount: number }[],
+  ): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 5000,
 }
 
@@ -60,7 +70,9 @@ type MockGeminiSession = {
 
 function makeMockLiveConnect() {
   const realtimeInputs: Array<{ audio: { data: string; mimeType: string } }> = []
-  const toolResponses: Array<{ functionResponses: Array<{ id: string; name: string; response: { output: unknown } }> }> = []
+  const toolResponses: Array<{
+    functionResponses: Array<{ id: string; name: string; response: { output: unknown } }>
+  }> = []
   let _onmessage: ((msg: unknown) => void) | null = null
   let _onclose: (() => void) | null = null
   let session: MockGeminiSession | null = null
@@ -68,14 +80,22 @@ function makeMockLiveConnect() {
 
   const connect = async (cfg: {
     config?: unknown
-    callbacks: { onmessage: (m: unknown) => void; onclose: () => void; onerror?: (e: unknown) => void }
+    callbacks: {
+      onmessage: (m: unknown) => void
+      onclose: () => void
+      onerror?: (e: unknown) => void
+    }
   }): Promise<MockGeminiSession> => {
     lastConnectConfig = cfg
     _onmessage = cfg.callbacks.onmessage
     _onclose = cfg.callbacks.onclose
     session = {
-      sendRealtimeInput(i) { realtimeInputs.push(i) },
-      sendToolResponse(r) { toolResponses.push(r) },
+      sendRealtimeInput(i) {
+        realtimeInputs.push(i)
+      },
+      sendToolResponse(r) {
+        toolResponses.push(r)
+      },
       close() {},
     }
     return session
@@ -105,9 +125,10 @@ function createLiveTestServer(opts: WsLiveHandlerOptions): {
   })
   return {
     server,
-    close: () => new Promise((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()))
-    }),
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()))
+      }),
   }
 }
 
@@ -128,10 +149,16 @@ test('first spend fires after the grace delay so very short calls are free', () 
   let graceFn: (() => void) | null = null
   let graceDelay: number | null = null
   const ctrl = makeBillingController({
-    spend: () => { spends++ },
+    spend: () => {
+      spends++
+    },
     setIntervalFn: (() => 1) as never,
     clearIntervalFn: () => {},
-    setTimeoutFn: ((fn: () => void, ms: number) => { graceFn = fn; graceDelay = ms; return 2 }) as never,
+    setTimeoutFn: ((fn: () => void, ms: number) => {
+      graceFn = fn
+      graceDelay = ms
+      return 2
+    }) as never,
     clearTimeoutFn: () => {},
     intervalMs: 1000,
     graceMs: 1000,
@@ -147,11 +174,15 @@ test('stop() before the grace delay cancels the first spend (0-second call is fr
   let spends = 0
   let graceCleared = false
   const ctrl = makeBillingController({
-    spend: () => { spends++ },
+    spend: () => {
+      spends++
+    },
     setIntervalFn: (() => 1) as never,
     clearIntervalFn: () => {},
     setTimeoutFn: (() => 2) as never,
-    clearTimeoutFn: () => { graceCleared = true },
+    clearTimeoutFn: () => {
+      graceCleared = true
+    },
     intervalMs: 1000,
     graceMs: 1000,
   })
@@ -163,12 +194,20 @@ test('stop() before the grace delay cancels the first spend (0-second call is fr
 
 test('pauseBilling stops the interval from spending; resume restarts', () => {
   let spends = 0
-  const fakeSetInterval = (fn: () => void) => { ;(fakeSetInterval as unknown as { fn: () => void }).fn = fn; return 1 as unknown as ReturnType<typeof setInterval> }
+  const fakeSetInterval = (fn: () => void) => {
+    ;(fakeSetInterval as unknown as { fn: () => void }).fn = fn
+    return 1 as unknown as ReturnType<typeof setInterval>
+  }
   const ctrl = makeBillingController({
-    spend: () => { spends++ },
+    spend: () => {
+      spends++
+    },
     setIntervalFn: fakeSetInterval as never,
     clearIntervalFn: () => {},
-    setTimeoutFn: ((fn: () => void) => { fn(); return 2 }) as never, // grace elapses immediately → spend
+    setTimeoutFn: ((fn: () => void) => {
+      fn()
+      return 2
+    }) as never, // grace elapses immediately → spend
     clearTimeoutFn: () => {},
     intervalMs: 1000,
     graceMs: 1000,
@@ -210,7 +249,9 @@ test('invalid token closes with 4001', async () => {
   const { server, close } = createLiveTestServer({
     db,
     creditService: mockCreditService,
-    verifyToken: async () => { throw new Error('bad token') },
+    verifyToken: async () => {
+      throw new Error('bad token')
+    },
   })
   const port = await listen(server)
 
@@ -434,12 +475,14 @@ test('memoryQuery preloads wiki context into the live system instruction', async
     const ws = new WebSocket(`ws://127.0.0.1:${port}`)
     const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        type: 'auth',
-        token: 'valid',
-        characterId: CHAR_UUID,
-        memoryQuery: 'User: What is the weather in Austin?',
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'auth',
+          token: 'valid',
+          characterId: CHAR_UUID,
+          memoryQuery: 'User: What is the weather in Austin?',
+        }),
+      )
     })
     ws.on('message', (data) => {
       const msg = JSON.parse(data.toString()) as { type: string }
@@ -484,12 +527,14 @@ test('recentChatContext injects verbatim chat turns into the live system instruc
     const ws = new WebSocket(`ws://127.0.0.1:${port}`)
     const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
     ws.on('open', () => {
-      ws.send(JSON.stringify({
-        type: 'auth',
-        token: 'valid',
-        characterId: CHAR_UUID,
-        recentChatContext,
-      }))
+      ws.send(
+        JSON.stringify({
+          type: 'auth',
+          token: 'valid',
+          characterId: CHAR_UUID,
+          recentChatContext,
+        }),
+      )
     })
     ws.on('message', (data) => {
       const msg = JSON.parse(data.toString()) as { type: string }
@@ -617,7 +662,9 @@ test('inline functionCall in modelTurn parts triggers tool execution when id is 
         mock.triggerMessage({
           serverContent: {
             modelTurn: {
-              parts: [{ functionCall: { id: 'inline-call-1', name: 'get_current_time', args: {} } }],
+              parts: [
+                { functionCall: { id: 'inline-call-1', name: 'get_current_time', args: {} } },
+              ],
             },
           },
         })
@@ -826,7 +873,9 @@ test('liveConnect config includes googleSearch alongside functionDeclarations', 
         const tools = cfg?.config?.tools as Array<Record<string, unknown>> | undefined
         assert.ok(Array.isArray(tools), 'expected tools array in liveConnect config')
         assert.ok(
-          tools!.some((t) => Array.isArray(t.functionDeclarations) && t.functionDeclarations.length > 0),
+          tools!.some(
+            (t) => Array.isArray(t.functionDeclarations) && t.functionDeclarations.length > 0,
+          ),
           'expected functionDeclarations tool entry',
         )
         assert.ok(
@@ -935,7 +984,9 @@ test('billing ticks do not overlap when spendCredit is slow', async () => {
 test('sendToolResponse failure still completes tool_end without unhandled rejection', async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
   const mock = makeMockLiveConnect()
-  const throwingConnect = async (cfg: Parameters<typeof mock.connect>[0]): Promise<MockGeminiSession> => {
+  const throwingConnect = async (
+    cfg: Parameters<typeof mock.connect>[0],
+  ): Promise<MockGeminiSession> => {
     const session = await mock.connect(cfg)
     return {
       ...session,
@@ -1009,7 +1060,10 @@ test('end_session sends session_ended and closes', async () => {
     })
     ws.on('close', () => {
       clearTimeout(timeout)
-      assert.ok(received.some((m) => m['type'] === 'session_ended'), 'expected session_ended')
+      assert.ok(
+        received.some((m) => m['type'] === 'session_ended'),
+        'expected session_ended',
+      )
       resolve()
     })
     ws.on('error', reject)
@@ -1054,7 +1108,10 @@ test('client WS close within the billing grace window clears the grace timer (cl
     ws.on('close', () => {
       clearTimeout(timeout)
       setTimeout(() => {
-        assert.ok(clearTimeoutCalled, 'expected clearTimeout to be called on client close within the grace window')
+        assert.ok(
+          clearTimeoutCalled,
+          'expected clearTimeout to be called on client close within the grace window',
+        )
         resolve()
       }, 20)
     })
@@ -1102,7 +1159,10 @@ test('client WS close after the billing grace window clears the interval timer (
     ws.on('close', () => {
       clearTimeout(timeout)
       setTimeout(() => {
-        assert.ok(clearIntervalCalled, 'expected clearInterval to be called on client close after grace elapsed')
+        assert.ok(
+          clearIntervalCalled,
+          'expected clearInterval to be called on client close after grace elapsed',
+        )
         resolve()
       }, 20)
     })
@@ -1183,7 +1243,10 @@ test('attachWebSocketRoutes: /agent/stream and /agent/live both accept connectio
       ws.send(JSON.stringify({ type: 'auth', token: 'valid' }))
       ws.send(JSON.stringify({ type: 'agent_run', message: 'hi', characterId: CHAR_UUID }))
     })
-    ws.on('close', () => { clearTimeout(timeout); resolve() })
+    ws.on('close', () => {
+      clearTimeout(timeout)
+      resolve()
+    })
     ws.on('error', reject)
   })
 
@@ -1212,7 +1275,8 @@ test('attachWebSocketRoutes: /agent/stream and /agent/live both accept connectio
 test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 5000 }, async () => {
   const db = makeMockDb([[mockUser], [mockCharacter]])
 
-  const expoPushCalls: Array<{ token: string; sessionId: string; taskId: string; text: string }> = []
+  const expoPushCalls: Array<{ token: string; sessionId: string; taskId: string; text: string }> =
+    []
   const mockFcmDispatcher = {
     wakeExtension: async () => {},
     sendApprovalCard: async () => {},
@@ -1274,10 +1338,16 @@ test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 50
         // Simulate Gemini invoking browser_action
         mock.triggerMessage({
           toolCall: {
-            functionCalls: [{ id: 'call-1', name: 'browser_action', args: {
-              actionSummary: 'Extract price',
-              intent: { action: { type: 'extract', selector: '.price', label: 'price' } },
-            }}],
+            functionCalls: [
+              {
+                id: 'call-1',
+                name: 'browser_action',
+                args: {
+                  actionSummary: 'Extract price',
+                  intent: { action: { type: 'extract', selector: '.price', label: 'price' } },
+                },
+              },
+            ],
           },
         })
 
@@ -1288,7 +1358,11 @@ test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 50
       ws.on('close', async () => {
         // Task result arrives after WS is closed
         await new Promise((r) => setTimeout(r, 100))
-        watchTaskCallback?.({ status: 'complete', result: { data: { price: '$340' }, activeUrl: 'https://example.com' }, error: null })
+        watchTaskCallback?.({
+          status: 'complete',
+          result: { data: { price: '$340' }, activeUrl: 'https://example.com' },
+          error: null,
+        })
 
         await new Promise((r) => setTimeout(r, 100))
 
@@ -1310,81 +1384,105 @@ test('pushToLive falls back to Expo Push when voice WS is closed', { timeout: 50
   }
 })
 
-test('pushToLive uses DB lookup for expoPushToken when getExpoPushToken not injected', { timeout: 5000 }, async () => {
-  const expoPushRow = [{ expoPushToken: 'ExponentPushToken[db]' }]
-  const db = makeMockDb([[mockUser], [mockCharacter], expoPushRow])
+test(
+  'pushToLive uses DB lookup for expoPushToken when getExpoPushToken not injected',
+  { timeout: 5000 },
+  async () => {
+    const expoPushRow = [{ expoPushToken: 'ExponentPushToken[db]' }]
+    const db = makeMockDb([[mockUser], [mockCharacter], expoPushRow])
 
-  const proactiveCalls: Array<{ token: string }> = []
-  const mockFcmDispatcher = {
-    wakeExtension: async () => {},
-    sendTaskComplete: async (token: string) => { proactiveCalls.push({ token }) },
-    sendProactive: async () => {},
-  }
+    const proactiveCalls: Array<{ token: string }> = []
+    const mockFcmDispatcher = {
+      wakeExtension: async () => {},
+      sendTaskComplete: async (token: string) => {
+        proactiveCalls.push({ token })
+      },
+      sendProactive: async () => {},
+    }
 
-  let watchTaskCallback: ((task: unknown) => void) | null = null
-  const mockFirestoreSession = {
-    getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
-    createSession: async () => {},
-    writeTask: async () => {},
-    closeSession: async () => {},
-    writeTaskResult: async () => {},
-    getTask: async () => ({ status: 'pending' }),
-    getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
-    abortPendingTaskIfOffline: async () => false,
-    watchTask: (_u: string, _s: string, _t: string, cb: (task: unknown) => void) => {
-      watchTaskCallback = cb
-      return () => {}
-    },
-  }
+    let watchTaskCallback: ((task: unknown) => void) | null = null
+    const mockFirestoreSession = {
+      getActiveDevice: async () => ({ deviceId: 'd1', fcmToken: 'tok', deviceName: 'Mac' }),
+      createSession: async () => {},
+      writeTask: async () => {},
+      closeSession: async () => {},
+      writeTaskResult: async () => {},
+      getTask: async () => ({ status: 'pending' }),
+      getSession: async () => ({ browserInstanceId: null, browserConnectedAt: null }),
+      abortPendingTaskIfOffline: async () => false,
+      watchTask: (_u: string, _s: string, _t: string, cb: (task: unknown) => void) => {
+        watchTaskCallback = cb
+        return () => {}
+      },
+    }
 
-  const mock = makeMockLiveConnect()
-  const { server, close } = createLiveTestServer({
-    db,
-    creditService: mockCreditService,
-    verifyToken: async () => ({ uid: 'fb-uid-2' }),
-    liveConnect: mock.connect,
-    browserBridge: {
-      firebaseUid: 'fb-uid-2',
-      userId: 'user-uuid-1',
-      firestoreSession: mockFirestoreSession as never,
-      fcmDispatcher: mockFcmDispatcher as never,
+    const mock = makeMockLiveConnect()
+    const { server, close } = createLiveTestServer({
+      db,
       creditService: mockCreditService,
-      instanceId: 'inst-2',
-      wakeTimeoutMs: 50,
-      textTimeoutMs: 500,
-    },
-  })
-  try {
-    const port = await listen(server)
-
-    await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(`ws://127.0.0.1:${port}`)
-      const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
-      ws.on('open', () => ws.send(JSON.stringify({ type: 'auth', token: 'v', characterId: CHAR_UUID })))
-      ws.on('message', (raw) => {
-        const msg = JSON.parse(raw.toString()) as { type: string }
-        if (msg.type !== 'session_ready') return
-        mock.triggerMessage({
-          toolCall: { functionCalls: [{ id: 'c2', name: 'browser_action', args: {
-            actionSummary: 'Extract', intent: { action: { type: 'extract', selector: '.p', label: 'p' } },
-          }}] },
-        })
-        setTimeout(() => ws.close(), 20)
-      })
-      ws.on('close', async () => {
-        await new Promise((r) => setTimeout(r, 100))
-        watchTaskCallback?.({ status: 'complete', result: { data: { p: 'x' }, activeUrl: 'https://a.com' }, error: null, intent: { action: { type: 'extract', selector: '.p' } } })
-        await new Promise((r) => setTimeout(r, 100))
-        clearTimeout(timeout)
-        try {
-          assert.equal(proactiveCalls.length, 1)
-          assert.equal(proactiveCalls[0].token, 'ExponentPushToken[db]')
-          resolve()
-        } catch (e) { reject(e) }
-      })
-      ws.on('error', reject)
+      verifyToken: async () => ({ uid: 'fb-uid-2' }),
+      liveConnect: mock.connect,
+      browserBridge: {
+        firebaseUid: 'fb-uid-2',
+        userId: 'user-uuid-1',
+        firestoreSession: mockFirestoreSession as never,
+        fcmDispatcher: mockFcmDispatcher as never,
+        creditService: mockCreditService,
+        instanceId: 'inst-2',
+        wakeTimeoutMs: 50,
+        textTimeoutMs: 500,
+      },
     })
-  } finally {
-    await close()
-  }
-})
+    try {
+      const port = await listen(server)
+
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+        const timeout = setTimeout(() => reject(new Error('test timeout')), 4500)
+        ws.on('open', () =>
+          ws.send(JSON.stringify({ type: 'auth', token: 'v', characterId: CHAR_UUID })),
+        )
+        ws.on('message', (raw) => {
+          const msg = JSON.parse(raw.toString()) as { type: string }
+          if (msg.type !== 'session_ready') return
+          mock.triggerMessage({
+            toolCall: {
+              functionCalls: [
+                {
+                  id: 'c2',
+                  name: 'browser_action',
+                  args: {
+                    actionSummary: 'Extract',
+                    intent: { action: { type: 'extract', selector: '.p', label: 'p' } },
+                  },
+                },
+              ],
+            },
+          })
+          setTimeout(() => ws.close(), 20)
+        })
+        ws.on('close', async () => {
+          await new Promise((r) => setTimeout(r, 100))
+          watchTaskCallback?.({
+            status: 'complete',
+            result: { data: { p: 'x' }, activeUrl: 'https://a.com' },
+            error: null,
+            intent: { action: { type: 'extract', selector: '.p' } },
+          })
+          await new Promise((r) => setTimeout(r, 100))
+          clearTimeout(timeout)
+          try {
+            assert.equal(proactiveCalls.length, 1)
+            assert.equal(proactiveCalls[0].token, 'ExponentPushToken[db]')
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        })
+        ws.on('error', reject)
+      })
+    } finally {
+      await close()
+    }
+  },
+)

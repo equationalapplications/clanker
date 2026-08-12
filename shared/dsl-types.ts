@@ -50,7 +50,8 @@ export interface TaskResult {
 }
 
 export type SessionStatus = 'pending' | 'routing' | 'pending_auth' | 'closed' | 'aborted'
-export type TaskStatus = 'pending' | 'executing' | 'awaiting_auth' | 'complete' | 'failed' | 'aborted'
+export type TaskStatus =
+  'pending' | 'executing' | 'awaiting_auth' | 'complete' | 'failed' | 'aborted'
 
 export interface SessionDoc {
   status: SessionStatus

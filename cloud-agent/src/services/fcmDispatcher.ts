@@ -1,4 +1,4 @@
-import admin from 'firebase-admin'
+import { services } from '../firebaseAdmin.js'
 
 export interface MessagingLike {
   send(message: { token: string; data: Record<string, string> }): Promise<string>
@@ -18,9 +18,11 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
         signal: controller.signal,
       })
       if (!res.ok) throw new Error(`Expo Push failed: ${res.status}`)
-      const body = await res.json() as {
+      const body = (await res.json()) as {
         errors?: unknown[]
-        data?: Array<{ status: string; message?: string; details?: unknown }> | { status: string; message?: string; details?: unknown }
+        data?:
+          | Array<{ status: string; message?: string; details?: unknown }>
+          | { status: string; message?: string; details?: unknown }
       }
       if (body.errors?.length) {
         throw new Error(`Expo Push request error: ${JSON.stringify(body.errors)}`)
@@ -28,7 +30,9 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
       const tickets = Array.isArray(body.data) ? body.data : body.data ? [body.data] : []
       const ticketError = tickets.find((t) => t.status === 'error')
       if (ticketError) {
-        throw new Error(`Expo Push ticket error: ${ticketError.message ?? JSON.stringify(ticketError.details)}`)
+        throw new Error(
+          `Expo Push ticket error: ${ticketError.message ?? JSON.stringify(ticketError.details)}`,
+        )
       }
     } finally {
       clearTimeout(timeout)
@@ -36,14 +40,24 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
   }
 
   return {
-    async wakeExtension(fcmToken: string, sessionId: string, taskId: string, resume = false): Promise<void> {
+    async wakeExtension(
+      fcmToken: string,
+      sessionId: string,
+      taskId: string,
+      resume = false,
+    ): Promise<void> {
       await messaging.send({
         token: fcmToken,
         data: { type: 'WAKE_AND_CONNECT', sessionId, taskId, resume: String(resume) },
       })
     },
 
-    async sendApprovalCard(expoPushToken: string, sessionId: string, taskId: string, actionSummary: string): Promise<void> {
+    async sendApprovalCard(
+      expoPushToken: string,
+      sessionId: string,
+      taskId: string,
+      actionSummary: string,
+    ): Promise<void> {
       await expoPush({
         to: expoPushToken,
         title: 'Clanker needs your approval',
@@ -55,7 +69,12 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
       })
     },
 
-    async sendTaskComplete(expoPushToken: string, sessionId: string, taskId: string, summary: string): Promise<void> {
+    async sendTaskComplete(
+      expoPushToken: string,
+      sessionId: string,
+      taskId: string,
+      summary: string,
+    ): Promise<void> {
       await expoPush({
         to: expoPushToken,
         title: 'Clanker finished',
@@ -65,7 +84,12 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
       })
     },
 
-    async sendProactive(expoPushToken: string, sessionId: string, taskId: string, body: string): Promise<void> {
+    async sendProactive(
+      expoPushToken: string,
+      sessionId: string,
+      taskId: string,
+      body: string,
+    ): Promise<void> {
       await expoPush({
         to: expoPushToken,
         title: 'Clanker noticed something',
@@ -81,5 +105,5 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
 export type FcmDispatcher = ReturnType<typeof createFcmDispatcher>
 
 export function defaultFcmDispatcher(): FcmDispatcher {
-  return createFcmDispatcher(admin.messaging() as unknown as MessagingLike)
+  return createFcmDispatcher(services.messaging as unknown as MessagingLike)
 }

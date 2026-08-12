@@ -50,9 +50,7 @@ async function shareFromCache(bytes: Uint8Array, zipFilename: string): Promise<v
 
 function getAndroidFolderPickerInitialUri(): string {
   const androidApi =
-    typeof Platform.Version === 'number'
-      ? Platform.Version
-      : parseInt(String(Platform.Version), 10)
+    typeof Platform.Version === 'number' ? Platform.Version : parseInt(String(Platform.Version), 10)
 
   // Android 11+ blocks OPEN_DOCUMENT_TREE on the Downloads root.
   if (!Number.isNaN(androidApi) && androidApi < 30) {

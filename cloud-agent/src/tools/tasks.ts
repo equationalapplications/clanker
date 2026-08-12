@@ -4,7 +4,11 @@ import { eq, and, desc } from 'drizzle-orm'
 import { tasks } from '../db/schema.js'
 import type { DrizzleClient } from '../db/client.js'
 
-export function createTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function createTaskTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'create_task',
     description: 'Create a new task and persist it to cloud storage.',
@@ -34,7 +38,11 @@ export function createTaskTool(db: DrizzleClient, userId: string, characterId: s
   })
 }
 
-export function listTasksTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function listTasksTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'list_tasks',
     description: 'List all open tasks for the current character.',
@@ -47,8 +55,8 @@ export function listTasksTool(db: DrizzleClient, userId: string, characterId: st
             and(
               eq(tasks.characterId, characterId),
               eq(tasks.userId, userId),
-              eq(tasks.status, 'open')
-            )
+              eq(tasks.status, 'open'),
+            ),
           )
           .orderBy(desc(tasks.createdAt))
         return JSON.stringify(rows)
@@ -60,7 +68,11 @@ export function listTasksTool(db: DrizzleClient, userId: string, characterId: st
   })
 }
 
-export function updateTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function updateTaskTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'update_task',
     description: 'Update the title of an existing task.',
@@ -71,10 +83,18 @@ export function updateTaskTool(db: DrizzleClient, userId: string, characterId: s
     execute: async (args: unknown): Promise<string> => {
       try {
         const { taskId, title } = args as { taskId: string; title: string }
-        if (!taskId?.trim() || !title?.trim()) return 'Failed to update task: taskId and title are required.'
-        await db.update(tasks)
+        if (!taskId?.trim() || !title?.trim())
+          return 'Failed to update task: taskId and title are required.'
+        await db
+          .update(tasks)
           .set({ title: title.trim(), updatedAt: new Date() })
-          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+          .where(
+            and(
+              eq(tasks.id, taskId.trim()),
+              eq(tasks.userId, userId),
+              eq(tasks.characterId, characterId),
+            ),
+          )
         return 'Task updated.'
       } catch (error) {
         console.error('[CloudAgent] update_task failed:', error)
@@ -84,7 +104,11 @@ export function updateTaskTool(db: DrizzleClient, userId: string, characterId: s
   })
 }
 
-export function completeTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function completeTaskTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'complete_task',
     description: 'Mark a task as completed.',
@@ -95,9 +119,16 @@ export function completeTaskTool(db: DrizzleClient, userId: string, characterId:
       try {
         const { taskId } = args as { taskId: string }
         if (!taskId?.trim()) return 'Failed to complete task: taskId is required.'
-        await db.update(tasks)
+        await db
+          .update(tasks)
           .set({ status: 'done', updatedAt: new Date() })
-          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+          .where(
+            and(
+              eq(tasks.id, taskId.trim()),
+              eq(tasks.userId, userId),
+              eq(tasks.characterId, characterId),
+            ),
+          )
         return 'Task marked as completed.'
       } catch (error) {
         console.error('[CloudAgent] complete_task failed:', error)
@@ -107,7 +138,11 @@ export function completeTaskTool(db: DrizzleClient, userId: string, characterId:
   })
 }
 
-export function deleteTaskTool(db: DrizzleClient, userId: string, characterId: string): FunctionTool {
+export function deleteTaskTool(
+  db: DrizzleClient,
+  userId: string,
+  characterId: string,
+): FunctionTool {
   return new FunctionTool({
     name: 'delete_task',
     description: 'Delete a task permanently.',
@@ -118,8 +153,15 @@ export function deleteTaskTool(db: DrizzleClient, userId: string, characterId: s
       try {
         const { taskId } = args as { taskId: string }
         if (!taskId?.trim()) return 'Failed to delete task: taskId is required.'
-        await db.delete(tasks)
-          .where(and(eq(tasks.id, taskId.trim()), eq(tasks.userId, userId), eq(tasks.characterId, characterId)))
+        await db
+          .delete(tasks)
+          .where(
+            and(
+              eq(tasks.id, taskId.trim()),
+              eq(tasks.userId, userId),
+              eq(tasks.characterId, characterId),
+            ),
+          )
         return 'Task deleted.'
       } catch (error) {
         console.error('[CloudAgent] delete_task failed:', error)

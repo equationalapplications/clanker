@@ -20,12 +20,7 @@ export type ImageSource = 'generated' | 'uploaded' | 'imported' | 'chat'
  * user-facing query excludes it; `reapStaleImageReservations` cleans it up.
  */
 export type ImageSyncState =
-  | 'local'
-  | 'synced'
-  | 'pending_upload'
-  | 'pending_delete'
-  | 'failed'
-  | 'reserved'
+  'local' | 'synced' | 'pending_upload' | 'pending_delete' | 'failed' | 'reserved'
 
 export interface CharacterImageRow {
   id: string
@@ -110,10 +105,7 @@ export async function getActiveCharacterImage(
   )
 }
 
-export async function setActiveImageId(
-  characterId: string,
-  imageId: string | null,
-): Promise<void> {
+export async function setActiveImageId(characterId: string, imageId: string | null): Promise<void> {
   const db = await getDatabase()
   // Deliberately does not touch `updated_at`: the active pointer is synced via the
   // dedicated syncCharacterImages callable, not the character snapshot's last-write-wins.
@@ -186,10 +178,7 @@ export async function hardDeleteCharacterImage(imageId: string): Promise<void> {
   await db.runAsync('DELETE FROM character_images WHERE id = ?', [imageId])
 }
 
-export async function setImageSyncState(
-  imageId: string,
-  syncState: ImageSyncState,
-): Promise<void> {
+export async function setImageSyncState(imageId: string, syncState: ImageSyncState): Promise<void> {
   const db = await getDatabase()
   await db.runAsync('UPDATE character_images SET sync_state = ? WHERE id = ?', [syncState, imageId])
 }

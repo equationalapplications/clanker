@@ -36,28 +36,28 @@ circular mask crops an arbitrary slice the user never chose.
 
 ## 2. Decisions
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Storage backend | Firebase Storage (GCS, `clanker-prod`) | Reuses existing Firebase Auth + App Check; rules scope by uid with no new credential plumbing |
-| Privacy routing | Client-side, keyed on `save_to_cloud` | The Cloud Function never learns privacy state, so it cannot leak it |
-| Upload location | Client, after `generateImage` returns | `generateImage` unchanged; same path reused by Vision later |
-| Web privacy mode | base64 in SQLite (already OPFS-backed) | See §3 |
-| Master resolution | 1024×1024 WebP | Model native output; supports future zoom/download |
-| Thumbnail | 256×256 WebP | See §4 |
-| Cap | 100 images per character, FIFO | Per-character matches gallery semantics; active image never evicted. Enforced server-side for cloud characters — see §13.3 |
-| Image sync | Dedicated callable, tombstone-based | The character snapshot's last-write-wins rule cannot express a set with deletions — see §13 |
-| TTL sweeper | **Rejected** | See §12 |
-| Default avatar | Bundled asset, not stored per character | Offline, zero cost, deletes three source files |
-| Public import | Signed URL in Phase 1 | Omitting it regresses a shipped feature |
+| Decision          | Choice                                  | Rationale                                                                                                                  |
+| ----------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Storage backend   | Firebase Storage (GCS, `clanker-prod`)  | Reuses existing Firebase Auth + App Check; rules scope by uid with no new credential plumbing                              |
+| Privacy routing   | Client-side, keyed on `save_to_cloud`   | The Cloud Function never learns privacy state, so it cannot leak it                                                        |
+| Upload location   | Client, after `generateImage` returns   | `generateImage` unchanged; same path reused by Vision later                                                                |
+| Web privacy mode  | base64 in SQLite (already OPFS-backed)  | See §3                                                                                                                     |
+| Master resolution | 1024×1024 WebP                          | Model native output; supports future zoom/download                                                                         |
+| Thumbnail         | 256×256 WebP                            | See §4                                                                                                                     |
+| Cap               | 100 images per character, FIFO          | Per-character matches gallery semantics; active image never evicted. Enforced server-side for cloud characters — see §13.3 |
+| Image sync        | Dedicated callable, tombstone-based     | The character snapshot's last-write-wins rule cannot express a set with deletions — see §13                                |
+| TTL sweeper       | **Rejected**                            | See §12                                                                                                                    |
+| Default avatar    | Bundled asset, not stored per character | Offline, zero cost, deletes three source files                                                                             |
+| Public import     | Signed URL in Phase 1                   | Omitting it regresses a shipped feature                                                                                    |
 
 ### 2.1 Why web privacy mode keeps base64 in SQLite
 
 `expo-sqlite@56` on web uses `AccessHandlePoolVFS`
 (`node_modules/expo-sqlite/web/worker.ts:790`) — an OPFS sync-access-handle pool.
-SQLite-on-web is therefore *already* origin-private storage: the same quota bucket
+SQLite-on-web is therefore _already_ origin-private storage: the same quota bucket
 IndexedDB draws from, the same eviction rules, and it never touches a server.
 
-The usual "don't put binary in SQLite" instinct targets *native* SQLite. On web,
+The usual "don't put binary in SQLite" instinct targets _native_ SQLite. On web,
 base64-in-SQLite and blobs-in-IndexedDB are both opaque bytes in origin storage.
 The genuine advantage of an IndexedDB blob store — keeping rows lean so list
 queries stay fast — is obtained here structurally by moving images into their own
@@ -115,17 +115,17 @@ there is no `SELECT` column discipline to remember or regress.
 A mirror `character_images` table. Cloud rows are always `kind='cloud'`, so it
 carries `storage_path` / `thumb_path` instead of `storage_kind` / `master_ref`:
 
-| Column | Type |
-|---|---|
-| `id` | uuid PK |
-| `character_id` | uuid FK → characters |
-| `user_id` | uuid FK → users |
-| `storage_path` | text NOT NULL |
-| `thumb_path` | text |
-| `mime_type` | text NOT NULL DEFAULT `'image/webp'` |
-| `source` | text NOT NULL |
-| `created_at` | timestamptz NOT NULL |
-| `deleted_at` | timestamptz |
+| Column         | Type                                 |
+| -------------- | ------------------------------------ |
+| `id`           | uuid PK                              |
+| `character_id` | uuid FK → characters                 |
+| `user_id`      | uuid FK → users                      |
+| `storage_path` | text NOT NULL                        |
+| `thumb_path`   | text                                 |
+| `mime_type`    | text NOT NULL DEFAULT `'image/webp'` |
+| `source`       | text NOT NULL                        |
+| `created_at`   | timestamptz NOT NULL                 |
+| `deleted_at`   | timestamptz                          |
 
 Plus `characters.active_image_id uuid` — deliberately **not** a foreign key to
 `character_images(id)`. `syncCharacterImages` upserts rows and sets the pointer in
@@ -197,11 +197,11 @@ resolveImageUri(row: CharacterImageRow, variant: 'master' | 'thumb'): Promise<st
 
 Dispatch on `storage_kind`:
 
-| Kind | Resolution |
-|---|---|
-| `cloud` | `getDownloadURL(path)`, memoized per path for the session |
-| `file` | the `file://` URI as-is |
-| `inline` | `data:{mime_type};base64,…` |
+| Kind     | Resolution                                                |
+| -------- | --------------------------------------------------------- |
+| `cloud`  | `getDownloadURL(path)`, memoized per path for the session |
+| `file`   | the `file://` URI as-is                                   |
+| `inline` | `data:{mime_type};base64,…`                               |
 
 When `thumb_ref` is NULL, `variant: 'thumb'` falls back to the master.
 
@@ -259,14 +259,14 @@ existing component and its accessibility tests unchanged.
    nothing; it exists for the hard-kill case, and only collects reservations older
    than 30 minutes so it cannot race a save that is merely slow.
 
-   **Local kinds get no reservation.** An `inline` row's refs *are* the payload, so
+   **Local kinds get no reservation.** An `inline` row's refs _are_ the payload, so
    there is nothing to name in advance, and a stranded `file` write is addressable
    on-device rather than invisible and billable. Those keep the compensating
    rollback below.
 
    The rollback still matters for everything the reservation does not cover: any
    throw between the first write and the commit deletes what already landed, on
-   whichever side it landed. That includes *partial* cloud uploads, the easy case
+   whichever side it landed. That includes _partial_ cloud uploads, the easy case
    to miss — when the master uploads and the thumb then fails, the write path falls
    back to local storage and commits a `file` row **successfully**, so a rollback
    keyed only on the outer failure would never run. The uploaded master has to be
@@ -277,10 +277,11 @@ existing component and its accessibility tests unchanged.
    the row at them, so between the two the objects are unreferenced — and a row
    that later exhausts its retry budget never comes back to claim them. Each sweep
    iteration therefore tracks what it uploaded and deletes it on failure, clearing
-   the list once `updateImageRefs` commits (after which the row *does* reference
+   the list once `updateImageRefs` commits (after which the row _does_ reference
    them and they must be kept). A retry re-uploads to the same deterministic path,
    so this costs one re-upload and can never lose the image: the local bytes are
    untouched throughout.
+
 5. **Enforce the cap:** if the character now exceeds 100 images, evict the oldest
    — with the active image always exempt. Deletion removes bytes before rows
    (§10). For `file` and `inline` rows the client enforces this directly; for
@@ -317,7 +318,7 @@ than building it:
 
 `getPublicCharacter` returns a 15-minute V4 signed URL for the owner's active
 master. The importer downloads once, re-stores under their own account according
-to *their* privacy mode, and writes a row with `source='imported'`.
+to _their_ privacy mode, and writes a row with `source='imported'`.
 
 This stays in Phase 1 because `getPublicCharacter` already ships: omitting it
 would regress a live feature, leaving imported characters avatar-less.
@@ -396,31 +397,31 @@ of the payload as a JS string alongside the native buffer.
 Any path that removes images — character hard-delete, character purge, cap
 eviction, or explicit delete from the picker — cleans up per kind:
 
-| Kind | Cleanup |
-|---|---|
-| `cloud` | Delete master and thumb objects from Firebase Storage |
-| `file` | Delete both files from the device |
-| `inline` | Row deletion is sufficient — bytes live in the row |
+| Kind     | Cleanup                                               |
+| -------- | ----------------------------------------------------- |
+| `cloud`  | Delete master and thumb objects from Firebase Storage |
+| `file`   | Delete both files from the device                     |
+| `inline` | Row deletion is sufficient — bytes live in the row    |
 
 ### 10.1 Ordering
 
 **The invariant is: never destroy the last handle to the bytes before destroying
-the bytes.** For a single image the row *is* that handle — it carries the object
+the bytes.** For a single image the row _is_ that handle — it carries the object
 path — so bytes go first. A failure partway then leaves a recoverable row
 pointing at possibly-missing bytes, which the resolver degrades gracefully (§11),
 whereas the reverse would leave orphaned bytes with nothing able to find them.
 
 "Bytes before rows" is the single-image corollary, **not** a blanket rule. Bulk
-paths delete by *prefix*, and a prefix is derived from ids the caller already
+paths delete by _prefix_, and a prefix is derived from ids the caller already
 holds rather than read out of the rows. There the rows are not the handle, so the
 invariant permits the opposite order — and avoiding stale references prefers it:
 
-| Path | Order | Why |
-|---|---|---|
-| Single image (picker, cap eviction) | bytes → row | The row is the only handle to the object path |
-| `deleteCharacterFn` → `purgeCharacter` | rows → prefix | Prefix `users/{uid}/characters/{cloudId}/` is derivable from the request. Rows-first means a Storage failure leaves only orphan bytes, which a retry's idempotent prefix delete reaps; bytes-first risks a *surviving* character whose rows point at deleted objects, with no tombstone to trigger cleanup |
-| `adminResetUserState` | rows → prefix | Same handle argument; the `users` row survives, so `firebaseUid` stays available for a retry |
-| `adminDeleteUser` | prefix → rows | **Inverted, and required.** The prefix is `users/{firebaseUid}/`, and `firebaseUid` lives on the `users` row this handler deletes. Dropping that row first makes the bytes permanently unaddressable — here the `users` row is the last handle |
+| Path                                   | Order         | Why                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Single image (picker, cap eviction)    | bytes → row   | The row is the only handle to the object path                                                                                                                                                                                                                                                              |
+| `deleteCharacterFn` → `purgeCharacter` | rows → prefix | Prefix `users/{uid}/characters/{cloudId}/` is derivable from the request. Rows-first means a Storage failure leaves only orphan bytes, which a retry's idempotent prefix delete reaps; bytes-first risks a _surviving_ character whose rows point at deleted objects, with no tombstone to trigger cleanup |
+| `adminResetUserState`                  | rows → prefix | Same handle argument; the `users` row survives, so `firebaseUid` stays available for a retry                                                                                                                                                                                                               |
+| `adminDeleteUser`                      | prefix → rows | **Inverted, and required.** The prefix is `users/{firebaseUid}/`, and `firebaseUid` lives on the `users` row this handler deletes. Dropping that row first makes the bytes permanently unaddressable — here the `users` row is the last handle                                                             |
 
 Prefix deletion is a list-then-delete loop, idempotent, so every one of these is
 safe to re-run after a partial failure.
@@ -435,7 +436,7 @@ would be unreachable rather than merely orphaned: retry needs the references.
 `character_images` delete predicate is scoped by `user_id` as well as
 `character_id`: a caller-supplied `characterId` that belongs to someone else must
 not reach a `DELETE` at all. Storage-path scoping alone is insufficient — the
-path embeds the *caller's* uid and so silently no-ops on a foreign character,
+path embeds the _caller's_ uid and so silently no-ops on a foreign character,
 leaving the Postgres delete as the unguarded step.
 
 **Offline is the exception.** A `cloud` row's bytes are unreachable without a
@@ -473,7 +474,7 @@ The original concept included deleting images unused for 30–60 days. Rejected:
    old avatars are still there. A user who returns after a season to find their
    favourite gone got the opposite of what was advertised.
 3. **It is two implementations for $0.0004/user/month** — a scheduled Cloud
-   Function plus a `last_used_at` column for cloud mode, *and* an on-device
+   Function plus a `last_used_at` column for cloud mode, _and_ an on-device
    sweeper for privacy mode, where no server can reach the files.
 
 The FIFO cap (§6) already bounds storage. Revisit only if the economics change.
@@ -492,14 +493,14 @@ flow.
 
 `sync_state` (§3.1) takes one of:
 
-| Value | Meaning |
-|---|---|
-| `reserved` | a cloud row claimed before its upload began (§6); not yet an image to any reader but the save path that owns it and the reaper (see §6's restatement of this as an invariant, not a fixed list) — reaped if it outlives a plausible upload |
-| `local` | a `file` or `inline` row on a privacy-mode character; terminal, the sweeper skips it |
-| `pending_upload` | the server does not yet have this row — either the bytes are still on-device, or they are uploaded and only the registration call is outstanding |
-| `synced` | cloud row and objects confirmed |
-| `pending_delete` | the user deleted it; the cloud copy still has to be reaped |
-| `failed` | retry budget exhausted — see below |
+| Value            | Meaning                                                                                                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `reserved`       | a cloud row claimed before its upload began (§6); not yet an image to any reader but the save path that owns it and the reaper (see §6's restatement of this as an invariant, not a fixed list) — reaped if it outlives a plausible upload |
+| `local`          | a `file` or `inline` row on a privacy-mode character; terminal, the sweeper skips it                                                                                                                                                       |
+| `pending_upload` | the server does not yet have this row — either the bytes are still on-device, or they are uploaded and only the registration call is outstanding                                                                                           |
+| `synced`         | cloud row and objects confirmed                                                                                                                                                                                                            |
+| `pending_delete` | the user deleted it; the cloud copy still has to be reaped                                                                                                                                                                                 |
+| `failed`         | retry budget exhausted — see below                                                                                                                                                                                                         |
 
 The default is `local`, not `synced`, because most rows never touch the cloud and
 a sweeper reading `synced` as "nothing to do" would be one careless `WHERE` clause
@@ -511,10 +512,10 @@ delete sets `deleted_at` immediately on every path, online or off, so the row
 leaves the picker and stops counting toward the cap at once. What follows depends
 on kind:
 
-| Kind | On delete |
-|---|---|
-| `file`, `inline` | bytes removed and row hard-deleted in the same local transaction (§10) |
-| `cloud` | `deleted_at` set, `sync_state='pending_delete'`; bytes then rows reaped by the sweeper |
+| Kind             | On delete                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `file`, `inline` | bytes removed and row hard-deleted in the same local transaction (§10)                 |
+| `cloud`          | `deleted_at` set, `sync_state='pending_delete'`; bytes then rows reaped by the sweeper |
 
 **A row settles only on server acknowledgement.** The sweeper uploads bytes, then
 registers them with `syncCharacterImages`; the row stays `pending_upload` across
@@ -546,8 +547,8 @@ default here** — it burns battery and quota re-attempting an upload that a Sto
 rule will reject every time, and it buries the one signal (§11's Snackbar) that
 tells the user cloud backup is not happening.
 
-A failed *registration* charges the same budget as a failed upload. Failed
-*deletions* deliberately get none: abandoning one leaves the cloud row live, which
+A failed _registration_ charges the same budget as a failed upload. Failed
+_deletions_ deliberately get none: abandoning one leaves the cloud row live, which
 resurrects an image the user deleted. Re-sending an id costs nothing, so unbounded
 retry is the safer end of that trade.
 
@@ -575,7 +576,7 @@ builds (`characterSyncService.ts:265-274`).
 
 **Ordering.** A character has no cloud id until its first successful sync, so an
 image created before then has no path to be written to. `syncCharacterImages`
-therefore runs *after* `syncUnsyncedToCloud` — sequentially, not inside the
+therefore runs _after_ `syncUnsyncedToCloud` — sequentially, not inside the
 `Promise.all` beside it (`characterSyncService.ts:232-235`) — and skips any
 character still lacking a confirmed `cloud_id`. Those rows stay `pending_upload`
 for one more sweep.
@@ -647,7 +648,7 @@ client:
 - hard-deletes local rows whose cloud counterpart carries `deleted_at`;
 - leaves everything else alone.
 
-A local `cloud` row merely *absent* from the response is **not** deleted. Absence
+A local `cloud` row merely _absent_ from the response is **not** deleted. Absence
 is ambiguous — a truncated response, a partial server failure, and a genuine
 remote delete are indistinguishable at the client — and acting on it destroys
 images the user paid for, in bulk and silently, which is precisely what §11's
@@ -683,7 +684,7 @@ idempotent, so a partial failure is safe to re-run.
 Note that cloud `character_images.character_id` carries
 `REFERENCES characters(id) ON DELETE CASCADE`, so deleting a `characters` row
 already reaps its image rows. The explicit row deletes above are therefore about
-*ordering against Storage*, not about reachability.
+_ordering against Storage_, not about reachability.
 
 ### 13.5 Toggling `save_to_cloud`
 
@@ -696,7 +697,7 @@ it just left.
 by the sweeper, converting to `cloud` on success. This is the same promotion pass
 §15 step 3 uses for migration, written once and called from both.
 
-**Off.** Every `cloud` row is pulled back to local storage *before* anything is
+**Off.** Every `cloud` row is pulled back to local storage _before_ anything is
 destroyed:
 
 1. Download master and thumb for each `cloud` row.
@@ -708,7 +709,7 @@ destroyed:
 
 **Step 4 must come last, and this is the trap.** `removeCharacterFromCloud`
 currently calls `clearCharacterCloudLink` as its final act, nulling `cloud_id` —
-and after §13.2, `cloud_id` *is* the storage path. Clearing it before the download
+and after §13.2, `cloud_id` _is_ the storage path. Clearing it before the download
 makes every one of that character's cloud images permanently unreachable. The
 toggle-off path requires network; offline it must refuse outright rather than
 partially proceed.
@@ -794,7 +795,7 @@ every avatar it had already converted. So:
 
 - Per character: a character that already has gallery rows is skipped, whatever
   the flag says. This is what actually makes a re-run safe.
-- Per device *and per user*: the completion flag is keyed by user id. The
+- Per device _and per user_: the completion flag is keyed by user id. The
   migration query is already per-user, and the flag outlives sign-out, so a
   device-wide key would let the first account to finish suppress migration for
   every other account that ever signs in on that device.
@@ -834,26 +835,26 @@ The Generate and Upload buttons move into its header, reusing
 
 ## 17. Testing
 
-| Area | Cases |
-|---|---|
-| Resolver | Dispatch per `storage_kind`; thumb→master fallback when `thumb_ref` NULL |
-| Cap eviction | Evicts oldest; **never** evicts the active image; no-op below 100; server-side eviction returns ids the client applies |
-| Deletion cascade | Single image deletes bytes before rows, per kind; partial-failure leaves rows; offline `cloud` delete defers as `pending_delete` |
-| Deletion ordering | Each §10.1 path orders Storage against rows as tabulated; `adminDeleteUser` deletes the prefix before the `users` row |
-| Deletion authorization | A `characterId` owned by another user is rejected **before** any row or object is deleted — asserted on the DB rows, not just the storage path |
-| Sync — ids | Storage path uses `cloud_id`, never `char_…`; image id survives round-trip as the cloud PK |
-| Sync — ordering | Image with no confirmed `cloud_id` stays `pending_upload` and syncs on the next sweep |
-| Sync — reconciliation | Tombstone deletes the local row; **absence does not**; `pending_upload` rows are never reconciled away |
-| Sync — retries | `sync_attempts` increments; `failed` after budget; permission error fails fast; `failed` row still resolves locally; a master uploaded before the thumb failed is deleted, but objects the row has already committed to are kept |
-| Privacy toggle | On → promotes to `cloud`; off → downloads before the link is cleared, native `file` vs web `inline`; offline refuses; `reserved` rows excluded from the download pass |
-| `reserved` exclusion | Never selected as the next active image after a delete; never entered into the toggle-off download pass |
-| Callable validation | Malformed `deletedImageIds` / `thumbPath` / `activeImageId` are rejected, not dropped; per-request caps enforced; `storagePath` confined to the caller's prefix |
-| Migration | Default-purge by strict equality; base64→inline row; PNG-mislabelled row re-encoded; idempotency across interruption; **a character migrated by an interrupted earlier run still gets its thumbnail backfilled and its cloud promotion** |
-| Upload | Square result on native and web; no upscaling below 1024; 200×200 minimum |
-| WebP probe | JPEG fallback recorded in `mime_type` |
-| `storage.rules` | uid isolation, size cap, content-type — asserted as text only in `__tests__/storageRules.test.ts`; **emulator coverage is still outstanding — see §20.2** |
-| `cors.json` | `origin` matches `SITE_BASE` from `siteConfig`; `method` covers GET/POST/DELETE; `responseHeader` admits `Authorization` |
-| Picker | Activate, delete, empty state |
+| Area                   | Cases                                                                                                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resolver               | Dispatch per `storage_kind`; thumb→master fallback when `thumb_ref` NULL                                                                                                                                                                 |
+| Cap eviction           | Evicts oldest; **never** evicts the active image; no-op below 100; server-side eviction returns ids the client applies                                                                                                                   |
+| Deletion cascade       | Single image deletes bytes before rows, per kind; partial-failure leaves rows; offline `cloud` delete defers as `pending_delete`                                                                                                         |
+| Deletion ordering      | Each §10.1 path orders Storage against rows as tabulated; `adminDeleteUser` deletes the prefix before the `users` row                                                                                                                    |
+| Deletion authorization | A `characterId` owned by another user is rejected **before** any row or object is deleted — asserted on the DB rows, not just the storage path                                                                                           |
+| Sync — ids             | Storage path uses `cloud_id`, never `char_…`; image id survives round-trip as the cloud PK                                                                                                                                               |
+| Sync — ordering        | Image with no confirmed `cloud_id` stays `pending_upload` and syncs on the next sweep                                                                                                                                                    |
+| Sync — reconciliation  | Tombstone deletes the local row; **absence does not**; `pending_upload` rows are never reconciled away                                                                                                                                   |
+| Sync — retries         | `sync_attempts` increments; `failed` after budget; permission error fails fast; `failed` row still resolves locally; a master uploaded before the thumb failed is deleted, but objects the row has already committed to are kept         |
+| Privacy toggle         | On → promotes to `cloud`; off → downloads before the link is cleared, native `file` vs web `inline`; offline refuses; `reserved` rows excluded from the download pass                                                                    |
+| `reserved` exclusion   | Never selected as the next active image after a delete; never entered into the toggle-off download pass                                                                                                                                  |
+| Callable validation    | Malformed `deletedImageIds` / `thumbPath` / `activeImageId` are rejected, not dropped; per-request caps enforced; `storagePath` confined to the caller's prefix                                                                          |
+| Migration              | Default-purge by strict equality; base64→inline row; PNG-mislabelled row re-encoded; idempotency across interruption; **a character migrated by an interrupted earlier run still gets its thumbnail backfilled and its cloud promotion** |
+| Upload                 | Square result on native and web; no upscaling below 1024; 200×200 minimum                                                                                                                                                                |
+| WebP probe             | JPEG fallback recorded in `mime_type`                                                                                                                                                                                                    |
+| `storage.rules`        | uid isolation, size cap, content-type — asserted as text only in `__tests__/storageRules.test.ts`; **emulator coverage is still outstanding — see §20.2**                                                                                |
+| `cors.json`            | `origin` matches `SITE_BASE` from `siteConfig`; `method` covers GET/POST/DELETE; `responseHeader` admits `Authorization`                                                                                                                 |
+| Picker                 | Activate, delete, empty state                                                                                                                                                                                                            |
 
 Existing `__tests__/characterAvatarAccessibility.test.tsx` and
 `__tests__/useAvatarUpload.test.tsx` are updated, not replaced.
@@ -883,45 +884,45 @@ Neither is implemented in Phase 1.
 
 ## 19. File map
 
-| Action | Path |
-|---|---|
-| Create | `src/database/characterImageDatabase.ts` (every `character_images` statement; SQL-only by design) |
-| Create | `src/services/localImageStore.ts` / `.web.ts` / `.types.ts` |
-| Create | `src/services/storageService.ts` / `.web.ts` |
-| Create | `src/services/characterImageService.ts` (`saveCharacterImage`, cap, cascade) |
-| Create | `src/services/characterImageSyncService.ts` (sweeper, reconciliation, privacy toggle, reservation reaper) |
-| Create | `src/services/imageVariants.ts` (§6 steps 2–3, platform-split per §9) |
-| Create | `src/utilities/webpSupport.ts` (§9 encode-target probe) |
-| Create | `src/hooks/useResolvedImage.ts` |
-| Create | `src/components/AvatarPicker.tsx` |
-| Create | `src/database/migrations/migrateAvatarsToImageStore.ts` |
-| Create | `src/database/migrations/legacyDefaultAvatarBase64.ts` (frozen copy of the constant §15 step 1 compares against) |
-| Create | `storage.rules` |
-| Create | `cors.json` (§8 — must be applied with `gsutil cors set`) |
-| Create | `assets/default-avatar-1024.webp`, `scripts/build-default-avatar.mjs` (§14) |
-| Create | `functions/drizzle/0022_character_images.sql` |
-| Create | `functions/src/services/characterImageService.ts` (cloud repository, server-side cap, `purgeCharacter`, tombstone retention) |
-| Create | `functions/src/services/storageAdmin.ts` (prefix delete, object delete, signed URLs) |
-| Create | `functions/src/imageRetention.ts` (scheduled 30-day tombstone sweep — **a new function that must be deployed**) |
-| Modify | `src/database/schema.ts` (migrations 22, 23) |
-| Modify | `src/database/characterDatabase.ts` (`toAppFormat` drops the data-URI build) |
-| Modify | `src/hooks/useAvatarUpload.ts` (square crop, gallery routing) |
-| Modify | `src/hooks/useImageGeneration.ts` (routes through `saveCharacterImage`) |
-| Modify | `src/components/CharacterAvatar.tsx` (bundled default, `cover`) |
-| Modify | `src/components/CharacterCard.tsx` (uses `useResolvedImage`) |
-| Modify | `src/machines/characterMachine.ts` (drops the per-character default copy; calls `promoteCharacterImagesToCloud` on toggle-on) |
-| Modify | `src/services/characterService.ts` (`active_image_id` on the `Character` type) |
-| Modify | `src/config/firebaseConfig.ts` / `.web.ts` (registers the `syncCharacterImages` callable) |
-| Modify | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` (picker), `app/(drawer)/(tabs)/characters/list.tsx` |
-| Modify | `app/_layout.tsx` (runs the avatar migration before `syncAllToCloud`) |
-| Modify | `src/services/characterSyncService.ts` (stop nulling avatars; sequence image sync after character sync; reconcile on restore; download-before-unlink in `removeCharacterFromCloud`) |
-| Modify | `src/services/apiClient.ts` (`images` on `CharacterSnapshot`; `syncCharacterImagesFn`) |
+| Action | Path                                                                                                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create | `src/database/characterImageDatabase.ts` (every `character_images` statement; SQL-only by design)                                                                                                           |
+| Create | `src/services/localImageStore.ts` / `.web.ts` / `.types.ts`                                                                                                                                                 |
+| Create | `src/services/storageService.ts` / `.web.ts`                                                                                                                                                                |
+| Create | `src/services/characterImageService.ts` (`saveCharacterImage`, cap, cascade)                                                                                                                                |
+| Create | `src/services/characterImageSyncService.ts` (sweeper, reconciliation, privacy toggle, reservation reaper)                                                                                                   |
+| Create | `src/services/imageVariants.ts` (§6 steps 2–3, platform-split per §9)                                                                                                                                       |
+| Create | `src/utilities/webpSupport.ts` (§9 encode-target probe)                                                                                                                                                     |
+| Create | `src/hooks/useResolvedImage.ts`                                                                                                                                                                             |
+| Create | `src/components/AvatarPicker.tsx`                                                                                                                                                                           |
+| Create | `src/database/migrations/migrateAvatarsToImageStore.ts`                                                                                                                                                     |
+| Create | `src/database/migrations/legacyDefaultAvatarBase64.ts` (frozen copy of the constant §15 step 1 compares against)                                                                                            |
+| Create | `storage.rules`                                                                                                                                                                                             |
+| Create | `cors.json` (§8 — must be applied with `gsutil cors set`)                                                                                                                                                   |
+| Create | `assets/default-avatar-1024.webp`, `scripts/build-default-avatar.mjs` (§14)                                                                                                                                 |
+| Create | `functions/drizzle/0022_character_images.sql`                                                                                                                                                               |
+| Create | `functions/src/services/characterImageService.ts` (cloud repository, server-side cap, `purgeCharacter`, tombstone retention)                                                                                |
+| Create | `functions/src/services/storageAdmin.ts` (prefix delete, object delete, signed URLs)                                                                                                                        |
+| Create | `functions/src/imageRetention.ts` (scheduled 30-day tombstone sweep — **a new function that must be deployed**)                                                                                             |
+| Modify | `src/database/schema.ts` (migrations 22, 23)                                                                                                                                                                |
+| Modify | `src/database/characterDatabase.ts` (`toAppFormat` drops the data-URI build)                                                                                                                                |
+| Modify | `src/hooks/useAvatarUpload.ts` (square crop, gallery routing)                                                                                                                                               |
+| Modify | `src/hooks/useImageGeneration.ts` (routes through `saveCharacterImage`)                                                                                                                                     |
+| Modify | `src/components/CharacterAvatar.tsx` (bundled default, `cover`)                                                                                                                                             |
+| Modify | `src/components/CharacterCard.tsx` (uses `useResolvedImage`)                                                                                                                                                |
+| Modify | `src/machines/characterMachine.ts` (drops the per-character default copy; calls `promoteCharacterImagesToCloud` on toggle-on)                                                                               |
+| Modify | `src/services/characterService.ts` (`active_image_id` on the `Character` type)                                                                                                                              |
+| Modify | `src/config/firebaseConfig.ts` / `.web.ts` (registers the `syncCharacterImages` callable)                                                                                                                   |
+| Modify | `app/(drawer)/(tabs)/characters/[id]/edit.tsx` (picker), `app/(drawer)/(tabs)/characters/list.tsx`                                                                                                          |
+| Modify | `app/_layout.tsx` (runs the avatar migration before `syncAllToCloud`)                                                                                                                                       |
+| Modify | `src/services/characterSyncService.ts` (stop nulling avatars; sequence image sync after character sync; reconcile on restore; download-before-unlink in `removeCharacterFromCloud`)                         |
+| Modify | `src/services/apiClient.ts` (`images` on `CharacterSnapshot`; `syncCharacterImagesFn`)                                                                                                                      |
 | Modify | `functions/src/db/schema.ts`, `functions/src/characterFunctions.ts` (signed URL; `syncCharacterImagesFn` with server-side cap; `images` in `getUserCharacters`; Storage prefix delete in `deleteCharacter`) |
-| Modify | `functions/src/services/characterService.ts` (`assertCharacterOwnership`, `isOwnedByUser`) |
-| Modify | `functions/src/adminFunctions.ts` (prefix-delete `users/{uid}/` in `adminResetUserState` and `adminDeleteUser`) |
-| Modify | `functions/src/index.ts` (exports `syncCharacterImages`, `imageRetentionSweep`) |
-| Modify | `firebase.json` (storage block) |
-| Delete | `src/utilities/defaultAvatarBase64.ts`, `src/utilities/loadDefaultAvatar.ts`, `src/services/defaultAvatarService.ts`, `src/services/localImageStorageService.ts` |
+| Modify | `functions/src/services/characterService.ts` (`assertCharacterOwnership`, `isOwnedByUser`)                                                                                                                  |
+| Modify | `functions/src/adminFunctions.ts` (prefix-delete `users/{uid}/` in `adminResetUserState` and `adminDeleteUser`)                                                                                             |
+| Modify | `functions/src/index.ts` (exports `syncCharacterImages`, `imageRetentionSweep`)                                                                                                                             |
+| Modify | `firebase.json` (storage block)                                                                                                                                                                             |
+| Delete | `src/utilities/defaultAvatarBase64.ts`, `src/utilities/loadDefaultAvatar.ts`, `src/services/defaultAvatarService.ts`, `src/services/localImageStorageService.ts`                                            |
 
 ---
 
@@ -957,7 +958,7 @@ Deferred because the window is narrow — a non-404 Storage error inside a rare,
 explicitly user-initiated action that already requires network, followed by the
 user abandoning the operation — and the worst outcome is a degraded avatar on a
 second device, not data loss. The fix, if it is ever worth it, is to compute the
-reported deletion set from the rows that were cloud-kind at the *start* of the
+reported deletion set from the rows that were cloud-kind at the _start_ of the
 pass rather than recomputing it per attempt.
 
 ### 20.2 `storage.rules` has no emulator coverage

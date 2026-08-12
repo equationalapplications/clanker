@@ -23,35 +23,30 @@
   "main": "lib/index.js",
   "type": "module",
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "4.17.3",
+    "@equationalapplications/core-llm-tools": "^5.2.1",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
-    "@google/adk": "^1.1.0",
-    "@google/genai": "^2.9.0",
+    "@google/adk": "^1.6.0",
+    "@google/genai": "^2.16.0",
     "drizzle-orm": "^0.45.2",
-    "firebase-admin": "^13.8.0",
+    "firebase-admin": "^14.2.0",
     "firebase-functions": "^7.2.5",
     "mammoth": "^1.12.0",
     "pg": "^8.20.0",
     "stripe": "^22.0.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@types/node": "^22.19.17",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "~24.13.3",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^9.39.4",
-    "eslint-plugin-import": "^2.32.0",
-    "firebase-functions-test": "^3.4.1",
+    "eslint": "^10.8.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.58.2"
   },
   "overrides": {
-    "ws": "8.21.1",
     "uuid": "^11.1.1",
-    "protobufjs": "7.6.5",
-    "@babel/core": "7.29.7",
-    "@google/adk": {
-      "js-yaml": "4.3.0"
+    "sqlite3": {
+      "tar": "7.5.22"
     }
   },
   "private": true

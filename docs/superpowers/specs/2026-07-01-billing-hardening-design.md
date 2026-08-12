@@ -22,18 +22,18 @@ New migration `functions/drizzle/0018_billing_hardening.sql` (hand-written, not 
 
 ### `subscriptions` table — two new columns
 
-| Column | Type | Default | Purpose |
-|---|---|---|---|
-| `subscription_provider` | `text`, nullable | `NULL` | `'stripe' \| 'revenuecat'`. Identifies which platform currently owns the active paid subscription. Set to the owning provider whenever a paid tier is upserted, and explicitly `NULL`ed on any transition to free/cancelled/expired. Left untouched only on non-billing updates that don't go through `upsertSubscription` (e.g. terms acceptance). |
-| `cancel_at_period_end` | `boolean` | `false` | True when the subscription is active but will not renew (Stripe `cancel_at_period_end` flag, or RevenueCat `CANCELLATION`). Reset to `false` on any new active purchase/renewal. |
+| Column                  | Type             | Default | Purpose                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subscription_provider` | `text`, nullable | `NULL`  | `'stripe' \| 'revenuecat'`. Identifies which platform currently owns the active paid subscription. Set to the owning provider whenever a paid tier is upserted, and explicitly `NULL`ed on any transition to free/cancelled/expired. Left untouched only on non-billing updates that don't go through `upsertSubscription` (e.g. terms acceptance). |
+| `cancel_at_period_end`  | `boolean`        | `false` | True when the subscription is active but will not renew (Stripe `cancel_at_period_end` flag, or RevenueCat `CANCELLATION`). Reset to `false` on any new active purchase/renewal.                                                                                                                                                                    |
 
 Add a check constraint on `subscription_provider`: `IN ('stripe', 'revenuecat')` (nullable, so free-tier/no-subscription rows stay `NULL`).
 
 ### New `processed_stripe_events` table
 
-| Column | Type | Notes |
-|---|---|---|
-| `event_id` | `text primary key` | Stripe `event.id` |
+| Column       | Type                        | Notes                        |
+| ------------ | --------------------------- | ---------------------------- |
+| `event_id`   | `text primary key`          | Stripe `event.id`            |
 | `created_at` | `timestamptz default now()` | For retention/debugging only |
 
 No foreign keys — this is a pure dedupe log, not tied to a user.
@@ -48,11 +48,11 @@ No foreign keys — this is a pure dedupe log, not tied to a user.
 
 ### Web (Stripe) — hard block, no charge occurs
 
-`purchasePackageStripe` (onCall), before creating a Checkout Session for a *subscription* price (not PAYG credit pack): look up the caller's Cloud SQL subscription row. If `plan_status === 'active' && plan_tier !== 'free' && subscription_provider === 'revenuecat'`, reject the callable with a client-facing error such as "You already have an active subscription on mobile — manage it in the App Store or Play Store." No Stripe API call is made, so no charge risk.
+`purchasePackageStripe` (onCall), before creating a Checkout Session for a _subscription_ price (not PAYG credit pack): look up the caller's Cloud SQL subscription row. If `plan_status === 'active' && plan_tier !== 'free' && subscription_provider === 'revenuecat'`, reject the callable with a client-facing error such as "You already have an active subscription on mobile — manage it in the App Store or Play Store." No Stripe API call is made, so no charge risk.
 
 ### Mobile (RevenueCat) — gate already exists, verify with a test
 
-RevenueCat purchases go through the native store billing sheet (`Purchases.purchasePackage`), which charges the user *before* our backend is involved — we cannot block the charge server-side. However, the mobile purchase screen (`app/(drawer)/subscribe.tsx`) already hides the `monthly_20` purchase button whenever `useIsPremium()` is true (`app/(drawer)/subscribe.tsx:111`), and `useIsPremium` (`src/hooks/useIsPremium.ts` → `useCurrentPlan`) is provider-agnostic: it's `true` for any active `monthly_20`/`monthly_50` subscription regardless of whether it came from Stripe or RevenueCat. So a user with an active Stripe subscription already cannot reach the RevenueCat purchase button on mobile — no new client code needed. (`SubscribeButton.tsx`/`CombinedSubscriptionButton.tsx` are dead code, not reachable from any screen, and are not part of this fix.)
+RevenueCat purchases go through the native store billing sheet (`Purchases.purchasePackage`), which charges the user _before_ our backend is involved — we cannot block the charge server-side. However, the mobile purchase screen (`app/(drawer)/subscribe.tsx`) already hides the `monthly_20` purchase button whenever `useIsPremium()` is true (`app/(drawer)/subscribe.tsx:111`), and `useIsPremium` (`src/hooks/useIsPremium.ts` → `useCurrentPlan`) is provider-agnostic: it's `true` for any active `monthly_20`/`monthly_50` subscription regardless of whether it came from Stripe or RevenueCat. So a user with an active Stripe subscription already cannot reach the RevenueCat purchase button on mobile — no new client code needed. (`SubscribeButton.tsx`/`CombinedSubscriptionButton.tsx` are dead code, not reachable from any screen, and are not part of this fix.)
 
 Add a regression test asserting `subscribe.tsx` hides the `monthly_20` button when `isPremium` is true, so this existing protection can't silently regress. `subscriptionProvider` therefore does **not** need to reach the client at all — it's a server-only column. Only `cancelAtPeriodEnd` is exposed to the client (see Fix #6).
 
@@ -73,7 +73,7 @@ If the RevenueCat webhook fires while an active Stripe-provider subscription alr
 - RevenueCat `EXPIRATION` (→ free/expired)
 - RevenueCat `CANCELLATION` unknown-product fallback (→ free/cancelled)
 
-Note: RevenueCat `CANCELLATION` for a *known* product keeps the paid tier active (auto-renew off) — it does **not** null the provider; it keeps `'revenuecat'` and sets `cancel_at_period_end = true` (see Fix #6).
+Note: RevenueCat `CANCELLATION` for a _known_ product keeps the paid tier active (auto-renew off) — it does **not** null the provider; it keeps `'revenuecat'` and sets `cancel_at_period_end = true` (see Fix #6).
 
 ---
 
@@ -112,7 +112,7 @@ Only if both fail does the handler log a warning and no-op, same as today.
 
 **Fix:** `processed_stripe_events` table (see Schema Changes) with a recoverable `status` column (`processing` vs `completed`). At the top of `stripeWebhookHandler`, after signature verification succeeds, attempt `INSERT INTO processed_stripe_events (event_id, status) VALUES ($1, 'processing') ON CONFLICT DO NOTHING` (via a `subscriptionService`/repo method, not raw SQL — the codebase uses Drizzle). If the insert succeeds, proceed to dispatch. If the row already exists with `status = 'completed'`, return `200` immediately without dispatching. If the row exists with `status = 'processing'`, only proceed when the claim is stale (lease expired / `created_at` older than the processing TTL); otherwise skip dispatch so concurrent duplicate deliveries cannot double-apply side effects.
 
-**Retry-safety requirement (do not regress the existing 500-retry behavior):** the current handler returns a non-2xx on unexpected processing errors specifically so Stripe *retries* (e.g. transient Cloud SQL unavailability). Therefore: on successful dispatch, **update the row to `completed`** before returning `200`. If handler dispatch throws, **delete the just-inserted `event_id` row before returning the 500** when possible. If that delete fails, **expire the in-flight claim** (set `created_at` to the epoch) so the next Stripe retry can atomically reacquire the stale `processing` row instead of being permanently skipped or racing an active duplicate. That preserves concurrent-delivery dedupe *and* keeps transient-failure retries working. A successful dispatch leaves the row marked `completed`.
+**Retry-safety requirement (do not regress the existing 500-retry behavior):** the current handler returns a non-2xx on unexpected processing errors specifically so Stripe _retries_ (e.g. transient Cloud SQL unavailability). Therefore: on successful dispatch, **update the row to `completed`** before returning `200`. If handler dispatch throws, **delete the just-inserted `event_id` row before returning the 500** when possible. If that delete fails, **expire the in-flight claim** (set `created_at` to the epoch) so the next Stripe retry can atomically reacquire the stale `processing` row instead of being permanently skipped or racing an active duplicate. That preserves concurrent-delivery dedupe _and_ keeps transient-failure retries working. A successful dispatch leaves the row marked `completed`.
 
 This guard must run **before** dispatch (guard first, side effects second — consistent with the existing "guard first, write second" rule already used for credit renewals).
 

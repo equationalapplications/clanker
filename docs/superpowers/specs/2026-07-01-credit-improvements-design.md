@@ -20,10 +20,10 @@ Five targeted fixes to the shared credit system: correct multi-credit spends whe
 
 ## Product Decisions (locked in)
 
-| # | Topic | Decision |
-|---|---|---|
-| 2 | `browser_action` `EXECUTION_TIMEOUT` | **No refund** — extension connected and burned compute; aligns with `SELECTOR_NOT_FOUND` and `docs/billing-and-credits.md` |
-| 4 | Live-voice connect gate | **Require ≥ 2 credits** — raise server gate to match client (`useLiveVoiceChat`) and `docs/real-time-voice-chat.md` |
+| #   | Topic                                | Decision                                                                                                                   |
+| --- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 2   | `browser_action` `EXECUTION_TIMEOUT` | **No refund** — extension connected and burned compute; aligns with `SELECTOR_NOT_FOUND` and `docs/billing-and-credits.md` |
+| 4   | Live-voice connect gate              | **Require ≥ 2 credits** — raise server gate to match client (`useLiveVoiceChat`) and `docs/real-time-voice-chat.md`        |
 
 ---
 
@@ -49,9 +49,9 @@ If net balance was sufficient under lock but rows could not cover the amount, lo
 
 ### What changes
 
-| File | Change |
-|---|---|
-| `functions/src/services/creditService.ts` | Replace single-row `gte(remainingBalance, amount).limit(1)` with multi-row loop |
+| File                                           | Change                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `functions/src/services/creditService.ts`      | Replace single-row `gte(remainingBalance, amount).limit(1)` with multi-row loop |
 | `functions/src/services/creditService.test.ts` | Add fragmented-balance test; extend single-row mock for `orderBy().for()` chain |
 
 ### What does NOT change
@@ -67,14 +67,14 @@ If net balance was sufficient under lock but rows could not cover the amount, lo
 
 ### Changes
 
-| Action | Path |
-|---|---|
-| Delete | `functions/src/spendCredits.ts` |
-| Delete | `functions/src/spendCredits.test.ts` |
-| Modify | `functions/src/index.ts` — remove export |
-| Modify | `src/config/firebaseConfig.ts` — remove `spendCreditsFn` const + export |
+| Action | Path                                                                        |
+| ------ | --------------------------------------------------------------------------- |
+| Delete | `functions/src/spendCredits.ts`                                             |
+| Delete | `functions/src/spendCredits.test.ts`                                        |
+| Modify | `functions/src/index.ts` — remove export                                    |
+| Modify | `src/config/firebaseConfig.ts` — remove `spendCreditsFn` const + export     |
 | Modify | `src/config/firebaseConfig.web.ts` — remove `spendCreditsFn` const + export |
-| Modify | `__tests__/getUserCredits.test.ts` — remove mock `spendCreditsFn` |
+| Modify | `__tests__/getUserCredits.test.ts` — remove mock `spendCreditsFn`           |
 
 `creditService.spendCredits(...)` service method and all server-side call sites remain.
 
@@ -108,16 +108,16 @@ Replaces `balance <= 0`. Error code, message, and close code unchanged.
 
 Add a **Credit Consumption** table to `docs/billing-and-credits.md` immediately after `### Refunds`, consolidating costs previously scattered across `ai-and-chat.md`, `edge-agent.md`, `architecture-and-data.md`, `real-time-voice-chat.md`, and in-code-only voice = 2.
 
-| Action | Path | Cost | Refund on failure |
-|---|---|---|---|
-| Text chat reply | `generateReply` (Functions) | 1 / round-trip (incl. tool rounds) | Yes |
-| Image generation | `generateImage` | 1 | Yes |
-| Document text conversion | `convertDocumentText` | 1 | Yes |
-| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each | Yes |
-| Agent turn (text) | cloud-agent `POST /agent/run` | 1 / turn (flat) | Yes |
-| Live voice | cloud-agent `/agent/live` | 1 / 60s timer | Partial minute not billed |
-| Scheduler trigger | cloud-agent scheduler-trigger | 1 (deduped) | Yes |
-| `browser_action` tool | contextual | Voice: 1; Text: pre-billed (skipped) | See Browser Action Billing |
+| Action                             | Path                                               | Cost                                 | Refund on failure          |
+| ---------------------------------- | -------------------------------------------------- | ------------------------------------ | -------------------------- |
+| Text chat reply                    | `generateReply` (Functions)                        | 1 / round-trip (incl. tool rounds)   | Yes                        |
+| Image generation                   | `generateImage`                                    | 1                                    | Yes                        |
+| Document text conversion           | `convertDocumentText`                              | 1                                    | Yes                        |
+| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 1 each                               | Yes                        |
+| Agent turn (text)                  | cloud-agent `POST /agent/run`                      | 1 / turn (flat)                      | Yes                        |
+| Live voice                         | cloud-agent `/agent/live`                          | 1 / 60s timer                        | Partial minute not billed  |
+| Scheduler trigger                  | cloud-agent scheduler-trigger                      | 1 (deduped)                          | Yes                        |
+| `browser_action` tool              | contextual                                         | Voice: 1; Text: pre-billed (skipped) | See Browser Action Billing |
 
 Note the intentional edge-vs-cloud difference: Firebase text/chat charges per round-trip; cloud-agent charges flat 1 per turn.
 
@@ -135,11 +135,11 @@ Existing **Browser Action Billing** `Refunds:` line already lists `EXECUTION_TIM
 
 ## Verification
 
-| Suite | Command | Expected |
-|---|---|---|
-| Functions | `cd functions && npm run typecheck && npm run lint && npm test` | 299/299 pass |
-| Cloud-agent | `cd cloud-agent && npm run typecheck && npm test` | 198/198 pass (1 skipped live test) |
-| Root | `npm run typecheck && npm run lint` | pass |
+| Suite       | Command                                                         | Expected                           |
+| ----------- | --------------------------------------------------------------- | ---------------------------------- |
+| Functions   | `cd functions && npm run typecheck && npm run lint && npm test` | 299/299 pass                       |
+| Cloud-agent | `cd cloud-agent && npm run typecheck && npm test`               | 198/198 pass (1 skipped live test) |
+| Root        | `npm run typecheck && npm run lint`                             | pass                               |
 
 **Regression checks:**
 

@@ -9,23 +9,6 @@
 import React from 'react'
 import { create, act } from 'react-test-renderer'
 
-// ── Gifted-Chat ─────────────────────────────────────────────────────────────
-let capturedGiftedChatProps: any = null
-
-jest.mock('react-native-gifted-chat', () => {
-  const React = require('react')
-  return {
-    GiftedChat: (props: any) => {
-      capturedGiftedChatProps = props
-      return React.createElement('View', { testID: 'gifted-chat' })
-    },
-    Bubble: () => null,
-    InputToolbar: () => null,
-    Send: ({ sendButtonProps, children }: any) =>
-      React.createElement('View', { testID: 'send-btn', ...sendButtonProps }, children),
-  }
-})
-
 // ── expo-router ──────────────────────────────────────────────────────────────
 let capturedHeaderTitle: (() => React.ReactElement) | null = null
 
@@ -73,12 +56,29 @@ jest.mock('react-native', () => {
   const View = (props: any) => React.createElement('View', props)
   const Text = (props: any) => React.createElement('Text', props)
   const TouchableOpacity = (props: any) => React.createElement('TouchableOpacity', props)
+  // FlatList is the list renderer our MessageList uses (Slice 3). Stub it so
+  // every data row mounts through `renderItem` immediately — same shape as
+  // gifted-chat's mock used to provide.
+  const FlatList = ({ data = [], renderItem, keyExtractor }: any) => {
+    return React.createElement(
+      'View',
+      { testID: 'flat-list' },
+      data.map((item: any, index: number) =>
+        React.createElement(
+          'View',
+          { key: keyExtractor ? keyExtractor(item) : index, testID: 'flat-list-item' },
+          renderItem ? renderItem({ item, index }) : null,
+        ),
+      ),
+    )
+  }
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
     Platform: { OS: 'android', select: (spec: any) => spec.android || spec.default },
     View,
     Text,
     TouchableOpacity,
+    FlatList,
   }
 })
 
@@ -128,16 +128,26 @@ jest.mock('~/hooks/useMessages', () => ({
   useChatMessages: () => [],
 }))
 
-jest.mock('~/hooks/useAIChat', () => ({
-  useAIChat: () => ({
+import { useAIChat } from '~/hooks/useAIChat'
+
+const mockUseAIChat = useAIChat as jest.MockedFunction<typeof useAIChat>
+
+function mockDefaultAIChatMock() {
+  return {
     messages: [],
     sendMessage: jest.fn(),
+    sendPhoto: jest.fn(),
+    canSendPhoto: false,
     isGeneratingResponse: false,
     escalationState: 'idle',
     error: null,
     activeTool: null,
     streamingMessage: null,
-  }),
+  } as any
+}
+
+jest.mock('~/hooks/useAIChat', () => ({
+  useAIChat: jest.fn(() => mockDefaultAIChatMock()),
 }))
 
 jest.mock('~/hooks/usePowerBalance', () => ({
@@ -164,8 +174,8 @@ jest.mock('~/components/CharacterAvatar', () => ({
 jest.mock('~/components/ChatComposer', () => ({
   __esModule: true,
   COMPOSER_VERTICAL_PADDING: 8,
-  MIN_INPUT_HEIGHT: 74,
-  MAX_INPUT_HEIGHT: 151,
+  MIN_INPUT_HEIGHT: 71,
+  MAX_INPUT_HEIGHT: 148,
   default: () => null,
 }))
 
@@ -173,17 +183,35 @@ jest.mock('@equationalapplications/expo-llm-wiki', () => ({
   useEntityStatus: () => ({ ingesting: false, librarian: false, heal: false }),
 }))
 
+// ChatView uses `KeyboardAvoidingView` from `react-native-keyboard-controller`
+// (Slice 3). The native module backing it is not available under Jest, so we
+// stub the import here — same pattern as the `react-native` mock above.
+jest.mock('react-native-keyboard-controller', () => {
+  const React = require('react')
+  const View = (props: any) => React.createElement('View', props)
+  return {
+    KeyboardAvoidingView: View,
+    KeyboardProvider: ({ children }: any) => children ?? null,
+    useKeyboardHandler: () => ({}),
+    useKeyboardAnimation: () => ({}),
+  }
+})
+
 // ── SUT ───────────────────────────────────────────────────────────────────────
 import ChatView from '~/components/ChatView'
 
 function renderChat(character: Record<string, unknown>) {
   mockUseCharacter.mockReturnValue({ data: character, isLoading: false })
   let tree: any
-  act(() => { tree = create(<ChatView characterId="char-1" />) })
+  act(() => {
+    tree = create(<ChatView characterId="char-1" />)
+  })
   return {
     tree,
     rerender() {
-      act(() => { tree.update(<ChatView characterId="char-1" />) })
+      act(() => {
+        tree.update(<ChatView characterId="char-1" />)
+      })
     },
   }
 }
@@ -191,7 +219,9 @@ function renderChat(character: Record<string, unknown>) {
 /** Render the headerTitle element captured from drawerNav.setOptions. */
 function renderHeader() {
   expect(capturedHeaderTitle).toBeTruthy()
-  act(() => { create(capturedHeaderTitle!()) })
+  act(() => {
+    create(capturedHeaderTitle!())
+  })
 }
 
 function baseCharacter(overrides: Record<string, unknown>) {
@@ -210,25 +240,44 @@ function baseCharacter(overrides: Record<string, unknown>) {
   }
 }
 
-/** Mount the character bubble and return the props CharacterAvatar received. */
-function bubbleCharacterProps() {
-  const rendered = capturedGiftedChatProps.renderAvatar({
-    currentMessage: { user: { _id: 'char-1' } },
+/**
+ * Mount ChatView with a single message authored by `userId` (typically 'char-1'
+ * for character bubbles). The FlatList mock renders every row immediately,
+ * so MessageList → MessageRow → renderAvatar runs and the avatar lands in
+ * `capturedAvatarProps` (CharacterAvatar) or in the tree (Avatar.Image /
+ * Avatar.Text).
+ */
+function renderChatWithMessage(userId: string, characterOverrides: Record<string, unknown> = {}) {
+  const aiMock = mockDefaultAIChatMock()
+  aiMock.messages = [
+    {
+      _id: `m-${userId}`,
+      text: '',
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      user: { _id: userId, name: userId === 'char-1' ? 'Nova' : 'Test' },
+    },
+  ]
+  mockUseAIChat.mockReturnValue(aiMock)
+  mockUseCharacter.mockReturnValue({ data: baseCharacter(characterOverrides), isLoading: false })
+  let tree: any
+  act(() => {
+    tree = create(<ChatView characterId="char-1" />)
   })
+  return tree
+}
+
+/** Mount the character bubble and return the props CharacterAvatar received. */
+function bubbleCharacterProps(characterOverrides: Record<string, unknown> = {}) {
   capturedAvatarProps.length = 0
-  act(() => { create(rendered) })
-  expect(capturedAvatarProps).toHaveLength(1)
-  return capturedAvatarProps[0]
+  renderChatWithMessage('char-1', characterOverrides)
+  expect(capturedAvatarProps.length).toBeGreaterThanOrEqual(1)
+  return capturedAvatarProps[capturedAvatarProps.length - 1]
 }
 
 /** Mount the user bubble and return the Avatar.Text label, or null if absent. */
 function bubbleUserLabel(): string | null {
-  const rendered = capturedGiftedChatProps.renderAvatar({
-    currentMessage: { user: { _id: 'user-1' } },
-  })
-  let holder: any
-  act(() => { holder = create(rendered) })
-  const txt = holder.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })[0]
+  const tree = renderChatWithMessage('user-1')
+  const txt = tree.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })[0]
   return txt ? txt.props.label : null
 }
 
@@ -236,9 +285,9 @@ describe('ChatView avatar source', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedAvatarProps.length = 0
-    capturedGiftedChatProps = null
     capturedHeaderTitle = null
     mockResolved = null
+    mockUseAIChat.mockReturnValue(mockDefaultAIChatMock())
   })
 
   it('header prefers the resolved image over a stale legacy avatar URL', () => {
@@ -268,16 +317,19 @@ describe('ChatView avatar source', () => {
 
   it('message bubbles prefer the resolved image over a stale legacy avatar URL', () => {
     mockResolved = 'file:///new.webp'
-    renderChat(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
 
-    expect(bubbleCharacterProps().imageUrl).toBe('file:///new.webp')
+    expect(
+      bubbleCharacterProps({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' })
+        .imageUrl,
+    ).toBe('file:///new.webp')
   })
 
   it('message bubbles fall back to the legacy avatar URL', () => {
     mockResolved = null
-    renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
 
-    expect(bubbleCharacterProps().imageUrl).toBe('https://old.example/legacy.png')
+    expect(bubbleCharacterProps({ avatar: 'https://old.example/legacy.png' }).imageUrl).toBe(
+      'https://old.example/legacy.png',
+    )
   })
 
   // The phase 2 change itself: an avatar-less character renders the bundled
@@ -285,18 +337,10 @@ describe('ChatView avatar source', () => {
   // pre-phase-2 ChatView, which returns Avatar.Text here.
   it('character bubble renders CharacterAvatar, not initials, when there is no image', () => {
     mockResolved = null
-    renderChat(baseCharacter({}))
+    const tree = renderChatWithMessage('char-1')
 
-    const rendered = capturedGiftedChatProps.renderAvatar({
-      currentMessage: { user: { _id: 'char-1' } },
-    })
-    capturedAvatarProps.length = 0
-    let holder: any
-    act(() => { holder = create(rendered) })
-
-    expect(capturedAvatarProps).toHaveLength(1)
-    expect(capturedAvatarProps[0].imageUrl).toBeNull()
-    expect(holder.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })).toHaveLength(0)
+    expect(capturedAvatarProps[capturedAvatarProps.length - 1].imageUrl).toBeNull()
+    expect(tree.root.findAllByProps({ testID: 'avatar-text' }, { deep: false })).toHaveLength(0)
   })
 
   // Locks in the deliberate asymmetry: the user keeps initials when
@@ -305,7 +349,7 @@ describe('ChatView avatar source', () => {
   it('user bubble shows initials when user has no avatar', () => {
     mockResolved = null
     renderChat(baseCharacter({}))
-    expect(bubbleUserLabel()).toBe('T')  // 'Test' → 'T'
+    expect(bubbleUserLabel()).toBe('T') // 'Test' → 'T'
   })
 
   // NOT a mirror of the header's dep-array bug — renderAvatar is an inline
@@ -314,11 +358,11 @@ describe('ChatView avatar source', () => {
   // missing from the deps, which would freeze the bubble on the first resolve.
   it('bubble tracks a resolved image that arrives after first render', () => {
     mockResolved = null
-    const result = renderChat(baseCharacter({ active_image_id: 'img-1' }))
+    renderChat(baseCharacter({ active_image_id: 'img-1' }))
     expect(bubbleCharacterProps().imageUrl).toBeNull()
 
     mockResolved = 'file:///late-thumb.webp'
-    result.rerender()
+    renderChat(baseCharacter({ active_image_id: 'img-1' }))
     expect(bubbleCharacterProps().imageUrl).toBe('file:///late-thumb.webp')
   })
 

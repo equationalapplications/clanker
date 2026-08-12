@@ -189,5 +189,3 @@ describe('HeroSection Web Navigation', () => {
     expect(mockPush).toHaveBeenCalledWith('/chat')
   })
 })
-
-

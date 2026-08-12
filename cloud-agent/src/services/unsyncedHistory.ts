@@ -2,12 +2,27 @@ import type { DrizzleClient } from '../db/client.js'
 import { llmWikiEvents, llmWikiEntries, tasks } from '../db/schema.js'
 
 type UnsyncedTask = { type: 'task'; id: string; title: string; status: string; createdAt: number }
-type UnsyncedWikiEntry = { type: 'wiki_entry'; id: string; title: string; body: string; confidence?: string; sourceType?: string; createdAt: number; updatedAt: number }
-type UnsyncedWikiEvent = { type: 'wiki_event'; id: string; eventType: string; summary: string; createdAt: number }
+type UnsyncedWikiEntry = {
+  type: 'wiki_entry'
+  id: string
+  title: string
+  body: string
+  confidence?: string
+  sourceType?: string
+  createdAt: number
+  updatedAt: number
+}
+type UnsyncedWikiEvent = {
+  type: 'wiki_event'
+  id: string
+  eventType: string
+  summary: string
+  createdAt: number
+}
 type UnsyncedItem = UnsyncedTask | UnsyncedWikiEntry | UnsyncedWikiEvent
 
 function toCloudStatus(status: string): string {
-  const normalized = status === 'pending' ? 'open' : (status || 'open')
+  const normalized = status === 'pending' ? 'open' : status || 'open'
   return ['open', 'done', 'abandoned'].includes(normalized) ? normalized : 'open'
 }
 
@@ -23,22 +38,22 @@ export async function bulkInsertUnsynced(
   embed: (text: string) => Promise<number[]>,
 ): Promise<void> {
   const taskRows: {
-    id: string;
-    characterId: string;
-    userId: string;
-    title: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
+    id: string
+    characterId: string
+    userId: string
+    title: string
+    status: string
+    createdAt: Date
+    updatedAt: Date
   }[] = []
   const wikiEntryItems: UnsyncedWikiEntry[] = []
   const wikiRows: {
-    id: string;
-    entityId: string;
-    userId: string;
-    eventType: string;
-    summary: string;
-    createdAt: number;
+    id: string
+    entityId: string
+    userId: string
+    eventType: string
+    summary: string
+    createdAt: number
   }[] = []
 
   for (const raw of items) {
@@ -90,9 +105,15 @@ export async function bulkInsertUnsynced(
     const wikiEntryRows = await Promise.all(
       wikiEntryItems.map(async (item) => {
         let embedding: number[] | null = null
-        try { embedding = await embed(item.body.trim()) } catch { /* insert with null */ }
+        try {
+          embedding = await embed(item.body.trim())
+        } catch {
+          /* insert with null */
+        }
         return {
-          id: item.id.trim(), entityId: characterId, userId,
+          id: item.id.trim(),
+          entityId: characterId,
+          userId,
           title: (item.title ?? '').trim() || item.body.trim().slice(0, 64),
           body: item.body.trim(),
           tags: [],

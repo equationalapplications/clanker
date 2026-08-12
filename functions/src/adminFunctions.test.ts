@@ -1,8 +1,8 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import {HttpsError} from "firebase-functions/v2/https";
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { HttpsError } from 'firebase-functions/v2/https'
 
-process.env.ADMIN_ALLOWLIST_EMAILS = "admin@example.com";
+process.env.ADMIN_ALLOWLIST_EMAILS = 'admin@example.com'
 
 const {
   adminListUsersHandler,
@@ -12,209 +12,209 @@ const {
   adminResetUserStateHandler,
   adminDeleteUserHandler,
   deleteMyAccountHandler,
-} = await import("./adminFunctions.js");
+} = await import('./adminFunctions.js')
 
-test("adminListUsersHandler rejects non-admin callers", async () => {
+test('adminListUsersHandler rejects non-admin callers', async () => {
   await assert.rejects(
     async () =>
       adminListUsersHandler({
         auth: {
-          uid: "firebase-user-1",
+          uid: 'firebase-user-1',
           token: {
-            uid: "firebase-user-1",
-            email: "person@example.com",
+            uid: 'firebase-user-1',
+            email: 'person@example.com',
           },
         },
         data: {},
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "permission-denied"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'permission-denied',
+  )
+})
 
-test("adminListUsersHandler rejects allowlisted email with unverified email", async () => {
+test('adminListUsersHandler rejects allowlisted email with unverified email', async () => {
   await assert.rejects(
     async () =>
       adminListUsersHandler({
         auth: {
-          uid: "firebase-attacker-1",
+          uid: 'firebase-attacker-1',
           token: {
-            uid: "firebase-attacker-1",
-            email: "admin@example.com",
+            uid: 'firebase-attacker-1',
+            email: 'admin@example.com',
             email_verified: false,
           },
         },
         data: {},
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "permission-denied"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'permission-denied',
+  )
+})
 
-test("adminListUsersHandler rejects malformed auth token payload", async () => {
+test('adminListUsersHandler rejects malformed auth token payload', async () => {
   await assert.rejects(
     async () =>
       adminListUsersHandler({
         auth: {
-          uid: "firebase-user-1",
+          uid: 'firebase-user-1',
           token: undefined,
         },
         data: {},
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
-test("adminSetUserCreditsHandler validates reason", async () => {
+test('adminSetUserCreditsHandler validates reason', async () => {
   await assert.rejects(
     async () =>
       adminSetUserCreditsHandler({
         auth: {
-          uid: "firebase-admin-1",
+          uid: 'firebase-admin-1',
           token: {
-            uid: "firebase-admin-1",
-            email: "admin@example.com",
+            uid: 'firebase-admin-1',
+            email: 'admin@example.com',
             email_verified: true,
           },
         },
         data: {
-          userId: "user-1",
+          userId: 'user-1',
           credits: 10,
-          requestId: "req-12345678",
+          requestId: 'req-12345678',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+  )
+})
 
-test("adminSetUserCreditsHandler rejects credits above DB integer limit", async () => {
+test('adminSetUserCreditsHandler rejects credits above DB integer limit', async () => {
   await assert.rejects(
     async () =>
       adminSetUserCreditsHandler({
         auth: {
-          uid: "firebase-admin-1",
+          uid: 'firebase-admin-1',
           token: {
-            uid: "firebase-admin-1",
-            email: "admin@example.com",
+            uid: 'firebase-admin-1',
+            email: 'admin@example.com',
             email_verified: true,
           },
         },
         data: {
-          userId: "user-1",
+          userId: 'user-1',
           credits: 2147483648,
-          reason: "invalid test",
-          requestId: "req-credits-too-large",
+          reason: 'invalid test',
+          requestId: 'req-credits-too-large',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+  )
+})
 
-test("adminSetUserSubscriptionHandler rejects invalid renewalDate", async () => {
+test('adminSetUserSubscriptionHandler rejects invalid renewalDate', async () => {
   await assert.rejects(
     async () =>
       adminSetUserSubscriptionHandler({
         auth: {
-          uid: "firebase-admin-1",
+          uid: 'firebase-admin-1',
           token: {
-            uid: "firebase-admin-1",
-            email: "admin@example.com",
+            uid: 'firebase-admin-1',
+            email: 'admin@example.com',
             email_verified: true,
           },
         },
         data: {
-          userId: "user-1",
-          planTier: "free",
-          planStatus: "active",
-          renewalDate: "not-a-date",
-          reason: "cleanup",
-          requestId: "req-subscription-1",
+          userId: 'user-1',
+          planTier: 'free',
+          planStatus: 'active',
+          renewalDate: 'not-a-date',
+          reason: 'cleanup',
+          requestId: 'req-subscription-1',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+  )
+})
 
-test("adminSetUserSubscriptionHandler rejects invalid plan values", async () => {
+test('adminSetUserSubscriptionHandler rejects invalid plan values', async () => {
   await assert.rejects(
     async () =>
       adminSetUserSubscriptionHandler({
         auth: {
-          uid: "firebase-admin-1",
+          uid: 'firebase-admin-1',
           token: {
-            uid: "firebase-admin-1",
-            email: "admin@example.com",
+            uid: 'firebase-admin-1',
+            email: 'admin@example.com',
             email_verified: true,
           },
         },
         data: {
-          userId: "user-1",
-          planTier: "enterprise",
-          planStatus: "active",
-          reason: "cleanup",
-          requestId: "req-subscription-2",
+          userId: 'user-1',
+          planTier: 'enterprise',
+          planStatus: 'active',
+          reason: 'cleanup',
+          requestId: 'req-subscription-2',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+  )
+})
 
-test("adminClearTermsAcceptanceHandler requires auth", async () => {
+test('adminClearTermsAcceptanceHandler requires auth', async () => {
   await assert.rejects(
     async () =>
       adminClearTermsAcceptanceHandler({
         auth: null,
         data: {
-          userId: "user-1",
-          reason: "cleanup",
-          requestId: "req-terms-1",
+          userId: 'user-1',
+          reason: 'cleanup',
+          requestId: 'req-terms-1',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
-test("adminResetUserStateHandler requires auth", async () => {
+test('adminResetUserStateHandler requires auth', async () => {
   await assert.rejects(
     async () =>
       adminResetUserStateHandler({
         auth: null,
         data: {
-          userId: "user-1",
-          reason: "reset",
-          requestId: "req-reset-1",
+          userId: 'user-1',
+          reason: 'reset',
+          requestId: 'req-reset-1',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
-test("adminDeleteUserHandler validates userId", async () => {
+test('adminDeleteUserHandler validates userId', async () => {
   await assert.rejects(
     async () =>
       adminDeleteUserHandler({
         auth: {
-          uid: "firebase-admin-1",
+          uid: 'firebase-admin-1',
           token: {
-            uid: "firebase-admin-1",
-            email: "admin@example.com",
+            uid: 'firebase-admin-1',
+            email: 'admin@example.com',
             email_verified: true,
           },
         },
         data: {
-          userId: "",
-          reason: "cleanup",
-          requestId: "req-delete-1",
+          userId: '',
+          reason: 'cleanup',
+          requestId: 'req-delete-1',
         },
       } as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument"
-  );
-});
+    (err: unknown) => err instanceof HttpsError && err.code === 'invalid-argument',
+  )
+})
 
-test("deleteMyAccountHandler rejects unauthenticated requests", async () => {
+test('deleteMyAccountHandler rejects unauthenticated requests', async () => {
   await assert.rejects(
-    async () => deleteMyAccountHandler({auth: null, data: {}} as never),
-    (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated"
-  );
-});
+    async () => deleteMyAccountHandler({ auth: null, data: {} } as never),
+    (err: unknown) => err instanceof HttpsError && err.code === 'unauthenticated',
+  )
+})
 
 function fakeDb() {
   return {
@@ -226,63 +226,71 @@ function fakeDb() {
         onConflictDoUpdate: async () => {},
       }),
     }),
-  };
+  }
 }
 
 test("adminResetUserState prefix-deletes the user's entire storage tree", async () => {
-  const prefixes: string[] = [];
+  const prefixes: string[] = []
   await adminResetUserStateHandler(
     {
       auth: {
-        uid: "firebase-admin-1",
+        uid: 'firebase-admin-1',
         token: {
-          uid: "firebase-admin-1",
-          email: "admin@example.com",
+          uid: 'firebase-admin-1',
+          email: 'admin@example.com',
           email_verified: true,
         },
       },
       data: {
-        userId: "user-1",
-        reason: "cleanup",
-        requestId: "req-reset-prefix-1",
+        userId: 'user-1',
+        reason: 'cleanup',
+        requestId: 'req-reset-prefix-1',
       },
     } as never,
     {
-      storageAdmin: {deletePrefix: async (p: string) => { prefixes.push(p); }},
-      getUserById: async () => ({id: "user-1", firebaseUid: "uid-1"} as never),
+      storageAdmin: {
+        deletePrefix: async (p: string) => {
+          prefixes.push(p)
+        },
+      },
+      getUserById: async () => ({ id: 'user-1', firebaseUid: 'uid-1' }) as never,
       getDb: async () => fakeDb() as never,
-      creditService: {setCredits: async () => {}},
+      creditService: { setCredits: async () => {} },
       deleteFirebaseAuthUser: async () => {},
-    } as never
-  );
-  assert.deepEqual(prefixes, ["users/uid-1/"]);
-});
+    } as never,
+  )
+  assert.deepEqual(prefixes, ['users/uid-1/'])
+})
 
 test("adminDeleteUser prefix-deletes the user's entire storage tree", async () => {
-  const prefixes: string[] = [];
+  const prefixes: string[] = []
   await adminDeleteUserHandler(
     {
       auth: {
-        uid: "firebase-admin-1",
+        uid: 'firebase-admin-1',
         token: {
-          uid: "firebase-admin-1",
-          email: "admin@example.com",
+          uid: 'firebase-admin-1',
+          email: 'admin@example.com',
           email_verified: true,
         },
       },
       data: {
-        userId: "user-1",
-        reason: "cleanup",
-        requestId: "req-delete-prefix-1",
+        userId: 'user-1',
+        reason: 'cleanup',
+        requestId: 'req-delete-prefix-1',
       },
     } as never,
     {
-      storageAdmin: {deletePrefix: async (p: string) => { prefixes.push(p); }},
-      getUserById: async () => ({id: "user-1", firebaseUid: "uid-1"} as never),
+      storageAdmin: {
+        deletePrefix: async (p: string) => {
+          prefixes.push(p)
+        },
+      },
+      getUserById: async () => ({ id: 'user-1', firebaseUid: 'uid-1' }) as never,
       getDb: async () => fakeDb() as never,
-      creditService: {setCredits: async () => {}},
+      creditService: { setCredits: async () => {} },
       deleteFirebaseAuthUser: async () => {},
-    } as never
-  );
-  assert.deepEqual(prefixes, ["users/uid-1/"]);
-});
+    } as never,
+  )
+  assert.deepEqual(prefixes, ['users/uid-1/'])
+})

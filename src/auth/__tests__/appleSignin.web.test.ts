@@ -2,7 +2,11 @@
 
 import { signInWithCredential, OAuthProvider, updateProfile } from 'firebase/auth'
 import { generateNonce, sha256 } from '../nonce.web'
-import { initializeAppleSignIn, resetAppleSignInWebForTests, signInWithApple } from '../appleSignin.web'
+import {
+  initializeAppleSignIn,
+  resetAppleSignInWebForTests,
+  signInWithApple,
+} from '../appleSignin.web'
 
 jest.mock('firebase/auth', () => {
   const mockSignInWithCredential = jest.fn().mockResolvedValue({
@@ -153,7 +157,10 @@ describe('appleSignin.web', () => {
   it('does not reinitialize Apple Sign-In after session is cleaned up during the success handler', async () => {
     let resolveSignIn!: (value: any) => void
     ;(signInWithCredential as jest.Mock).mockImplementationOnce(
-      () => new Promise((resolve) => { resolveSignIn = resolve }),
+      () =>
+        new Promise((resolve) => {
+          resolveSignIn = resolve
+        }),
     )
 
     const cleanup = await initializeAppleSignIn({
@@ -261,7 +268,7 @@ describe('appleSignin.web', () => {
 
   it('returns error when no id_token in response', async () => {
     ;(window as any).AppleID.auth.signIn.mockResolvedValueOnce({
-      authorization: {}
+      authorization: {},
     })
     const result = await signInWithApple()
     expect(result.success).toBe(false)
@@ -269,16 +276,14 @@ describe('appleSignin.web', () => {
   })
 
   it('returns error when credential exchange fails', async () => {
-    ;(signInWithCredential as jest.Mock).mockRejectedValueOnce(
-      new Error('Firebase auth error')
-    )
+    ;(signInWithCredential as jest.Mock).mockRejectedValueOnce(new Error('Firebase auth error'))
     const result = await signInWithApple()
     expect(result.success).toBe(false)
   })
 
   it('handles popup cancellation gracefully', async () => {
     ;(window as any).AppleID.auth.signIn.mockRejectedValueOnce({
-      error: 'popup_closed_by_user'
+      error: 'popup_closed_by_user',
     })
     const result = await signInWithApple()
     expect(result.success).toBe(false)

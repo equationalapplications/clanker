@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import http from 'node:http'
 import request from 'supertest'
 import { InMemoryRunner } from '@google/adk'
 import type { DrizzleClient } from './db/client.js'
@@ -67,9 +68,15 @@ const mockUser = {
 }
 
 const mockCharacter = {
-  id: 'char-1', userId: 'user-uuid-1', name: 'Alice',
-  appearance: null, traits: null, emotions: null, context: null,
-  createdAt: new Date(), updatedAt: new Date(),
+  id: 'char-1',
+  userId: 'user-uuid-1',
+  name: 'Alice',
+  appearance: null,
+  traits: null,
+  emotions: null,
+  context: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 const mockVerify = async (token: string): Promise<{ uid: string }> => {
@@ -77,21 +84,97 @@ const mockVerify = async (token: string): Promise<{ uid: string }> => {
   throw new Error('invalid')
 }
 
-const mockRunAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => ({
+const mockRunAgent = async (
+  _params: RunAgentParams,
+): Promise<{ reply: string; toolCalls: string[] }> => ({
   reply: 'Hello from mock agent',
   toolCalls: [],
 })
 
 const mockCreditService = {
-  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [{ transactionId: 'mock-txid', amount: 1 }],
-  refundCredit: async (_userId: string, _allocations: { transactionId: string; amount: number }[]): Promise<void> => {},
+  spendCredit: async (_userId: string): Promise<{ transactionId: string; amount: number }[]> => [
+    { transactionId: 'mock-txid', amount: 1 },
+  ],
+  refundCredit: async (
+    _userId: string,
+    _allocations: { transactionId: string; amount: number }[],
+  ): Promise<void> => {},
   getBalance: async (_userId: string): Promise<number> => 1000,
 }
 
 const CHAR_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const MISSING_CHAR_UUID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
-const { createApp, runAgentReal } = await import('./index.js')
+const { createApp, attachWebSocketRoutes, runAgentReal } = await import('./index.js')
+
+/** Boots the real app + real upgrade handler on an ephemeral port. */
+async function startWsTestServer(): Promise<{ port: number; close: () => Promise<void> }> {
+  const db = makeMockDb()
+  const appOptions = {
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  }
+  const server = createApp(appOptions).listen(0, '127.0.0.1')
+  await new Promise<void>((resolve) => server.on('listening', resolve))
+  attachWebSocketRoutes(server, appOptions)
+  const port = (server.address() as { port: number }).port
+  return {
+    port,
+    close: async () => {
+      // Upgraded sockets stay tracked by the http server; without this,
+      // server.close() waits on them forever and the test times out.
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()))
+      })
+    },
+  }
+}
+
+type UpgradeResult = { upgraded: true } | { upgraded: false; statusCode: number }
+
+/** Issues a raw WebSocket upgrade and reports only whether it was accepted. */
+async function attemptUpgrade(
+  port: number,
+  origin?: string,
+  forwardedProto?: 'http' | 'https',
+): Promise<UpgradeResult> {
+  const headers: Record<string, string> = {
+    Connection: 'Upgrade',
+    Upgrade: 'websocket',
+    'Sec-WebSocket-Version': '13',
+    'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+  }
+  if (origin !== undefined) headers.Origin = origin
+  // Simulates a TLS-terminating proxy hop (Cloud Run LB) by advertising the
+  // public scheme on the wire while leaving the local connection plain HTTP.
+  if (forwardedProto !== undefined) headers['X-Forwarded-Proto'] = forwardedProto
+
+  return await new Promise<UpgradeResult>((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: '/agent/stream', headers })
+    const timer = setTimeout(() => {
+      req.destroy()
+      reject(new Error('upgrade attempt timed out'))
+    }, 5000)
+    req.on('upgrade', (_res, socket) => {
+      clearTimeout(timer)
+      socket.destroy()
+      resolve({ upgraded: true })
+    })
+    req.on('response', (res) => {
+      clearTimeout(timer)
+      res.resume()
+      resolve({ upgraded: false, statusCode: res.statusCode ?? 0 })
+    })
+    req.on('error', (err) => {
+      clearTimeout(timer)
+      reject(err)
+    })
+    req.end()
+  })
+}
 
 // ── /health ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +198,22 @@ test('health endpoint sends Access-Control-Allow-Origin header when CORS_ORIGIN 
   assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
   if (orig !== undefined) process.env.CORS_ORIGIN = orig
   else delete process.env.CORS_ORIGIN
+})
+
+test('health endpoint allows an explicitly configured Chrome extension origin', async () => {
+  const orig = process.env.CORS_ORIGIN
+  const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+  process.env.CORS_ORIGIN = extensionOrigin
+  try {
+    const db = makeMockDb()
+    const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+    const res = await request(app).get('/health').set('Origin', extensionOrigin)
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['access-control-allow-origin'], extensionOrigin)
+  } finally {
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
 })
 
 test('POST /agent/run sends Access-Control-Allow-Origin on CORS preflight when CORS_ORIGIN is set', async () => {
@@ -146,15 +245,18 @@ test('health endpoint blocks all origins when CORS_ORIGIN is set to wildcard (wi
 
 // ── CORS default (no CORS_ORIGIN) ────────────────────────────────────────────
 
-test('health endpoint reflects origin when CORS_ORIGIN is not set', async () => {
+test('health endpoint blocks all origins when CORS_ORIGIN is not set', async () => {
   const orig = process.env.CORS_ORIGIN
   delete process.env.CORS_ORIGIN
-  const db = makeMockDb()
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
-  const res = await request(app).get('/health').set('Origin', 'https://example.com')
-  assert.equal(res.status, 200)
-  assert.equal(res.headers['access-control-allow-origin'], 'https://example.com')
-  if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  try {
+    const db = makeMockDb()
+    const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent })
+    const res = await request(app).get('/health').set('Origin', 'https://example.com')
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['access-control-allow-origin'], undefined)
+  } finally {
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
 })
 
 // ── Auth middleware ───────────────────────────────────────────────────────────
@@ -214,7 +316,12 @@ test('POST /agent/run passes DB user UUID and Firebase UID to runAgentFn', async
 
 test('POST /agent/run returns reply from runAgentFn', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -284,11 +391,18 @@ test('POST /agent/run maps pending status to open during sync', async () => {
 })
 
 test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', async () => {
-  const failingAgent = async (_params: RunAgentParams): Promise<{ reply: string; toolCalls: string[] }> => {
+  const failingAgent = async (
+    _params: RunAgentParams,
+  ): Promise<{ reply: string; toolCalls: string[] }> => {
     throw new Error('ADK error (unknown): something went wrong')
   }
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: failingAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: failingAgent,
+    creditService: mockCreditService,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -303,7 +417,12 @@ test('POST /agent/run returns 500 when runAgentFn throws (ADK error path)', asyn
 test('POST /agent/run rate-limits after 20 requests in 60s window', async () => {
   // Cycle user → character → wiki rows per request (queryWikiContext adds a 3rd select).
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: mockCreditService })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: mockCreditService,
+  })
   for (let i = 0; i < 20; i++) {
     const res = await request(app)
       .post('/agent/run')
@@ -331,7 +450,10 @@ test('POST /agent/run returns 402 when balance is zero before agent starts', asy
   const app = createApp({
     verifyToken: mockVerify,
     db,
-    runAgentFn: async () => { agentCalled = true; return { reply: 'ok', toolCalls: [] } },
+    runAgentFn: async () => {
+      agentCalled = true
+      return { reply: 'ok', toolCalls: [] }
+    },
     creditService: cs,
   })
   const res = await request(app)
@@ -346,22 +468,36 @@ test('POST /agent/run returns 402 when balance is zero before agent starts', asy
 test('POST /agent/run returns usageSnapshot.remainingCredits on success', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const cs = { ...mockCreditService, getBalance: async (_userId: string) => 2700 }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: cs,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
     .send({ message: 'hello', characterId: CHAR_UUID })
   assert.equal(res.status, 200)
-  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, { remainingCredits: 2700 })
+  assert.deepEqual((res.body as { usageSnapshot: unknown }).usageSnapshot, {
+    remainingCredits: 2700,
+  })
 })
 
 test('POST /agent/run returns usageSnapshot: null and 200 when getBalance throws', async () => {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
   const cs = {
     ...mockCreditService,
-    getBalance: async (_userId: string): Promise<number> => { throw new Error('db connection lost') },
+    getBalance: async (_userId: string): Promise<number> => {
+      throw new Error('db connection lost')
+    },
   }
-  const app = createApp({ verifyToken: mockVerify, db, runAgentFn: mockRunAgent, creditService: cs })
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: mockRunAgent,
+    creditService: cs,
+  })
   const res = await request(app)
     .post('/agent/run')
     .set('Authorization', 'Bearer valid-token')
@@ -376,7 +512,10 @@ test('POST /agent/run captures X-Timezone header and passes it to runAgentFn', a
   const app = createApp({
     verifyToken: mockVerify,
     db,
-    runAgentFn: async (params) => { capturedTimezone = params.timezone; return { reply: 'ok', toolCalls: [] } },
+    runAgentFn: async (params) => {
+      capturedTimezone = params.timezone
+      return { reply: 'ok', toolCalls: [] }
+    },
     creditService: mockCreditService,
   })
   await request(app)
@@ -396,20 +535,23 @@ async function runAgentRunRequest(options: {
   const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
 
   const originalRunAsync = InMemoryRunner.prototype.runAsync
-  ;(InMemoryRunner.prototype as unknown as { runAsync: (params: { newMessage: unknown }) => AsyncGenerator<unknown, void, undefined> }).runAsync =
-    function runAsyncMock(params: { newMessage: unknown }) {
-      options.onNewMessage?.(params.newMessage)
-      return (async function* () {
-        yield {
-          id: 'mock-event-1',
-          invocationId: 'mock-invocation-1',
-          author: 'mock-agent',
-          actions: { stateDelta: {}, artifactDelta: {} },
-          timestamp: Date.now(),
-          content: { role: 'model', parts: [{ text: 'mock reply' }] },
-        }
-      })()
+  ;(
+    InMemoryRunner.prototype as unknown as {
+      runAsync: (params: { newMessage: unknown }) => AsyncGenerator<unknown, void, undefined>
     }
+  ).runAsync = function runAsyncMock(params: { newMessage: unknown }) {
+    options.onNewMessage?.(params.newMessage)
+    return (async function* () {
+      yield {
+        id: 'mock-event-1',
+        invocationId: 'mock-invocation-1',
+        author: 'mock-agent',
+        actions: { stateDelta: {}, artifactDelta: {} },
+        timestamp: Date.now(),
+        content: { role: 'model', parts: [{ text: 'mock reply' }] },
+      }
+    })()
+  }
 
   const app = createApp({
     verifyToken: mockVerify,
@@ -424,7 +566,8 @@ async function runAgentRunRequest(options: {
       .set('Authorization', 'Bearer valid-token')
       .send(options.body)
   } finally {
-    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync = originalRunAsync
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
+      originalRunAsync
   }
 }
 
@@ -442,10 +585,7 @@ test('POST /agent/run forwards an attachment as a leading inlineData part', asyn
   assert.equal(res.status, 200)
   assert.deepEqual(captured[0], {
     role: 'user',
-    parts: [
-      { inlineData: { mimeType: 'image/webp', data: 'AAAA' } },
-      { text: 'what is this?' },
-    ],
+    parts: [{ inlineData: { mimeType: 'image/webp', data: 'AAAA' } }, { text: 'what is this?' }],
   })
 })
 
@@ -486,7 +626,12 @@ test('POST /agent/browser/scheduler-trigger returns 401 with no secret', async (
     })
     const res = await request(app)
       .post('/agent/browser/scheduler-trigger')
-      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+      .send({
+        uid: 'u1',
+        action: { type: 'extract', selector: '.p', label: 'p' },
+        actionSummary: 'Extract',
+        notificationBody: 'Done',
+      })
     assert.equal(res.status, 401)
   } finally {
     if (savedSecret === undefined) delete process.env.SCHEDULER_SECRET
@@ -507,10 +652,127 @@ test('POST /agent/browser/scheduler-trigger returns 503 when SCHEDULER_SECRET no
     const res = await request(app)
       .post('/agent/browser/scheduler-trigger')
       .set('Authorization', 'Bearer anything')
-      .send({ uid: 'u1', action: { type: 'extract', selector: '.p', label: 'p' }, actionSummary: 'Extract', notificationBody: 'Done' })
+      .send({
+        uid: 'u1',
+        action: { type: 'extract', selector: '.p', label: 'p' },
+        actionSummary: 'Extract',
+        notificationBody: 'Done',
+      })
     assert.equal(res.status, 503)
   } finally {
     if (saved === undefined) delete process.env.SCHEDULER_SECRET
     else process.env.SCHEDULER_SECRET = saved
+  }
+})
+
+// ── WebSocket upgrade origin verification ────────────────────────────────────
+
+test('WS upgrade with no Origin header succeeds (server-to-server caller)', async () => {
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port)
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test("WS upgrade with the cloud-agent's own origin succeeds (React Native client path)", async () => {
+  // React Native 0.86.2's Android WebSocketModule synthesizes
+  // `Origin: http(s)://<endpoint>` when the JS client does not supply one
+  // (see `node_modules/react-native/.../WebSocketModule.kt` `getDefaultOrigin`).
+  // The test server binds to 127.0.0.1; the synthesized origin must be
+  // accepted without any CORS_ORIGIN configuration.
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, `http://127.0.0.1:${srv.port}`)
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test("WS upgrade with the cloud-agent's own https origin succeeds behind a TLS-terminating proxy (Cloud Run shape)", async () => {
+  // Cloud Run terminates TLS at the managed LB, so inside the container
+  // `req.socket.encrypted` is false even though the client connected via
+  // wss:// and synthesized `Origin: https://<host>`. The server must consult
+  // X-Forwarded-Proto to recognize its own https origin, otherwise native
+  // clients get a 403 on every /agent/stream and /agent/live upgrade.
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  let srv: Awaited<ReturnType<typeof startWsTestServer>> | undefined
+  try {
+    srv = await startWsTestServer()
+    const result = await attemptUpgrade(srv.port, `https://127.0.0.1:${srv.port}`, 'https')
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    try {
+      if (srv) await srv.close()
+    } finally {
+      if (orig === undefined) delete process.env.CORS_ORIGIN
+      else process.env.CORS_ORIGIN = orig
+    }
+  }
+})
+
+test('WS upgrade with an Origin is rejected with 403 when CORS_ORIGIN is not set', async () => {
+  const orig = process.env.CORS_ORIGIN
+  delete process.env.CORS_ORIGIN
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, 'https://evil.example.com')
+    assert.deepEqual(result, { upgraded: false, statusCode: 403 })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+  }
+})
+
+test('WS upgrade with an allowlisted Origin succeeds', async () => {
+  const orig = process.env.CORS_ORIGIN
+  process.env.CORS_ORIGIN = 'https://example.com'
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, 'https://example.com')
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
+})
+
+test('WS upgrade with an explicitly configured Chrome extension origin succeeds', async () => {
+  const orig = process.env.CORS_ORIGIN
+  const extensionOrigin = 'chrome-extension://abcdefghijklmnop'
+  process.env.CORS_ORIGIN = extensionOrigin
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, extensionOrigin)
+    assert.deepEqual(result, { upgraded: true })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
+  }
+})
+
+test('WS upgrade with a non-allowlisted Origin is rejected with 403', async () => {
+  const orig = process.env.CORS_ORIGIN
+  process.env.CORS_ORIGIN = 'https://example.com'
+  const srv = await startWsTestServer()
+  try {
+    const result = await attemptUpgrade(srv.port, 'https://evil.example.com')
+    assert.deepEqual(result, { upgraded: false, statusCode: 403 })
+  } finally {
+    await srv.close()
+    if (orig !== undefined) process.env.CORS_ORIGIN = orig
+    else delete process.env.CORS_ORIGIN
   }
 })

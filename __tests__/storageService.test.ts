@@ -97,12 +97,16 @@ describe('storageService (native)', () => {
   })
 
   it('treats deleting a missing object as success', async () => {
-    mockDelete.mockRejectedValue(Object.assign(new Error('nope'), { code: 'storage/object-not-found' }))
+    mockDelete.mockRejectedValue(
+      Object.assign(new Error('nope'), { code: 'storage/object-not-found' }),
+    )
     await expect(deleteStorageObject('users/u/gone.webp')).resolves.toBeUndefined()
   })
 
   it('propagates non-not-found delete errors', async () => {
-    mockDelete.mockRejectedValue(Object.assign(new Error('denied'), { code: 'storage/unauthorized' }))
+    mockDelete.mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'storage/unauthorized' }),
+    )
     await expect(deleteStorageObject('users/u/x.webp')).rejects.toThrow('denied')
   })
 

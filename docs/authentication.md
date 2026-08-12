@@ -209,10 +209,12 @@ Auth bootstrap state (`user`, `subscription`, `credits`, `terms`) is refreshed v
 ### Refresh Semantics
 
 **Throttle:**
+
 - Identical reasons are throttled within 2 seconds.
 - `purchase`, `restore`, and `manual` bypass the identical-reason throttle.
 
 **While bootstrapping:**
+
 - Additional refresh requests are not dropped.
 - Incoming reasons are collapsed into one pending reason with priority:
   1. `purchase` / `restore`
@@ -220,6 +222,7 @@ Auth bootstrap state (`user`, `subscription`, `credits`, `terms`) is refreshed v
   3. `foreground` / `terms`
 
 **Replay:**
+
 - After bootstrap completes, one replay bootstrap runs when a pending reason exists and differs from the last completed reason.
 
 ### Lifecycle Reconciliation
@@ -229,11 +232,11 @@ Auth bootstrap state (`user`, `subscription`, `credits`, `terms`) is refreshed v
 
 ### Local Snapshot Patch Events
 
-| Event | Effect |
-|---|---|
-| `TERMS_ACCEPTED_LOCAL` | Updates `subscription.termsVersion` and `subscription.termsAcceptedAt` in memory |
-| `DB_USER_PATCHED_LOCAL` | Patches `dbUser` fields in memory |
-| `PROFILE_PATCHED_LOCAL` | Patches `dbUser` fields in memory |
+| Event                   | Effect                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `TERMS_ACCEPTED_LOCAL`  | Updates `subscription.termsVersion` and `subscription.termsAcceptedAt` in memory |
+| `DB_USER_PATCHED_LOCAL` | Patches `dbUser` fields in memory                                                |
+| `PROFILE_PATCHED_LOCAL` | Patches `dbUser` fields in memory                                                |
 
 ### Usage Snapshot Contract
 
@@ -289,13 +292,13 @@ State lives in React context. Persistence uses `localStorage` under the key `coo
 
 ### Schema
 
-| Field | Type | Notes |
-|---|---|---|
-| `policyVersion` | number | Bump to force re-prompt |
-| `consentedAt` | ISO8601 string | When the user chose |
-| `expiresAt` | ISO8601 string | `consentedAt` + 365 days |
-| `regionMode` | `'opt-in-strict'` | Conservative global default |
-| `choices` | `Record<CookieCategory, boolean>` | `necessary` always true |
+| Field           | Type                              | Notes                       |
+| --------------- | --------------------------------- | --------------------------- |
+| `policyVersion` | number                            | Bump to force re-prompt     |
+| `consentedAt`   | ISO8601 string                    | When the user chose         |
+| `expiresAt`     | ISO8601 string                    | `consentedAt` + 365 days    |
+| `regionMode`    | `'opt-in-strict'`                 | Conservative global default |
+| `choices`       | `Record<CookieCategory, boolean>` | `necessary` always true     |
 
 ### UX Rules
 
@@ -339,6 +342,7 @@ Use optimistic acceptance: navigate immediately after user accepts terms. Do not
 Terms acceptance is a legal/compliance state, not an auth boundary. Security is enforced by callable handlers and backend services backed by Cloud SQL, not by delaying client navigation.
 
 Benefits:
+
 - Better UX (no blocking wait/spinner)
 - Works with intermittent/offline connectivity
 - Simpler client logic and fewer edge cases

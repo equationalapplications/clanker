@@ -75,10 +75,7 @@ const WAIT_OPTS = { timeout: 2000 }
  *
  * By default provides one character so the machine skips creatingDefault.
  */
-async function bootWithUser(
-  characters: DbCharacter[] = [makeCharacter()],
-  userId = USER_ID,
-) {
+async function bootWithUser(characters: DbCharacter[] = [makeCharacter()], userId = USER_ID) {
   mockDb.getUserCharacters.mockResolvedValue(characters)
   const actor = createActor(characterMachine)
   actor.start()
@@ -628,22 +625,25 @@ describe('CLOUD_SYNC', () => {
   })
 
   it('auto-unsyncs after update turning save_to_cloud off with existing cloud_id', async () => {
-    const char = makeCharacter({ save_to_cloud: true, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    const char = makeCharacter({
+      save_to_cloud: true,
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+    })
     const actor = await bootWithUser([char])
 
     mockDb.getUserCharacters.mockResolvedValue([char])
 
-    const updatedChar = makeCharacter({ save_to_cloud: false, cloud_id: '00000000-0000-4000-8000-000000000001' })
+    const updatedChar = makeCharacter({
+      save_to_cloud: false,
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+    })
     mockDb.updateCharacter.mockResolvedValue(updatedChar)
 
     actor.send({ type: 'UPDATE', id: 'char-1', updates: { save_to_cloud: false } })
     await waitFor(actor, (s) => s.matches('cloudUnsyncing'), WAIT_OPTS)
 
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
-    expect(mockSyncService.removeCharacterFromCloud).toHaveBeenCalledWith(
-      'char-1',
-      USER_ID,
-    )
+    expect(mockSyncService.removeCharacterFromCloud).toHaveBeenCalledWith('char-1', USER_ID)
     actor.stop()
   })
 
@@ -660,7 +660,7 @@ describe('CLOUD_SYNC', () => {
     actor.stop()
   })
 
-  it('does not leak a failed update\'s character id into a later manual CLOUD_SYNC', async () => {
+  it("does not leak a failed update's character id into a later manual CLOUD_SYNC", async () => {
     const char = makeCharacter({ save_to_cloud: false, cloud_id: null })
     const actor = await bootWithUser([char])
 
@@ -689,7 +689,9 @@ describe('CLOUD_SYNC', () => {
     // Keep sync pending
     let resolveSync!: () => void
     mockSyncService.syncAllToCloud.mockReturnValue(
-      new Promise<void>((resolve) => { resolveSync = resolve })
+      new Promise<void>((resolve) => {
+        resolveSync = resolve
+      }),
     )
 
     actor.send({ type: 'CLOUD_SYNC' })

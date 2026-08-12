@@ -41,34 +41,54 @@ The cloud side is different: `cloud-agent` has no graph/ontology storage or tool
 Two new tables in `functions/src/db/schema.ts`, following the existing `llm_wiki_*` conventions:
 
 ```ts
-export const llmWikiEdges = pgTable('llm_wiki_edges', {
-  id: text('id').notNull(),
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  sourceId: text('source_id').notNull(),
-  targetId: text('target_id').notNull(),
-  edgeType: text('edge_type').notNull(),
-  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.id, table.userId] }),
-  entityUserIdx: index('llm_wiki_edges_entity_user_idx').on(table.entityId, table.userId),
-  sourceIdx: index('llm_wiki_edges_source_idx').on(table.sourceId, table.userId),
-  targetIdx: index('llm_wiki_edges_target_idx').on(table.targetId, table.userId),
-}));
+export const llmWikiEdges = pgTable(
+  'llm_wiki_edges',
+  {
+    id: text('id').notNull(),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sourceId: text('source_id').notNull(),
+    targetId: text('target_id').notNull(),
+    edgeType: text('edge_type').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.userId] }),
+    entityUserIdx: index('llm_wiki_edges_entity_user_idx').on(table.entityId, table.userId),
+    sourceIdx: index('llm_wiki_edges_source_idx').on(table.sourceId, table.userId),
+    targetIdx: index('llm_wiki_edges_target_idx').on(table.targetId, table.userId),
+  }),
+)
 
-export const llmWikiOntology = pgTable('llm_wiki_ontology', {
-  entityId: uuid('entity_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  mode: text('mode').notNull().default('off'),
-  manifest: jsonb('manifest'),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.entityId, table.userId] }),
-  modeCheck: check('llm_wiki_ontology_mode_check', sql`${table.mode} IN ('strict', 'emergent', 'off')`),
-}));
+export const llmWikiOntology = pgTable(
+  'llm_wiki_ontology',
+  {
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    mode: text('mode').notNull().default('off'),
+    manifest: jsonb('manifest'),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.entityId, table.userId] }),
+    modeCheck: check(
+      'llm_wiki_ontology_mode_check',
+      sql`${table.mode} IN ('strict', 'emergent', 'off')`,
+    ),
+  }),
+)
 ```
 
 Decisions:
+
 - **No `deletedAt` on `llmWikiEdges`.** `WikiEdge` has no soft-delete concept upstream (`EdgeRepository.bulkDeleteByEntityId` hard-deletes); adding a column that's never populated would be dead weight.
 - **`sourceIdx`/`targetIdx` on edges.** The traversal CTE walks both directions per hop (`direction: 'inbound' | 'outbound' | 'both'`); both columns need an index to avoid full scans regardless of which direction is requested.
 - **`llmWikiOntology` row is optional.** No row for an entity means mode `'off'`, no manifest — this is the expected state for every entity until phase 2's UI writes the first real row. `updatedAt` exists for the future UI's optimistic-concurrency needs, unused by phase 1.

@@ -25,7 +25,9 @@ export interface VaultToolConfig {
   creditService?: { spendCredit: (...args: unknown[]) => Promise<unknown> }
 }
 
-export interface VaultToolDeps extends Required<Pick<VaultToolConfig, 'firebaseUid' | 'firestoreSession'>> {
+export interface VaultToolDeps extends Required<
+  Pick<VaultToolConfig, 'firebaseUid' | 'firestoreSession'>
+> {
   desktopBridge?: DesktopBridge
   callTimeoutMs: number
   maxCallsPerTurn: number
@@ -50,8 +52,10 @@ export function createVaultToolDeps(config: VaultToolConfig): VaultToolDeps {
   }
 }
 
-const NO_DEVICE_MSG = 'No home computer is connected. Open Curated Thoughts on your desktop, or check Settings → Devices.'
-const TIMEOUT_MSG = "Your home computer didn't respond in time. Answer with what you already have, or suggest the user check Curated Thoughts is running."
+const NO_DEVICE_MSG =
+  'No home computer is connected. Open Curated Thoughts on your desktop, or check Settings → Devices.'
+const TIMEOUT_MSG =
+  "Your home computer didn't respond in time. Answer with what you already have, or suggest the user check Curated Thoughts is running."
 const CAP_MSG = 'Vault call limit reached for this turn — answer with what you already have.'
 
 function effectiveCap(deps: VaultToolDeps): number {
@@ -107,14 +111,21 @@ async function dispatchVaultCall(
     const task = await new Promise<DesktopTaskDoc | null>((resolve) => {
       const timeout = setTimeout(() => {
         unsub()
-        void fs.failDesktopTaskIfUnresolved(deps.firebaseUid, taskId, {
-          code: 'DESKTOP_TIMEOUT', message: `No result within ${deps.callTimeoutMs}ms`,
-        }).catch(() => { /* TTL backstop */ })
+        void fs
+          .failDesktopTaskIfUnresolved(deps.firebaseUid, taskId, {
+            code: 'DESKTOP_TIMEOUT',
+            message: `No result within ${deps.callTimeoutMs}ms`,
+          })
+          .catch(() => {
+            /* TTL backstop */
+          })
         resolve(null)
       }, deps.callTimeoutMs)
       const unsub = fs.watchDesktopTask(deps.firebaseUid, taskId, (t) => {
         if (t.status === 'complete' || t.status === 'failed') {
-          clearTimeout(timeout); unsub(); resolve(t)
+          clearTimeout(timeout)
+          unsub()
+          resolve(t)
         }
       })
     })
@@ -139,7 +150,10 @@ async function dispatchVaultCall(
 
 const wikiSearchSchema = z.object({
   query: z.string().describe('Search text for the vault knowledge graph.'),
-  entityIds: z.array(z.string()).optional().describe('Memory tiers to search. Default: ["tier_fact","tier_wisdom"].'),
+  entityIds: z
+    .array(z.string())
+    .optional()
+    .describe('Memory tiers to search. Default: ["tier_fact","tier_wisdom"].'),
   limit: z.number().int().min(1).max(25).optional().describe('Max results, default 10.'),
 })
 const getOntologySchema = z.object({
@@ -149,7 +163,10 @@ const traverseGraphSchema = z.object({
   entityId: z.string().describe('Memory tier to traverse.'),
   sourceId: z.string().describe('Seed entry id — get one from vault_wiki_search first.'),
   maxDepth: z.number().int().min(1).max(3).optional().describe('Hops, default 2.'),
-  direction: z.enum(['inbound', 'outbound', 'both']).optional().describe('Edge direction, default both.'),
+  direction: z
+    .enum(['inbound', 'outbound', 'both'])
+    .optional()
+    .describe('Edge direction, default both.'),
   edgeTypes: z.array(z.string()).optional().describe('Filter to these edge types.'),
 })
 const semanticSearchSchema = z.object({
@@ -161,39 +178,49 @@ const relatedChunksSchema = z.object({
   limit: z.number().int().min(1).max(10).optional().describe('Max results, default 5.'),
 })
 
-const VAULT_PREAMBLE = "Query the user's home computer knowledge vault (Curated Thoughts) — their personal notes and documents, separate from your own character memory. Use when the user asks about their own notes, files, or knowledge base. "
+const VAULT_PREAMBLE =
+  "Query the user's home computer knowledge vault (Curated Thoughts) — their personal notes and documents, separate from your own character memory. Use when the user asks about their own notes, files, or knowledge base. "
 
 export function buildVaultTools(deps: VaultToolDeps): FunctionTool[] {
   return [
     new FunctionTool({
       name: 'vault_wiki_search',
-      description: VAULT_PREAMBLE + 'Search wiki facts by meaning; returns entry ids, titles, scores. Start here to get a sourceId for graph traversal.',
+      description:
+        VAULT_PREAMBLE +
+        'Search wiki facts by meaning; returns entry ids, titles, scores. Start here to get a sourceId for graph traversal.',
       parameters: wikiSearchSchema,
-      execute: async (args: unknown) => dispatchVaultCall(deps, 'vault_wiki_search', args as Record<string, unknown>),
+      execute: async (args: unknown) =>
+        dispatchVaultCall(deps, 'vault_wiki_search', args as Record<string, unknown>),
     }),
     new FunctionTool({
       name: 'vault_get_ontology',
       description: VAULT_PREAMBLE + 'Fetch the node/edge type manifest for a memory tier.',
       parameters: getOntologySchema,
-      execute: async (args: unknown) => dispatchVaultCall(deps, 'vault_get_ontology', args as Record<string, unknown>),
+      execute: async (args: unknown) =>
+        dispatchVaultCall(deps, 'vault_get_ontology', args as Record<string, unknown>),
     }),
     new FunctionTool({
       name: 'vault_traverse_graph',
-      description: VAULT_PREAMBLE + 'Walk the knowledge graph outward from a seed entry (from vault_wiki_search).',
+      description:
+        VAULT_PREAMBLE +
+        'Walk the knowledge graph outward from a seed entry (from vault_wiki_search).',
       parameters: traverseGraphSchema,
-      execute: async (args: unknown) => dispatchVaultCall(deps, 'vault_traverse_graph', args as Record<string, unknown>),
+      execute: async (args: unknown) =>
+        dispatchVaultCall(deps, 'vault_traverse_graph', args as Record<string, unknown>),
     }),
     new FunctionTool({
       name: 'vault_semantic_search',
       description: VAULT_PREAMBLE + 'Semantic search over raw document chunks in the vault.',
       parameters: semanticSearchSchema,
-      execute: async (args: unknown) => dispatchVaultCall(deps, 'vault_semantic_search', args as Record<string, unknown>),
+      execute: async (args: unknown) =>
+        dispatchVaultCall(deps, 'vault_semantic_search', args as Record<string, unknown>),
     }),
     new FunctionTool({
       name: 'vault_related_chunks',
       description: VAULT_PREAMBLE + 'Find chunks related to a specific vault document path.',
       parameters: relatedChunksSchema,
-      execute: async (args: unknown) => dispatchVaultCall(deps, 'vault_related_chunks', args as Record<string, unknown>),
+      execute: async (args: unknown) =>
+        dispatchVaultCall(deps, 'vault_related_chunks', args as Record<string, unknown>),
     }),
   ]
 }

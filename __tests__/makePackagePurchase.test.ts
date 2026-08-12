@@ -106,7 +106,9 @@ describe('makePackagePurchase', () => {
     }))
   })
 
-  function withMockWindowLocation<T>(callback: (location: { href: string }) => Promise<T>): Promise<T> {
+  function withMockWindowLocation<T>(
+    callback: (location: { href: string }) => Promise<T>,
+  ): Promise<T> {
     const originalWindow = globalThis.window
     const mockLocation = { href: '' }
     Object.defineProperty(globalThis, 'window', {
@@ -125,13 +127,9 @@ describe('makePackagePurchase', () => {
   }
 
   it('uses credit-pack Stripe price on web payg purchase', async () => {
-    await withMockWindowLocation(async location => {
-      const {
-        makePackagePurchase,
-        purchasePackageStripeMock,
-        purchaseProductMock,
-        openURLMock,
-      } = createHarness('web')
+    await withMockWindowLocation(async (location) => {
+      const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+        createHarness('web')
 
       await makePackagePurchase('payg')
 
@@ -160,13 +158,9 @@ describe('makePackagePurchase', () => {
       sequence.push('publish')
     })
 
-    await withMockWindowLocation(async location => {
-      const {
-        makePackagePurchase,
-        purchasePackageStripeMock,
-        purchaseProductMock,
-        openURLMock,
-      } = createHarness('web')
+    await withMockWindowLocation(async (location) => {
+      const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+        createHarness('web')
 
       let redirectedHref = ''
       Object.defineProperty(location, 'href', {
@@ -222,13 +216,9 @@ describe('makePackagePurchase', () => {
   })
 
   it('uses monthly Stripe price on web subscription purchase', async () => {
-    await withMockWindowLocation(async location => {
-      const {
-        makePackagePurchase,
-        purchasePackageStripeMock,
-        purchaseProductMock,
-        openURLMock,
-      } = createHarness('web')
+    await withMockWindowLocation(async (location) => {
+      const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+        createHarness('web')
 
       await makePackagePurchase('monthly_20')
 
@@ -245,13 +235,9 @@ describe('makePackagePurchase', () => {
   it('redirects on web without persisting when uid is unavailable', async () => {
     mockGetCurrentUser.mockReturnValue(null)
 
-    await withMockWindowLocation(async location => {
-      const {
-        makePackagePurchase,
-        purchasePackageStripeMock,
-        purchaseProductMock,
-        openURLMock,
-      } = createHarness('web')
+    await withMockWindowLocation(async (location) => {
+      const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+        createHarness('web')
 
       await expect(makePackagePurchase('monthly_20')).resolves.toBeUndefined()
 
@@ -276,7 +262,9 @@ describe('makePackagePurchase', () => {
       try {
         purchasePackageStripeMock.mockResolvedValue({ data: '' })
 
-        await expect(makePackagePurchase('payg')).rejects.toThrow('No checkout URL returned from Stripe. Please try again.')
+        await expect(makePackagePurchase('payg')).rejects.toThrow(
+          'No checkout URL returned from Stripe. Please try again.',
+        )
 
         expect(openURLMock).not.toHaveBeenCalled()
       } finally {
@@ -286,7 +274,8 @@ describe('makePackagePurchase', () => {
   })
 
   it('uses RevenueCat on native', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('ios')
+    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+      createHarness('ios')
 
     await makePackagePurchase('payg')
 
@@ -296,7 +285,8 @@ describe('makePackagePurchase', () => {
   })
 
   it('uses Android RevenueCat product id on Android native', async () => {
-    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } = createHarness('android')
+    const { makePackagePurchase, purchasePackageStripeMock, purchaseProductMock, openURLMock } =
+      createHarness('android')
 
     await makePackagePurchase('payg')
 
@@ -330,7 +320,8 @@ describe('makePackagePurchase', () => {
   })
 
   it('keeps native Linking path untouched on iOS', async () => {
-    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } = createHarness('ios')
+    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } =
+      createHarness('ios')
 
     await makePackagePurchase('monthly_20')
 
@@ -340,7 +331,8 @@ describe('makePackagePurchase', () => {
   })
 
   it('uses Android base plan product id for monthly_20 on Android', async () => {
-    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } = createHarness('android')
+    const { makePackagePurchase, purchaseProductMock, purchasePackageStripeMock, openURLMock } =
+      createHarness('android')
 
     await makePackagePurchase('monthly_20')
 

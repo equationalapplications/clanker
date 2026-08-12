@@ -140,8 +140,7 @@ describe('useCurrentPlan', () => {
         selector(state) === null && (selector(subState) as any)?.planTier === PLAN_TIERS.MONTHLY_20,
     )
     const isLoadingSelector = selectors.find(
-      (selector) =>
-        selector(state) === true && typeof selector(state) === 'boolean',
+      (selector) => selector(state) === true && typeof selector(state) === 'boolean',
     )
 
     expect(subscriptionSelector).toBeDefined()

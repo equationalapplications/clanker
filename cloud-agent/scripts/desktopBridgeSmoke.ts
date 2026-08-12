@@ -10,7 +10,10 @@ import WebSocket from 'ws'
 const base = process.env.CLOUD_AGENT_URL ?? 'ws://localhost:8080'
 const url = base.endsWith('/agent/desktop') ? base : `${base.replace(/\/$/, '')}/agent/desktop`
 const token = process.env.PAIRING_TOKEN
-if (!token) { console.error('PAIRING_TOKEN required'); process.exit(1) }
+if (!token) {
+  console.error('PAIRING_TOKEN required')
+  process.exit(1)
+}
 
 const ws = new WebSocket(url)
 ws.on('open', () => {
@@ -19,14 +22,28 @@ ws.on('open', () => {
   setInterval(() => ws.send(JSON.stringify({ type: 'ping' })), 20_000)
 })
 ws.on('message', (data) => {
-  const frame = JSON.parse(data.toString()) as { type: string; taskId?: string; tool?: string; params?: unknown }
+  const frame = JSON.parse(data.toString()) as {
+    type: string
+    taskId?: string
+    tool?: string
+    params?: unknown
+  }
   console.log('<<', frame)
   if (frame.type === 'task') {
-    ws.send(JSON.stringify({
-      type: 'task_result',
-      taskId: frame.taskId,
-      result: [{ id: 'entry-1', entity_id: 'tier_fact', title: `canned result for ${frame.tool}`, score: 0.99 }],
-    }))
+    ws.send(
+      JSON.stringify({
+        type: 'task_result',
+        taskId: frame.taskId,
+        result: [
+          {
+            id: 'entry-1',
+            entity_id: 'tier_fact',
+            title: `canned result for ${frame.tool}`,
+            score: 0.99,
+          },
+        ],
+      }),
+    )
   }
 })
 ws.on('close', (code, reason) => console.log('closed', code, reason.toString()))

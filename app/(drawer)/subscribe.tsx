@@ -21,7 +21,11 @@ export default function SubscribeScreen() {
   const handleWebCheckoutSucceeded = React.useCallback(() => {
     refreshBootstrap('purchase')
   }, [refreshBootstrap])
-  const { locks: webCheckoutLocks, expiredMessage, clearExpiredMessage } = useWebCheckoutSync({
+  const {
+    locks: webCheckoutLocks,
+    expiredMessage,
+    clearExpiredMessage,
+  } = useWebCheckoutSync({
     onCheckoutSucceeded: handleWebCheckoutSucceeded,
   })
   const isPremium = useIsPremium()
@@ -36,7 +40,9 @@ export default function SubscribeScreen() {
   }, [])
 
   const { totalPower } = usePowerBalance()
-  const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(null)
+  const [inFlightAction, setInFlightAction] = useState<'monthly_20' | 'payg' | 'restore' | null>(
+    null,
+  )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handlePurchase = async (productType: Extract<ProductType, 'monthly_20' | 'payg'>) => {
@@ -230,8 +236,12 @@ export default function SubscribeScreen() {
             </Text>
             <View style={styles.featuresList}>
               <Text variant="bodyMedium">• Free Tier — 5,000 Power</Text>
-              <Text variant="bodyMedium">• Monthly Plan — 30,000 Power for $20, refills monthly</Text>
-              <Text variant="bodyMedium">• One-time Pack — 10,000 Power for $10, valid 31 days</Text>
+              <Text variant="bodyMedium">
+                • Monthly Plan — 30,000 Power for $20, refills monthly
+              </Text>
+              <Text variant="bodyMedium">
+                • One-time Pack — 10,000 Power for $10, valid 31 days
+              </Text>
             </View>
           </Card.Content>
         </Card>

@@ -87,6 +87,7 @@ export async function syncDisplayNameFromCredential(
 ```
 
 Behavior:
+
 - If `user.displayName` is non-empty, return.
 - Derive display name from `fallbackName` or the first non-empty `displayName` in `user.providerData` (scan in order; do not assume index `0` is the only useful entry).
 - If derived name is non-empty, call modular `updateProfile(user, { displayName })` (web: `firebase/auth`; native: `@react-native-firebase/auth`).

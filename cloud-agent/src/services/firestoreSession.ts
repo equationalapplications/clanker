@@ -1,5 +1,12 @@
-import admin from 'firebase-admin'
-import type { TaskIntent, TaskResult, SessionDoc, TaskDoc, DeviceDoc, AuthDoc } from '../../../shared/dsl-types.js'
+import { services, Timestamp } from '../firebaseAdmin.js'
+import type {
+  TaskIntent,
+  TaskResult,
+  SessionDoc,
+  TaskDoc,
+  DeviceDoc,
+  AuthDoc,
+} from '../../../shared/dsl-types.js'
 
 export interface FirestoreBatch {
   update(path: string, data: Record<string, unknown>): void
@@ -14,7 +21,9 @@ export interface FirestoreLike {
     create?(data: Record<string, unknown>): Promise<unknown>
     get(): Promise<{ exists: boolean; data(): Record<string, unknown> | undefined }>
     update(data: Record<string, unknown>): Promise<unknown>
-    onSnapshot?(cb: (snap: { exists: boolean; data(): Record<string, unknown> | undefined }) => void): () => void
+    onSnapshot?(
+      cb: (snap: { exists: boolean; data(): Record<string, unknown> | undefined }) => void,
+    ): () => void
   }
   collection(path: string): CollectionQuery
   batch?(): FirestoreBatch
@@ -25,7 +34,9 @@ export interface CollectionQuery {
   orderBy(field: string, dir: 'asc' | 'desc'): CollectionQuery
   limit(n: number): CollectionQuery
   get(): Promise<{ empty: boolean; docs: Array<{ id: string; data(): Record<string, unknown> }> }>
-  onSnapshot?(cb: (docs: Array<{ id: string; data(): Record<string, unknown> }>) => void): () => void
+  onSnapshot?(
+    cb: (docs: Array<{ id: string; data(): Record<string, unknown> }>) => void,
+  ): () => void
 }
 
 export interface SessionMeta {
@@ -59,24 +70,28 @@ function toMillis(v: unknown): number {
   return t?.toMillis?.() ?? 0
 }
 
-function now() { return admin.firestore?.Timestamp ? admin.firestore.Timestamp.now() : (Date.now() as unknown) }
+function now() {
+  return Timestamp.now()
+}
 function ttl() {
-  return admin.firestore?.Timestamp
-    ? admin.firestore.Timestamp.fromMillis(Date.now() + SESSION_TTL_MS)
-    : (Date.now() + SESSION_TTL_MS as unknown)
+  return Timestamp.fromMillis(Date.now() + SESSION_TTL_MS)
 }
 
 export function createFirestoreSession(db: FirestoreLike) {
   const sessionPath = (uid: string, sid: string) => `users/${uid}/sessions/${sid}`
-  const taskPath = (uid: string, sid: string, tid: string) => `users/${uid}/sessions/${sid}/tasks/${tid}`
+  const taskPath = (uid: string, sid: string, tid: string) =>
+    `users/${uid}/sessions/${sid}/tasks/${tid}`
   const devicesPath = (uid: string) => `users/${uid}/devices`
   const desktopTasksPath = (uid: string) => `users/${uid}/desktopTasks`
   const desktopTaskPath = (uid: string, tid: string) => `users/${uid}/desktopTasks/${tid}`
   const schedulerRunPath = (uid: string, runKey: string) => `users/${uid}/schedulerRuns/${runKey}`
 
   return {
-    async getActiveDevice(uid: string): Promise<{ deviceId: string; fcmToken: string; deviceName: string } | null> {
-      const snap = await db.collection(devicesPath(uid))
+    async getActiveDevice(
+      uid: string,
+    ): Promise<{ deviceId: string; fcmToken: string; deviceName: string } | null> {
+      const snap = await db
+        .collection(devicesPath(uid))
         .where('active', '==', true)
         .orderBy('lastSeenAt', 'desc')
         .limit(50)
@@ -91,25 +106,33 @@ export function createFirestoreSession(db: FirestoreLike) {
       return { deviceId: d.id, fcmToken: data.fcmToken, deviceName: data.deviceName }
     },
 
-    async getActiveDesktopDevice(uid: string): Promise<{ deviceId: string; deviceName: string } | null> {
-      const snap = await db.collection(devicesPath(uid))
+    async getActiveDesktopDevice(
+      uid: string,
+    ): Promise<{ deviceId: string; deviceName: string } | null> {
+      const snap = await db
+        .collection(devicesPath(uid))
         .where('active', '==', true)
         .orderBy('lastSeenAt', 'desc')
         .limit(50)
         .get()
       const eligible = snap.docs.filter((d) => {
         const data = d.data() as Record<string, unknown>
-        return data.type === 'desktop'
-          && data.isPaused !== true
-          && data.online === true
-          && Date.now() - toMillis(data.lastSeenAt) <= DESKTOP_LIVENESS_MS
+        return (
+          data.type === 'desktop' &&
+          data.isPaused !== true &&
+          data.online === true &&
+          Date.now() - toMillis(data.lastSeenAt) <= DESKTOP_LIVENESS_MS
+        )
       })
       if (eligible.length === 0) return null
       const d = eligible[0]
       return { deviceId: d.id, deviceName: (d.data() as { deviceName?: string }).deviceName ?? '' }
     },
 
-    async getDesktopDeviceDoc(uid: string, deviceId: string): Promise<{ exists: boolean; isPaused: boolean }> {
+    async getDesktopDeviceDoc(
+      uid: string,
+      deviceId: string,
+    ): Promise<{ exists: boolean; isPaused: boolean }> {
       const doc = await db.doc(`${devicesPath(uid)}/${deviceId}`).get()
       if (!doc.exists) return { exists: false, isPaused: false }
       const data = doc.data() as { isPaused?: boolean } | undefined
@@ -140,12 +163,18 @@ export function createFirestoreSession(db: FirestoreLike) {
       tool: string,
       params: Record<string, unknown>,
     ): Promise<void> {
-      const expiresAt = admin.firestore?.Timestamp
-        ? admin.firestore.Timestamp.fromMillis(Date.now() + DESKTOP_TASK_TTL_MS)
-        : (Date.now() + DESKTOP_TASK_TTL_MS as unknown)
+      const expiresAt = Timestamp.fromMillis(Date.now() + DESKTOP_TASK_TTL_MS)
       await db.doc(desktopTaskPath(uid, taskId)).set({
-        taskId, deviceId, status: 'pending', tool, params,
-        result: null, error: null, createdAt: now(), updatedAt: now(), expiresAt,
+        taskId,
+        deviceId,
+        status: 'pending',
+        tool,
+        params,
+        result: null,
+        error: null,
+        createdAt: now(),
+        updatedAt: now(),
+        expiresAt,
       })
     },
 
@@ -162,7 +191,8 @@ export function createFirestoreSession(db: FirestoreLike) {
     async writeDesktopTaskResult(
       uid: string,
       taskId: string,
-      outcome: { status: 'complete'; result: unknown } | { status: 'failed'; error: DesktopTaskError },
+      outcome:
+        { status: 'complete'; result: unknown } | { status: 'failed'; error: DesktopTaskError },
     ): Promise<boolean> {
       const ref = db.doc(desktopTaskPath(uid, taskId))
       const snap = await ref.get()
@@ -183,7 +213,11 @@ export function createFirestoreSession(db: FirestoreLike) {
       return doc.data() as unknown as DesktopTaskDoc
     },
 
-    async failDesktopTaskIfUnresolved(uid: string, taskId: string, error: DesktopTaskError): Promise<boolean> {
+    async failDesktopTaskIfUnresolved(
+      uid: string,
+      taskId: string,
+      error: DesktopTaskError,
+    ): Promise<boolean> {
       const ref = db.doc(desktopTaskPath(uid, taskId))
       const snap = await ref.get()
       if (!snap.exists) return false
@@ -201,8 +235,13 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    watchPendingDesktopTasks(uid: string, deviceId: string, cb: (tasks: DesktopTaskDoc[]) => void): () => void {
-      const q = db.collection(desktopTasksPath(uid))
+    watchPendingDesktopTasks(
+      uid: string,
+      deviceId: string,
+      cb: (tasks: DesktopTaskDoc[]) => void,
+    ): () => void {
+      const q = db
+        .collection(desktopTasksPath(uid))
         .where('status', '==', 'pending')
         .where('deviceId', '==', deviceId)
       if (!q.onSnapshot) throw new Error('watchPendingDesktopTasks requires onSnapshot support')
@@ -211,18 +250,29 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    async markDesktopDeviceOnline(uid: string, deviceId: string, instanceId: string): Promise<void> {
+    async markDesktopDeviceOnline(
+      uid: string,
+      deviceId: string,
+      instanceId: string,
+    ): Promise<void> {
       await db.doc(`${devicesPath(uid)}/${deviceId}`).update({
-        online: true, connectedInstanceId: instanceId, lastSeenAt: now(),
+        online: true,
+        connectedInstanceId: instanceId,
+        lastSeenAt: now(),
       })
     },
 
-    async markDesktopDeviceOffline(uid: string, deviceId: string, expectedInstanceId?: string): Promise<void> {
+    async markDesktopDeviceOffline(
+      uid: string,
+      deviceId: string,
+      expectedInstanceId?: string,
+    ): Promise<void> {
       const ref = db.doc(`${devicesPath(uid)}/${deviceId}`)
       const snap = await ref.get()
       if (!snap.exists) return
       const data = snap.data() as { connectedInstanceId?: string | null } | undefined
-      if (expectedInstanceId !== undefined && data?.connectedInstanceId !== expectedInstanceId) return
+      if (expectedInstanceId !== undefined && data?.connectedInstanceId !== expectedInstanceId)
+        return
       await ref.update({ online: false, connectedInstanceId: null })
     },
 
@@ -235,8 +285,13 @@ export function createFirestoreSession(db: FirestoreLike) {
 
     async createSession(uid: string, sid: string, meta: SessionMeta): Promise<void> {
       await db.doc(sessionPath(uid, sid)).set({
-        status: meta.status, trigger: meta.trigger, voiceInstanceId: meta.voiceInstanceId,
-        browserInstanceId: null, browserConnectedAt: null, createdAt: now(), expiresAt: ttl(),
+        status: meta.status,
+        trigger: meta.trigger,
+        voiceInstanceId: meta.voiceInstanceId,
+        browserInstanceId: null,
+        browserConnectedAt: null,
+        createdAt: now(),
+        expiresAt: ttl(),
       })
     },
 
@@ -246,9 +301,16 @@ export function createFirestoreSession(db: FirestoreLike) {
       return doc.data() as unknown as SessionDoc
     },
 
-    async markBrowserConnected(uid: string, sid: string, browserInstanceId: string, taskId: string): Promise<void> {
+    async markBrowserConnected(
+      uid: string,
+      sid: string,
+      browserInstanceId: string,
+      taskId: string,
+    ): Promise<void> {
       const sessionUpdate = {
-        status: 'routing', browserInstanceId, browserConnectedAt: now(),
+        status: 'routing',
+        browserInstanceId,
+        browserConnectedAt: now(),
       }
       const taskUpdate = { status: 'executing', updatedAt: now() }
       if (db.batch) {
@@ -268,8 +330,14 @@ export function createFirestoreSession(db: FirestoreLike) {
 
     async writeTask(uid: string, sid: string, tid: string, intent: TaskIntent): Promise<void> {
       await db.doc(taskPath(uid, sid, tid)).set({
-        status: 'pending', intent, result: null, error: null,
-        authRequired: intent.requiresAuth, haltedStepIndex: null, createdAt: now(), updatedAt: now(),
+        status: 'pending',
+        intent,
+        result: null,
+        error: null,
+        authRequired: intent.requiresAuth,
+        haltedStepIndex: null,
+        createdAt: now(),
+        updatedAt: now(),
       })
     },
 
@@ -285,9 +353,17 @@ export function createFirestoreSession(db: FirestoreLike) {
       return snap.docs[0].data() as unknown as TaskDoc
     },
 
-    async writeTaskResult(uid: string, sid: string, tid: string, result: TaskResult): Promise<void> {
+    async writeTaskResult(
+      uid: string,
+      sid: string,
+      tid: string,
+      result: TaskResult,
+    ): Promise<void> {
       await db.doc(taskPath(uid, sid, tid)).update({
-        status: result.status, result, error: result.error ?? null, updatedAt: now(),
+        status: result.status,
+        result,
+        error: result.error ?? null,
+        updatedAt: now(),
       })
     },
 
@@ -316,14 +392,32 @@ export function createFirestoreSession(db: FirestoreLike) {
       })
     },
 
-    async haltForAuth(uid: string, sid: string, tid: string, haltedStepIndex: number, actionSummary: string, partialData?: Record<string, string>, partialActiveUrl?: string): Promise<void> {
+    async haltForAuth(
+      uid: string,
+      sid: string,
+      tid: string,
+      haltedStepIndex: number,
+      actionSummary: string,
+      partialData?: Record<string, string>,
+      partialActiveUrl?: string,
+    ): Promise<void> {
       const AUTH_TTL_MS = 5 * 60 * 1000
       const authPath = `users/${uid}/sessions/${sid}/auth/${tid}`
-      const expiresAt = admin.firestore?.Timestamp
-        ? admin.firestore.Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
-        : (Date.now() + AUTH_TTL_MS as unknown)
-      const authDoc = { status: 'pending', actionSummary, expiresAt, approvedAt: null, approvalToken: null }
-      const taskUpdate = { status: 'awaiting_auth', haltedStepIndex, partialData: partialData ?? {}, partialActiveUrl: partialActiveUrl ?? '', updatedAt: now() }
+      const expiresAt = Timestamp.fromMillis(Date.now() + AUTH_TTL_MS)
+      const authDoc = {
+        status: 'pending',
+        actionSummary,
+        expiresAt,
+        approvedAt: null,
+        approvalToken: null,
+      }
+      const taskUpdate = {
+        status: 'awaiting_auth',
+        haltedStepIndex,
+        partialData: partialData ?? {},
+        partialActiveUrl: partialActiveUrl ?? '',
+        updatedAt: now(),
+      }
 
       if (db.batch) {
         const batch = db.batch()
@@ -392,7 +486,7 @@ export function createFirestoreSession(db: FirestoreLike) {
 export type FirestoreSession = ReturnType<typeof createFirestoreSession>
 
 export function defaultFirestoreSession(): FirestoreSession {
-  const raw = admin.firestore()
+  const raw = services.firestore
   const db: FirestoreLike = {
     doc: (path) => {
       const ref = raw.doc(path)
@@ -409,9 +503,13 @@ export function defaultFirestoreSession(): FirestoreSession {
         limit: (n) => wrap(q.limit(n)),
         get: async () => {
           const snap = await q.get()
-          return { empty: snap.empty, docs: snap.docs.map((d) => ({ id: d.id, data: () => d.data() })) }
+          return {
+            empty: snap.empty,
+            docs: snap.docs.map((d) => ({ id: d.id, data: () => d.data() })),
+          }
         },
-        onSnapshot: (cb) => q.onSnapshot((snap) => cb(snap.docs.map((d) => ({ id: d.id, data: () => d.data() })))),
+        onSnapshot: (cb) =>
+          q.onSnapshot((snap) => cb(snap.docs.map((d) => ({ id: d.id, data: () => d.data() })))),
       })
       return wrap(col)
     },
@@ -424,7 +522,9 @@ export function defaultFirestoreSession(): FirestoreSession {
         set(path: string, data: Record<string, unknown>) {
           batch.set(raw.doc(path), data)
         },
-        commit: async () => { await batch.commit() },
+        commit: async () => {
+          await batch.commit()
+        },
       }
     },
   }

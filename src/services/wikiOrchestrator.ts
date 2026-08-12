@@ -7,9 +7,7 @@ import type { Wiki } from '~/services/wikiService'
 type WikiActor = ActorRefFrom<typeof wikiMachine>
 
 /** Optional settings forwarded when spawning a new `wikiMachine` actor. */
-export type WikiOrchestratorMachineOptions = Partial<
-  Pick<WikiMachineInput, 'busyRetryDelayMs'>
->
+export type WikiOrchestratorMachineOptions = Partial<Pick<WikiMachineInput, 'busyRetryDelayMs'>>
 
 const actors = new Map<string, WikiActor>()
 
@@ -31,7 +29,7 @@ export interface SyncAllOptions {
 
 /**
  * Get or spawn an actor for the given entityId.
- * 
+ *
  * Note: Actors are cached by entityId only. If a different Wiki instance
  * is passed for the same entityId, the existing actor will continue using
  * the original wiki reference. In production, wiki is a singleton, so this
@@ -130,11 +128,7 @@ async function syncAll(
           // If we enqueued a new SYNC but the actor hits `error` before ever entering
           // `syncing` (e.g. in-flight or queued non-sync work fails first), fail fast
           // instead of waiting for the full timeout with seenSyncing still false.
-          if (
-            !isCurrentlySyncing &&
-            !seenSyncing &&
-            snap.matches('error')
-          ) {
+          if (!isCurrentlySyncing && !seenSyncing && snap.matches('error')) {
             sub.unsubscribe()
             cleanup()
             finish(() =>
@@ -159,13 +153,12 @@ async function syncAll(
             sub.unsubscribe()
             cleanup()
             const err =
-              snap.context.lastError ??
-              new Error(`Sync failed for entity ${item.entityId}`)
+              snap.context.lastError ?? new Error(`Sync failed for entity ${item.entityId}`)
             finish(() => reject(err))
             return
           }
         })
-        
+
         // Set timeout for this sync operation
         timeoutId = setTimeout(() => {
           sub.unsubscribe()

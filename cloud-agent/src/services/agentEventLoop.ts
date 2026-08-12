@@ -131,7 +131,9 @@ export async function consumeAgentEvents(
       }
 
       if (event.errorCode || event.errorMessage) {
-        throw new Error(`ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`)
+        throw new Error(
+          `ADK error (${event.errorCode ?? 'unknown'}): ${event.errorMessage ?? 'no message'}`,
+        )
       }
 
       const hasFunctionCall = eventHasFunctionCall(event)

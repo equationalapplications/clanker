@@ -1,6 +1,6 @@
 import type { WebSocket } from 'ws'
 import type { IncomingMessage } from 'http'
-import admin from 'firebase-admin'
+import { services } from '../firebaseAdmin.js'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
@@ -50,8 +50,9 @@ export function handleBrowserWsUpgrade(
   _req: IncomingMessage,
   options: BrowserWsOptions,
 ): void {
-  const verifyToken = options.verifyToken ??
-    ((t: string) => admin.auth().verifyIdToken(t).then((d) => ({ uid: d.uid })))
+  const verifyToken =
+    options.verifyToken ??
+    ((t: string) => services.auth.verifyIdToken(t).then((d) => ({ uid: d.uid })))
   const resolveUserId = options.resolveUserId ?? (async (u: string) => u)
   const validateDevice = options.validateDevice ?? (async () => true)
   const fs = options.firestoreSession
@@ -75,13 +76,27 @@ export function handleBrowserWsUpgrade(
 
   async function onAuth(raw: unknown): Promise<void> {
     const parsed = browserAuthSchema.safeParse(raw)
-    if (!parsed.success) { ws.close(4001, 'Invalid auth frame'); return }
+    if (!parsed.success) {
+      ws.close(4001, 'Invalid auth frame')
+      return
+    }
     const { idToken, sessionId: sid, deviceId: did } = parsed.data
     let fbUid: string
-    try { fbUid = (await verifyToken(idToken)).uid } catch { ws.close(4001, 'Token verification failed'); return }
+    try {
+      fbUid = (await verifyToken(idToken)).uid
+    } catch {
+      ws.close(4001, 'Token verification failed')
+      return
+    }
     const resolved = await resolveUserId(fbUid)
-    if (!resolved) { ws.close(4001, 'User not found'); return }
-    if (!(await validateDevice(resolved, did))) { ws.close(4001, 'Unknown device'); return }
+    if (!resolved) {
+      ws.close(4001, 'User not found')
+      return
+    }
+    if (!(await validateDevice(resolved, did))) {
+      ws.close(4001, 'Unknown device')
+      return
+    }
 
     const session = await fs.getSession(resolved, sid)
     if (session.status === 'closed' || session.status === 'aborted') {
@@ -89,11 +104,17 @@ export function handleBrowserWsUpgrade(
       return
     }
 
-    firebaseUid = resolved; sessionId = sid; deviceId = did; authed = true
+    firebaseUid = resolved
+    sessionId = sid
+    deviceId = did
+    authed = true
     clearTimeout(authTimer)
 
     const pendingTask = await fs.getFirstTask(firebaseUid, sid)
-    if (!pendingTask) { ws.close(4001, 'No pending task'); return }
+    if (!pendingTask) {
+      ws.close(4001, 'No pending task')
+      return
+    }
 
     dispatchedIntent = pendingTask.intent
 
@@ -122,7 +143,10 @@ export function handleBrowserWsUpgrade(
     if (!authed || !firebaseUid || !sessionId || !dispatchedIntent) return
     const r = resultFrameSchema.safeParse(raw)
     if (r.success) {
-      if (r.data.taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
+      if (r.data.taskId !== dispatchedIntent.taskId) {
+        ws.close(4001, 'Task mismatch')
+        return
+      }
       let data = r.data.data
       let activeUrl = r.data.activeUrl
       if (isResume) {
@@ -135,9 +159,14 @@ export function handleBrowserWsUpgrade(
       if (isResume && fwd && options.getExpoPushToken) {
         const expoPushToken = await options.getExpoPushToken(firebaseUid)
         if (expoPushToken) {
-          await fwd.sendTaskComplete(expoPushToken, sessionId, r.data.taskId, 'Your browser task finished.').catch(
-            (err) => console.error('sendTaskComplete failed:', err),
-          )
+          await fwd
+            .sendTaskComplete(
+              expoPushToken,
+              sessionId,
+              r.data.taskId,
+              'Your browser task finished.',
+            )
+            .catch((err) => console.error('sendTaskComplete failed:', err))
         }
       }
       ws.send(JSON.stringify({ type: 'session_end' }))
@@ -145,9 +174,15 @@ export function handleBrowserWsUpgrade(
     }
     const e = taskErrorFrameSchema.safeParse(raw)
     if (e.success) {
-      if (e.data.taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
+      if (e.data.taskId !== dispatchedIntent.taskId) {
+        ws.close(4001, 'Task mismatch')
+        return
+      }
       const result: TaskResult = {
-        taskId: e.data.taskId, status: 'failed', data: {}, activeUrl: '',
+        taskId: e.data.taskId,
+        status: 'failed',
+        data: {},
+        activeUrl: '',
         error: { code: e.data.code, message: e.data.message, failedAction: e.data.failedAction },
       }
       await fs.writeTaskResult(firebaseUid, sessionId, e.data.taskId, result)
@@ -161,16 +196,31 @@ export function handleBrowserWsUpgrade(
     if (!parsed.success) return
     const { taskId, haltedStepIndex, partialData, partialActiveUrl } = parsed.data
 
-    if (taskId !== dispatchedIntent.taskId) { ws.close(4001, 'Task mismatch'); return }
+    if (taskId !== dispatchedIntent.taskId) {
+      ws.close(4001, 'Task mismatch')
+      return
+    }
     if (dispatchedIntent.action.type === 'sequence') {
-      if (haltedStepIndex >= dispatchedIntent.action.steps.length) { ws.close(4001, 'Invalid haltedStepIndex'); return }
+      if (haltedStepIndex >= dispatchedIntent.action.steps.length) {
+        ws.close(4001, 'Invalid haltedStepIndex')
+        return
+      }
     } else if (haltedStepIndex !== 0) {
-      ws.close(4001, 'Invalid haltedStepIndex'); return
+      ws.close(4001, 'Invalid haltedStepIndex')
+      return
     }
 
     const actionSummary = dispatchedIntent.actionSummary
 
-    await fs.haltForAuth(firebaseUid, sessionId, taskId, haltedStepIndex, actionSummary, partialData, partialActiveUrl)
+    await fs.haltForAuth(
+      firebaseUid,
+      sessionId,
+      taskId,
+      haltedStepIndex,
+      actionSummary,
+      partialData,
+      partialActiveUrl,
+    )
 
     const deviceFcmToken = options.getDeviceFcmToken
       ? await options.getDeviceFcmToken(firebaseUid, deviceId!)
@@ -178,8 +228,15 @@ export function handleBrowserWsUpgrade(
 
     if (!deviceFcmToken) {
       await fs.writeTaskResult(firebaseUid, sessionId, taskId, {
-        taskId, status: 'aborted', data: {}, activeUrl: '',
-        error: { code: 'EXECUTION_ERROR', message: 'No device FCM token — cannot resume after approval.', failedAction: dispatchedIntent.action as never },
+        taskId,
+        status: 'aborted',
+        data: {},
+        activeUrl: '',
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: 'No device FCM token — cannot resume after approval.',
+          failedAction: dispatchedIntent.action as never,
+        },
       })
       sendSessionEndIfOpen()
       return
@@ -188,9 +245,9 @@ export function handleBrowserWsUpgrade(
     if (fwd && options.getExpoPushToken) {
       const expoPushToken = await options.getExpoPushToken(firebaseUid)
       if (expoPushToken) {
-        await fwd.sendApprovalCard(expoPushToken, sessionId, taskId, actionSummary).catch(
-          (err) => console.error('sendApprovalCard failed:', err),
-        )
+        await fwd
+          .sendApprovalCard(expoPushToken, sessionId, taskId, actionSummary)
+          .catch((err) => console.error('sendApprovalCard failed:', err))
       }
     }
 
@@ -212,9 +269,16 @@ export function handleBrowserWsUpgrade(
 
   ws.on('message', (data: Buffer) => {
     let parsed: unknown
-    try { parsed = JSON.parse(data.toString()) } catch { return }
+    try {
+      parsed = JSON.parse(data.toString())
+    } catch {
+      return
+    }
     const type = (parsed as { type?: string }).type
-    if (type === 'ping') { ws.send(JSON.stringify({ type: 'pong' })); return }
+    if (type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong' }))
+      return
+    }
     if (!authed) {
       void onAuth(parsed).catch(() => ws.close(1011, 'Internal error'))
       return
@@ -233,5 +297,7 @@ export function handleBrowserWsUpgrade(
     clearTimeout(authTimer)
     if (firebaseUid && sessionId) sessionBridge.deregisterBrowser(firebaseUid, sessionId)
   })
-  ws.on('error', () => { clearTimeout(authTimer) })
+  ws.on('error', () => {
+    clearTimeout(authTimer)
+  })
 }

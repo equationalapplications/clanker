@@ -12,12 +12,18 @@ test('fetchExpoPushTokenFromWebDevice posts web payload to Expo and returns toke
     })
   }
 
-  const token = await fetchExpoPushTokenFromWebDevice({
-    deviceToken: JSON.stringify({ endpoint: 'https://push.example/abc', keys: { p256dh: 'p', auth: 'a' } }),
-    projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
-    applicationId: 'com.equationalapplications.clanker',
-    deviceId: 'DEVICE-ID-UPPER',
-  }, fetchImpl as typeof fetch)
+  const token = await fetchExpoPushTokenFromWebDevice(
+    {
+      deviceToken: JSON.stringify({
+        endpoint: 'https://push.example/abc',
+        keys: { p256dh: 'p', auth: 'a' },
+      }),
+      projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
+      applicationId: 'com.equationalapplications.clanker',
+      deviceId: 'DEVICE-ID-UPPER',
+    },
+    fetchImpl as typeof fetch,
+  )
 
   assert.equal(token, 'ExponentPushToken[web]')
   assert.equal(calls[0].url, 'https://exp.host/--/api/v2/push/getExpoPushToken')

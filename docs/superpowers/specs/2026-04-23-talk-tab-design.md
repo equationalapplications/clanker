@@ -17,30 +17,30 @@ Add a **Talk** tab to the bottom navigation that lets users have a spoken conver
 
 All require an **EAS native build** (not OTA-deployable):
 
-| Package | Purpose |
-|---|---|
-| `expo-speech-recognition` | Tap-to-start STT; auto-stops on silence on iOS + Android |
-| `expo-audio` | WAV playback (from temp file written by `expo-file-system`) |
-| `expo-file-system` | Already installed; used to write base64 audio to a temp `.wav` for `expo-audio` |
+| Package                   | Purpose                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `expo-speech-recognition` | Tap-to-start STT; auto-stops on silence on iOS + Android                        |
+| `expo-audio`              | WAV playback (from temp file written by `expo-file-system`)                     |
+| `expo-file-system`        | Already installed; used to write base64 audio to a temp `.wav` for `expo-audio` |
 
 ### New Files
 
-| File | Responsibility |
-|---|---|
-| `app/(drawer)/(tabs)/talk/index.tsx` | Talk screen UI |
-| `src/services/voiceChatService.ts` | Orchestrates STT result → prompt build → API call → save messages → return audio |
-| `src/hooks/useVoiceChat.ts` | React wrapper around `voiceChatService`, manages local UI state |
+| File                                 | Responsibility                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------- |
+| `app/(drawer)/(tabs)/talk/index.tsx` | Talk screen UI                                                                   |
+| `src/services/voiceChatService.ts`   | Orchestrates STT result → prompt build → API call → save messages → return audio |
+| `src/hooks/useVoiceChat.ts`          | React wrapper around `voiceChatService`, manages local UI state                  |
 
 ### Modified Files
 
-| File | Change |
-|---|---|
-| `app/(drawer)/(tabs)/_layout.tsx` | Add Talk tab (mic icon) between Chat and Characters |
-| `app.config.ts` | Add `expo-speech-recognition` plugin config with iOS `microphonePermission` + `speechRecognitionPermission` strings; ensure Android `RECORD_AUDIO` permission |
-| `src/services/aiChatService.ts` | Export `buildChatPrompt` and `getRecentConversationHistory` so `voiceChatService` can reuse them |
-| `src/components/LandingPage/FeaturesSection.tsx` | Add Talk feature tile to `FEATURES` array |
-| `app/support.tsx` | Add FAQ entry: "How do voice replies work and what do they cost?" |
-| `plan.md` | Updated plan: Task 9 revised + new Task 11 added |
+| File                                             | Change                                                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/(drawer)/(tabs)/_layout.tsx`                | Add Talk tab (mic icon) between Chat and Characters                                                                                                           |
+| `app.config.ts`                                  | Add `expo-speech-recognition` plugin config with iOS `microphonePermission` + `speechRecognitionPermission` strings; ensure Android `RECORD_AUDIO` permission |
+| `src/services/aiChatService.ts`                  | Export `buildChatPrompt` and `getRecentConversationHistory` so `voiceChatService` can reuse them                                                              |
+| `src/components/LandingPage/FeaturesSection.tsx` | Add Talk feature tile to `FEATURES` array                                                                                                                     |
+| `app/support.tsx`                                | Add FAQ entry: "How do voice replies work and what do they cost?"                                                                                             |
+| `plan.md`                                        | Updated plan: Task 9 revised + new Task 11 added                                                                                                              |
 
 ---
 
@@ -70,14 +70,14 @@ All require an **EAS native build** (not OTA-deployable):
 
 ### Visual States
 
-| State | Button | Button glow | Avatar glow | Status text |
-|---|---|---|---|---|
-| `idle` | Green circle, mic icon | ✗ | ✗ | `""` (empty) |
-| `listening` | Green circle, mic icon | ✓ pulsing glow | ✗ | `"Listening..."` |
-| `transcribing` | Disabled, spinner | ✗ | ✗ | Live transcription text |
-| `processing` | Disabled, spinner | ✗ | ✗ | Transcription (locked) |
-| `playing` | Disabled, speaker icon | ✗ | ✓ pulsing glow | `replyText` from API |
-| `error` | Green circle, mic icon | ✗ | ✗ | Error message (red) |
+| State          | Button                 | Button glow    | Avatar glow    | Status text             |
+| -------------- | ---------------------- | -------------- | -------------- | ----------------------- |
+| `idle`         | Green circle, mic icon | ✗              | ✗              | `""` (empty)            |
+| `listening`    | Green circle, mic icon | ✓ pulsing glow | ✗              | `"Listening..."`        |
+| `transcribing` | Disabled, spinner      | ✗              | ✗              | Live transcription text |
+| `processing`   | Disabled, spinner      | ✗              | ✗              | Transcription (locked)  |
+| `playing`      | Disabled, speaker icon | ✗              | ✓ pulsing glow | `replyText` from API    |
+| `error`        | Green circle, mic icon | ✗              | ✗              | Error message (red)     |
 
 **Glow implementation:** `react-native-reanimated` `withRepeat(withSequence(withTiming(1, ...), withTiming(0, ...)), -1)` — same pattern already used in `src/components/LandingPage/HeroSection.tsx`. The glow is rendered as a semi-transparent colored `View` behind the button/avatar with `borderRadius` matching the element. The shared values are reset (`cancelAnimation` + `value = 0`) on state transitions out of `listening`/`playing` and on screen unmount to avoid orphaned worklets.
 
@@ -87,14 +87,15 @@ All require an **EAS native build** (not OTA-deployable):
 
 ### Credit Costs
 
-| Plan | Credits per voice reply |
-|---|---|
-| Monthly subscriber (`monthly_20`, `monthly_50`) | 0 (unlimited) |
-| Non-subscriber (`payg`, `free`, etc.) | 2 |
+| Plan                                            | Credits per voice reply |
+| ----------------------------------------------- | ----------------------- |
+| Monthly subscriber (`monthly_20`, `monthly_50`) | 0 (unlimited)           |
+| Non-subscriber (`payg`, `free`, etc.)           | 2                       |
 
 Credit cost is not displayed on the Talk screen. It is documented in the FAQ (see `app/support.tsx`) and discoverable via the Landing page feature tile.
 
 **Insufficient-credits gate:** On mic button tap, if `!isSubscriber && remainingCredits < 2`:
+
 - Show `Alert.alert('Insufficient Credits', 'Voice replies cost 2 credits. Purchase more or subscribe for unlimited.', [{ text: 'Cancel' }, { text: 'Get More', onPress: () => router.push('/subscribe') }])`
 - Do not start STT.
 
@@ -161,6 +162,7 @@ The hook tracks an `isMountedRef` and a `cancelledRef` and gates the playback st
 ### Character Has No Voice Set
 
 If `character.voice` is `null` (voice not configured). Checked first (before credit pre-flight):
+
 - Show `Alert.alert('No Voice Set', 'This character has no voice selected. Go to character settings to choose one.', [{ text: 'OK' }, { text: 'Edit Character', onPress: () => router.push(\`/characters/${characterId}/edit\`) }])`
 - Do not start STT.
 
@@ -204,14 +206,15 @@ interface UseVoiceChatReturn {
   transcription: string
   replyText: string
   error: string | null
-  startListening: () => void  // tap mic → start STT; recognition ends automatically on silence
-  cancel: () => void          // abort mid-flow (listening/processing/playing) → idle; stops audio
+  startListening: () => void // tap mic → start STT; recognition ends automatically on silence
+  cancel: () => void // abort mid-flow (listening/processing/playing) → idle; stops audio
 }
 
 export function useVoiceChat(characterId: string): UseVoiceChatReturn
 ```
 
 Internally `useVoiceChat`:
+
 - Reads `conversationHistory` from React Query via `getRecentConversationHistory(characterId, userId)` (the same selector Chat uses) so the prompt includes recent turns.
 - Reads `isSubscriber` and `remainingCredits` from `useCurrentPlan` for the pre-flight gate.
 - Owns the `MAX_LISTEN_MS` safety timer, permission request, temp-file lifecycle, and reanimated cleanup described above.
@@ -225,6 +228,7 @@ Internally `useVoiceChat`:
 The `prompt` field in the Cloud Function request receives the **fully assembled `buildChatPrompt` output** (same format as `generateReply`). No change to the function's server-side interface is needed — the client (voiceChatService) is responsible for building the prompt before calling the function.
 
 **Billing:** Voice costs more than text due to TTS generation. Server-side rules:
+
 - Unlimited tiers (`monthly_20`, `monthly_50`): 0 credits.
 - All other tiers: **2 credits** (require `creditBalance >= 2` before generation; spend 2 after successful generation).
 - `assertUsageAuthorized` must check `creditBalance < 2` (not `< 1`) for voice.
@@ -233,6 +237,7 @@ The `prompt` field in the Cloud Function request receives the **fully assembled 
 ### New Task 11 (Talk Screen)
 
 Covers:
+
 1. Install `expo-speech-recognition` + `expo-audio`
 2. Add `expo-speech-recognition` plugin block to `app.config.ts` with iOS permission strings
    (`microphonePermission`, `speechRecognitionPermission`) and Android `RECORD_AUDIO`

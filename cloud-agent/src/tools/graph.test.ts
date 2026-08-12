@@ -42,12 +42,25 @@ const { traverseGraphCte } = await import('./graph.js')
 
 test('traverseGraphCte: returns anchor only when edgeTypes is an explicit empty array', async () => {
   const anchorRow = {
-    id: 'fact-1', title: 'T', body: 'B', tags: [], confidence: 'inferred', source_type: 'agent_inferred',
-    source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-    created_at: '100', updated_at: '200', deleted_at: null,
+    id: 'fact-1',
+    title: 'T',
+    body: 'B',
+    tags: [],
+    confidence: 'inferred',
+    source_type: 'agent_inferred',
+    source_ref: null,
+    source_hash: null,
+    last_accessed_at: null,
+    access_count: 0,
+    created_at: '100',
+    updated_at: '200',
+    deleted_at: null,
   }
   const db = makeMockDb([[anchorRow]])
-  const result = await traverseGraphCte(db, 'user-1', 'entity-1', { sourceId: 'fact-1', edgeTypes: [] })
+  const result = await traverseGraphCte(db, 'user-1', 'entity-1', {
+    sourceId: 'fact-1',
+    edgeTypes: [],
+  })
   assert.equal(result.nodes.length, 1)
   assert.equal(result.nodes[0].id, 'fact-1')
   assert.equal(result.edges.length, 0)
@@ -56,7 +69,10 @@ test('traverseGraphCte: returns anchor only when edgeTypes is an explicit empty 
 
 test('traverseGraphCte: returns empty neighborhood when anchor not found (edgeTypes empty)', async () => {
   const db = makeMockDb([[]])
-  const result = await traverseGraphCte(db, 'user-1', 'entity-1', { sourceId: 'missing', edgeTypes: [] })
+  const result = await traverseGraphCte(db, 'user-1', 'entity-1', {
+    sourceId: 'missing',
+    edgeTypes: [],
+  })
   assert.deepEqual(result, { nodes: [], edges: [] })
 })
 
@@ -70,21 +86,52 @@ test('traverseGraphCte: returns empty neighborhood when anchor not found (defaul
 test('traverseGraphCte: maps node rows to WikiFact shape and fetches edges among found node ids', async () => {
   const nodeRows = [
     {
-      id: 'fact-1', title: 'Anchor', body: 'B1', tags: ['a'], confidence: 'certain', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: '500', access_count: 3,
-      created_at: '100', updated_at: '300', deleted_at: null, depth: 0,
+      id: 'fact-1',
+      title: 'Anchor',
+      body: 'B1',
+      tags: ['a'],
+      confidence: 'certain',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: '500',
+      access_count: 3,
+      created_at: '100',
+      updated_at: '300',
+      deleted_at: null,
+      depth: 0,
     },
     {
-      id: 'fact-2', title: 'Neighbor', body: 'B2', tags: [], confidence: 'inferred', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-      created_at: '150', updated_at: '350', deleted_at: null, depth: 1,
+      id: 'fact-2',
+      title: 'Neighbor',
+      body: 'B2',
+      tags: [],
+      confidence: 'inferred',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: null,
+      access_count: 0,
+      created_at: '150',
+      updated_at: '350',
+      deleted_at: null,
+      depth: 1,
     },
   ]
   const edgeRows = [
-    { id: 'edge-1', source_id: 'fact-1', target_id: 'fact-2', edge_type: 'relates_to', created_at: '120' },
+    {
+      id: 'edge-1',
+      source_id: 'fact-1',
+      target_id: 'fact-2',
+      edge_type: 'relates_to',
+      created_at: '120',
+    },
   ]
   const db = makeMockDb([nodeRows, edgeRows])
-  const result = await traverseGraphCte(db, 'user-1', 'entity-1', { sourceId: 'fact-1', maxDepth: 2 })
+  const result = await traverseGraphCte(db, 'user-1', 'entity-1', {
+    sourceId: 'fact-1',
+    maxDepth: 2,
+  })
 
   assert.equal(result.nodes.length, 2)
   assert.equal(result.nodes[0].id, 'fact-1')
@@ -103,19 +150,53 @@ test('traverseGraphCte: maps node rows to WikiFact shape and fetches edges among
 test('traverseGraphCte: filters returned edges by edgeTypes', async () => {
   const nodeRows = [
     {
-      id: 'fact-1', title: 'Anchor', body: 'B1', tags: [], confidence: 'certain', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-      created_at: '100', updated_at: '300', deleted_at: null, depth: 0,
+      id: 'fact-1',
+      title: 'Anchor',
+      body: 'B1',
+      tags: [],
+      confidence: 'certain',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: null,
+      access_count: 0,
+      created_at: '100',
+      updated_at: '300',
+      deleted_at: null,
+      depth: 0,
     },
     {
-      id: 'fact-2', title: 'Neighbor', body: 'B2', tags: [], confidence: 'inferred', source_type: 'agent_inferred',
-      source_ref: null, source_hash: null, last_accessed_at: null, access_count: 0,
-      created_at: '150', updated_at: '350', deleted_at: null, depth: 1,
+      id: 'fact-2',
+      title: 'Neighbor',
+      body: 'B2',
+      tags: [],
+      confidence: 'inferred',
+      source_type: 'agent_inferred',
+      source_ref: null,
+      source_hash: null,
+      last_accessed_at: null,
+      access_count: 0,
+      created_at: '150',
+      updated_at: '350',
+      deleted_at: null,
+      depth: 1,
     },
   ]
   const edgeRows = [
-    { id: 'edge-1', source_id: 'fact-1', target_id: 'fact-2', edge_type: 'relates_to', created_at: '120' },
-    { id: 'edge-2', source_id: 'fact-1', target_id: 'fact-2', edge_type: 'other_type', created_at: '121' },
+    {
+      id: 'edge-1',
+      source_id: 'fact-1',
+      target_id: 'fact-2',
+      edge_type: 'relates_to',
+      created_at: '120',
+    },
+    {
+      id: 'edge-2',
+      source_id: 'fact-1',
+      target_id: 'fact-2',
+      edge_type: 'other_type',
+      created_at: '121',
+    },
   ]
   let call = 0
   const calls: unknown[] = []
@@ -127,9 +208,10 @@ test('traverseGraphCte: filters returned edges by edgeTypes', async () => {
         return { rows: nodeRows }
       }
       const sqlText = flattenSql(query)
-      const filtered = sqlText.includes('edge_type IN') && sqlText.includes('relates_to')
-        ? edgeRows.filter((e) => e.edge_type === 'relates_to')
-        : edgeRows
+      const filtered =
+        sqlText.includes('edge_type IN') && sqlText.includes('relates_to')
+          ? edgeRows.filter((e) => e.edge_type === 'relates_to')
+          : edgeRows
       call += 1
       return { rows: filtered }
     },

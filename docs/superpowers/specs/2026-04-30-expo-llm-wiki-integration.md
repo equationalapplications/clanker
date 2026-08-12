@@ -4,6 +4,7 @@
 **Status:** Implemented
 **Branch:** feature branch off `staging`
 **Depends on:**
+
 - [expo-llm-wiki: agent-memory-features](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-agent-memory-features.md) — porter stemmer + synonymMap + LWW merge — **Status: Ready**
 - [expo-llm-wiki: ingest-perf-and-export](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-04-30-ingest-perf-and-export.md) — exportDump / importDump / WikiBusyError / getEntityStatus — **Status: Implemented**
 - [expo-llm-wiki: next-version-improvements](https://github.com/equationalapplications/expo-llm-wiki/docs/superpowers/specs/2026-05-01-next-version-improvements.md) — formatContext / hasChanged / runPrune / schema versioning — **Status: Ready**
@@ -62,25 +63,33 @@ The package requires a `generateText` function. clanker provides it by wrapping 
 
 ```ts
 // src/services/wikiLlmProvider.ts  (new, tiny)
-import { httpsCallable } from 'firebase/functions';
-import { functionsInstance } from '~/config/firebaseConfig';
+import { httpsCallable } from 'firebase/functions'
+import { functionsInstance } from '~/config/firebaseConfig'
 
 // Reuse existing appCheckReady pattern from chatReplyService
 export function createWikiLlmProvider(appCheck: Promise<void>) {
   return {
-    generateText: async ({ systemPrompt, userPrompt }: { systemPrompt: string; userPrompt: string }) => {
-      await appCheck;
+    generateText: async ({
+      systemPrompt,
+      userPrompt,
+    }: {
+      systemPrompt: string
+      userPrompt: string
+    }) => {
+      await appCheck
       const fn = httpsCallable<{ systemPrompt: string; userPrompt: string }, { text: string }>(
-        functionsInstance, 'wikiLlm'
-      );
-      const result = await fn({ systemPrompt, userPrompt });
-      return result.data.text;
+        functionsInstance,
+        'wikiLlm',
+      )
+      const result = await fn({ systemPrompt, userPrompt })
+      return result.data.text
     },
-  };
+  }
 }
 ```
 
 **`wikiLlm` callable** (new, thin — lives in `functions/src/wikiLlm.ts`):
+
 - In: `{ systemPrompt: string, userPrompt: string }`
 - Auth check (mirror `generateReply.ts` pattern): `request.auth` required; decode `DecodedIdToken`.
 - Premium check: `usage.hasUnlimited` (same `fetchUsageState` as `generateReply`). Non-premium → `HttpsError('permission-denied')`.
@@ -93,13 +102,13 @@ export function createWikiLlmProvider(appCheck: Promise<void>) {
 
 ```ts
 // src/services/wikiService.ts  (new)
-import { createWiki } from '@equationalapplications/expo-llm-wiki';
-import { createWikiLlmProvider } from './wikiLlmProvider';
-import { appCheckReady } from '~/config/firebaseConfig';
-import { getDatabase } from '~/database';
-import { synonymMapBase } from '~/database/synonymMapBase';  // kept (hand-curated map)
+import { createWiki } from '@equationalapplications/expo-llm-wiki'
+import { createWikiLlmProvider } from './wikiLlmProvider'
+import { appCheckReady } from '~/config/firebaseConfig'
+import { getDatabase } from '~/database'
+import { synonymMapBase } from '~/database/synonymMapBase' // kept (hand-curated map)
 
-let _wiki: ReturnType<typeof createWiki> | null = null;
+let _wiki: ReturnType<typeof createWiki> | null = null
 
 export function getWiki() {
   if (!_wiki) {
@@ -107,20 +116,20 @@ export function getWiki() {
       llmProvider: createWikiLlmProvider(appCheckReady),
       config: {
         tablePrefix: 'llm_wiki_',
-        autoLibrarianThreshold: 20,   // matches original MEMORY_WRITE_TRIGGER_MESSAGE_COUNT
+        autoLibrarianThreshold: 20, // matches original MEMORY_WRITE_TRIGGER_MESSAGE_COUNT
         autoHealThreshold: 100,
         synonymMap: synonymMapBase,
         // chunkConcurrency: 1 (default — sequential; raise for providers with higher rate limits)
         // maxChunkLength: 12000 (package default — up from 6000 in prior versions)
         // chunkOverlap: 400 (package default)
       },
-    });
+    })
   }
-  return _wiki;
+  return _wiki
 }
 
 export async function setupWiki() {
-  await getWiki().setup();
+  await getWiki().setup()
 }
 ```
 
@@ -132,12 +141,10 @@ Package React hooks (`useWikiIngest`, `useWikiHasChanged`, `useWikiExport`, `use
 
 ```tsx
 // src/App.tsx (or the existing root provider stack)
-import { WikiProvider } from '@equationalapplications/expo-llm-wiki/react';
-import { getWiki } from '~/services/wikiService';
+import { WikiProvider } from '@equationalapplications/expo-llm-wiki/react'
+import { getWiki } from '~/services/wikiService'
 
-<WikiProvider wiki={getWiki()}>
-  {/* existing app tree */}
-</WikiProvider>
+;<WikiProvider wiki={getWiki()}>{/* existing app tree */}</WikiProvider>
 ```
 
 All subsequent hook examples in this spec assume the provider is mounted.
@@ -151,10 +158,10 @@ File path: `src/database/synonymMapBase.ts` → no rename needed. Export changes
 ### Read Path
 
 ```ts
-import { formatContext } from '@equationalapplications/expo-llm-wiki';
+import { formatContext } from '@equationalapplications/expo-llm-wiki'
 
 // In aiChatService.sendMessageWithAIResponse — premium users only
-const bundle = await getWiki().read(character.id, userMessage);
+const bundle = await getWiki().read(character.id, userMessage)
 // Format for LLM injection using package utility (next-version-improvements spec)
 const memoryBlock = formatContext(bundle, {
   maxFacts: 10,
@@ -162,7 +169,7 @@ const memoryBlock = formatContext(bundle, {
   maxEvents: 10,
   includeConfidence: true,
   includeTags: true,
-});
+})
 // Pass memoryBlock string to buildChatPrompt as the [MEMORY] block
 ```
 
@@ -170,22 +177,22 @@ const memoryBlock = formatContext(bundle, {
 
 `formatContext` is a pure function (no DB) from the package. It ranks facts by confidence × recency × access count, tasks by priority, events newest-first. Replaces the hand-rolled bundle formatter in `buildChatPrompt`.
 
-
 ### Write Path (post-turn)
 
 ```ts
 // In aiChatService — after reply is saved, premium users only
 // Fire-and-forget (mirrors triggerConversationSummary)
-getWiki().write(character.id, {
-  event_type: 'observation',
-  summary: `User: ${userMessage}\nAssistant: ${assistantReply}`,
-}).catch(console.error);
+getWiki()
+  .write(character.id, {
+    event_type: 'observation',
+    summary: `User: ${userMessage}\nAssistant: ${assistantReply}`,
+  })
+  .catch(console.error)
 ```
 
 The package auto-triggers `runLibrarian` (via `wikiLlm` callable) when event count hits `autoLibrarianThreshold`. No `wikiHealMachine` state machine. No explicit checkpoint management. The package owns the checkpoint in `{prefix}checkpoints`.
 
 The auto-trigger inside `write()` uses a silent-skip when busy — it never throws into the write path. If clanker ever calls `runLibrarian()` or `runHeal()` directly, it must catch `WikiBusyError` (exported from `expo-llm-wiki`; available since ingest-perf-and-export). The current spec does not call these methods directly.
-
 
 ### Document Ingest (+ Button)
 
@@ -196,30 +203,27 @@ The + button lives in `src/components/ChatComposer.tsx` (premium users only) and
 **ChatComposer rewires** to use `useWikiIngest` + `useWikiHasChanged` directly:
 
 ```ts
-import { useWikiIngest, useWikiHasChanged } from '@equationalapplications/expo-llm-wiki/react';
-import { WikiBusyError } from '@equationalapplications/expo-llm-wiki';
-import * as Crypto from 'expo-crypto';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { useWikiIngest, useWikiHasChanged } from '@equationalapplications/expo-llm-wiki/react'
+import { WikiBusyError } from '@equationalapplications/expo-llm-wiki'
+import * as Crypto from 'expo-crypto'
+import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
 
 // Inside ChatComposer (premium users only)
-const { execute: checkChanged } = useWikiHasChanged();
-const { execute: ingest, isPending: isIngesting, error: ingestError } = useWikiIngest();
+const { execute: checkChanged } = useWikiHasChanged()
+const { execute: ingest, isPending: isIngesting, error: ingestError } = useWikiIngest()
 
 async function handleAttachPress() {
-  const result = await DocumentPicker.getDocumentAsync({ type: 'text/*' });
-  if (result.canceled) return;
-  const file = result.assets[0];
-  const content = await FileSystem.readAsStringAsync(file.uri);
-  const sourceHash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    content
-  );
+  const result = await DocumentPicker.getDocumentAsync({ type: 'text/*' })
+  if (result.canceled) return
+  const file = result.assets[0]
+  const content = await FileSystem.readAsStringAsync(file.uri)
+  const sourceHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, content)
 
-  const changed = await checkChanged(character.id, file.name, sourceHash);
+  const changed = await checkChanged(character.id, file.name, sourceHash)
   if (!changed) {
-    showToast('Document already ingested — no changes detected');
-    return;
+    showToast('Document already ingested — no changes detected')
+    return
   }
 
   try {
@@ -227,13 +231,13 @@ async function handleAttachPress() {
       sourceRef: file.name,
       sourceHash,
       documentChunk: content,
-    });
-    showToast('Document ingested');
+    })
+    showToast('Document ingested')
   } catch (e) {
     if (e instanceof WikiBusyError) {
-      showToast('Already processing this document — please wait');
+      showToast('Already processing this document — please wait')
     } else {
-      throw e;
+      throw e
     }
   }
 }
@@ -245,22 +249,21 @@ async function handleAttachPress() {
 
 `WikiBusyError` is thrown by `ingestDocument` when a concurrent ingest for the same `(entityId, sourceRef)` is in flight — handled with a user-facing toast.
 
-
 ### Entity Status Indicators
 
 `getEntityStatus(entityId)` is synchronous and safe to call from a React render loop. Wire it up in the chat screen with a low-cadence poll:
 
 ```ts
 // In the chat screen component (premium users only)
-const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false, heal: false });
+const [wikiStatus, setWikiStatus] = useState({ ingesting: false, librarian: false, heal: false })
 
 useEffect(() => {
-  if (!isPremium) return;
+  if (!isPremium) return
   const interval = setInterval(() => {
-    setWikiStatus(getWiki().getEntityStatus(character.id));
-  }, 2000);
-  return () => clearInterval(interval);
-}, [character.id, isPremium]);
+    setWikiStatus(getWiki().getEntityStatus(character.id))
+  }, 2000)
+  return () => clearInterval(interval)
+}, [character.id, isPremium])
 
 // wikiStatus.ingesting → show "Ingesting document…" near compose bar
 // wikiStatus.librarian → show subtle "Processing memories…" in chat header
@@ -268,7 +271,6 @@ useEffect(() => {
 ```
 
 No new screen. Inline indicators only.
-
 
 ### Maintenance & Prune
 
@@ -278,18 +280,18 @@ No new screen. Inline indicators only.
 // After wikiSync completes (save_to_cloud=1 characters only)
 try {
   await getWiki().runPrune(characterId, {
-    retainSoftDeletedFor: 7,  // days — package default
-    retainEventsFor: 30,      // days — matches pruneEventsAfter config key
-    vacuum: false,            // too slow on mobile for routine use
-  });
+    retainSoftDeletedFor: 7, // days — package default
+    retainEventsFor: 30, // days — matches pruneEventsAfter config key
+    vacuum: false, // too slow on mobile for routine use
+  })
 } catch (e) {
-  if (e instanceof WikiBusyError) { /* defer to next sync cycle */ }
-  else throw e;
+  if (e instanceof WikiBusyError) {
+    /* defer to next sync cycle */
+  } else throw e
 }
 ```
 
 Also exposed via `useWikiMaintenance` (package hook extended with `runPrune` in next-version-improvements) for optional developer/settings screen use.
-
 
 ### Cloud Sync — Manual, Last-Write-Wins
 
@@ -306,6 +308,7 @@ Character wiki memory cloud sync is **user-initiated only** via a sync button on
 **Result:** Local and cloud are eventually consistent. Whichever version of a fact was edited most recently (highest `updated_at`) wins on both sides.
 
 **Example:**
+
 - Local fact `id=X` has `updated_at=1000`; cloud fact `id=X` has `updated_at=800`.
 - Client sends local snapshot to server. Server sees incoming `updated_at=1000 > cloud.updated_at=800` → overwrites cloud row with local version.
 - Server returns merged bundle (cloud fact now has `updated_at=1000`).
@@ -320,6 +323,7 @@ Character wiki memory cloud sync is **user-initiated only** via a sync button on
 Where `MemoryDump = { generatedAt: number, entities: Record<string, MemoryBundle> }` — output of `wiki.exportDump([characterId])`.
 
 **Server logic:**
+
 1. Auth check + premium check + `save_to_cloud=1` check (character lookup).
 2. **LWW upsert** to Cloud SQL: for each incoming fact/task by `id`, if no cloud row exists, insert it. If cloud row exists and incoming `updated_at > cloud.updated_at`, overwrite the cloud row. Otherwise, keep the cloud row. Events are append-only by id (no `updated_at` for events).
 3. Fetch full merged bundle for character from Cloud SQL (includes cloud-only rows that were not in the local snapshot).
@@ -332,20 +336,21 @@ The background character sync in `characterSyncService` also syncs wiki memory w
 **User-initiated sync (manual, via sync button):**
 
 When the user explicitly presses the character sync button, it:
+
 1. Uses `useWikiExport` to capture the freshest local snapshot (all pending writes flushed).
 2. Calls `wikiSync` with that snapshot.
 3. Receives the merged cloud state.
 4. Calls `wiki.importDump(remoteDump, { merge: true })` to pull any cloud-only changes back down to local.
 
 ```ts
-import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react';
+import { useWikiExport } from '@equationalapplications/expo-llm-wiki/react'
 
-const { execute: exportWiki, isPending: isExporting } = useWikiExport();
+const { execute: exportWiki, isPending: isExporting } = useWikiExport()
 
 async function handleSyncPress() {
-  const dump = await exportWiki([character.id]); // fresh snapshot, captures all pending writes
-  const { data } = await wikiSyncFn({ characterId: character.id, dump });
-  await getWiki().importDump(data.remoteDump, { merge: true }); // LWW by updated_at
+  const dump = await exportWiki([character.id]) // fresh snapshot, captures all pending writes
+  const { data } = await wikiSyncFn({ characterId: character.id, dump })
+  await getWiki().importDump(data.remoteDump, { merge: true }) // LWW by updated_at
 }
 ```
 
@@ -368,7 +373,6 @@ async function handleSyncPress() {
 
 No `MIGRATIONS` entries needed in clanker's `schema.ts` for these — package manages them via its own migration registry. The `resolution_note` field will not be implemented.
 
-
 ### Cloud SQL (Drizzle, `functions/src/db/schema.ts`)
 
 New tables mirroring the package schema, FK to `characters.id` / `users.id`:
@@ -376,8 +380,12 @@ New tables mirroring the package schema, FK to `characters.id` / `users.id`:
 ```ts
 export const wikiEntries = pgTable('wiki_entries', {
   id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
   title: text('title').notNull(),
   body: text('body').notNull(),
   tags: jsonb('tags').notNull().default('[]'),
@@ -392,14 +400,18 @@ export const wikiEntries = pgTable('wiki_entries', {
   deleted_at: bigint('deleted_at', { mode: 'number' }),
   // tsvector for Cloud SQL FTS (GIN index)
   search_vector: tsvector('search_vector').generatedAlwaysAs(
-    sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(body,'') || ' ' || coalesce(tags::text,''))`
+    sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(body,'') || ' ' || coalesce(tags::text,''))`,
   ),
-});
+})
 
 export const wikiTasks = pgTable('wiki_tasks', {
   id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
   description: text('description').notNull(),
   status: text('status').notNull().default('pending'),
   priority: integer('priority').notNull().default(0),
@@ -408,17 +420,21 @@ export const wikiTasks = pgTable('wiki_tasks', {
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
   resolved_at: bigint('resolved_at', { mode: 'number' }),
   deleted_at: bigint('deleted_at', { mode: 'number' }),
-});
+})
 
 export const wikiEvents = pgTable('wiki_events', {
   id: text('id').primaryKey(),
-  characterId: uuid('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
   event_type: text('event_type').notNull(),
   summary: text('summary').notNull(),
   related_entry_id: text('related_entry_id'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
-});
+})
 ```
 
 Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate migration via `cd functions && npm run db:generate && npm run migrate` (see `/memories/repo/cloud-sql-migrations.md`).
@@ -427,8 +443,8 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 
 ## Files Touched
 
-
 ### Deleted
+
 - `src/database/wikiDatabase.ts`
 - `src/database/agentTaskDatabase.ts`
 - `src/database/memoryEventDatabase.ts`
@@ -441,8 +457,8 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 
 > **No cloud function files are deleted as part of this spec.** `functions/src/memoryFunctions.ts`, its split files (`memoryRead.ts`, `memoryWrite.ts`, `memoryHeal.ts`, `memoryForget.ts`, `syncCharacterMemory.ts`, `memoryIngest.ts`), and `functions/lib/memoryFunctions.test.js` are intentionally left in place. Removal of those files is deferred to a separate cleanup step after the old callables have been fully retired from all clients.
 
-
 ### New
+
 - `src/services/wikiService.ts` — wiki singleton + `setupWiki()`
 - `src/services/wikiLlmProvider.ts` — `createWikiLlmProvider(appCheckReady)`
 - `functions/src/wikiLlm.ts` — thin LLM proxy callable + handler
@@ -452,8 +468,8 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 - `functions/src/wikiLlm.test.ts` — auth gate, premium gate, Vertex proxy
 - `functions/src/wikiSync.test.ts` — upsert, fetch, merge, auth guards
 
-
 ### Modified
+
 - `src/database/synonymMapBase.ts` — change export to `Record<string, string[]>` (same terms, new shape)
 - `src/services/aiChatService.ts` — replace `fetchMemoryBundle` + `wikiHealMachine WRITE` with `wiki.read()` + `wiki.write()`; import `formatContext` from `@equationalapplications/expo-llm-wiki` and replace manual bundle formatting in `buildChatPrompt` with `formatContext(bundle)`.
 - `src/database/schema.ts` — remove `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` from `CREATE_TABLES`, `MIGRATIONS`, `MIGRATION_SKIP_GUARDS`, `LATEST_SCHEMA_REQUIRED_COLUMNS`. Remove `heal_checkpoint`/`memory_checkpoint` columns from `characters` additions (package owns checkpoints in `llm_wiki_checkpoints`). Bump `SCHEMA_VERSION` to next integer (e.g. `12`); add `MIGRATIONS[12]` that `DROP TABLE IF EXISTS`es `wiki_entries`, `agent_tasks`, `memory_events`, `derived_synonyms` and runs `ALTER TABLE characters DROP COLUMN IF EXISTS heal_checkpoint, DROP COLUMN IF EXISTS memory_checkpoint` (SQLite does not support `DROP COLUMN` prior to 3.35 — use `PRAGMA table_info` + recreate pattern if needed, or simply leave the columns as harmless dead weight and skip the ALTER). Add `MIGRATION_SKIP_GUARDS[12]` checking `wiki_entries` does not exist.
@@ -468,15 +484,14 @@ Indexes: GIN on `search_vector`; `(character_id)` on all three tables. Generate 
 - **Character sync button / screen** — use `useWikiExport` hook; wire `isPending` to button disabled/loading state; pass export result to `wikiSync` callable then `importDump` with merge=true.
 - **App root** — mount `WikiProvider` from `@equationalapplications/expo-llm-wiki/react` once, inside the existing provider stack.
 
-
 ### Unchanged
+
 - `src/services/aiChatService.ts` `triggerConversationSummary` path — runs for all users, untouched.
 - `generateReply` callable — unchanged.
 - `summarizeText` callable — unchanged.
 - `characters.context` column — unchanged.
 
 ---
-
 
 ## Wire-up: `aiChatService.sendMessageWithAIResponse`
 
@@ -505,12 +520,12 @@ Post-turn (premium only, fire-and-forget):
 
 ---
 
-
 ## Tests
 
 ### `__tests__/wikiService.test.ts`
 
 Mock `@equationalapplications/expo-llm-wiki` via `jest.mock('@equationalapplications/expo-llm-wiki', ...)`. Assert:
+
 - `setupWiki()` calls `wiki.setup()` once.
 - `wiki.read()` called pre-turn for premium users; skipped for non-premium.
 - `wiki.write()` called post-turn for premium users with correct `event_type` and summary.
@@ -525,15 +540,16 @@ Mock `@equationalapplications/expo-llm-wiki` via `jest.mock('@equationalapplicat
 ### `functions/src/wikiLlm.test.ts`
 
 Node `node:test` pattern (see `/memories/repo/clanker-functions-notes.md`). Mock auth + Vertex. Assert:
+
 - Unauthenticated request → `unauthenticated` error.
 - Non-premium user → `permission-denied` error.
 - Premium user → calls Vertex with provided prompts; returns `{ text: string }`.
 - No credits deducted.
 
-
 ### `functions/src/wikiSync.test.ts`
 
 Assert:
+
 - Unauthenticated → error.
 - Non-premium → error.
 - `save_to_cloud=0` character → skips Cloud SQL write, returns empty remoteDump.

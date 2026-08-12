@@ -41,7 +41,7 @@ export async function embedText(text: string): Promise<number[]> {
     return values
   } catch (err) {
     if (isRetryable(err)) {
-      await new Promise(r => setTimeout(r, 1000))
+      await new Promise((r) => setTimeout(r, 1000))
       const result = await ai.models.embedContent({ model: EMBEDDING_MODEL, contents: text })
       const values = result.embeddings?.[0]?.values
       if (!values) throw new Error('No embedding values returned after retry')

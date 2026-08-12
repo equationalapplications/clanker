@@ -8,32 +8,32 @@ import { useTheme } from 'react-native-paper'
  * Renders nothing when the device is online.
  */
 export function NetworkStatusBanner() {
-    const [isOnline, setIsOnline] = useState(() => onlineManager.isOnline())
-    const { colors } = useTheme()
+  const [isOnline, setIsOnline] = useState(() => onlineManager.isOnline())
+  const { colors } = useTheme()
 
-    useEffect(() => {
-        const unsubscribe = onlineManager.subscribe((online) => {
-            setIsOnline(online)
-        })
-        return unsubscribe
-    }, [])
+  useEffect(() => {
+    const unsubscribe = onlineManager.subscribe((online) => {
+      setIsOnline(online)
+    })
+    return unsubscribe
+  }, [])
 
-    if (isOnline) return null
+  if (isOnline) return null
 
-    return (
-        <View style={[styles.banner, { backgroundColor: colors.inverseSurface }]}>
-            <Text style={[styles.text, { color: colors.inverseOnSurface }]}>You&apos;re offline</Text>
-        </View>
-    )
+  return (
+    <View style={[styles.banner, { backgroundColor: colors.inverseSurface }]}>
+      <Text style={[styles.text, { color: colors.inverseOnSurface }]}>You&apos;re offline</Text>
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-    banner: {
-        paddingVertical: 6,
-        alignItems: 'center',
-    },
-    text: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
+  banner: {
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  text: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
 })

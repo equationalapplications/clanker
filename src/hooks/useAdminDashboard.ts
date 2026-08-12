@@ -33,8 +33,15 @@ export function useSetAdminUserCredits() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, credits, reason }: { userId: string; credits: number; reason: string }) =>
-      setAdminUserCredits({ userId, credits, reason }),
+    mutationFn: ({
+      userId,
+      credits,
+      reason,
+    }: {
+      userId: string
+      credits: number
+      reason: string
+    }) => setAdminUserCredits({ userId, credits, reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] })
     },

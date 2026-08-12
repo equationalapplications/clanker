@@ -25,12 +25,8 @@ describe('character_images schema', () => {
   })
 
   it('guards both migrations so legacy databases can skip them', () => {
-    expect(MIGRATION_SKIP_GUARDS[22]).toEqual([
-      { table: 'character_images', column: 'id' },
-    ])
-    expect(MIGRATION_SKIP_GUARDS[23]).toEqual([
-      { table: 'characters', column: 'active_image_id' },
-    ])
+    expect(MIGRATION_SKIP_GUARDS[22]).toEqual([{ table: 'character_images', column: 'id' }])
+    expect(MIGRATION_SKIP_GUARDS[23]).toEqual([{ table: 'characters', column: 'active_image_id' }])
   })
 
   it('creates the same objects on a fresh install', () => {
@@ -79,9 +75,7 @@ describe('migration 24 — chat photo linkage', () => {
   })
 
   it('is skipped when the column already exists', () => {
-    expect(MIGRATION_SKIP_GUARDS[24]).toEqual([
-      { table: 'character_images', column: 'message_id' },
-    ])
+    expect(MIGRATION_SKIP_GUARDS[24]).toEqual([{ table: 'character_images', column: 'message_id' }])
   })
 
   it('fresh installs get the column without running the migration', () => {

@@ -74,6 +74,7 @@ Clients should treat these codes consistently:
 ## Related Files
 
 These files implement this normalization contract:
+
 - `functions/src/spendCredits.ts` — applies normalization rules
 - `functions/src/exchangeToken.ts` — applies normalization rules
 - `functions/src/generateReply.ts` — applies normalization rules

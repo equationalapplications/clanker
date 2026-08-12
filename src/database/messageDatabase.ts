@@ -3,31 +3,31 @@
  * Local-first architecture with optional server sync via Firebase callables
  */
 
-import { IMessage } from 'react-native-gifted-chat'
+import type { Message } from '~/types/chat'
 import { getDatabase } from './index'
 
 export interface LocalMessage {
-    id: string
-    character_id: string
-    sender_user_id: string
-    recipient_user_id: string | null
-    text: string
-    created_at: number
-    message_data: string // JSON stringified IMessage data
-    pending: number // 0 or 1 (SQLite boolean)
-    sent: number // 0 or 1
-    error: number // 0 or 1
-    edited: number // 0 or 1
-    synced_at: number | null  // null = not synced to cloud
+  id: string
+  character_id: string
+  sender_user_id: string
+  recipient_user_id: string | null
+  text: string
+  created_at: number
+  message_data: string // JSON stringified Message data
+  pending: number // 0 or 1 (SQLite boolean)
+  sent: number // 0 or 1
+  error: number // 0 or 1
+  edited: number // 0 or 1
+  synced_at: number | null // null = not synced to cloud
 }
 
 /**
- * Convert LocalMessage to IMessage format for GiftedChat
+ * Convert LocalMessage to Message format for GiftedChat
  */
 function toGiftedChatMessage(
   msg: LocalMessage,
   currentUserId: string,
-): IMessage & { character_id: string } {
+): Message & { character_id: string } {
   const isUserMessage = msg.sender_user_id === currentUserId
 
   return {
@@ -43,7 +43,6 @@ function toGiftedChatMessage(
     character_id: msg.character_id,
     pending: msg.pending === 1,
     sent: msg.sent === 1,
-    received: !isUserMessage && msg.sent === 1,
   }
 }
 
@@ -56,7 +55,7 @@ interface ExpectedMessageRow {
   syncedAt?: number | null
 }
 
-export function resolveCreatedAtMs(additionalData?: Partial<IMessage>): number {
+export function resolveCreatedAtMs(additionalData?: Partial<Message>): number {
   const value = additionalData?.createdAt
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.getTime()
@@ -76,11 +75,8 @@ async function resolveInsertConflict(
   id: string,
   userId: string,
   expected: ExpectedMessageRow,
-): Promise<IMessage & { character_id: string }> {
-  const existing = await db.getFirstAsync<LocalMessage>(
-    'SELECT * FROM messages WHERE id = ?',
-    [id],
-  )
+): Promise<Message & { character_id: string }> {
+  const existing = await db.getFirstAsync<LocalMessage>('SELECT * FROM messages WHERE id = ?', [id])
   if (!existing) {
     throw new Error(`Message insert conflict for id ${id} but no row found`)
   }
@@ -103,10 +99,9 @@ async function resolveInsertConflict(
       'UPDATE messages SET message_data = ?, synced_at = COALESCE(?, synced_at) WHERE id = ?',
       [expected.messageData, expected.syncedAt ?? null, id],
     )
-    const updated = await db.getFirstAsync<LocalMessage>(
-      'SELECT * FROM messages WHERE id = ?',
-      [id],
-    )
+    const updated = await db.getFirstAsync<LocalMessage>('SELECT * FROM messages WHERE id = ?', [
+      id,
+    ])
     if (!updated) {
       throw new Error(`Message row missing after merge update for id ${id}`)
     }
@@ -120,359 +115,369 @@ async function resolveInsertConflict(
  * Get all messages for a character conversation
  */
 export async function getMessages(
-    characterId: string,
-    userId: string,
-    limit: number = 50,
-    offset: number = 0,
-): Promise<IMessage[]> {
-    const db = await getDatabase()
+  characterId: string,
+  userId: string,
+  limit: number = 50,
+  offset: number = 0,
+): Promise<Message[]> {
+  const db = await getDatabase()
 
-    const messages = await db.getAllAsync<LocalMessage>(
-        `SELECT * FROM messages 
+  const messages = await db.getAllAsync<LocalMessage>(
+    `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
      ORDER BY created_at DESC, rowid DESC 
      LIMIT ? OFFSET ?`,
-        [characterId, userId, userId, limit, offset],
-    )
+    [characterId, userId, userId, limit, offset],
+  )
 
-    return messages.map((msg) => toGiftedChatMessage(msg, userId))
+  return messages.map((msg) => toGiftedChatMessage(msg, userId))
 }
 
 /**
  * Get a single message by ID
  */
-export async function getMessage(messageId: string, userId: string): Promise<IMessage | null> {
-    const db = await getDatabase()
+export async function getMessage(messageId: string, userId: string): Promise<Message | null> {
+  const db = await getDatabase()
 
-    const message = await db.getFirstAsync<LocalMessage>(
-        'SELECT * FROM messages WHERE id = ? AND (sender_user_id = ? OR recipient_user_id = ?)',
-        [messageId, userId, userId],
-    )
+  const message = await db.getFirstAsync<LocalMessage>(
+    'SELECT * FROM messages WHERE id = ? AND (sender_user_id = ? OR recipient_user_id = ?)',
+    [messageId, userId, userId],
+  )
 
-    return message ? toGiftedChatMessage(message, userId) : null
+  return message ? toGiftedChatMessage(message, userId) : null
 }
 
 /**
  * Send a new message (save to local database)
  */
 export async function sendMessage(
-    characterId: string,
-    userId: string,
-    text: string,
-    messageId?: string,
-    additionalData?: Partial<IMessage>,
-): Promise<IMessage> {
-    const db = await getDatabase()
+  characterId: string,
+  userId: string,
+  text: string,
+  messageId?: string,
+  additionalData?: Partial<Message>,
+): Promise<Message> {
+  const db = await getDatabase()
 
-    const id = messageId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const createdAt = resolveCreatedAtMs(additionalData)
-    const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
+  const id = messageId || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const createdAt = resolveCreatedAtMs(additionalData)
+  const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    // ON CONFLICT DO NOTHING: a persisted/resumed mutation (see PersistQueryClientProvider in
-    // app/_layout.tsx) can replay the same client-generated id after a paused mutation is restored.
-    // The replay carries identical content, so a duplicate insert is a no-op, not an error.
-    const insertResult = await db.runAsync(
-        `INSERT INTO messages
+  // ON CONFLICT DO NOTHING: a persisted/resumed mutation (see PersistQueryClientProvider in
+  // app/_layout.tsx) can replay the same client-generated id after a paused mutation is restored.
+  // The replay carries identical content, so a duplicate insert is a no-op, not an error.
+  const insertResult = await db.runAsync(
+    `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO NOTHING`,
-        [id, characterId, userId, characterId, text, createdAt, messageData, 0, 1, 0, 0],
-    )
+    [id, characterId, userId, characterId, text, createdAt, messageData, 0, 1, 0, 0],
+  )
 
-    if (insertResult.changes === 0) {
-        return resolveInsertConflict(db, id, userId, {
-            characterId,
-            senderUserId: userId,
-            recipientUserId: characterId,
-            text,
-            messageData,
-        })
-    }
+  if (insertResult.changes === 0) {
+    return resolveInsertConflict(db, id, userId, {
+      characterId,
+      senderUserId: userId,
+      recipientUserId: characterId,
+      text,
+      messageData,
+    })
+  }
 
-    return {
-        _id: id,
-        text,
-        createdAt: new Date(createdAt),
-        user: {
-            _id: userId,
-            name: 'You',
-        },
-        sent: true,
-        pending: false,
-        ...additionalData,
-    }
+  return {
+    _id: id,
+    text,
+    createdAt: new Date(createdAt),
+    user: {
+      _id: userId,
+      name: 'You',
+    },
+    sent: true,
+    pending: false,
+    ...additionalData,
+  }
 }
 
 /**
  * Save an AI response message
  */
 export async function saveAIMessage(
-    characterId: string,
-    userId: string,
-    text: string,
-    messageId?: string,
-    additionalData?: Partial<IMessage>,
-    syncedAt?: number,
-): Promise<IMessage> {
-    const db = await getDatabase()
+  characterId: string,
+  userId: string,
+  text: string,
+  messageId?: string,
+  additionalData?: Partial<Message>,
+  syncedAt?: number,
+): Promise<Message> {
+  const db = await getDatabase()
 
-    const id = messageId || `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const createdAt = resolveCreatedAtMs(additionalData)
-    const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
+  const id = messageId || `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const createdAt = resolveCreatedAtMs(additionalData)
+  const messageData = additionalData ? JSON.stringify(additionalData) : '{}'
 
-    const insertResult = await db.runAsync(
-        `INSERT INTO messages
+  const insertResult = await db.runAsync(
+    `INSERT INTO messages
      (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO NOTHING`,
-        [id, characterId, characterId, userId, text, createdAt, messageData, 0, 1, 0, 0, syncedAt ?? null],
-    )
+    [
+      id,
+      characterId,
+      characterId,
+      userId,
+      text,
+      createdAt,
+      messageData,
+      0,
+      1,
+      0,
+      0,
+      syncedAt ?? null,
+    ],
+  )
 
-    if (insertResult.changes === 0) {
-        return resolveInsertConflict(db, id, userId, {
-            characterId,
-            senderUserId: characterId,
-            recipientUserId: userId,
-            text,
-            messageData,
-            syncedAt: syncedAt ?? null,
-        })
-    }
+  if (insertResult.changes === 0) {
+    return resolveInsertConflict(db, id, userId, {
+      characterId,
+      senderUserId: characterId,
+      recipientUserId: userId,
+      text,
+      messageData,
+      syncedAt: syncedAt ?? null,
+    })
+  }
 
-    return {
-        _id: id,
-        text,
-        createdAt: new Date(createdAt),
-        user: {
-            _id: characterId,
-            name: 'Character',
-        },
-        sent: true,
-        pending: false,
-        ...additionalData,
-    }
+  return {
+    _id: id,
+    text,
+    createdAt: new Date(createdAt),
+    user: {
+      _id: characterId,
+      name: 'Character',
+    },
+    sent: true,
+    pending: false,
+    ...additionalData,
+  }
 }
 
 /**
  * Update message status (pending, sent, error)
  */
 export async function updateMessageStatus(
-    messageId: string,
-    status: {
-        pending?: boolean
-        sent?: boolean
-        error?: boolean
-    },
+  messageId: string,
+  status: {
+    pending?: boolean
+    sent?: boolean
+    error?: boolean
+  },
 ): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    const updates: string[] = []
-    const values: (number | string)[] = []
+  const updates: string[] = []
+  const values: (number | string)[] = []
 
-    if (status.pending !== undefined) {
-        updates.push('pending = ?')
-        values.push(status.pending ? 1 : 0)
-    }
-    if (status.sent !== undefined) {
-        updates.push('sent = ?')
-        values.push(status.sent ? 1 : 0)
-    }
-    if (status.error !== undefined) {
-        updates.push('error = ?')
-        values.push(status.error ? 1 : 0)
-    }
+  if (status.pending !== undefined) {
+    updates.push('pending = ?')
+    values.push(status.pending ? 1 : 0)
+  }
+  if (status.sent !== undefined) {
+    updates.push('sent = ?')
+    values.push(status.sent ? 1 : 0)
+  }
+  if (status.error !== undefined) {
+    updates.push('error = ?')
+    values.push(status.error ? 1 : 0)
+  }
 
-    if (updates.length === 0) return
+  if (updates.length === 0) return
 
-    values.push(messageId)
+  values.push(messageId)
 
-    await db.runAsync(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`, values)
+  await db.runAsync(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`, values)
 }
 
 /**
  * Update message text (for edits)
  */
 export async function updateMessageText(messageId: string, text: string): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    await db.runAsync('UPDATE messages SET text = ?, edited = 1 WHERE id = ?', [text, messageId])
+  await db.runAsync('UPDATE messages SET text = ?, edited = 1 WHERE id = ?', [text, messageId])
 }
 
 /**
  * Delete a message
  */
 export async function deleteMessage(messageId: string): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    await db.runAsync('DELETE FROM messages WHERE id = ?', [messageId])
+  await db.runAsync('DELETE FROM messages WHERE id = ?', [messageId])
 }
 
 /**
  * Delete all messages for a character
  */
 export async function deleteCharacterMessages(characterId: string): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    await db.runAsync('DELETE FROM messages WHERE character_id = ?', [characterId])
+  await db.runAsync('DELETE FROM messages WHERE character_id = ?', [characterId])
 }
 
 /**
  * Get message count for a character
  */
 export async function getMessageCount(characterId: string, userId: string): Promise<number> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    const result = await db.getFirstAsync<{ count: number }>(
-        `SELECT COUNT(*) as count FROM messages 
+  const result = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)`,
-        [characterId, userId, userId],
-    )
+    [characterId, userId, userId],
+  )
 
-    return result?.count || 0
+  return result?.count || 0
 }
 
 /**
  * Get last message for a character (for preview)
  */
-export async function getLastMessage(
-    characterId: string,
-    userId: string,
-): Promise<IMessage | null> {
-    const db = await getDatabase()
+export async function getLastMessage(characterId: string, userId: string): Promise<Message | null> {
+  const db = await getDatabase()
 
-    const message = await db.getFirstAsync<LocalMessage>(
-        `SELECT * FROM messages 
+  const message = await db.getFirstAsync<LocalMessage>(
+    `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
      ORDER BY created_at DESC, rowid DESC 
      LIMIT 1`,
-        [characterId, userId, userId],
-    )
+    [characterId, userId, userId],
+  )
 
-    return message ? toGiftedChatMessage(message, userId) : null
+  return message ? toGiftedChatMessage(message, userId) : null
 }
 
 /**
  * Search messages by text
  */
 export async function searchMessages(
-    characterId: string,
-    userId: string,
-    searchText: string,
-): Promise<IMessage[]> {
-    const db = await getDatabase()
+  characterId: string,
+  userId: string,
+  searchText: string,
+): Promise<Message[]> {
+  const db = await getDatabase()
 
-    const messages = await db.getAllAsync<LocalMessage>(
-        `SELECT * FROM messages 
+  const messages = await db.getAllAsync<LocalMessage>(
+    `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
      AND text LIKE ?
      ORDER BY created_at DESC, rowid DESC 
      LIMIT 50`,
-        [characterId, userId, userId, `%${searchText}%`],
-    )
+    [characterId, userId, userId, `%${searchText}%`],
+  )
 
-    return messages.map((msg) => toGiftedChatMessage(msg, userId))
+  return messages.map((msg) => toGiftedChatMessage(msg, userId))
 }
 
 /**
  * Batch insert messages (for initial sync or imports)
  */
 export async function batchInsertMessages(messages: LocalMessage[]): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    await db.withTransactionAsync(async () => {
-        for (const msg of messages) {
-            await db.runAsync(
-                `INSERT OR REPLACE INTO messages
+  await db.withTransactionAsync(async () => {
+    for (const msg of messages) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO messages
          (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    msg.id,
-                    msg.character_id,
-                    msg.sender_user_id,
-                    msg.recipient_user_id,
-                    msg.text,
-                    msg.created_at,
-                    msg.message_data,
-                    msg.pending,
-                    msg.sent,
-                    msg.error,
-                    msg.edited,
-                    msg.synced_at,
-                ],
-            )
-        }
-    })
+        [
+          msg.id,
+          msg.character_id,
+          msg.sender_user_id,
+          msg.recipient_user_id,
+          msg.text,
+          msg.created_at,
+          msg.message_data,
+          msg.pending,
+          msg.sent,
+          msg.error,
+          msg.edited,
+          msg.synced_at,
+        ],
+      )
+    }
+  })
 }
 
 /**
  * Get the most recent message across all conversations for a user
  */
 export async function getMostRecentMessage(
-    userId: string,
-): Promise<(IMessage & { character_id: string }) | null> {
-    const db = await getDatabase()
+  userId: string,
+): Promise<(Message & { character_id: string }) | null> {
+  const db = await getDatabase()
 
-    const message = await db.getFirstAsync<LocalMessage>(
-        `SELECT * FROM messages
+  const message = await db.getFirstAsync<LocalMessage>(
+    `SELECT * FROM messages
          WHERE sender_user_id = ? OR recipient_user_id = ?
          ORDER BY created_at DESC
          LIMIT 1`,
-        [userId, userId],
-    )
+    [userId, userId],
+  )
 
-    if (!message) return null
+  if (!message) return null
 
-    return toGiftedChatMessage(message, userId)
+  return toGiftedChatMessage(message, userId)
 }
 
 /**
  * Get recent messages for summary generation (oldest to newest)
  */
 export async function getMessagesForContextSummary(
-    characterId: string,
-    userId: string,
-    limit: number,
-): Promise<IMessage[]> {
-    const db = await getDatabase()
+  characterId: string,
+  userId: string,
+  limit: number,
+): Promise<Message[]> {
+  const db = await getDatabase()
 
-    const messages = await db.getAllAsync<LocalMessage>(
-        `SELECT * FROM messages 
+  const messages = await db.getAllAsync<LocalMessage>(
+    `SELECT * FROM messages 
      WHERE character_id = ? 
      AND (sender_user_id = ? OR recipient_user_id = ?)
      ORDER BY created_at DESC, rowid DESC 
      LIMIT ?`,
-        [characterId, userId, userId, limit],
-    )
+    [characterId, userId, userId, limit],
+  )
 
-    return messages.reverse().map((msg) => toGiftedChatMessage(msg, userId))
+  return messages.reverse().map((msg) => toGiftedChatMessage(msg, userId))
 }
 
 /**
  * Prune old messages while keeping only the newest messages for a conversation
  */
 export async function pruneMessagesForCharacter(
-    characterId: string,
-    userId: string,
-    keepLatestCount: number,
+  characterId: string,
+  userId: string,
+  keepLatestCount: number,
 ): Promise<void> {
-    const db = await getDatabase()
+  const db = await getDatabase()
 
-    if (keepLatestCount <= 0) {
-        await db.runAsync(
-            `DELETE FROM messages 
+  if (keepLatestCount <= 0) {
+    await db.runAsync(
+      `DELETE FROM messages 
        WHERE character_id = ? 
        AND (sender_user_id = ? OR recipient_user_id = ?)`,
-            [characterId, userId, userId],
-        )
-        return
-    }
+      [characterId, userId, userId],
+    )
+    return
+  }
 
-    await db.runAsync(
-        `DELETE FROM messages
+  await db.runAsync(
+    `DELETE FROM messages
      WHERE character_id = ?
        AND (sender_user_id = ? OR recipient_user_id = ?)
        AND id NOT IN (
@@ -483,30 +488,30 @@ export async function pruneMessagesForCharacter(
          ORDER BY created_at DESC
          LIMIT ?
        )`,
-        [characterId, userId, userId, characterId, userId, userId, keepLatestCount],
-    )
+    [characterId, userId, userId, characterId, userId, userId, keepLatestCount],
+  )
 }
 
 export async function getUnsyncedMessages(
-    characterId: string,
-    userId: string,
+  characterId: string,
+  userId: string,
 ): Promise<LocalMessage[]> {
-    const db = await getDatabase()
-    return db.getAllAsync<LocalMessage>(
-        `SELECT * FROM messages
+  const db = await getDatabase()
+  return db.getAllAsync<LocalMessage>(
+    `SELECT * FROM messages
      WHERE character_id = ? AND (sender_user_id = ? OR recipient_user_id = ?) AND synced_at IS NULL
      ORDER BY created_at ASC`,
-        [characterId, userId, userId],
-    )
+    [characterId, userId, userId],
+  )
 }
 
 export async function markMessagesAsSynced(messageIds: string[]): Promise<void> {
-    if (messageIds.length === 0) return
-    const db = await getDatabase()
-    const now = Date.now()
-    const placeholders = messageIds.map(() => '?').join(',')
-    await db.runAsync(
-        `UPDATE messages SET synced_at = ? WHERE id IN (${placeholders})`,
-        [now, ...messageIds],
-    )
+  if (messageIds.length === 0) return
+  const db = await getDatabase()
+  const now = Date.now()
+  const placeholders = messageIds.map(() => '?').join(',')
+  await db.runAsync(`UPDATE messages SET synced_at = ? WHERE id IN (${placeholders})`, [
+    now,
+    ...messageIds,
+  ])
 }

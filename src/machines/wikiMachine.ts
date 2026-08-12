@@ -347,7 +347,9 @@ export const wikiMachine = createMachine(
       }),
       requeueCurrentEvent: assign({
         pendingEvents: ({ context }) =>
-          context.currentEvent ? [context.currentEvent, ...context.pendingEvents] : context.pendingEvents,
+          context.currentEvent
+            ? [context.currentEvent, ...context.pendingEvents]
+            : context.pendingEvents,
         currentEvent: () => null,
       }),
       enqueueEvent: assign({
@@ -364,22 +366,17 @@ export const wikiMachine = createMachine(
       }),
     },
     guards: {
-      isBusyError: ({ event }) =>
-        (event as { error?: unknown }).error instanceof WikiBusyError,
+      isBusyError: ({ event }) => (event as { error?: unknown }).error instanceof WikiBusyError,
     },
     delays: {
       BUSY_RETRY_DELAY: ({ context }) => context.busyRetryDelayMs,
     },
     actors: {
-      subscribeStatus: fromCallback<
-        WikiMachineEvents,
-        { wiki: Wiki; entityId: string }
-      >(({ sendBack, input }) => {
+      subscribeStatus: fromCallback<WikiMachineEvents, { wiki: Wiki; entityId: string }>(
+        ({ sendBack, input }) => {
           if (typeof input.wiki.subscribeEntityStatus !== 'function') {
             reportError(
-              new Error(
-                `subscribeEntityStatus not available for entity ${input.entityId}`,
-              ),
+              new Error(`subscribeEntityStatus not available for entity ${input.entityId}`),
               `wiki:${input.entityId}:statusSubscription`,
             )
             return () => {}
@@ -394,11 +391,7 @@ export const wikiMachine = createMachine(
         },
       ),
       bootstrapOntologyActor: fromPromise(
-        async ({
-          input,
-        }: {
-          input: { wiki: Wiki; entityId: string }
-        }) => {
+        async ({ input }: { input: { wiki: Wiki; entityId: string } }) => {
           const existing = await input.wiki.getOntologyManifest(input.entityId)
           if (!existing || existing.mode === 'off') {
             await input.wiki.setOntologyManifest(
@@ -410,20 +403,12 @@ export const wikiMachine = createMachine(
         },
       ),
       readActor: fromPromise(
-        async ({
-          input,
-        }: {
-          input: { wiki: Wiki; entityId: string; query: string }
-        }) => {
+        async ({ input }: { input: { wiki: Wiki; entityId: string; query: string } }) => {
           return readFromWiki(input.wiki, input.entityId, input.query)
         },
       ),
       writeActor: fromPromise(
-        async ({
-          input,
-        }: {
-          input: { wiki: Wiki; entityId: string; summary: string }
-        }) => {
+        async ({ input }: { input: { wiki: Wiki; entityId: string; summary: string } }) => {
           await input.wiki.write(input.entityId, {
             event_type: 'observation',
             summary: input.summary,
@@ -432,22 +417,14 @@ export const wikiMachine = createMachine(
         },
       ),
       ingestActor: fromPromise(
-        async ({
-          input,
-        }: {
-          input: { wiki: Wiki; entityId: string; doc: IngestArgs }
-        }) => {
+        async ({ input }: { input: { wiki: Wiki; entityId: string; doc: IngestArgs } }) => {
           const result = await input.wiki.ingestDocument(input.entityId, input.doc)
           clearWikiNoResultCache(input.entityId)
           return result
         },
       ),
       forgetActor: fromPromise(
-        async ({
-          input,
-        }: {
-          input: { wiki: Wiki; entityId: string; args: ForgetArgs }
-        }) => {
+        async ({ input }: { input: { wiki: Wiki; entityId: string; args: ForgetArgs } }) => {
           await input.wiki.forget(input.entityId, input.args)
           clearWikiNoResultCache(input.entityId)
         },

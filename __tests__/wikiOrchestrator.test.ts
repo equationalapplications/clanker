@@ -244,20 +244,34 @@ describe('wikiOrchestrator', () => {
       wikiOrchestrator.getOrSpawn('e1', wiki as never)
       await new Promise((r) => setTimeout(r, 0))
       expect(wiki.getOntologyManifest).toHaveBeenCalledWith('e1')
-      expect(wiki.setOntologyManifest).toHaveBeenCalledWith('e1', { node_types: [], edge_types: [] }, { mode: 'emergent' })
+      expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
+        'e1',
+        { node_types: [], edge_types: [] },
+        { mode: 'emergent' },
+      )
     })
 
     it('seeds when the existing mode is "off"', async () => {
       const wiki = makeWikiMock()
-      wiki.getOntologyManifest.mockResolvedValue({ mode: 'off', manifest: { node_types: [], edge_types: [] } })
+      wiki.getOntologyManifest.mockResolvedValue({
+        mode: 'off',
+        manifest: { node_types: [], edge_types: [] },
+      })
       wikiOrchestrator.getOrSpawn('e1', wiki as never)
       await new Promise((r) => setTimeout(r, 0))
-      expect(wiki.setOntologyManifest).toHaveBeenCalledWith('e1', { node_types: [], edge_types: [] }, { mode: 'emergent' })
+      expect(wiki.setOntologyManifest).toHaveBeenCalledWith(
+        'e1',
+        { node_types: [], edge_types: [] },
+        { mode: 'emergent' },
+      )
     })
 
     it('does not reseed when the existing mode is already emergent', async () => {
       const wiki = makeWikiMock()
-      wiki.getOntologyManifest.mockResolvedValue({ mode: 'emergent', manifest: { node_types: [], edge_types: [] } })
+      wiki.getOntologyManifest.mockResolvedValue({
+        mode: 'emergent',
+        manifest: { node_types: [], edge_types: [] },
+      })
       wikiOrchestrator.getOrSpawn('e1', wiki as never)
       await new Promise((r) => setTimeout(r, 0))
       expect(wiki.setOntologyManifest).not.toHaveBeenCalled()
@@ -265,7 +279,10 @@ describe('wikiOrchestrator', () => {
 
     it('does not reseed when the existing mode is strict', async () => {
       const wiki = makeWikiMock()
-      wiki.getOntologyManifest.mockResolvedValue({ mode: 'strict', manifest: { node_types: [{ type: 'person', description: 'x' }], edge_types: [] } })
+      wiki.getOntologyManifest.mockResolvedValue({
+        mode: 'strict',
+        manifest: { node_types: [{ type: 'person', description: 'x' }], edge_types: [] },
+      })
       wikiOrchestrator.getOrSpawn('e1', wiki as never)
       await new Promise((r) => setTimeout(r, 0))
       expect(wiki.setOntologyManifest).not.toHaveBeenCalled()

@@ -112,7 +112,10 @@ function toTimestamp(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function shouldApplyIncoming(existing: CheckoutAttemptRecord, incoming: CheckoutAttemptRecord): boolean {
+function shouldApplyIncoming(
+  existing: CheckoutAttemptRecord,
+  incoming: CheckoutAttemptRecord,
+): boolean {
   const existingAt = toTimestamp(existing.at)
   const incomingAt = toTimestamp(incoming.at)
 

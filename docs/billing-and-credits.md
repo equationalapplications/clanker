@@ -9,11 +9,11 @@ Power and subscriptions are shared across platforms. Web uses Stripe for payment
 
 ### Power Model Reference
 
-| Grant type | Power amount | Expiry |
-|---|---|---|
-| Free signup | 5 000 | Never |
-| Monthly subscription | 30 000/cycle | End of billing cycle |
-| One-time pack | 10 000 | 31 days from purchase |
+| Grant type           | Power amount | Expiry                |
+| -------------------- | ------------ | --------------------- |
+| Free signup          | 5 000        | Never                 |
+| Monthly subscription | 30 000/cycle | End of billing cycle  |
+| One-time pack        | 10 000       | 31 days from purchase |
 
 ### Refunds
 
@@ -28,19 +28,19 @@ Handled provider-side: Stripe, Apple App Store, and Google Play manage refund me
 
 Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-tool turn costs more); cloud-agent text turns charge **per internal tool-call loop iteration, capped at 5**. Live voice is billed separately on a 1-second-grace + 60-second timer. This difference is intentional.
 
-| Action | Path | Cost (Power) | Refund on failure |
-|---|---|---|---|
-| Text chat reply (grounded) | `generateReply` (Functions), no explicit `tools` (default googleSearch) | 300 / round-trip | Yes |
-| Text chat reply (standard) | `generateReply` (Functions), explicit `tools` supplied | 100 / round-trip | Yes |
-| Image generation | `generateImage` | 200 | Yes |
-| Document text conversion | `convertDocumentText` | 200 | Yes |
-| Summarization | `summarizeText` | 100 | Yes |
-| Embeddings | `generateEmbedding` | 100 / 50,000 characters (`Math.ceil`) | Yes |
-| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal` | 100 each | Yes |
-| Agent turn (text) | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 100 / internal tool-call loop iteration, max 5 | Yes (only Power actually spent this turn) |
-| Live voice | cloud-agent `/agent/live` | 500 at connect (after 1s grace), then 500 / 60s | Hang-up within 1s of connect is free; partial minute after that is billed |
-| Scheduler trigger | cloud-agent scheduler-trigger | 100 (deduped) | Yes |
-| `browser_action` tool | contextual | Voice: 100; Text: pre-billed (skipped) | See Browser Action Billing |
+| Action                             | Path                                                                        | Cost (Power)                                    | Refund on failure                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
+| Text chat reply (grounded)         | `generateReply` (Functions), no explicit `tools` (default googleSearch)     | 300 / round-trip                                | Yes                                                                       |
+| Text chat reply (standard)         | `generateReply` (Functions), explicit `tools` supplied                      | 100 / round-trip                                | Yes                                                                       |
+| Image generation                   | `generateImage`                                                             | 200                                             | Yes                                                                       |
+| Document text conversion           | `convertDocumentText`                                                       | 200                                             | Yes                                                                       |
+| Summarization                      | `summarizeText`                                                             | 100                                             | Yes                                                                       |
+| Embeddings                         | `generateEmbedding`                                                         | 100 / 50,000 characters (`Math.ceil`)           | Yes                                                                       |
+| Wiki LLM / sync, memory write/heal | `wikiLlm`, `wikiSync`, `memoryWrite`, `memoryHeal`                          | 100 each                                        | Yes                                                                       |
+| Agent turn (text)                  | cloud-agent `/agent/stream` (primary) and `POST /agent/run` (HTTP fallback) | 100 / internal tool-call loop iteration, max 5  | Yes (only Power actually spent this turn)                                 |
+| Live voice                         | cloud-agent `/agent/live`                                                   | 500 at connect (after 1s grace), then 500 / 60s | Hang-up within 1s of connect is free; partial minute after that is billed |
+| Scheduler trigger                  | cloud-agent scheduler-trigger                                               | 100 (deduped)                                   | Yes                                                                       |
+| `browser_action` tool              | contextual                                                                  | Voice: 100; Text: pre-billed (skipped)          | See Browser Action Billing                                                |
 
 **Live voice connect gate:** a session requires a balance of **≥ 500** to start (enforced by both the client and the server). The first 500‑Power spend fires ~1 second after connect (`makeBillingController`'s grace delay) — a call ended within that grace window is free; anything longer is billed 500 Power immediately, then 500 more every 60 seconds.
 
@@ -50,10 +50,10 @@ Per-action costs. Firebase text/chat paths charge **per round-trip** (a multi-to
 
 The `browser_action` tool (Desktop Bridge extension) uses **contextual billing** to avoid double-charging:
 
-| Path | Timer billing | `browser_action` flat billing |
-|------|--------------|-------------------------------|
-| Voice (`/agent/live`) | Wall-clock timer **paused** during wake + execution | `spendCredit` after paired device found |
-| Text (`POST /agent/run`) | N/A — 100 Power pre-spent per turn | Skip `spendCredit` (`preBilled: true`) |
+| Path                     | Timer billing                                       | `browser_action` flat billing           |
+| ------------------------ | --------------------------------------------------- | --------------------------------------- |
+| Voice (`/agent/live`)    | Wall-clock timer **paused** during wake + execution | `spendCredit` after paired device found |
+| Text (`POST /agent/run`) | N/A — 100 Power pre-spent per turn                  | Skip `spendCredit` (`preBilled: true`)  |
 
 **No Power spent** when no paired device is registered or when the device is paused (`isPaused: true`).
 
@@ -96,23 +96,23 @@ The meter on the app header shows a fraction of **available / grantedTotal**. `g
 
 ### Required Secrets
 
-| Variable | Description |
-|---|---|
-| `STRIPE_SECRET_KEY` | Stripe secret API key |
-| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from Stripe dashboard |
-| `CLOUD_SQL_CONNECTION_NAME` | Cloud SQL instance connection name |
-| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials |
+| Variable                                                        | Description                                  |
+| --------------------------------------------------------------- | -------------------------------------------- |
+| `STRIPE_SECRET_KEY`                                             | Stripe secret API key                        |
+| `STRIPE_WEBHOOK_SECRET`                                         | Webhook signing secret from Stripe dashboard |
+| `CLOUD_SQL_CONNECTION_NAME`                                     | Cloud SQL instance connection name           |
+| `CLOUD_SQL_DB_NAME` / `CLOUD_SQL_DB_USER` / `CLOUD_SQL_DB_PASS` | Cloud SQL database credentials               |
 
 ### Event → Action Mapping
 
-| Stripe Event | Action |
-|---|---|
-| `checkout.session.completed` (subscription) | Grant 30 000 Power expiring at `current_period_end`; expire old subscription Power |
-| `checkout.session.completed` (credit pack) | Grant 10 000 Power expiring 31 days from now |
-| `customer.subscription.updated` (renewal) | Grant 30 000 Power expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` for idempotency); expire old subscription Power |
-| `invoice.payment_succeeded` (credit pack fallback) | Grant 10 000 Power expiring 31 days from now |
-| `charge.refunded` | Deduct Power, prorated by `amount_refunded / amount` for partial refunds |
-| `customer.subscription.deleted` | No Power action — Power expires naturally at `expires_at` |
+| Stripe Event                                       | Action                                                                                                                                          |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checkout.session.completed` (subscription)        | Grant 30 000 Power expiring at `current_period_end`; expire old subscription Power                                                              |
+| `checkout.session.completed` (credit pack)         | Grant 10 000 Power expiring 31 days from now                                                                                                    |
+| `customer.subscription.updated` (renewal)          | Grant 30 000 Power expiring at `current_period_end` (referenceId = `sub_${sub.id}_${periodEnd}` for idempotency); expire old subscription Power |
+| `invoice.payment_succeeded` (credit pack fallback) | Grant 10 000 Power expiring 31 days from now                                                                                                    |
+| `charge.refunded`                                  | Deduct Power, prorated by `amount_refunded / amount` for partial refunds                                                                        |
+| `customer.subscription.deleted`                    | No Power action — Power expires naturally at `expires_at`                                                                                       |
 
 **Idempotency guard must run before expiring old Power or performing any other DB writes. Guard first, write second.**
 
@@ -142,12 +142,12 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 
 ### Event → Action Mapping
 
-| RevenueCat Event | Action |
-|---|---|
-| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add Power. |
-| `NON_RENEWING_PURCHASE` | Credit pack → add Power. |
-| `CANCELLATION` | Known subscription → keep `plan_status = 'active'` with auto-renew off. Unknown → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
-| `EXPIRATION` | Upsert `plan_tier = 'free'`, `plan_status = 'expired'`. |
+| RevenueCat Event                                  | Action                                                                                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INITIAL_PURCHASE` / `RENEWAL` / `PRODUCT_CHANGE` | Subscription → upsert `subscriptions`. Credit pack → add Power.                                                                                   |
+| `NON_RENEWING_PURCHASE`                           | Credit pack → add Power.                                                                                                                          |
+| `CANCELLATION`                                    | Known subscription → keep `plan_status = 'active'` with auto-renew off. Unknown → fall back to `plan_tier = 'free'`, `plan_status = 'cancelled'`. |
+| `EXPIRATION`                                      | Upsert `plan_tier = 'free'`, `plan_status = 'expired'`.                                                                                           |
 
 "Auto-renew off" above is now a real column (`cancel_at_period_end = true`), not just a description — see Subscription Ownership & Auto-Renew.
 
@@ -156,13 +156,13 @@ RevenueCat sends an `Authorization: Bearer <secret>` header. The handler verifie
 Configured in `functions/src/revenueCatWebhook.ts`:
 
 ```typescript
-const REVENUECAT_PRODUCT_TO_TIER: Record<string, "monthly_20" | "monthly_50"> = {
-  "monthly_20_subscription": "monthly_20",
-  "monthly_50_subscription": "monthly_50",
-};
+const REVENUECAT_PRODUCT_TO_TIER: Record<string, 'monthly_20' | 'monthly_50'> = {
+  monthly_20_subscription: 'monthly_20',
+  monthly_50_subscription: 'monthly_50',
+}
 
 // iOS (credit_100) and Android (credit_pack_100) credit‑pack product IDs
-const REVENUECAT_CREDIT_PACK_IDS = new Set(["credit_pack_100", "credit_100"]);
+const REVENUECAT_CREDIT_PACK_IDS = new Set(['credit_pack_100', 'credit_100'])
 ```
 
 Note: The webhook normalizes subscription IDs before lookup — Android-style IDs with base plan suffixes are stripped and still map correctly.
@@ -173,18 +173,16 @@ Play Billing v5 requires full `{subscription_id}:{base_plan_id}` format when ini
 
 ```typescript
 REVENUECAT_PRODUCTS.MONTHLY_20 =
-  Platform.OS === 'android'
-    ? 'monthly_20_subscription:monthly-usd-20'
-    : 'monthly_20_subscription'
+  Platform.OS === 'android' ? 'monthly_20_subscription:monthly-usd-20' : 'monthly_20_subscription'
 ```
 
 #### Google Play Console IDs
 
-| Product ID | Type | Base Plan ID |
-|---|---|---|
-| `monthly_20_subscription` | Auto-renewing subscription | `monthly-usd-20` |
-| `monthly_50_subscription` | Auto-renewing subscription | `monthly-usd-50` |
-| `credit_pack_100` (Android) / `credit_100` (iOS) | One-time product | `one-time-usd-pack` |
+| Product ID                                       | Type                       | Base Plan ID        |
+| ------------------------------------------------ | -------------------------- | ------------------- |
+| `monthly_20_subscription`                        | Auto-renewing subscription | `monthly-usd-20`    |
+| `monthly_50_subscription`                        | Auto-renewing subscription | `monthly-usd-50`    |
+| `credit_pack_100` (Android) / `credit_100` (iOS) | One-time product           | `one-time-usd-pack` |
 
 ---
 
@@ -201,6 +199,7 @@ firebase functions:secrets:set CLOUD_SQL_DB_PASS
 ```
 
 Register webhook URLs in:
+
 - **Stripe Dashboard** → Developers → Webhooks → Add endpoint
 - **RevenueCat Dashboard** → Project → Integrations → Webhooks → Add endpoint
 
@@ -236,14 +235,14 @@ Client (web)
 
 Set via Firebase Functions secrets:
 
-| Variable | Purpose |
-|---|---|
-| `STRIPE_SECRET_KEY` | Stripe API authentication |
-| `STRIPE_MONTHLY_20_PRICE_ID` | Stripe price ID for $20/month tier |
-| `STRIPE_MONTHLY_50_PRICE_ID` | Stripe price ID for $50/month tier |
-| `STRIPE_CREDIT_PACK_PRICE_ID` | Stripe price ID for $10 credit pack |
-| `STRIPE_SUCCESS_URL` | Post-checkout success redirect (default: `https://clanker-ai.com/checkout/success`) |
-| `STRIPE_CANCEL_URL` | Post-checkout cancel redirect (default: `https://clanker-ai.com/checkout/cancel`) |
+| Variable                      | Purpose                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`           | Stripe API authentication                                                           |
+| `STRIPE_MONTHLY_20_PRICE_ID`  | Stripe price ID for $20/month tier                                                  |
+| `STRIPE_MONTHLY_50_PRICE_ID`  | Stripe price ID for $50/month tier                                                  |
+| `STRIPE_CREDIT_PACK_PRICE_ID` | Stripe price ID for $10 credit pack                                                 |
+| `STRIPE_SUCCESS_URL`          | Post-checkout success redirect (default: `https://clanker-ai.com/checkout/success`) |
+| `STRIPE_CANCEL_URL`           | Post-checkout cancel redirect (default: `https://clanker-ai.com/checkout/cancel`)   |
 
 > Note: `monthly_50` purchases are intentionally disabled in `src/utilities/makePackagePurchase.ts` until RevenueCat product setup is complete. The active web checkout flow only supports `monthly_20` and `payg`.
 
@@ -261,14 +260,15 @@ Referenced in `src/config/constants.ts` and passed to `purchasePackageStripe` vi
 
 ### Checkout Redirect Pages
 
-| Route | File | Purpose |
-|---|---|---|
-| `/checkout/success` | `app/checkout/success.tsx` | Shown after successful payment; auto-navigates to app in 3s |
-| `/checkout/cancel` | `app/checkout/cancel.tsx` | Shown when user cancels; offers "Try again" and "Back to app" |
+| Route               | File                       | Purpose                                                       |
+| ------------------- | -------------------------- | ------------------------------------------------------------- |
+| `/checkout/success` | `app/checkout/success.tsx` | Shown after successful payment; auto-navigates to app in 3s   |
+| `/checkout/cancel`  | `app/checkout/cancel.tsx`  | Shown when user cancels; offers "Try again" and "Back to app" |
 
 ### Webhook Resilience
 
 `handleCheckoutCompleted` uses a two-stage lookup:
+
 1. **Primary:** look up Cloud SQL user by `customer_details.email` / `customer_email`
 2. **Fallback:** resolve by Firebase UID from `session.client_reference_id` using `findUserByFirebaseUid`
 
@@ -281,6 +281,7 @@ If neither succeeds, logs a warning and exits gracefully. Stripe retries unexpec
 ### Requirements Covered
 
 Apple requires that the purchase experience clearly exposes legal terms for subscription users:
+
 1. The paywall must include a Terms of Use link
 2. The Terms of Use destination must host custom terms and provide access to the Apple Standard EULA
 3. Custom pre-purchase or sign-up consent cannot override App Store billing/refund controls
@@ -288,17 +289,20 @@ Apple requires that the purchase experience clearly exposes legal terms for subs
 ### Current Implementation
 
 **Paywall Legal Surface** (`app/(drawer)/subscribe.tsx`):
+
 - Terms of Use link (routes to `/terms`)
 - Privacy Policy link (routes to `/privacy`)
 - Apple EULA link (opens Apple URL)
 - Explanatory copy that auto-renewable subscriptions are billed through Apple
 
 **Terms Destination** (`app/terms.tsx`):
+
 - Existing custom terms content
 - Notice that Apple Standard EULA applies to iOS auto-renewable subscriptions
 - Direct link to Apple Standard EULA
 
 **Consent Scope Safety**:
+
 - Sign-up consent (`I Accept` in `AcceptTerms`) remains supported for custom terms
 - Terms copy clarifies App Store provider terms govern billing/refunds for iOS purchases
 - Implementation: `src/config/termsConfig.ts`, `src/components/AcceptTerms.tsx`
@@ -326,6 +330,7 @@ The checkout flow maintains robustness across multiple browser tabs and recovers
 ### Multi-Tab Awareness
 
 When Stripe redirects in one tab:
+
 - The return tab broadcasts via `BroadcastChannel` to all other open tabs
 - Other tabs clean up their checkout state to avoid stale UI
 - Prevents Tab A showing a pending button while Tab B already completed
@@ -346,6 +351,7 @@ When Stripe redirects in one tab:
 ### TTL Stale Recovery
 
 When returning from Stripe:
+
 1. Load attempt map from `checkout:attempts:${uid}`
 2. Compare pending records against TTL window
 3. Stale records transition to `expired`; `CHECKOUT_STALE_CLEARED` broadcast
@@ -359,6 +365,7 @@ When returning from Stripe:
 ### No Polling
 
 State recovery relies on:
+
 - **Focus/visibility recovery**: On tab focus, re-hydrates from localStorage, re-derives lock state, expires stale pending attempts
 - **BroadcastChannel events**: Explicit broadcasts trigger immediate reconciliation across tabs
 - **Convergence via `requestBootstrapRefresh`**: Event-driven, deduped; on successful checkout, a purchase-scoped refresh converges server-backed state
@@ -376,6 +383,7 @@ State recovery relies on:
 ### Testing
 
 **Manual checklist:**
+
 - Single-tab flow: purchase → Stripe → same-tab return → state cleanup
 - Multi-tab: Tab A checkout, Tab A → Stripe, Tab B return → Tab A receives terminal update
 - Tab closure: close return tab, other tabs recover via focus event
@@ -383,6 +391,7 @@ State recovery relies on:
 - Sign-out: complete purchase, sign out, sign in as different user → old attemptId inaccessible
 
 **Automated tests:**
+
 - attemptId generation and validation
 - BroadcastChannel message delivery and cleanup
 - Per-product lock acquisition and release

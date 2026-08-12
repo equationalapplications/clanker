@@ -27,25 +27,25 @@ The frontend communicates with Cloud Run `/agent/live` endpoint via WebSocket. A
 
 ### Client → Server (Frontend Sends)
 
-| Event | Payload | Purpose |
-|-------|---------|---------|
+| Event              | Payload                                                                       | Purpose                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Auth Handshake** | `{ "type": "auth", "token": "<firebase-id-token>", "characterId": "<uuid>" }` | Authenticate WebSocket connection; `characterId` required so server can load voice config before opening Gemini session |
-| **Audio Input** | `{ "type": "audio_input", "data": "<base64-16kHz-PCM>" }` | Stream user's voice from microphone (20ms chunks); server detects VAD/barge-in |
-| **Session End** | `{ "type": "end_session" }` | Gracefully close connection |
+| **Audio Input**    | `{ "type": "audio_input", "data": "<base64-16kHz-PCM>" }`                     | Stream user's voice from microphone (20ms chunks); server detects VAD/barge-in                                          |
+| **Session End**    | `{ "type": "end_session" }`                                                   | Gracefully close connection                                                                                             |
 
 ### Server → Client (Backend Sends)
 
-| Event | Payload | Purpose |
-|-------|---------|---------|
-| **Session Ready** | `{ "type": "session_ready", "remainingCredits": <number> }` | Auth verified + Gemini bidi session open; client MUST NOT send `audio_input` before this event |
-| **Audio Output** | `{ "type": "audio_output", "data": "<base64-24kHz-PCM>" }` | Stream AI's synthesized voice to speaker (20ms chunks) |
-| **Transcript Token** | `{ "type": "transcript_token", "role": "user" \| "model", "text": "<incremental-text>" }` | Live transcript word-by-word (accumulate in UI) |
-| **Tool Start** | `{ "type": "tool_start", "name": "<tool-name>" }` | Show UI banner "⏳ Reading your memory..." |
-| **Tool End** | `{ "type": "tool_end", "name": "<tool-name>" }` | Clear tool banner (server executed tool, returned result to Gemini internally) |
-| **Audio Interrupted** | `{ "type": "audio_interrupted" }` | Acknowledge user barge-in; flush local playback queue |
-| **Usage Snapshot** | `{ "type": "usage_snapshot", "remainingCredits": <number> }` | Billing state update (per 1000 tokens or chunk) |
-| **Session Error** | `{ "type": "error", "message": "<reason>", "code": "<code>" }` | Connection error (network, auth, credits) |
-| **Session End Ack** | `{ "type": "session_ended" }` | Server acknowledges graceful shutdown |
+| Event                 | Payload                                                                                   | Purpose                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Session Ready**     | `{ "type": "session_ready", "remainingCredits": <number> }`                               | Auth verified + Gemini bidi session open; client MUST NOT send `audio_input` before this event |
+| **Audio Output**      | `{ "type": "audio_output", "data": "<base64-24kHz-PCM>" }`                                | Stream AI's synthesized voice to speaker (20ms chunks)                                         |
+| **Transcript Token**  | `{ "type": "transcript_token", "role": "user" \| "model", "text": "<incremental-text>" }` | Live transcript word-by-word (accumulate in UI)                                                |
+| **Tool Start**        | `{ "type": "tool_start", "name": "<tool-name>" }`                                         | Show UI banner "⏳ Reading your memory..."                                                     |
+| **Tool End**          | `{ "type": "tool_end", "name": "<tool-name>" }`                                           | Clear tool banner (server executed tool, returned result to Gemini internally)                 |
+| **Audio Interrupted** | `{ "type": "audio_interrupted" }`                                                         | Acknowledge user barge-in; flush local playback queue                                          |
+| **Usage Snapshot**    | `{ "type": "usage_snapshot", "remainingCredits": <number> }`                              | Billing state update (per 1000 tokens or chunk)                                                |
+| **Session Error**     | `{ "type": "error", "message": "<reason>", "code": "<code>" }`                            | Connection error (network, auth, credits)                                                      |
+| **Session End Ack**   | `{ "type": "session_ended" }`                                                             | Server acknowledges graceful shutdown                                                          |
 
 ### Constraints
 
@@ -108,17 +108,17 @@ interface LiveVoiceMachineContext {
   characterId: string
   userId: string
   firebaseToken: string
-  
+
   // Conversational state
-  transcript: IMessage[]  // Accumulated { user._id, text, createdAt }
-  activeTool: string | null  // e.g., "wiki_read", cleared on tool_end
-  remainingCredits: number  // Updated per usage_snapshot
-  
+  transcript: IMessage[] // Accumulated { user._id, text, createdAt }
+  activeTool: string | null // e.g., "wiki_read", cleared on tool_end
+  remainingCredits: number // Updated per usage_snapshot
+
   // Network state
   socketError: string | null
   retryCount: number
   maxRetries: number
-  
+
   // Hardware reference (non-serializable, kept for cleanup)
   wsConnection: WebSocket | null
 }
@@ -130,13 +130,13 @@ interface LiveVoiceMachineContext {
 type LiveVoiceEvent =
   // User-initiated
   | { type: 'START_CALL' }
-  | { type: 'AUDIO_INPUT'; data: string }  // base64-encoded PCM
+  | { type: 'AUDIO_INPUT'; data: string } // base64-encoded PCM
   | { type: 'END_CALL' }
 
   // Server-originated (forwarded by controller hook)
   | { type: 'SOCKET_OPENED' }
   | { type: 'SESSION_READY'; remainingCredits: number }
-  | { type: 'AUDIO_OUTPUT'; data: string }  // base64
+  | { type: 'AUDIO_OUTPUT'; data: string } // base64
   | { type: 'TRANSCRIPT_TOKEN'; role: 'user' | 'model'; text: string }
   | { type: 'TOOL_START'; name: string }
   | { type: 'TOOL_END'; name: string }
@@ -154,46 +154,56 @@ type LiveVoiceEvent =
 ### Key Transitions
 
 **idle → syncing_memory (on START_CALL)**
+
 - Invoke `wiki.exportDump([characterId])`
 - Pass result to `wikiSync` Firebase callable
 - On success → transition to `connecting`
 - On error → transition to `error`
 
 **connecting (on SOCKET_OPENED)**
+
 - Send `{ type: 'auth', token: firebaseToken, characterId }` over WebSocket
 - Remain in `connecting`; do NOT send audio yet
 
 **connecting → live (on SESSION_READY)**
+
 - Set `remainingCredits` from event payload
 - Begin accepting `AUDIO_INPUT` events from mic
 - Begin buffering incoming `AUDIO_OUTPUT` for playback
 
 **live (on TRANSCRIPT_TOKEN)**
+
 - Assign action: concatenate token to last message if same role, or create new `IMessage` if role changed
 - Update transcript array in context
 
 **live (on TOOL_START / TOOL_END)**
+
 - `TOOL_START`: set `activeTool` to tool name
 - `TOOL_END`: clear `activeTool` to null
 
 **live (on USAGE_SNAPSHOT)**
+
 - Update `remainingCredits` in context
 - If `remainingCredits <= 0`, transition to `saving_to_db` with `socketError: 'credit_exhausted'`
 
 **live → saving_to_db (on END_CALL)**
+
 - WebSocket actor cleanup: send `{ type: 'end_session' }` and close socket
 - Stop recording (controller hook responsibility)
 - Preserve transcript in context; transition immediately to `saving_to_db`
 
 **saving_to_db → idle (actor completes)**
+
 - Fire-and-forget: `saveAIMessage` / `sendMessage` per transcript entry (no await)
 - Reset transcript, activeTool, socketError, retryCount on transition to idle
 
 **Any state → error (on SOCKET_ERROR or SOCKET_CLOSED)**
+
 - Capture error message in context
 - Preserve transcript (never discard)
 
 **error → syncing_memory (on RETRY)**
+
 - Exponential backoff: 0.5s, 1s, 2s, 4s, 8s (max)
 - Increment `retryCount`; re-enter full pre-call sync before reconnecting
 - If `retryCount >= maxRetries`, stay in error (manual retry only)
@@ -211,7 +221,7 @@ actions: {
       audioIO.playChunk(event.data)  // base64 → decode → play
     }
   },
-  
+
   flushAudioPlayback: () => {
     // AUDIO_INTERRUPTED received; flush the playback queue
     audioIO.clearPlaybackQueue()
@@ -235,15 +245,15 @@ interface UseLiveAudioIOReturn {
   recordingState: 'idle' | 'recording' | 'error'
   playbackState: 'idle' | 'playing' | 'buffering'
   error: string | null
-  
+
   // Actions
   startRecording: () => Promise<void>
   stopRecording: () => Promise<void>
   playChunk: (base64PCM: string) => Promise<void>
   clearPlaybackQueue: () => void
-  
+
   // Listener for outgoing audio
-  onAudioChunk: (cb: (chunk: Uint8Array) => void) => () => void  // Returns unsubscribe
+  onAudioChunk: (cb: (chunk: Uint8Array) => void) => () => void // Returns unsubscribe
 }
 
 export function useLiveAudioIO(): UseLiveAudioIOReturn
@@ -252,12 +262,13 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn
 ### Initialization (on Mount)
 
 1. Call `setAudioModeAsync`:
+
    ```typescript
    await Audio.setAudioModeAsync({
      playsInSilentMode: true,
      allowsRecording: true,
      shouldPlayInBackground: true,
-     interruptionMode: 'mixWithOthers'
+     interruptionMode: 'mixWithOthers',
    })
    ```
 
@@ -270,11 +281,11 @@ export function useLiveAudioIO(): UseLiveAudioIOReturn
 ```typescript
 const recorder = await Audio.Recording.createAsync({
   isMeteringEnabled: false,
-  pcmEncoding: true,  // Raw 16-bit PCM, not MP3/AAC
+  pcmEncoding: true, // Raw 16-bit PCM, not MP3/AAC
   sampleRate: 16000,
   numberOfChannels: 1,
-  bitRate: 256000,    // 16-bit * 16kHz * 1 channel
-  android: { audioSource: AndroidAudioSource.MIC }
+  bitRate: 256000, // 16-bit * 16kHz * 1 channel
+  android: { audioSource: AndroidAudioSource.MIC },
 })
 
 // Emit 20ms chunks (320 samples @ 16kHz)
@@ -326,15 +337,15 @@ interface UseLiveVoiceChatReturn {
   isConnecting: boolean
   isLive: boolean
   error: string | null
-  
+
   // UI state (derived from machine + audio hook)
   transcript: IMessage[]
   activeTool: string | null
   remainingCredits: number
-  
+
   // Audio playback state
   isPlayingAudio: boolean
-  
+
   // Actions
   startCall: () => Promise<void>
   endCall: () => Promise<void>
@@ -347,6 +358,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn
 ### Implementation
 
 1. **Instantiate XState machine with injected actions:**
+
    ```typescript
    const audioIO = useLiveAudioIO()
    const [state, send, actor] = useMachine(liveVoiceMachine, {
@@ -358,12 +370,13 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn
        },
        flushAudioPlayback: () => {
          audioIO.clearPlaybackQueue()
-       }
-     }
+       },
+     },
    })
    ```
 
 2. **Wire microphone → WebSocket:**
+
    ```typescript
    useEffect(() => {
      const unsubscribe = audioIO.onAudioChunk((chunk) => {
@@ -374,13 +387,14 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn
    ```
 
 3. **Forward server events to machine:**
+
    ```typescript
    // In controller hook's useEffect listening to WebSocket
    ws.onmessage = (event) => {
      const payload = JSON.parse(event.data)
      send({
        type: payload.type.toUpperCase(),
-       ...payload
+       ...payload,
      })
    }
    ```
@@ -443,7 +457,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn
 useEffect(() => {
   const subscription = AppState.addEventListener('change', (nextAppState) => {
     if (nextAppState.match(/inactive|background/) && state.matches('live')) {
-      endCall()  // Gracefully close socket, save transcript
+      endCall() // Gracefully close socket, save transcript
     }
   })
   return () => subscription.remove()
@@ -466,7 +480,7 @@ Action:
   - Clear playback queue
   - Preserve transcript (never discard)
   - Set error state
-  
+
 Recovery:
   - Show "Connection lost" error
   - Exponential backoff retry: 0.5s, 1s, 2s, 4s, 8s (max)
@@ -485,7 +499,7 @@ Action:
   - Stop recording
   - Send END_CALL gracefully
   - Save transcript to DB
-  
+
 UI:
   - Show "Out of credits" message
   - Button: "Get More Credits" → router.push('/subscribe')
@@ -499,7 +513,7 @@ startCall() → character.voice is null
 Action:
   - Error before opening WebSocket
   - error = "This character has no voice. Edit character settings."
-  
+
 UI:
   - Show alert with "Edit Character" button
 ```
@@ -512,7 +526,7 @@ startCall() → audioIO.startRecording() fails
 Action:
   - Set error immediately
   - error = "Microphone permission required"
-  
+
 UI:
   - Native: Show alert "Enable in Settings"
   - Web: Show alert "Allow in browser"
@@ -526,7 +540,7 @@ startCall() → character.save_to_cloud === 0
 Action:
   - Error before opening WebSocket
   - error = "Voice chat requires cloud sync enabled"
-  
+
 UI:
   - Show alert with "Enable Cloud Sync" button
   - Prevent streaming to cloud proxy (no memory access)
@@ -542,7 +556,7 @@ Action:
   - Stop recording
   - Close WebSocket
   - Save transcript locally
-  
+
 XState cleanup on exit:
   - machine.stop()
   - All resources released
@@ -558,7 +572,7 @@ Action:
   - WebSocket closed gracefully
   - Microphone turned off
   - Transcript saved to DB
-  
+
 Why necessary:
   - OS revokes microphone permission when app backgrounded
   - WebSocket connections sever automatically
@@ -574,7 +588,7 @@ Action:
   - Retry with exponential backoff (1 retry only)
   - If retry fails, persist transcript locally (SQLite fallback)
   - Error message: "Transcript saved locally, will sync later"
-  
+
 Recovery:
   - User can manually retry via Settings → "Sync Transcripts"
   - Prevents data loss
@@ -598,13 +612,13 @@ Machine cleanup:
 
 ## Summary of Architecture
 
-| Layer | Responsibility | Technology |
-|-------|---|---|
-| **Interface Boundary** | JSON payloads + base64 PCM | WebSocket contract |
-| **XState Machine** | Session lifecycle, transcript accumulation, tool state | XState v5 |
-| **Audio Hook** | Recording/playback primitives, 16kHz/24kHz PCM | expo-audio + react-native-live-audio-stream |
-| **Controller Hook** | Machine ↔ Audio wiring, derived UI state, lifecycle management | React hooks + XState inject |
-| **Talk Tab UI** | Render transcript, tool banners, status messages | React Native |
+| Layer                  | Responsibility                                                 | Technology                                  |
+| ---------------------- | -------------------------------------------------------------- | ------------------------------------------- |
+| **Interface Boundary** | JSON payloads + base64 PCM                                     | WebSocket contract                          |
+| **XState Machine**     | Session lifecycle, transcript accumulation, tool state         | XState v5                                   |
+| **Audio Hook**         | Recording/playback primitives, 16kHz/24kHz PCM                 | expo-audio + react-native-live-audio-stream |
+| **Controller Hook**    | Machine ↔ Audio wiring, derived UI state, lifecycle management | React hooks + XState inject                 |
+| **Talk Tab UI**        | Render transcript, tool banners, status messages               | React Native                                |
 
 ### Key Design Decisions
 
@@ -629,4 +643,3 @@ Machine cleanup:
 - [ ] App backgrounding handled; AppState listener closes socket and mic
 - [ ] Navigation away handled; blur event triggers cleanup
 - [ ] Local-only characters blocked; prevents proxy confusion
-

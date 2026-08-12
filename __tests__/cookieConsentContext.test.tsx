@@ -1,9 +1,6 @@
 import React from 'react'
 import { act, create } from 'react-test-renderer'
-import {
-  CookieConsentProvider,
-  useCookieConsent,
-} from '~/components/CookieConsent'
+import { CookieConsentProvider, useCookieConsent } from '~/components/CookieConsent'
 import {
   defaultAcceptChoices,
   COOKIE_POLICY_VERSION,
@@ -63,7 +60,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -77,7 +78,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -92,7 +97,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -107,7 +116,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -132,7 +145,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -144,7 +161,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -157,7 +178,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -170,7 +195,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -186,7 +215,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -199,7 +232,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -212,7 +249,11 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
@@ -228,11 +269,22 @@ describe('CookieConsentContext', () => {
     act(() => {
       create(
         <CookieConsentProvider>
-          <Probe onReady={(a) => { api = a }} />
+          <Probe
+            onReady={(a) => {
+              api = a
+            }}
+          />
         </CookieConsentProvider>,
       )
     })
-    act(() => api.savePreferences({ necessary: false, analytics: false, marketing: false, preferences: false }))
+    act(() =>
+      api.savePreferences({
+        necessary: false,
+        analytics: false,
+        marketing: false,
+        preferences: false,
+      }),
+    )
     expect(api.canUse('necessary')).toBe(true)
   })
 })

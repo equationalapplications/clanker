@@ -17,12 +17,12 @@ function wrapExecutor(db: DatabaseSync): DatabaseExecutor {
       return {} as never
     },
     getAllAsync: async <T>(sql: string, params?: unknown) => {
-      return db.prepare(sql).all(...(Array.isArray(params) ? params : params ? [params] : [])) as T[]
+      return db
+        .prepare(sql)
+        .all(...(Array.isArray(params) ? params : params ? [params] : [])) as T[]
     },
     getFirstAsync: async <T>(sql: string, params?: unknown) => {
-      const row = db
-        .prepare(sql)
-        .get(...(Array.isArray(params) ? params : params ? [params] : []))
+      const row = db.prepare(sql).get(...(Array.isArray(params) ? params : params ? [params] : []))
       return (row ?? null) as T | null
     },
   }
@@ -44,9 +44,7 @@ describe('applyInitializationPlan against a real SQLite engine', () => {
 
     await expect(applyInitializationPlan(executor)).resolves.toBeUndefined()
 
-    const columns = db
-      .prepare('PRAGMA table_info(character_images)')
-      .all() as { name: string }[]
+    const columns = db.prepare('PRAGMA table_info(character_images)').all() as { name: string }[]
     expect(columns.some((c) => c.name === 'message_id')).toBe(true)
 
     const indexes = db

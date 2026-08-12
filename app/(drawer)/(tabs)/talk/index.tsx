@@ -199,11 +199,7 @@ function TalkView({ characterId }: { characterId: string }) {
     <View style={styles.container}>
       <View style={styles.avatarWrap}>
         <Animated.View style={[styles.glow, glowAnimatedStyle]} />
-        <CharacterAvatar
-          size={AVATAR_SIZE}
-          imageUrl={bodyAvatar}
-          characterName={character.name}
-        />
+        <CharacterAvatar size={AVATAR_SIZE} imageUrl={bodyAvatar} characterName={character.name} />
       </View>
 
       <View style={styles.statusWrap} accessibilityLiveRegion="polite">

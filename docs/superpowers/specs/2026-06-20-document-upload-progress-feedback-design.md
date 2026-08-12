@@ -55,24 +55,26 @@ The document-ingest pipeline (`ChatComposer` "+" button → picker → optional 
 
 ### Error handling summary
 
-| Step | Toast on failure |
-|---|---|
-| Read file | "Failed to read file." |
-| Convert (pdf/docx/image) | existing per-code mapping (unchanged) |
-| Check for changes (hash + `hasChanged`) | "Failed to check for changes." |
-| Forget stale version | "Failed to remove previous version." |
-| Ingest | existing (`WikiBusyError` / JSON-parse / generic) (unchanged) |
+| Step                                    | Toast on failure                                              |
+| --------------------------------------- | ------------------------------------------------------------- |
+| Read file                               | "Failed to read file."                                        |
+| Convert (pdf/docx/image)                | existing per-code mapping (unchanged)                         |
+| Check for changes (hash + `hasChanged`) | "Failed to check for changes."                                |
+| Forget stale version                    | "Failed to remove previous version."                          |
+| Ingest                                  | existing (`WikiBusyError` / JSON-parse / generic) (unchanged) |
 
 Every path — success, "already up to date", and every failure — resets `phase`/`documentPhase` to `null`, so the spinner and banner never get stuck.
 
 ## Files Touched
 
 **Modified**:
+
 - `src/components/ChatComposer.tsx` — phase state, `onPhaseChange` prop, per-step try/catch + toasts, spinner condition
 - `src/components/ChatComposer.web.tsx` — same, mirrored for the web file-read path
 - `src/components/ChatView.tsx` — `documentPhase` state, prop wiring in `renderComposer`, 4 new banner lines
 
 **Unchanged**:
+
 - `src/machines/wikiMachine.ts`, `src/hooks/useCharacterWiki.ts`, `@equationalapplications/core-llm-wiki` — final-ingest status mechanism untouched
 
 ## Tests

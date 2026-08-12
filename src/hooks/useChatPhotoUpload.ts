@@ -36,7 +36,11 @@ export interface PendingChatPhoto {
 }
 
 interface UseChatPhotoUploadReturn {
-  prepareFromAsset: (asset: { uri: string; width: number; height: number }) => Promise<PendingChatPhoto>
+  prepareFromAsset: (asset: {
+    uri: string
+    width: number
+    height: number
+  }) => Promise<PendingChatPhoto>
   pickFromLibrary: () => Promise<PendingChatPhoto | null>
   captureFromCamera: () => Promise<PendingChatPhoto | null>
   isPreparing: boolean
@@ -159,9 +163,8 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
       // Matches useAvatarUpload's handling of a denied photo library: the picker
       // call is the only thing wrapped, so a downstream encode failure does not
       // get mislabelled as a permission problem.
-      const message = err instanceof Error && !/denied/i.test(err.message)
-        ? err.message
-        : 'Camera access denied'
+      const message =
+        err instanceof Error && !/denied/i.test(err.message) ? err.message : 'Camera access denied'
       setError(message)
       return null
     }

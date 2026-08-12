@@ -13,9 +13,7 @@ export default function SharedCharacterImportScreen() {
   const { user, isAuthLoading } = useSelector(authService, (state) => ({
     user: state.context.user,
     isAuthLoading:
-      state.matches('initializing') ||
-      state.matches('signingIn') ||
-      state.matches('bootstrapping'),
+      state.matches('initializing') || state.matches('signingIn') || state.matches('bootstrapping'),
   }))
   const { isLoading: isPlanLoading } = useCurrentPlan()
   const [isImporting, setIsImporting] = useState(false)

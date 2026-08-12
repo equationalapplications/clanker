@@ -11,6 +11,12 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "test", "../shared/dsl-types.ts", "../shared/constants.ts", "../shared/dsl-schema.ts"],
+  "include": [
+    "src",
+    "test",
+    "../shared/dsl-types.ts",
+    "../shared/constants.ts",
+    "../shared/dsl-schema.ts"
+  ],
   "exclude": ["../shared/**/*.test.ts", "../shared/localCloudAgent.ts"]
 }

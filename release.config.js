@@ -2,10 +2,7 @@
 // Main: full release with CHANGELOG, version bump, and git commit.
 const isMain = process.env.GITHUB_REF === 'refs/heads/main' || process.env.BRANCH === 'main'
 
-const plugins = [
-  '@semantic-release/commit-analyzer',
-  '@semantic-release/release-notes-generator',
-]
+const plugins = ['@semantic-release/commit-analyzer', '@semantic-release/release-notes-generator']
 
 if (isMain) {
   plugins.push(
@@ -16,8 +13,7 @@ if (isMain) {
       '@semantic-release/git',
       {
         assets: ['CHANGELOG.md', 'package.json', 'package-lock.json'],
-        message:
-          'chore(release): set `package.json` to ${nextRelease.version} [skip ci]',
+        message: 'chore(release): set `package.json` to ${nextRelease.version} [skip ci]',
       },
     ],
   )

@@ -252,7 +252,9 @@ describe('generateChatReply', () => {
     resolveAppCheck()
 
     const result = await resultPromise
-    expect(result.groundingMetadata?.groundingChunks).toEqual([{ web: { uri: 'https://example.com' } }])
+    expect(result.groundingMetadata?.groundingChunks).toEqual([
+      { web: { uri: 'https://example.com' } },
+    ])
   })
 
   it('forwards tools to the callable payload when provided', async () => {
@@ -264,7 +266,13 @@ describe('generateChatReply', () => {
       },
     })
 
-    const tools = [{ name: 'get_current_time', description: 'Get the time', parameters: { type: 'object', properties: {} } }]
+    const tools = [
+      {
+        name: 'get_current_time',
+        description: 'Get the time',
+        parameters: { type: 'object', properties: {} },
+      },
+    ]
     const resultPromise = generateChatReply({
       contents: [{ role: 'user', parts: [{ text: 'what time is it' }] }],
       systemInstruction: 'Be concise.',

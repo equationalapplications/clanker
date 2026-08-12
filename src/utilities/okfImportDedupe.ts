@@ -26,7 +26,11 @@ function utcDayKey(createdAt: number): string {
   return new Date(createdAt).toISOString().slice(0, 10)
 }
 
-function eventDedupeKey(event: { event_type: string; summary: string; created_at: number }): string {
+function eventDedupeKey(event: {
+  event_type: string
+  summary: string
+  created_at: number
+}): string {
   const escape = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')
   return `${escape(event.event_type)}|${escape(event.summary)}|${utcDayKey(event.created_at)}`
 }

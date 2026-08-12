@@ -32,10 +32,16 @@ jest.mock('react-native-paper', () => {
       ({ children, style, elevation }: any) => React.createElement('View', { style }, children),
       {
         Content: ({ children, style }: any) => React.createElement('View', { style }, children),
-      }
+      },
     ),
     useTheme: () => ({
-      colors: { primary: '#000', onSurface: '#000', onSurfaceVariant: '#666', surface: '#fff', surfaceVariant: '#eee' },
+      colors: {
+        primary: '#000',
+        onSurface: '#000',
+        onSurfaceVariant: '#666',
+        surface: '#fff',
+        surfaceVariant: '#eee',
+      },
     }),
   }
 })
@@ -43,9 +49,23 @@ jest.mock('react-native-paper', () => {
 jest.mock('@expo/vector-icons', () => {
   const React = require('react')
   return {
-    MaterialCommunityIcons: ({ name, size, color, style, accessible, accessibilityRole, accessibilityLabel }: any) =>
+    MaterialCommunityIcons: ({
+      name,
+      size,
+      color,
+      style,
+      accessible,
+      accessibilityRole,
+      accessibilityLabel,
+    }: any) =>
       React.createElement('MaterialCommunityIcons', {
-        name, size, color, style, accessible, accessibilityRole, accessibilityLabel,
+        name,
+        size,
+        color,
+        style,
+        accessible,
+        accessibilityRole,
+        accessibilityLabel,
       }),
   }
 })
@@ -59,7 +79,9 @@ describe('FeaturesSection accessibility', () => {
   let tree: any
 
   beforeEach(() => {
-    act(() => { tree = create(<FeaturesSection />) })
+    act(() => {
+      tree = create(<FeaturesSection />)
+    })
   })
 
   it('renders feature icons', () => {

@@ -21,6 +21,15 @@ IMAGE="gcr.io/${PROJECT_ID}/clanker-cloud-agent"
 # service directly, so Cloud Run's invoker IAM must allow unauthenticated
 # access. Set ALLOW_UNAUTHENTICATED=false only for a deliberately private deploy.
 ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-true}"
+# corsOrigins() in src/index.ts denies all cross-origin browser access when
+# CORS_ORIGIN is unset, and isAllowedWsOrigin() gates the WebSocket upgrades on
+# the same list. The production web client is served from Firebase Hosting and
+# calls this service cross-origin, so its origins must be allowlisted here or
+# both /agent/run and the /agent/stream + /agent/live upgrades fail in the
+# browser. Keep in sync with the Storage allowlist in cors.json at the repo root.
+# The native mobile app is unaffected either way: it is not subject to CORS, and
+# its synthesized WebSocket Origin matches this service's own origin.
+CORS_ORIGIN="${CORS_ORIGIN:-https://clanker-ai.com,https://clanker-prod.web.app,https://clanker-prod.firebaseapp.com}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
@@ -34,7 +43,10 @@ DEPLOY_ARGS=(
   --region "${REGION}"
   --memory 512Mi
   --timeout 540
-  --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}"
+  # The leading ^@^ sets @ as the pair delimiter instead of the default comma,
+  # which CORS_ORIGIN's own value contains. Without it gcloud would split the
+  # origin list into bogus env vars.
+  --set-env-vars "^@^GOOGLE_GENAI_USE_VERTEXAI=true@GOOGLE_CLOUD_PROJECT=${PROJECT_ID}@GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}@CORS_ORIGIN=${CORS_ORIGIN}"
   # Explicitly pin required secrets so every deploy is self-contained.
   # --update-secrets adds/overwrites only these; other secrets (Cloud SQL x4) are preserved.
   # GEMINI_API_KEY was deleted from Secret Manager; remove its binding if still present.

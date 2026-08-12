@@ -95,7 +95,7 @@ describe('authMachine', () => {
     const user = makeUser('firebase-123')
     const bootstrapData = {
       user: { id: 'user-1', firebaseUid: 'firebase-123', email: 'test@example.com' },
-      subscription: { planTier: 'free', currentCredits: 50 }
+      subscription: { planTier: 'free', currentCredits: 50 },
     }
     mockBootstrapSession.mockResolvedValue(bootstrapData)
 
@@ -215,7 +215,7 @@ describe('authMachine', () => {
     const user = makeUser()
     const bootstrapData = {
       user: { id: 'user-1' },
-      subscription: { planTier: 'free' }
+      subscription: { planTier: 'free' },
     }
     mockBootstrapSession.mockResolvedValue(bootstrapData)
 
@@ -236,7 +236,7 @@ describe('authMachine', () => {
     const user = makeUser()
     const bootstrapData = {
       user: { id: 'user-1' },
-      subscription: { planTier: 'free' }
+      subscription: { planTier: 'free' },
     }
     mockBootstrapSession.mockResolvedValue(bootstrapData)
 
@@ -380,7 +380,11 @@ describe('authMachine', () => {
 
   it('transitions to signedOut with context.error null when sign-in is cancelled', async () => {
     const { signInWithGoogle } = require('../src/auth/googleSignin')
-    signInWithGoogle.mockResolvedValue({ success: false, cancelled: true, error: 'Sign-in was cancelled' })
+    signInWithGoogle.mockResolvedValue({
+      success: false,
+      cancelled: true,
+      error: 'Sign-in was cancelled',
+    })
 
     const actor = createActor(authMachine)
     actor.start()

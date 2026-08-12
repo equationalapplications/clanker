@@ -4,7 +4,7 @@
 **Status:** Implemented
 **Supersedes (partially):** `2026-07-01-credit-improvements-design.md` (PR #506) documented cloud-agent
 `spendCredit` as "not modified — it only ever spends 1, which cannot fragment." This spec changes
-that: live voice moves from 1 to 5 credits/tick, which *can* span multiple `credit_transactions`
+that: live voice moves from 1 to 5 credits/tick, which _can_ span multiple `credit_transactions`
 rows, so cloud-agent needs the same multi-row FIFO allocator functions/ already has.
 **Interacts with:** `2026-07-01-live-voice-credit-reconciliation-design.md` (PR pending) assumed the
 live-voice connect gate stays `≥ 2` forever ("No change to the live-voice billing backend or the
@@ -21,17 +21,17 @@ per-mechanism costs sized to target margins. Two actions that are currently **en
 (`summarizeText`, `generateEmbedding`) become billed. Live voice and the cloud-agent tool loop move
 from flat-per-call billing to metered billing (per tick / per internal loop iteration).
 
-| Action | Path | Old cost | New cost | Target margin |
-|---|---|---|---|---|
-| Live Voice | cloud-agent `/agent/live` (wsLiveAgentHandler) | 1 / 60s tick | **5 / 60s tick** | ~74% |
-| Agent Turn | cloud-agent `POST /agent/run` | 1 / turn (flat) | **1 / internal loop, max 5** | ~61%+ |
-| Doc Conversion | `convertDocumentText` | 1 | **2** | ~74% |
-| Image Gen | `generateImage` | 1 | **2** | ~77% |
-| Embeddings | `generateEmbedding` | unbilled | **1 / 50k chars** (`Math.ceil`) | ~98% |
-| Summarization | `summarizeText` | unbilled | **1 / call** | Variable (high) |
-| Text Chat (Grounded) | `generateReply`, no explicit `tools` (default googleSearch) | 1 | **3** | ~87% |
-| Text Chat (Standard) | `generateReply`, explicit `tools` passed | 1 | **1** | ~70% |
-| Wiki Sync / DOCX / memory write/heal | `wikiSync`, `wikiLlm`, `memoryWrite`, `memoryHeal` | 1 | **1 (no change)** | ~99% (subsidizer) |
+| Action                               | Path                                                        | Old cost        | New cost                        | Target margin     |
+| ------------------------------------ | ----------------------------------------------------------- | --------------- | ------------------------------- | ----------------- |
+| Live Voice                           | cloud-agent `/agent/live` (wsLiveAgentHandler)              | 1 / 60s tick    | **5 / 60s tick**                | ~74%              |
+| Agent Turn                           | cloud-agent `POST /agent/run`                               | 1 / turn (flat) | **1 / internal loop, max 5**    | ~61%+             |
+| Doc Conversion                       | `convertDocumentText`                                       | 1               | **2**                           | ~74%              |
+| Image Gen                            | `generateImage`                                             | 1               | **2**                           | ~77%              |
+| Embeddings                           | `generateEmbedding`                                         | unbilled        | **1 / 50k chars** (`Math.ceil`) | ~98%              |
+| Summarization                        | `summarizeText`                                             | unbilled        | **1 / call**                    | Variable (high)   |
+| Text Chat (Grounded)                 | `generateReply`, no explicit `tools` (default googleSearch) | 1               | **3**                           | ~87%              |
+| Text Chat (Standard)                 | `generateReply`, explicit `tools` passed                    | 1               | **1**                           | ~70%              |
+| Wiki Sync / DOCX / memory write/heal | `wikiSync`, `wikiLlm`, `memoryWrite`, `memoryHeal`          | 1               | **1 (no change)**               | ~99% (subsidizer) |
 
 **Rollout:** hard cutover. New rates apply the moment each service deploys, including any live-voice
 call already connected — Cloud Run replaces the running instance on deploy, dropping the websocket
@@ -46,13 +46,13 @@ engineering around. No rate-versioning or grandfathering.
 `spendCredits(userId, amount): Promise<CreditSpendAllocation[] | null>` — no service-layer change
 needed here, only call-site changes.
 
-| Function | File | Change |
-|---|---|---|
-| `convertDocumentText` | `convertDocumentText.ts:187` | `spendCredits(userId, 1)` → `spendCredits(userId, 2)` |
-| `generateImage` | `generateImage.ts:127` | `spendCredits(userId, 1)` → `spendCredits(userId, 2)` |
-| `summarizeText` | `summarizeText.ts` | **New.** Add `spendCredits(userId, 1)` before the Vertex call; `refundCredit` in the existing `catch` around `generateSummary` (handler.ts:155-163). Currently fully unbilled — no chunking exists (single call, ≤16k chars in, one summary out), so the whole call is billed as 1 unit. No block-splitting added. |
-| `generateEmbedding` | `generateEmbedding.ts` | **New.** Add `spendCredits(userId, Math.ceil(text.length / 50_000))` before the Vertex call; `refundCredit` on failure. `MAX_TEXT_LENGTH` stays `8_000` (unchanged) — the formula always resolves to `1` under that cap today. Shipped as-is anyway: future-proofing for when the cap is raised (e.g. larger-context embedding model or chunking is added later), at which point multi-credit billing activates automatically with no further billing-logic change. |
-| `generateReply` | `generateReply.ts:535,539,650` | Cost keys off the existing grounded/standard distinction (`generateReply.ts:310-313`, `buildToolsForRequest`): explicit `tools` → standard → 1; no `tools` (defaults to `googleSearchManifest`) → grounded → 3. **Signature change required:** the spend lives in `chargeForReply(userId, credits)` (line 535-539), which currently has **no access to `tools`**. `tools` is parsed in the handler (line 569) and `chargeForReply` is called at line 650. Thread an `isGrounded: boolean` (or the `tools` value) param into `chargeForReply` — computed at the call site as `!tools || tools.length === 0` — and spend `isGrounded ? 3 : 1`. This is not a one-line change at the spend site; it's a small signature plumb from handler → `chargeForReply`. |
+| Function              | File                           | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `convertDocumentText` | `convertDocumentText.ts:187`   | `spendCredits(userId, 1)` → `spendCredits(userId, 2)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `generateImage`       | `generateImage.ts:127`         | `spendCredits(userId, 1)` → `spendCredits(userId, 2)`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `summarizeText`       | `summarizeText.ts`             | **New.** Add `spendCredits(userId, 1)` before the Vertex call; `refundCredit` in the existing `catch` around `generateSummary` (handler.ts:155-163). Currently fully unbilled — no chunking exists (single call, ≤16k chars in, one summary out), so the whole call is billed as 1 unit. No block-splitting added.                                                                                                                                                                                                                                                                  |
+| `generateEmbedding`   | `generateEmbedding.ts`         | **New.** Add `spendCredits(userId, Math.ceil(text.length / 50_000))` before the Vertex call; `refundCredit` on failure. `MAX_TEXT_LENGTH` stays `8_000` (unchanged) — the formula always resolves to `1` under that cap today. Shipped as-is anyway: future-proofing for when the cap is raised (e.g. larger-context embedding model or chunking is added later), at which point multi-credit billing activates automatically with no further billing-logic change.                                                                                                                 |
+| `generateReply`       | `generateReply.ts:535,539,650` | Cost keys off the existing grounded/standard distinction (`generateReply.ts:310-313`, `buildToolsForRequest`): explicit `tools` → standard → 1; no `tools` (defaults to `googleSearchManifest`) → grounded → 3. **Signature change required:** the spend lives in `chargeForReply(userId, credits)` (line 535-539), which currently has **no access to `tools`**. `tools` is parsed in the handler (line 569) and `chargeForReply` is called at line 650. Thread an `isGrounded: boolean` (or the `tools` value) param into `chargeForReply` — computed at the call site as `!tools |     | tools.length === 0`— and spend`isGrounded ? 3 : 1`. This is not a one-line change at the spend site; it's a small signature plumb from handler → `chargeForReply`. |
 
 All four use the existing spend-first / refund-in-catch pattern already proven in
 convertDocumentText, generateImage, and generateReply — no new error-handling shape.
@@ -146,13 +146,14 @@ Promise<void>` refunds the full set atomically in one transaction.
 
 **Ripple — every existing caller** of `spendCredit`/`refundCredit` in cloud-agent changes from a
 single `string` txId to a `string[]`. Full caller inventory (verified by grep, not assumed):
+
 - `index.ts:261,287,299` (`POST /agent/run`, Section B) — `amount` always 1 per call now,
   single-element array; refund logic updated to pass/spread the array instead of one txId.
 - `wsLiveAgentHandler.ts:339` — `cs.spendCredit(userId, 5)`, one atomic call/transaction per tick
   (not five sequential 1-credit calls — avoids N+1 query thrashing on a hot 60s-recurring path).
 - `tools/browserAction.ts:96,112,131` — **the actual browser_action spend site** (not the ws
   browser handler). Uses `spendCredit(deps.userId)` (default `amount = 1`) and `refundCredit(userId,
-  txId)` in two places; `txId: string | null` local becomes `string[] | null`. Signature-only
+txId)` in two places; `txId: string | null` local becomes `string[] | null`. Signature-only
   update, but it **won't typecheck** if missed.
 - `wsAgentHandler.ts` — per-loop metering via `consumeAgentEvents` (same as HTTP); pre-flight
   `assertAgentTurnCredits` replaces flat upfront `spendCredit`. Signature-only callers still use
@@ -189,6 +190,7 @@ runway remaining than before — accepted, no scaling.
 
 Rewrite the Credit Consumption table (currently lines 28-38) with the new costs from the Overview
 table above. Specific changes:
+
 - Split the single `generateReply` row into two: grounded (3) and standard (1), keyed off
   presence/absence of caller-supplied `tools`.
 - Add rows for `summarizeText` (1) and `generateEmbedding` (1 per 50k chars, `Math.ceil`) —
@@ -206,12 +208,13 @@ table above. Specific changes:
 
 Two spots reference the stale "1 credit per minute" live-voice figure and need updating to 5:
 
-| File | Line | Current | New |
-|---|---|---|---|
-| `app/index.web.tsx` | 29 | "...1 credit per minute for live voice." | "...5 credits per minute for live voice." |
-| `src/components/LandingPage/FeaturesSection.tsx` | 11 | "(Live voice sessions cost just 1 credit per minute.)" | "(Live voice sessions cost 5 credits per minute.)" — drop "just," no longer the cheap framing |
+| File                                             | Line | Current                                                | New                                                                                           |
+| ------------------------------------------------ | ---- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `app/index.web.tsx`                              | 29   | "...1 credit per minute for live voice."               | "...5 credits per minute for live voice."                                                     |
+| `src/components/LandingPage/FeaturesSection.tsx` | 11   | "(Live voice sessions cost just 1 credit per minute.)" | "(Live voice sessions cost 5 credits per minute.)" — drop "just," no longer the cheap framing |
 
 **Unchanged, explicitly out of scope:**
+
 - `app/(drawer)/(tabs)/characters/[id]/edit.tsx:469` ("Costs 1 credit per sync") — wikiSync, no
   price change.
 - `app/support.tsx:92` ("Voice replies cost 2 credits per reply") — references the dead
@@ -239,19 +242,19 @@ Two spots reference the stale "1 credit per minute" live-voice figure and need u
 
 ## Testing
 
-| Area | Test |
-|---|---|
-| Callables (A) | `summarizeText.test.ts`, `generateEmbedding.test.ts` — new spend/refund coverage (currently untested for billing since unbilled). `convertDocumentText.test.ts`, `generateImage.test.ts` — cost constant bump to 2. `generateReply.test.ts` — grounded (3) vs standard (1) branch, keyed off `tools` presence. |
-| Agent loop (B) | `agentEventLoop.test.ts` — per-iteration spend, hard stop at loop 5, mid-loop degrade, refund-on-ADK-error, pre-flight `assertAgentTurnCredits`. `index.test.ts` — HTTP 402 when balance is zero before agent starts. `wsAgentHandler.test.ts` — WS `INSUFFICIENT_CREDITS` when balance is zero; per-loop metering via shared `consumeAgentEvents`. `browserAction.test.ts` — text-path `browser_action` still skips its own spend (`preBilled`). |
-| Multi-row spend (C) | `cloud-agent/src/services/creditService.test.ts` — new: fragmented-balance 5-credit spend spans multiple rows atomically; insufficient net balance across all rows throws; refund of a multi-row txId array restores all rows. Existing single-credit callers updated to array-shaped return/refund calls: `index.test.ts`, `wsAgentHandler.test.ts`, `wsLiveAgentHandler.test.ts`, `schedulerTriggerHandler.test.ts`. |
-| Gate (C) | `wsLiveAgentHandler.test.ts` — connect gate rejects at balance 4, allows at 5. `useLiveVoiceChat` test (client) — `MIN_CREDITS_FOR_CALL` gate at 5. |
-| Docs (D) | Manual review — table matches Overview costs exactly, gate line says `≥ 5`. |
-| Consumer copy (E) | Manual review — both files say "5 credits per minute," `edit.tsx` and dead-path `support.tsx` line untouched. |
+| Area                | Test                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Callables (A)       | `summarizeText.test.ts`, `generateEmbedding.test.ts` — new spend/refund coverage (currently untested for billing since unbilled). `convertDocumentText.test.ts`, `generateImage.test.ts` — cost constant bump to 2. `generateReply.test.ts` — grounded (3) vs standard (1) branch, keyed off `tools` presence.                                                                                                                                    |
+| Agent loop (B)      | `agentEventLoop.test.ts` — per-iteration spend, hard stop at loop 5, mid-loop degrade, refund-on-ADK-error, pre-flight `assertAgentTurnCredits`. `index.test.ts` — HTTP 402 when balance is zero before agent starts. `wsAgentHandler.test.ts` — WS `INSUFFICIENT_CREDITS` when balance is zero; per-loop metering via shared `consumeAgentEvents`. `browserAction.test.ts` — text-path `browser_action` still skips its own spend (`preBilled`). |
+| Multi-row spend (C) | `cloud-agent/src/services/creditService.test.ts` — new: fragmented-balance 5-credit spend spans multiple rows atomically; insufficient net balance across all rows throws; refund of a multi-row txId array restores all rows. Existing single-credit callers updated to array-shaped return/refund calls: `index.test.ts`, `wsAgentHandler.test.ts`, `wsLiveAgentHandler.test.ts`, `schedulerTriggerHandler.test.ts`.                            |
+| Gate (C)            | `wsLiveAgentHandler.test.ts` — connect gate rejects at balance 4, allows at 5. `useLiveVoiceChat` test (client) — `MIN_CREDITS_FOR_CALL` gate at 5.                                                                                                                                                                                                                                                                                               |
+| Docs (D)            | Manual review — table matches Overview costs exactly, gate line says `≥ 5`.                                                                                                                                                                                                                                                                                                                                                                       |
+| Consumer copy (E)   | Manual review — both files say "5 credits per minute," `edit.tsx` and dead-path `support.tsx` line untouched.                                                                                                                                                                                                                                                                                                                                     |
 
 ### Verification commands
 
-| Suite | Command | Expected |
-|---|---|---|
-| Functions | `cd functions && npm run typecheck && npm run lint && npm test` | pass |
-| Cloud-agent | `cd cloud-agent && npm run typecheck && npm run lint && npm test` | pass |
-| Root | `npm run typecheck && npm run lint && npm test` | pass |
+| Suite       | Command                                                           | Expected |
+| ----------- | ----------------------------------------------------------------- | -------- |
+| Functions   | `cd functions && npm run typecheck && npm run lint && npm test`   | pass     |
+| Cloud-agent | `cd cloud-agent && npm run typecheck && npm run lint && npm test` | pass     |
+| Root        | `npm run typecheck && npm run lint && npm test`                   | pass     |

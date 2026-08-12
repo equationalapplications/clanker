@@ -1,251 +1,230 @@
-import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import admin from "firebase-admin";
-import Stripe from "stripe";
-import { getStripePriceIds, getStripeCheckoutUrls } from "./runtimeConfig.js";
-import { validateAndNormalizeStripeSecretKey } from "./stripeConfig.js";
-import { userRepository } from "./services/userRepository.js";
-import { subscriptionService } from "./services/subscriptionService.js";
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https'
+import * as logger from 'firebase-functions/logger'
+import { services } from './firebaseAdmin.js'
+import Stripe from 'stripe'
+import { getStripePriceIds, getStripeCheckoutUrls } from './runtimeConfig.js'
+import { validateAndNormalizeStripeSecretKey } from './stripeConfig.js'
+import { userRepository } from './services/userRepository.js'
+import { subscriptionService } from './services/subscriptionService.js'
 
-type LoggerLike = Pick<typeof logger, "error" | "warn" | "info">;
-const defaultLogger: LoggerLike = logger;
-let activeLogger: LoggerLike = defaultLogger;
-const MAX_ATTEMPT_ID_LENGTH = 128;
+type LoggerLike = Pick<typeof logger, 'error' | 'warn' | 'info'>
+const defaultLogger: LoggerLike = logger
+let activeLogger: LoggerLike = defaultLogger
+const MAX_ATTEMPT_ID_LENGTH = 128
 
 export function setPurchasePackageStripeLoggerForTests(next?: LoggerLike): void {
-    activeLogger = next ?? defaultLogger;
+  activeLogger = next ?? defaultLogger
 }
 
-// Initialize the Admin SDK if not already initialized
-if (!admin.apps?.length) {
-    admin.initializeApp();
-}
+// Access services to trigger lazy Admin SDK initialization.
+void services.auth
 
 function getStripeClient() {
-    const secretKey = validateAndNormalizeStripeSecretKey(
-        process.env.STRIPE_SECRET_KEY,
-        (message) => new HttpsError("failed-precondition", message)
-    );
+  const secretKey = validateAndNormalizeStripeSecretKey(
+    process.env.STRIPE_SECRET_KEY,
+    (message) => new HttpsError('failed-precondition', message),
+  )
 
-    return new Stripe(secretKey);
+  return new Stripe(secretKey)
 }
 
 function getRequiredValue(name: string, value?: string): string {
-    if (!value) {
-        throw new HttpsError(
-            "failed-precondition",
-            `${name} configuration value is not set`
-        );
-    }
-    return value;
+  if (!value) {
+    throw new HttpsError('failed-precondition', `${name} configuration value is not set`)
+  }
+  return value
 }
 
 function appendAttemptId(url: string, attemptId?: string): string {
-    if (!attemptId) {
-        return url;
-    }
+  if (!attemptId) {
+    return url
+  }
 
-    let parsedUrl: URL;
-    try {
-        parsedUrl = new URL(url);
-    } catch {
-        throw new HttpsError(
-            "failed-precondition",
-            `Invalid checkout URL configuration: ${url}`
-        );
-    }
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(url)
+  } catch {
+    throw new HttpsError('failed-precondition', `Invalid checkout URL configuration: ${url}`)
+  }
 
-    parsedUrl.searchParams.set("attemptId", attemptId);
-    return parsedUrl.toString();
+  parsedUrl.searchParams.set('attemptId', attemptId)
+  return parsedUrl.toString()
 }
 
 export function resolveCheckoutModeFromPriceType(
-    priceType: Stripe.Price.Type
-): "subscription" | "payment" {
-    return priceType === "recurring" ? "subscription" : "payment";
+  priceType: Stripe.Price.Type,
+): 'subscription' | 'payment' {
+  return priceType === 'recurring' ? 'subscription' : 'payment'
 }
 
 async function getOrCreateStripeCustomer(
-    stripe: Stripe,
-    email: string,
-    firebaseUid: string
+  stripe: Stripe,
+  email: string,
+  firebaseUid: string,
 ): Promise<string> {
-    const existing = await stripe.customers.list({ email, limit: 1 });
-    if (existing.data.length > 0) {
-        return existing.data[0].id;
-    }
-    const customer = await stripe.customers.create({
-        email,
-        metadata: { firebase_uid: firebaseUid },
-    });
-    return customer.id;
+  const existing = await stripe.customers.list({ email, limit: 1 })
+  if (existing.data.length > 0) {
+    return existing.data[0].id
+  }
+  const customer = await stripe.customers.create({
+    email,
+    metadata: { firebase_uid: firebaseUid },
+  })
+  return customer.id
 }
 
 const handler = async (
-    request: CallableRequest,
-    deps: {userRepository: typeof userRepository; subscriptionService: typeof subscriptionService} = {userRepository, subscriptionService}
+  request: CallableRequest,
+  deps: {
+    userRepository: typeof userRepository
+    subscriptionService: typeof subscriptionService
+  } = { userRepository, subscriptionService },
 ) => {
-    if (!request.auth) {
-        activeLogger.error("Unauthenticated request to purchasePackageStripe");
-        throw new HttpsError("unauthenticated", "Authentication required.");
+  if (!request.auth) {
+    activeLogger.error('Unauthenticated request to purchasePackageStripe')
+    throw new HttpsError('unauthenticated', 'Authentication required.')
+  }
+
+  // Validate per-request so missing Stripe env vars only fail this function,
+  // not the entire Functions bundle (which would take down exchangeToken too).
+  const { monthly20, monthly50, creditPack } = getStripePriceIds()
+  const { successUrl, cancelUrl } = getStripeCheckoutUrls()
+  const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue('STRIPE_MONTHLY_20_PRICE_ID', monthly20)
+  const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue('STRIPE_MONTHLY_50_PRICE_ID', monthly50)
+  const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue('STRIPE_CREDIT_PACK_PRICE_ID', creditPack)
+  const STRIPE_SUCCESS_URL = getRequiredValue('STRIPE_SUCCESS_URL', successUrl)
+  const STRIPE_CANCEL_URL = getRequiredValue('STRIPE_CANCEL_URL', cancelUrl)
+  const ALLOWED_PRICE_IDS = new Set([
+    STRIPE_MONTHLY_20_PRICE_ID,
+    STRIPE_MONTHLY_50_PRICE_ID,
+    STRIPE_CREDIT_PACK_PRICE_ID,
+  ])
+  const SUBSCRIPTION_PRICE_IDS = new Set([STRIPE_MONTHLY_20_PRICE_ID, STRIPE_MONTHLY_50_PRICE_ID])
+
+  const data = request.data
+  if (!data?.priceId || typeof data.priceId !== 'string') {
+    throw new HttpsError('invalid-argument', 'priceId must be a non-empty string.')
+  }
+
+  if (typeof data.attemptId !== 'undefined' && typeof data.attemptId !== 'string') {
+    throw new HttpsError(
+      'invalid-argument',
+      'attemptId must be a non-empty trimmed string when provided.',
+    )
+  }
+
+  if (typeof data.attemptId === 'string') {
+    const trimmedAttemptId = data.attemptId.trim()
+    if (trimmedAttemptId.length === 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'attemptId must be a non-empty trimmed string when provided.',
+      )
     }
 
-    // Validate per-request so missing Stripe env vars only fail this function,
-    // not the entire Functions bundle (which would take down exchangeToken too).
-    const { monthly20, monthly50, creditPack } = getStripePriceIds();
-    const { successUrl, cancelUrl } = getStripeCheckoutUrls();
-    const STRIPE_MONTHLY_20_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_20_PRICE_ID", monthly20);
-    const STRIPE_MONTHLY_50_PRICE_ID = getRequiredValue("STRIPE_MONTHLY_50_PRICE_ID", monthly50);
-    const STRIPE_CREDIT_PACK_PRICE_ID = getRequiredValue("STRIPE_CREDIT_PACK_PRICE_ID", creditPack);
-    const STRIPE_SUCCESS_URL = getRequiredValue("STRIPE_SUCCESS_URL", successUrl);
-    const STRIPE_CANCEL_URL = getRequiredValue("STRIPE_CANCEL_URL", cancelUrl);
-    const ALLOWED_PRICE_IDS = new Set([
-        STRIPE_MONTHLY_20_PRICE_ID,
-        STRIPE_MONTHLY_50_PRICE_ID,
-        STRIPE_CREDIT_PACK_PRICE_ID,
-    ]);
-    const SUBSCRIPTION_PRICE_IDS = new Set([
-        STRIPE_MONTHLY_20_PRICE_ID,
-        STRIPE_MONTHLY_50_PRICE_ID,
-    ]);
+    if (trimmedAttemptId.length > MAX_ATTEMPT_ID_LENGTH) {
+      throw new HttpsError(
+        'invalid-argument',
+        `attemptId must be at most ${MAX_ATTEMPT_ID_LENGTH} characters when provided.`,
+      )
+    }
+  }
 
-    const data = request.data;
-    if (!data?.priceId || typeof data.priceId !== "string") {
+  const { priceId } = data
+  const attemptId = typeof data.attemptId === 'string' ? data.attemptId.trim() : undefined
+  if (!ALLOWED_PRICE_IDS.has(priceId)) {
+    throw new HttpsError('invalid-argument', `Unknown priceId: ${priceId}`)
+  }
+
+  if (SUBSCRIPTION_PRICE_IDS.has(priceId)) {
+    const cloudUser = await deps.userRepository.findUserByFirebaseUid(request.auth.uid)
+    if (cloudUser) {
+      const existingSubscription = await deps.subscriptionService.getSubscription(cloudUser.id)
+      if (
+        existingSubscription &&
+        existingSubscription.planStatus === 'active' &&
+        existingSubscription.planTier !== 'free' &&
+        existingSubscription.subscriptionProvider === 'revenuecat'
+      ) {
         throw new HttpsError(
-            "invalid-argument",
-            "priceId must be a non-empty string."
-        );
+          'already-exists',
+          'You already have an active subscription on mobile. Manage it in the App Store or Play Store.',
+        )
+      }
     }
+  }
 
-    if (typeof data.attemptId !== "undefined" && typeof data.attemptId !== "string") {
-        throw new HttpsError(
-            "invalid-argument",
-            "attemptId must be a non-empty trimmed string when provided."
-        );
-    }
+  const stripe = getStripeClient()
 
-    if (typeof data.attemptId === "string") {
-        const trimmedAttemptId = data.attemptId.trim();
-        if (trimmedAttemptId.length === 0) {
-            throw new HttpsError(
-                "invalid-argument",
-                "attemptId must be a non-empty trimmed string when provided."
-            );
-        }
+  const firebaseUser = await services.auth.getUser(request.auth.uid)
+  const email = firebaseUser.email
+  if (!email) {
+    throw new HttpsError('failed-precondition', 'Firebase user has no email address.')
+  }
 
-        if (trimmedAttemptId.length > MAX_ATTEMPT_ID_LENGTH) {
-            throw new HttpsError(
-                "invalid-argument",
-                `attemptId must be at most ${MAX_ATTEMPT_ID_LENGTH} characters when provided.`
-            );
-        }
-    }
+  const stripeCustomerId = await getOrCreateStripeCustomer(stripe, email, request.auth.uid)
 
-    const { priceId } = data;
-    const attemptId = typeof data.attemptId === "string" ? data.attemptId.trim() : undefined;
-    if (!ALLOWED_PRICE_IDS.has(priceId)) {
-        throw new HttpsError("invalid-argument", `Unknown priceId: ${priceId}`);
-    }
+  const price = await stripe.prices.retrieve(priceId)
+  const mode = resolveCheckoutModeFromPriceType(price.type)
+  const expectedMode: 'subscription' | 'payment' = SUBSCRIPTION_PRICE_IDS.has(priceId)
+    ? 'subscription'
+    : 'payment'
 
-    if (SUBSCRIPTION_PRICE_IDS.has(priceId)) {
-        const cloudUser = await deps.userRepository.findUserByFirebaseUid(request.auth.uid);
-        if (cloudUser) {
-            const existingSubscription = await deps.subscriptionService.getSubscription(cloudUser.id);
-            if (
-                existingSubscription &&
-                existingSubscription.planStatus === "active" &&
-                existingSubscription.planTier !== "free" &&
-                existingSubscription.subscriptionProvider === "revenuecat"
-            ) {
-                throw new HttpsError(
-                    "already-exists",
-                    "You already have an active subscription on mobile. Manage it in the App Store or Play Store."
-                );
-            }
-        }
-    }
+  if (mode !== expectedMode) {
+    activeLogger.warn('Stripe price type differs from configured checkout mode', {
+      priceId,
+      priceType: price.type,
+      configuredMode: expectedMode,
+      resolvedMode: mode,
+    })
+  }
 
-    const stripe = getStripeClient();
+  const metadata: Stripe.MetadataParam = {
+    firebase_uid: request.auth.uid,
+    email,
+  }
+  if (attemptId) {
+    metadata.attemptId = attemptId
+  }
 
-    const firebaseUser = await admin.auth().getUser(request.auth.uid);
-    const email = firebaseUser.email;
-    if (!email) {
-        throw new HttpsError(
-            "failed-precondition",
-            "Firebase user has no email address."
-        );
-    }
+  const session = await stripe.checkout.sessions.create({
+    customer: stripeCustomerId,
+    mode,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: appendAttemptId(STRIPE_SUCCESS_URL, attemptId),
+    cancel_url: appendAttemptId(STRIPE_CANCEL_URL, attemptId),
+    metadata,
+    client_reference_id: request.auth.uid,
+  })
 
-    const stripeCustomerId = await getOrCreateStripeCustomer(
-        stripe,
-        email,
-        request.auth.uid
-    );
+  if (!session.url) {
+    activeLogger.error('Stripe Checkout Session missing URL', {
+      sessionId: session.id,
+      email,
+      priceId,
+      mode,
+    })
+    throw new HttpsError('internal', 'Stripe Checkout Session did not include a checkout URL.')
+  }
 
-    const price = await stripe.prices.retrieve(priceId);
-    const mode = resolveCheckoutModeFromPriceType(price.type);
-    const expectedMode: "subscription" | "payment" = SUBSCRIPTION_PRICE_IDS.has(priceId)
-        ? "subscription"
-        : "payment";
+  activeLogger.info('Stripe Checkout Session created', {
+    sessionId: session.id,
+    email,
+    priceId,
+    mode,
+  })
 
-    if (mode !== expectedMode) {
-        activeLogger.warn("Stripe price type differs from configured checkout mode", {
-            priceId,
-            priceType: price.type,
-            configuredMode: expectedMode,
-            resolvedMode: mode,
-        });
-    }
+  return session.url
+}
 
-    const metadata: Stripe.MetadataParam = {
-        firebase_uid: request.auth.uid,
-        email,
-    };
-    if (attemptId) {
-        metadata.attemptId = attemptId;
-    }
-
-    const session = await stripe.checkout.sessions.create({
-        customer: stripeCustomerId,
-        mode,
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: appendAttemptId(STRIPE_SUCCESS_URL, attemptId),
-        cancel_url: appendAttemptId(STRIPE_CANCEL_URL, attemptId),
-        metadata,
-        client_reference_id: request.auth.uid,
-    });
-
-    if (!session.url) {
-        activeLogger.error("Stripe Checkout Session missing URL", {
-            sessionId: session.id,
-            email,
-            priceId,
-            mode,
-        });
-        throw new HttpsError(
-            "internal",
-            "Stripe Checkout Session did not include a checkout URL."
-        );
-    }
-
-    activeLogger.info("Stripe Checkout Session created", {
-        sessionId: session.id,
-        email,
-        priceId,
-        mode,
-    });
-
-    return session.url;
-};
-
-export const purchasePackageStripeHandler = handler;
+export const purchasePackageStripeHandler = handler
 
 export const purchasePackageStripe = onCall(
-    {
-        region: "us-central1",
-        invoker: "public",
-        enforceAppCheck: true,
-        secrets: ["STRIPE_SECRET_KEY"],
-    },
-    (request) => handler(request)
-);
+  {
+    region: 'us-central1',
+    invoker: 'public',
+    enforceAppCheck: true,
+    secrets: ['STRIPE_SECRET_KEY'],
+  },
+  (request) => handler(request),
+)

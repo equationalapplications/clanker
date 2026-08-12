@@ -28,26 +28,28 @@ export async function listTasks(characterId: string): Promise<LocalTask[]> {
   )
 }
 
-export async function updateTask(characterId: string, taskId: string, title: string): Promise<void> {
+export async function updateTask(
+  characterId: string,
+  taskId: string,
+  title: string,
+): Promise<void> {
   const db = await getDatabase()
-  await db.runAsync(
-    'UPDATE tasks SET title = ? WHERE id = ? AND character_id = ?',
-    [title, taskId, characterId],
-  )
+  await db.runAsync('UPDATE tasks SET title = ? WHERE id = ? AND character_id = ?', [
+    title,
+    taskId,
+    characterId,
+  ])
 }
 
 export async function completeTask(characterId: string, taskId: string): Promise<void> {
   const db = await getDatabase()
-  await db.runAsync(
-    "UPDATE tasks SET status = 'done' WHERE id = ? AND character_id = ?",
-    [taskId, characterId],
-  )
+  await db.runAsync("UPDATE tasks SET status = 'done' WHERE id = ? AND character_id = ?", [
+    taskId,
+    characterId,
+  ])
 }
 
 export async function deleteTask(characterId: string, taskId: string): Promise<void> {
   const db = await getDatabase()
-  await db.runAsync(
-    'DELETE FROM tasks WHERE id = ? AND character_id = ?',
-    [taskId, characterId],
-  )
+  await db.runAsync('DELETE FROM tasks WHERE id = ? AND character_id = ?', [taskId, characterId])
 }

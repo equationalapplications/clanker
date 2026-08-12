@@ -14,7 +14,10 @@ type Props = {
 }
 
 export default function AppleSignInButton(props: Props) {
-  if (!process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID || !process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI) {
+  if (
+    !process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID ||
+    !process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
+  ) {
     return null
   }
   return <AppleSignInButtonInner {...props} />
@@ -109,7 +112,11 @@ function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: P
     >
       <View ref={containerRef} style={styles.container} />
       {showLoadingOverlay ? (
-        <View style={styles.loadingOverlay} pointerEvents="none" testID="apple-signin-loading-overlay">
+        <View
+          style={styles.loadingOverlay}
+          pointerEvents="none"
+          testID="apple-signin-loading-overlay"
+        >
           <ActivityIndicator />
         </View>
       ) : null}
