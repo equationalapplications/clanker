@@ -283,4 +283,23 @@ describe('ChatComposer — composer height loop', () => {
     expect(finalHeight).toBeLessThanOrEqual(MAX_INPUT_HEIGHT)
     expect(renderCount).toBeLessThan(50)
   })
+
+  it('fills the composer wrapper on web (textarea must not fall back to cols=20)', () => {
+    // react-native-web 0.21.2 renders <TextInput multiline> as a <textarea>.
+    // Without an explicit `width` in the style, the browser falls back to
+    // `cols=20` (~150–200px) — even inside a `flex: 1` parent, because
+    // <textarea> is `display: inline-block` and a flex row shrinks inline
+    // children to their intrinsic size. Result on the live web deploy: the
+    // wrapper stretched to the Send button but the editable area was a
+    // narrow column on the left. Pin the width here.
+    const input = (() => {
+      let tree!: ReturnType<typeof create>
+      act(() => {
+        tree = create(<ChatComposer {...baseProps} text="" />)
+      })
+      return tree.root.findByProps({ accessibilityLabel: 'Message input' })
+    })()
+
+    expect(input.props.style.width).toBe('100%')
+  })
 })
