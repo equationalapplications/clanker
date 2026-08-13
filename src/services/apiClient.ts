@@ -1,5 +1,7 @@
-import type { BootstrapResponse, UserSnapshot } from '~/auth/bootstrapSession'
-import { bootstrapSession } from '~/auth/bootstrapSession'
+// Type-only on purpose: a value import of bootstrapSession closes the require
+// cycle bootstrapSession -> ensureDevSandboxCharacter -> database -> wikiService
+// -> wikiLlmProvider -> apiClient. Callers invoke bootstrapSession directly.
+import type { UserSnapshot } from '~/auth/bootstrapSession'
 import {
   appCheckReady,
   acceptTermsFn as acceptTermsCallable,
@@ -165,9 +167,6 @@ export interface GetUserCharactersResponse {
 export interface GetPublicCharacterRequest {
   characterId: string
 }
-
-// bootstrapSession handles module-level in-flight dedupe across all callers.
-export const getUserState = async (): Promise<BootstrapResponse> => bootstrapSession()
 
 export const updateUserProfile = withAppCheck(
   updateUserProfileCallable as Callable<UpdateUserProfileRequest, UpdateUserProfileResponse>,

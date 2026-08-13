@@ -2,16 +2,16 @@ jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(),
 }))
 
-jest.mock('~/services/apiClient', () => ({
-  getUserState: jest.fn(),
+jest.mock('~/auth/bootstrapSession', () => ({
+  bootstrapSession: jest.fn(),
 }))
 
+import { bootstrapSession } from '~/auth/bootstrapSession'
 import { getCurrentUser } from '~/config/firebaseConfig'
-import { getUserState } from '~/services/apiClient'
 import { getUserCredits } from '~/utilities/getUserCredits'
 
 const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>
-const mockGetUserState = getUserState as jest.MockedFunction<typeof getUserState>
+const mockBootstrapSession = bootstrapSession as jest.MockedFunction<typeof bootstrapSession>
 
 describe('getUserCredits', () => {
   beforeEach(() => {
@@ -31,7 +31,7 @@ describe('getUserCredits', () => {
 
   it('keeps current credits when subscription is cancelled', async () => {
     mockGetCurrentUser.mockReturnValue({ uid: 'firebase-1' } as any)
-    mockGetUserState.mockResolvedValue({
+    mockBootstrapSession.mockResolvedValue({
       user: {
         id: 'u1',
         firebaseUid: 'firebase-1',

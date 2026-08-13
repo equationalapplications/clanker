@@ -1,5 +1,5 @@
 import { getCurrentUser } from '../config/firebaseConfig'
-import { getUserState } from '../services/apiClient'
+import { bootstrapSession } from '../auth/bootstrapSession'
 
 export interface UserCredits {
   totalCredits: number
@@ -12,7 +12,7 @@ export const getUserCredits = async (): Promise<UserCredits> => {
   }
 
   try {
-    const state = await getUserState()
+    const state = await bootstrapSession()
 
     if (!state?.subscription) {
       return { totalCredits: 0, nextExpiryDate: null }
