@@ -37,7 +37,7 @@ Three concrete problems follow:
 
 ### End state
 
-```
+```text
 ChatComposer attachment row (when not busy)
 └── IconButton "plus"  ──opens──▶  react-native-paper Menu
                                       ├── Take photo           → captureFromCamera() → chat
