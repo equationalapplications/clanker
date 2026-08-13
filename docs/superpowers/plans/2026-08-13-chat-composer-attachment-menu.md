@@ -13,12 +13,12 @@
 **Repo facts that drive plan shape (verified 2026-08-13):**
 
 - **No semicolons.** Every line in `src/` and `__tests__/` ends without one. Match the exact text in every edit.
-- **The plus button is pressed directly by 29 tests (33 press lines).** The spec says "all other existing composer tests must stay green untouched" — that holds for *assertions and coverage*, but the press sites themselves must change, because the plus button now opens a menu instead of launching the document picker. The press lines come in four shapes (all native/web twins unless noted):
+- **The plus button is pressed directly by 29 tests (33 press lines).** The spec says "all other existing composer tests must stay green untouched" — that holds for _assertions and coverage_, but the press sites themselves must change, because the plus button now opens a menu instead of launching the document picker. The press lines come in four shapes (all native/web twins unless noted):
   - **Shape A — 25 identical sites:** `await act(async () => { await plusButton.props.onPress() })` (lines ≈533, 578, 626, 676, 725, 771, 807, 856, 917, 961, 998, 1035, 1073, 1110, 1146, 1180, 1356, 1418, 1463, 1500, 1537, 1575, 1612, 1648, 1682).
   - **Shape B — 2 sites (superseded-request tests, ≈1216 and ≈1718):** double press inside one `act`.
   - **Shape C — 2 sites (unmount-mid-flight tests, ≈1259 and ≈1760):** `pressPromise = plusButton.props.onPress()` then unmount.
   - **Shape D — 2 sites (spinner-during-phase tests, ≈1301 and ≈1802):** `void plusButton.props.onPress()` then assert the spinner replaced the button.
-  All four are converted mechanically in Task 2 via two shared helpers; no assertion text changes.
+    All four are converted mechanically in Task 2 via two shared helpers; no assertion text changes.
 - **Four RNTL-style tests** press `getByLabelText('Attach a photo or document')` (≈1840, ≈1869, ≈1897, ≈1941) and need a follow-up press on the "Add document" item; the camera tests (≈1937–2068) press `getByLabelText('Take a photo')`, a label that ceases to exist (new item title: `Take photo`).
 - **No test asserts the composer's `accessibilityHint`**, no test consumes the `__cameraButtonMock` tag (only the mock factory defines it), and `chatComposerWebHeightLoop.test.tsx` / `chatView*` tests never touch the composer buttons — the hint update and camera-button removal are unconstrained.
 - **`Menu` is already proven in this app:** `app/(drawer)/(tabs)/characters/list.tsx:221-241` and `src/components/admin/UserActionPanel.tsx:103-142` render `Menu`s through the root `PaperProvider` (`ThemeProvider` in `app/_layout.tsx`). `ChatView` is rendered directly by plain route pages (`app/(drawer)/(tabs)/chat/[id].tsx`, `chat/index.tsx`) with no `Modal` ancestor — the spec's "confirm no Portal-clipping context" check passes on paper; keep the manual sanity check in Task 6.
@@ -38,12 +38,12 @@ All paths are relative to the repo root `/Users/equationalapplications/code/src/
 
 ## File Structure
 
-| Path                                        | Action | Responsibility                                                                 |
-| ------------------------------------------- | ------ | ------------------------------------------------------------------------------ |
-| `src/components/ChatComposer.tsx`           | Modify | Replace two-button attachment row with one `Menu`; wire `pickFromLibrary`      |
-| `__tests__/chatComposer.test.tsx`           | Modify | `Menu`/`Menu.Item` mocks, `mockPickFromLibrary`, rework press sites, new tests |
-| `docs/superpowers/specs/2026-08-13-…​.md`   | Commit | The design spec (currently untracked)                                          |
-| `docs/superpowers/plans/2026-08-13-…​.md`   | Commit | This plan                                                                      |
+| Path                                      | Action | Responsibility                                                                 |
+| ----------------------------------------- | ------ | ------------------------------------------------------------------------------ |
+| `src/components/ChatComposer.tsx`         | Modify | Replace two-button attachment row with one `Menu`; wire `pickFromLibrary`      |
+| `__tests__/chatComposer.test.tsx`         | Modify | `Menu`/`Menu.Item` mocks, `mockPickFromLibrary`, rework press sites, new tests |
+| `docs/superpowers/specs/2026-08-13-…​.md` | Commit | The design spec (currently untracked)                                          |
+| `docs/superpowers/plans/2026-08-13-…​.md` | Commit | This plan                                                                      |
 
 **Untouched (per spec):** `src/hooks/useChatPhotoUpload.ts`, `ingestDocument`, MIME resolution, the `pendingImageAsset` dialog, the `Snackbar`, `ChatView`, `MessageList`, `ChatInputBar`, `chatComposerWebHeightLoop.test.tsx`.
 
@@ -237,23 +237,23 @@ Encode the new contract: every document pick now goes plus → menu → "Add doc
 Insert immediately after the top-level `beforeEach` inside `describe('ChatComposer', ...)` (after `jest.useRealTimers()` / `})`, ≈ line 176):
 
 ```ts
-  // Drive the attachment menu the way a user does: open it from the plus
-  // anchor, then act on an item. All document-ingest tests share this path —
-  // the behavior under test starts at DocumentPicker.
-  async function openAttachMenu(tree: ReturnType<typeof create>): Promise<any> {
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      plusButton.props.onPress()
-    })
-    return tree.root.find((n: any) => n.props?.__attachMenuItemMock === 'Add document')
-  }
+// Drive the attachment menu the way a user does: open it from the plus
+// anchor, then act on an item. All document-ingest tests share this path —
+// the behavior under test starts at DocumentPicker.
+async function openAttachMenu(tree: ReturnType<typeof create>): Promise<any> {
+  const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+  await act(async () => {
+    plusButton.props.onPress()
+  })
+  return tree.root.find((n: any) => n.props?.__attachMenuItemMock === 'Add document')
+}
 
-  async function pressPlusAndPickDocument(tree: ReturnType<typeof create>) {
-    const addDocumentItem = await openAttachMenu(tree)
-    await act(async () => {
-      await addDocumentItem.props.onPress()
-    })
-  }
+async function pressPlusAndPickDocument(tree: ReturnType<typeof create>) {
+  const addDocumentItem = await openAttachMenu(tree)
+  await act(async () => {
+    await addDocumentItem.props.onPress()
+  })
+}
 ```
 
 Anchor for the edit:
@@ -271,16 +271,16 @@ Use a replace-all edit (`replace_all: true`) for this exact 4-line block — it 
 Old:
 
 ```ts
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+await act(async () => {
+  await plusButton.props.onPress()
+})
 ```
 
 New:
 
 ```ts
-    await pressPlusAndPickDocument(tree)
+await pressPlusAndPickDocument(tree)
 ```
 
 Verify:
@@ -297,23 +297,23 @@ Replace-all (`replace_all: true`) — occurs exactly twice (native ≈1216, web 
 Old:
 
 ```ts
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      const firstPress = plusButton.props.onPress()
-      const secondPress = plusButton.props.onPress()
-      await Promise.all([firstPress, secondPress])
-    })
+const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+await act(async () => {
+  const firstPress = plusButton.props.onPress()
+  const secondPress = plusButton.props.onPress()
+  await Promise.all([firstPress, secondPress])
+})
 ```
 
 New:
 
 ```ts
-    const addDocumentItem = await openAttachMenu(tree)
-    await act(async () => {
-      const firstPress = addDocumentItem.props.onPress()
-      const secondPress = addDocumentItem.props.onPress()
-      await Promise.all([firstPress, secondPress])
-    })
+const addDocumentItem = await openAttachMenu(tree)
+await act(async () => {
+  const firstPress = addDocumentItem.props.onPress()
+  const secondPress = addDocumentItem.props.onPress()
+  await Promise.all([firstPress, secondPress])
+})
 ```
 
 (Same semantics as before: two synchronous presses of the same handler before any re-render, exercising the superseded-request guard.)
@@ -325,23 +325,23 @@ Replace-all (`replace_all: true`) — occurs exactly twice (native ≈1259, web 
 Old:
 
 ```ts
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    let pressPromise!: Promise<void>
-    await act(async () => {
-      pressPromise = plusButton.props.onPress()
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
+const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+let pressPromise!: Promise<void>
+await act(async () => {
+  pressPromise = plusButton.props.onPress()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+})
 ```
 
 New:
 
 ```ts
-    const addDocumentItem = await openAttachMenu(tree)
-    let pressPromise!: Promise<void>
-    await act(async () => {
-      pressPromise = addDocumentItem.props.onPress()
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
+const addDocumentItem = await openAttachMenu(tree)
+let pressPromise!: Promise<void>
+await act(async () => {
+  pressPromise = addDocumentItem.props.onPress()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+})
 ```
 
 - [ ] **Step 5: Convert the 2 Shape D sites (spinner while phase active)**
@@ -351,21 +351,21 @@ Replace-all (`replace_all: true`) — occurs exactly twice (native ≈1301, web 
 Old:
 
 ```ts
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      void plusButton.props.onPress()
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
+const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+await act(async () => {
+  void plusButton.props.onPress()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+})
 ```
 
 New:
 
 ```ts
-    const addDocumentItem = await openAttachMenu(tree)
-    await act(async () => {
-      void addDocumentItem.props.onPress()
-      await new Promise((resolve) => setTimeout(resolve, 0))
-    })
+const addDocumentItem = await openAttachMenu(tree)
+await act(async () => {
+  void addDocumentItem.props.onPress()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+})
 ```
 
 (The trailing assertions in these tests — spinner visible, zero `__iconButtonMock` nodes — stay untouched and remain correct: the busy state replaces the whole menu anchor.)
@@ -385,35 +385,35 @@ In `describe('image pick: send vs memory (Task 15)', ...)`. **Do NOT use replace
 a) `'prompts send-vs-memory when the pick is an image'` (≈1840) — replace (the `Send in chat` expectation is the unique anchor):
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+fireEvent.press(getByLabelText('Attach a photo or document'))
 
-      expect(await findByText('Send in chat')).toBeTruthy()
+expect(await findByText('Send in chat')).toBeTruthy()
 ```
 
 with:
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      fireEvent.press(await findByText('Add document'))
+fireEvent.press(getByLabelText('Attach a photo or document'))
+fireEvent.press(await findByText('Add document'))
 
-      expect(await findByText('Send in chat')).toBeTruthy()
+expect(await findByText('Send in chat')).toBeTruthy()
 ```
 
 b) `'does not prompt for a text document and still ingests it'` (≈1869) — replace (the `act` wrapper makes this block unique):
 
 ```ts
-      await act(async () => {
-        fireEvent.press(getByLabelText('Attach a photo or document'))
-      })
+await act(async () => {
+  fireEvent.press(getByLabelText('Attach a photo or document'))
+})
 ```
 
 with:
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      await act(async () => {
-        fireEvent.press(getByText('Add document'))
-      })
+fireEvent.press(getByLabelText('Attach a photo or document'))
+await act(async () => {
+  fireEvent.press(getByText('Add document'))
+})
 ```
 
 and add `getByText` to this test's render destructure:
@@ -425,18 +425,18 @@ and add `getByText` to this test's render destructure:
 c) `'offers no photo option when the character cannot use the cloud agent'` (≈1897) — replace (the following comment is the unique anchor):
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+fireEvent.press(getByLabelText('Attach a photo or document'))
 
-      // Never silently degraded to a text-only turn: the option is present and
+// Never silently degraded to a text-only turn: the option is present and
 ```
 
 with:
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      fireEvent.press(await findByText('Add document'))
+fireEvent.press(getByLabelText('Attach a photo or document'))
+fireEvent.press(await findByText('Add document'))
 
-      // Never silently degraded to a text-only turn: the option is present and
+// Never silently degraded to a text-only turn: the option is present and
 ```
 
 (`findByText` is already destructured in this test.)
@@ -444,31 +444,31 @@ with:
 d) `'blocks photo entry while a turn is in flight, without blaming cloud sync'` (≈1911) — replace:
 
 ```ts
-      // Camera is a direct-to-chat entry point, so it must be inert while busy.
-      await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
-      })
-      expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+// Camera is a direct-to-chat entry point, so it must be inert while busy.
+await act(async () => {
+  fireEvent.press(getByLabelText('Take a photo'))
+})
+expect(mockCaptureFromCamera).not.toHaveBeenCalled()
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      fireEvent.press(await findByText('Send in chat'))
+fireEvent.press(getByLabelText('Attach a photo or document'))
+fireEvent.press(await findByText('Send in chat'))
 ```
 
 with:
 
 ```ts
-      // The menu's photo items are direct-to-chat entry points, so they must
-      // be inert while busy.
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      await act(async () => {
-        fireEvent.press(getByLabelText('Take photo'))
-        fireEvent.press(getByLabelText('Choose from library'))
-      })
-      expect(mockCaptureFromCamera).not.toHaveBeenCalled()
-      expect(mockPickFromLibrary).not.toHaveBeenCalled()
+// The menu's photo items are direct-to-chat entry points, so they must
+// be inert while busy.
+fireEvent.press(getByLabelText('Attach a photo or document'))
+await act(async () => {
+  fireEvent.press(getByLabelText('Take photo'))
+  fireEvent.press(getByLabelText('Choose from library'))
+})
+expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+expect(mockPickFromLibrary).not.toHaveBeenCalled()
 
-      fireEvent.press(getByLabelText('Add document'))
-      fireEvent.press(await findByText('Send in chat'))
+fireEvent.press(getByLabelText('Add document'))
+fireEvent.press(await findByText('Send in chat'))
 ```
 
 (The disabled items are no-ops, so the menu stays open through both presses; "Add document" is not gated by `isSending` and proceeds to the image dialog. Everything after this point in the test is untouched.)
@@ -478,18 +478,18 @@ with:
 In the same describe, the tests `'sends a captured photo straight to chat'`, `'keeps the typed caption when onSendPhoto rejects the photo turn'`, and `'clears the typed caption when onSendPhoto accepts the photo turn'` each contain (≈1983, ≈2024, ≈2060). The block occurs exactly **3** times at this point — the identical fourth occurrence in `'blocks photo entry…'` was already replaced in Step 6d, so replace-all is safe now:
 
 ```ts
-      await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
-      })
+await act(async () => {
+  fireEvent.press(getByLabelText('Take a photo'))
+})
 ```
 
 Replace-all (`replace_all: true`) with:
 
 ```ts
-      fireEvent.press(getByLabelText('Attach a photo or document'))
-      await act(async () => {
-        fireEvent.press(getByLabelText('Take photo'))
-      })
+fireEvent.press(getByLabelText('Attach a photo or document'))
+await act(async () => {
+  fireEvent.press(getByLabelText('Take photo'))
+})
 ```
 
 - [ ] **Step 8: Reset `mockPickFromLibrary` in the inner `beforeEach`**
@@ -497,20 +497,20 @@ Replace-all (`replace_all: true`) with:
 Replace:
 
 ```ts
-    beforeEach(() => {
-      mockCaptureFromCamera.mockReset()
-      mockPrepareFromAsset.mockReset()
-    })
+beforeEach(() => {
+  mockCaptureFromCamera.mockReset()
+  mockPrepareFromAsset.mockReset()
+})
 ```
 
 with:
 
 ```ts
-    beforeEach(() => {
-      mockCaptureFromCamera.mockReset()
-      mockPickFromLibrary.mockReset()
-      mockPrepareFromAsset.mockReset()
-    })
+beforeEach(() => {
+  mockCaptureFromCamera.mockReset()
+  mockPickFromLibrary.mockReset()
+  mockPrepareFromAsset.mockReset()
+})
 ```
 
 - [ ] **Step 9: Run the focused tests — expect red, for the right reason**
@@ -758,7 +758,16 @@ import { Button, Dialog, IconButton, Portal, Snackbar, Text, useTheme } from 're
 with:
 
 ```ts
-import { Button, Dialog, IconButton, Menu, Portal, Snackbar, Text, useTheme } from 'react-native-paper'
+import {
+  Button,
+  Dialog,
+  IconButton,
+  Menu,
+  Portal,
+  Snackbar,
+  Text,
+  useTheme,
+} from 'react-native-paper'
 ```
 
 - [ ] **Step 2: Consume `pickFromLibrary` from the hook**
@@ -766,26 +775,26 @@ import { Button, Dialog, IconButton, Menu, Portal, Snackbar, Text, useTheme } fr
 Replace (≈ lines 81–87):
 
 ```ts
-  const {
-    prepareFromAsset,
-    captureFromCamera,
-    isPreparing,
-    error: photoError,
-    clearError: clearPhotoError,
-  } = useChatPhotoUpload()
+const {
+  prepareFromAsset,
+  captureFromCamera,
+  isPreparing,
+  error: photoError,
+  clearError: clearPhotoError,
+} = useChatPhotoUpload()
 ```
 
 with:
 
 ```ts
-  const {
-    prepareFromAsset,
-    captureFromCamera,
-    pickFromLibrary,
-    isPreparing,
-    error: photoError,
-    clearError: clearPhotoError,
-  } = useChatPhotoUpload()
+const {
+  prepareFromAsset,
+  captureFromCamera,
+  pickFromLibrary,
+  isPreparing,
+  error: photoError,
+  clearError: clearPhotoError,
+} = useChatPhotoUpload()
 ```
 
 - [ ] **Step 3: Add the menu visibility state**
@@ -793,26 +802,26 @@ with:
 Replace:
 
 ```ts
-  const [pendingImageAsset, setPendingImageAsset] = useState<{
-    uri: string
-    width: number
-    height: number
-    asset: DocumentPicker.DocumentPickerAsset
-  } | null>(null)
-  const lastSeenPhotoErrorRef = useRef<string | null>(null)
+const [pendingImageAsset, setPendingImageAsset] = useState<{
+  uri: string
+  width: number
+  height: number
+  asset: DocumentPicker.DocumentPickerAsset
+} | null>(null)
+const lastSeenPhotoErrorRef = useRef<string | null>(null)
 ```
 
 with:
 
 ```ts
-  const [pendingImageAsset, setPendingImageAsset] = useState<{
-    uri: string
-    width: number
-    height: number
-    asset: DocumentPicker.DocumentPickerAsset
-  } | null>(null)
-  const [attachMenuVisible, setAttachMenuVisible] = useState(false)
-  const lastSeenPhotoErrorRef = useRef<string | null>(null)
+const [pendingImageAsset, setPendingImageAsset] = useState<{
+  uri: string
+  width: number
+  height: number
+  asset: DocumentPicker.DocumentPickerAsset
+} | null>(null)
+const [attachMenuVisible, setAttachMenuVisible] = useState(false)
+const lastSeenPhotoErrorRef = useRef<string | null>(null)
 ```
 
 - [ ] **Step 4: Rename `handlePlusPress` to `handleDocumentPick` and close the menu first**
@@ -841,30 +850,30 @@ The rest of the callback body and its dependency array (`[characterId, userId, i
 Insert immediately after `handleDocumentPick`'s closing `}, [characterId, userId, ingestDocument])`:
 
 ```ts
-  // Only clear the typed caption when the photo turn actually launched — if
-  // sendPhoto rejects (network, credits, etc.) the user keeps their text and
-  // can retry without retyping. Same send shape the old camera button used.
-  const sendPhotoToChat = useCallback(
-    async (photo: PendingChatPhoto) => {
-      const sent = await onSendPhoto?.(photo, text)
-      if (sent) onChangeText('')
-    },
-    [onSendPhoto, text, onChangeText],
-  )
+// Only clear the typed caption when the photo turn actually launched — if
+// sendPhoto rejects (network, credits, etc.) the user keeps their text and
+// can retry without retyping. Same send shape the old camera button used.
+const sendPhotoToChat = useCallback(
+  async (photo: PendingChatPhoto) => {
+    const sent = await onSendPhoto?.(photo, text)
+    if (sent) onChangeText('')
+  },
+  [onSendPhoto, text, onChangeText],
+)
 
-  const handleTakePhoto = useCallback(async () => {
-    setAttachMenuVisible(false)
-    const photo = await captureFromCamera()
-    if (!photo) return
-    await sendPhotoToChat(photo)
-  }, [captureFromCamera, sendPhotoToChat])
+const handleTakePhoto = useCallback(async () => {
+  setAttachMenuVisible(false)
+  const photo = await captureFromCamera()
+  if (!photo) return
+  await sendPhotoToChat(photo)
+}, [captureFromCamera, sendPhotoToChat])
 
-  const handlePickFromLibrary = useCallback(async () => {
-    setAttachMenuVisible(false)
-    const photo = await pickFromLibrary()
-    if (!photo) return
-    await sendPhotoToChat(photo)
-  }, [pickFromLibrary, sendPhotoToChat])
+const handlePickFromLibrary = useCallback(async () => {
+  setAttachMenuVisible(false)
+  const photo = await pickFromLibrary()
+  if (!photo) return
+  await sendPhotoToChat(photo)
+}, [pickFromLibrary, sendPhotoToChat])
 ```
 
 (`PendingChatPhoto` is already imported: `import { useChatPhotoUpload, type PendingChatPhoto } from '~/hooks/useChatPhotoUpload'`.)
@@ -874,83 +883,83 @@ Insert immediately after `handleDocumentPick`'s closing `}, [characterId, userId
 Replace the entire block (≈ lines 325–364):
 
 ```tsx
-            <View style={styles.attachmentRow}>
-              <IconButton
-                icon="plus"
-                size={20}
-                onPress={handlePlusPress}
-                style={styles.plusButton}
-                accessibilityLabel="Attach a photo or document"
-                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
-              />
-              {canSendPhoto && !isWeb && (
-                // The camera capture path opens expo-image-picker's native
-                // camera intent, which web cannot host. Suppress the button
-                // on web — the picker IconButton above still offers "Send in
-                // chat" via gallery selection.
-                <IconButton
-                  icon="camera"
-                  size={20}
-                  disabled={isSending}
-                  onPress={async () => {
-                    const photo = await captureFromCamera()
-                    if (!photo) return
-                    // Only clear the typed caption when the photo turn
-                    // actually launched — if sendPhoto rejects (network,
-                    // credits, etc.) the user keeps their text and can
-                    // retry without retyping.
-                    const sent = await onSendPhoto?.(photo, text)
-                    if (sent) onChangeText('')
-                  }}
-                  style={styles.plusButton}
-                  accessibilityLabel="Take a photo"
-                  accessibilityHint="Opens the camera and sends the photo in chat"
-                />
-              )}
-            </View>
+<View style={styles.attachmentRow}>
+  <IconButton
+    icon="plus"
+    size={20}
+    onPress={handlePlusPress}
+    style={styles.plusButton}
+    accessibilityLabel="Attach a photo or document"
+    accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
+  />
+  {canSendPhoto && !isWeb && (
+    // The camera capture path opens expo-image-picker's native
+    // camera intent, which web cannot host. Suppress the button
+    // on web — the picker IconButton above still offers "Send in
+    // chat" via gallery selection.
+    <IconButton
+      icon="camera"
+      size={20}
+      disabled={isSending}
+      onPress={async () => {
+        const photo = await captureFromCamera()
+        if (!photo) return
+        // Only clear the typed caption when the photo turn
+        // actually launched — if sendPhoto rejects (network,
+        // credits, etc.) the user keeps their text and can
+        // retry without retyping.
+        const sent = await onSendPhoto?.(photo, text)
+        if (sent) onChangeText('')
+      }}
+      style={styles.plusButton}
+      accessibilityLabel="Take a photo"
+      accessibilityHint="Opens the camera and sends the photo in chat"
+    />
+  )}
+</View>
 ```
 
 with:
 
 ```tsx
-            <View style={styles.attachmentRow}>
-              <Menu
-                visible={attachMenuVisible}
-                onDismiss={() => setAttachMenuVisible(false)}
-                anchor={
-                  <IconButton
-                    icon="plus"
-                    size={20}
-                    onPress={() => setAttachMenuVisible(true)}
-                    style={styles.plusButton}
-                    accessibilityLabel="Attach a photo or document"
-                    accessibilityHint="Opens the attachment menu to take a photo, choose one from the library, or add a document"
-                  />
-                }
-              >
-                {canSendPhoto && (
-                  <>
-                    <Menu.Item
-                      leadingIcon="camera"
-                      title="Take photo"
-                      disabled={isSending}
-                      onPress={handleTakePhoto}
-                    />
-                    <Menu.Item
-                      leadingIcon="image"
-                      title="Choose from library"
-                      disabled={isSending}
-                      onPress={handlePickFromLibrary}
-                    />
-                  </>
-                )}
-                <Menu.Item
-                  leadingIcon="file-document-outline"
-                  title="Add document"
-                  onPress={handleDocumentPick}
-                />
-              </Menu>
-            </View>
+<View style={styles.attachmentRow}>
+  <Menu
+    visible={attachMenuVisible}
+    onDismiss={() => setAttachMenuVisible(false)}
+    anchor={
+      <IconButton
+        icon="plus"
+        size={20}
+        onPress={() => setAttachMenuVisible(true)}
+        style={styles.plusButton}
+        accessibilityLabel="Attach a photo or document"
+        accessibilityHint="Opens the attachment menu to take a photo, choose one from the library, or add a document"
+      />
+    }
+  >
+    {canSendPhoto && (
+      <>
+        <Menu.Item
+          leadingIcon="camera"
+          title="Take photo"
+          disabled={isSending}
+          onPress={handleTakePhoto}
+        />
+        <Menu.Item
+          leadingIcon="image"
+          title="Choose from library"
+          disabled={isSending}
+          onPress={handlePickFromLibrary}
+        />
+      </>
+    )}
+    <Menu.Item
+      leadingIcon="file-document-outline"
+      title="Add document"
+      onPress={handleDocumentPick}
+    />
+  </Menu>
+</View>
 ```
 
 Notes:
