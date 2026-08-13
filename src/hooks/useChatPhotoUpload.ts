@@ -13,7 +13,8 @@
  */
 
 import { useCallback, useState } from 'react'
-import { Image } from 'react-native'
+import { Image, Platform } from 'react-native'
+import * as Device from 'expo-device'
 import * as ImagePicker from 'expo-image-picker'
 import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
@@ -157,6 +158,14 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const captureFromCamera = useCallback(async (): Promise<PendingChatPhoto | null> => {
     setError(null)
     try {
+      // The iOS simulator has no camera: UIImagePickerController's .camera source
+      // type is unavailable there, and expo-image-picker sets it without checking
+      // isSourceTypeAvailable, which throws an uncatchable native exception and
+      // crashes the app. Fail with a message instead.
+      if (Platform.OS === 'ios' && !Device.isDevice) {
+        setError('Camera capture requires a physical iOS device.')
+        return null
+      }
       // expo-image-picker never prompts on its own: launchCameraAsync rejects
       // with MissingCameraPermissionException unless permission is ALREADY
       // granted (ImagePickerModule.swift only checks, it does not request), so
