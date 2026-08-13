@@ -1,10 +1,14 @@
 import { renderHook, act } from '@testing-library/react-native'
 import { Image } from 'react-native'
+import * as Device from 'expo-device'
 import * as ImagePicker from 'expo-image-picker'
 import { useChatPhotoUpload } from '~/hooks/useChatPhotoUpload'
 import { prepareImageVariants } from '~/services/imageVariants'
 
 jest.mock('expo-image-picker')
+// __esModule: true so `import * as Device` gets this exact object in both the
+// test and the hook — tests flip isDevice per case.
+jest.mock('expo-device', () => ({ __esModule: true, isDevice: true }))
 jest.mock('~/services/imageVariants')
 
 // Image.getSize pulls from a native module; stub it directly rather than
@@ -20,7 +24,27 @@ const VARIANTS = {
 
 beforeEach(() => {
   jest.resetAllMocks()
+  ;(Device as unknown as { isDevice: boolean }).isDevice = true
   ;(prepareImageVariants as jest.Mock).mockResolvedValue(VARIANTS)
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+  })
+})
+
+it('fails with a device-required message on the iOS simulator instead of crashing', async () => {
+  ;(Device as unknown as { isDevice: boolean }).isDevice = false
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.captureFromCamera()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toMatch(/physical iOS device/)
+  expect(ImagePicker.requestCameraPermissionsAsync).not.toHaveBeenCalled()
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
 })
 
 it('builds a photo message from a picked asset without cropping it', async () => {
@@ -64,8 +88,11 @@ it('rejects an encode that exceeds the wire cap instead of sending a doomed requ
   })
 })
 
-it('surfaces a denied camera permission as an error rather than throwing', async () => {
-  ;(ImagePicker.launchCameraAsync as jest.Mock).mockRejectedValue(new Error('denied'))
+it('surfaces a denied camera permission as an error without launching the camera', async () => {
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: true,
+  })
   const { result } = renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
@@ -75,6 +102,24 @@ it('surfaces a denied camera permission as an error rather than throwing', async
 
   expect(photo).toBeNull()
   expect(result.current.error).toBe('Camera access denied')
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
+})
+
+it('points to device settings when the camera is permanently denied', async () => {
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: false,
+  })
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.captureFromCamera()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toMatch(/device settings/)
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
 })
 
 it('returns null when the camera is cancelled', async () => {
