@@ -56,11 +56,12 @@ jest.mock('~/services/apiClient', () => ({
 const convertDocumentText = mockConvertDocumentText
 const ingest = mockIngest
 const mockCaptureFromCamera = jest.fn()
+const mockPickFromLibrary = jest.fn()
 const mockPrepareFromAsset = jest.fn()
 jest.mock('~/hooks/useChatPhotoUpload', () => ({
   useChatPhotoUpload: () => ({
     prepareFromAsset: (...args: unknown[]) => mockPrepareFromAsset(...args),
-    pickFromLibrary: jest.fn(),
+    pickFromLibrary: (...args: unknown[]) => mockPickFromLibrary(...args),
     captureFromCamera: (...args: unknown[]) => mockCaptureFromCamera(...args),
     isPreparing: false,
     error: null,
@@ -99,16 +100,10 @@ jest.mock('react-native-paper', () => {
   const { View, Text: RNText } = require('react-native')
   return {
     IconButton: (props: any) => {
-      // Tag the plus and camera buttons separately so the existing plus-only
-      // assertions still match exactly one node after Task 15 added a camera.
-      const tag =
-        props.icon === 'camera'
-          ? { __cameraButtonMock: true }
-          : props.icon === 'plus'
-            ? { __iconButtonMock: true }
-            : {}
+      // Tag the plus button so tests can find the attachment-menu anchor.
+      const tag = props.icon === 'plus' ? { __iconButtonMock: true } : {}
       // Same reason as the Button mock: a View ignores `disabled`, so without
-      // this a disabled camera would still fire its handler under test. No-op
+      // this a disabled button would still fire its handler under test. No-op
       // rather than `undefined` so RNTL does not climb to an ancestor handler.
       return React.createElement(View, {
         ...tag,
@@ -143,6 +138,29 @@ jest.mock('react-native-paper', () => {
         Title: ({ children }: any) => React.createElement(RNText, null, children),
         Content: ({ children }: any) => React.createElement(RNText, null, children),
         Actions: ({ children }: any) => React.createElement(RNText, null, children),
+      },
+    ),
+    Menu: Object.assign(
+      // The anchor is always rendered; items exist only while `visible`.
+      // Mirrors the real component closely enough for tests, the same way
+      // `Portal: ({ children }) => children` does.
+      ({ anchor, visible, children }: any) =>
+        React.createElement(React.Fragment, null, anchor, visible ? children : null),
+      {
+        Item: ({ title, onPress, disabled }: any) =>
+          // Honour `disabled` with a no-op rather than `undefined`, same
+          // reason as the Button mock: RNTL climbs to an ancestor handler
+          // when the pressed element has none.
+          React.createElement(
+            RNText,
+            {
+              __attachMenuItemMock: title,
+              onPress: disabled ? () => {} : onPress,
+              accessibilityLabel: title,
+              accessibilityState: { disabled: !!disabled },
+            },
+            title,
+          ),
       },
     ),
     Text: ({ children }: any) => React.createElement(RNText, null, children),
