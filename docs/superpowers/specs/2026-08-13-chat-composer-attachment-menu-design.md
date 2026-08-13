@@ -1,7 +1,7 @@
 # Chat Composer — Unified Attachment Menu Design
 
 **Date:** 2026-08-13
-**Status:** Approved
+**Status:** Implemented (PR #612)
 **Owner:** equationalapplications
 **File affected:** `src/components/ChatComposer.tsx` (plus its test `__tests__/chatComposer.test.tsx`)
 **Depends on:** [react-native-gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) (this builds on the custom composer it introduced) and the [Vision / Chat Uploads](./2026-08-10-vision-chat-uploads-design.md) camera-permission work
