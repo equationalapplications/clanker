@@ -140,29 +140,7 @@ jest.mock('react-native-paper', () => {
         Actions: ({ children }: any) => React.createElement(RNText, null, children),
       },
     ),
-    Menu: Object.assign(
-      // The anchor is always rendered; items exist only while `visible`.
-      // Mirrors the real component closely enough for tests, the same way
-      // `Portal: ({ children }) => children` does.
-      ({ anchor, visible, children }: any) =>
-        React.createElement(React.Fragment, null, anchor, visible ? children : null),
-      {
-        Item: ({ title, onPress, disabled }: any) =>
-          // Honour `disabled` with a no-op rather than `undefined`, same
-          // reason as the Button mock: RNTL climbs to an ancestor handler
-          // when the pressed element has none.
-          React.createElement(
-            RNText,
-            {
-              __attachMenuItemMock: title,
-              onPress: disabled ? () => {} : onPress,
-              accessibilityLabel: title,
-              accessibilityState: { disabled: !!disabled },
-            },
-            title,
-          ),
-      },
-    ),
+    Menu: require('./helpers/paperMenuMock').createMenuMock(React, RNText, { tagItems: true }),
     Text: ({ children }: any) => React.createElement(RNText, null, children),
     useTheme: () => ({
       colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' },

@@ -49,26 +49,7 @@ jest.mock('react-native-paper', () => {
     Snackbar: () => null,
     Portal: ({ children }: any) => children,
     Button: ({ children, onPress }: any) => ReactLib.createElement(RNText, { onPress }, children),
-    Menu: Object.assign(
-      // The anchor is always rendered; items exist only while `visible`.
-      // Mirrors the real component closely enough for tests, the same way
-      // `Portal: ({ children }) => children` does. Kept in step with the
-      // mock in chatComposer.test.tsx.
-      ({ anchor, visible, children }: any) =>
-        ReactLib.createElement(ReactLib.Fragment, null, anchor, visible ? children : null),
-      {
-        Item: ({ title, onPress, disabled }: any) =>
-          ReactLib.createElement(
-            RNText,
-            {
-              onPress: disabled ? () => {} : onPress,
-              accessibilityLabel: title,
-              accessibilityState: { disabled: !!disabled },
-            },
-            title,
-          ),
-      },
-    ),
+    Menu: require('./helpers/paperMenuMock').createMenuMock(ReactLib, RNText),
     Dialog: Object.assign(
       ({ children, visible }: any) =>
         visible ? ReactLib.createElement(View, null, children) : null,
