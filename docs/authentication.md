@@ -27,7 +27,7 @@ Firebase Auth is the canonical identity provider. Cloud SQL stores app-level use
    - `planStatus: active`
    - `currentCredits: 50`
 7. Function returns normalized bootstrap payload: `user` snapshot + `subscription` snapshot.
-8. Client stores/uses this bootstrap state via `getUserState()` and related app services.
+8. Client stores/uses this bootstrap state via `bootstrapSession()` and related app services.
 
 ### Bootstrap response shape
 

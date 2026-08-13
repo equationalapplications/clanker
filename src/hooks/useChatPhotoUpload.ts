@@ -185,7 +185,7 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
         if (isDevice !== true) {
           setError(
             isDevice === null
-              ? 'Camera capture is not available in this build.'
+              ? 'Camera capture is not available in this build — rebuild the dev client to enable it.'
               : 'Camera capture requires a physical iOS device.',
           )
           return null
