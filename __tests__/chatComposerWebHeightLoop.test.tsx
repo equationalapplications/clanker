@@ -49,6 +49,7 @@ jest.mock('react-native-paper', () => {
     Snackbar: () => null,
     Portal: ({ children }: any) => children,
     Button: ({ children, onPress }: any) => ReactLib.createElement(RNText, { onPress }, children),
+    Menu: require('./helpers/paperMenuMock').createMenuMock(ReactLib, RNText),
     Dialog: Object.assign(
       ({ children, visible }: any) =>
         visible ? ReactLib.createElement(View, null, children) : null,

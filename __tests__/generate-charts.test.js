@@ -56,12 +56,16 @@ describe('renderFileChart', () => {
     expect(result).toContain('  aiChatService --> useChat')
     expect(result).toContain('  tokenService --> tokens')
     expect(result).toContain('npm run docs:charts')
+    // Prettier requires a blank line before the fence; emitting it keeps
+    // regeneration output stable across `prettier --write`.
+    expect(result).toContain('regenerate._\n\n```mermaid')
   })
 
   it('returns empty notice when no edges present', () => {
     const result = renderFileChart('hooks', [])
     expect(result).toContain('_No edges found')
     expect(result).not.toContain('graph LR')
+    expect(result).toContain('regenerate._\n\n_No edges found')
   })
 })
 
