@@ -157,6 +157,20 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const captureFromCamera = useCallback(async (): Promise<PendingChatPhoto | null> => {
     setError(null)
     try {
+      // expo-image-picker never prompts on its own: launchCameraAsync rejects
+      // with MissingCameraPermissionException unless permission is ALREADY
+      // granted (ImagePickerModule.swift only checks, it does not request), so
+      // ask explicitly first. canAskAgain distinguishes a fresh denial from a
+      // permanent one the OS will never re-prompt for.
+      const permission = await ImagePicker.requestCameraPermissionsAsync()
+      if (!permission.granted) {
+        setError(
+          permission.canAskAgain
+            ? 'Camera access denied'
+            : 'Camera access is blocked. Enable the camera for this app in your device settings.',
+        )
+        return null
+      }
       const result = await ImagePicker.launchCameraAsync({ quality: 1 })
       return await fromPickerResult(result)
     } catch (err) {

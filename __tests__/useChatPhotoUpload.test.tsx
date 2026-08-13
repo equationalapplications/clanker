@@ -21,6 +21,10 @@ const VARIANTS = {
 beforeEach(() => {
   jest.resetAllMocks()
   ;(prepareImageVariants as jest.Mock).mockResolvedValue(VARIANTS)
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+  })
 })
 
 it('builds a photo message from a picked asset without cropping it', async () => {
@@ -64,8 +68,11 @@ it('rejects an encode that exceeds the wire cap instead of sending a doomed requ
   })
 })
 
-it('surfaces a denied camera permission as an error rather than throwing', async () => {
-  ;(ImagePicker.launchCameraAsync as jest.Mock).mockRejectedValue(new Error('denied'))
+it('surfaces a denied camera permission as an error without launching the camera', async () => {
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: true,
+  })
   const { result } = renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
@@ -75,6 +82,24 @@ it('surfaces a denied camera permission as an error rather than throwing', async
 
   expect(photo).toBeNull()
   expect(result.current.error).toBe('Camera access denied')
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
+})
+
+it('points to device settings when the camera is permanently denied', async () => {
+  ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: false,
+  })
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.captureFromCamera()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toMatch(/device settings/)
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
 })
 
 it('returns null when the camera is cancelled', async () => {
