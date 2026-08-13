@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View, TextInput, StyleSheet, ActivityIndicator, Platform } from 'react-native'
-import { Button, Dialog, IconButton, Menu, Portal, Snackbar, Text, useTheme } from 'react-native-paper'
+import {
+  Button,
+  Dialog,
+  IconButton,
+  Menu,
+  Portal,
+  Snackbar,
+  Text,
+  useTheme,
+} from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import { File as ExpoFile } from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
@@ -504,11 +513,7 @@ export default function ChatComposer({
                     width: picked.width,
                     height: picked.height,
                   })
-                  // Only clear the typed caption when the photo turn
-                  // actually launched — on rejection the user keeps the
-                  // text and can retry without retyping.
-                  const sent = await onSendPhoto?.(photo, text)
-                  if (sent) onChangeText('')
+                  await sendPhotoToChat(photo)
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }
