@@ -1,14 +1,24 @@
 import { renderHook, act } from '@testing-library/react-native'
 import { Image } from 'react-native'
-import * as Device from 'expo-device'
 import * as ImagePicker from 'expo-image-picker'
 import { useChatPhotoUpload } from '~/hooks/useChatPhotoUpload'
 import { prepareImageVariants } from '~/services/imageVariants'
 
 jest.mock('expo-image-picker')
-// __esModule: true so `import * as Device` gets this exact object in both the
-// test and the hook — tests flip isDevice per case.
-jest.mock('expo-device', () => ({ __esModule: true, isDevice: true }))
+// Tests flip isDevice per case; `missing` simulates a dev client built before
+// expo-device shipped, where requiring the module throws at evaluation. The
+// hook reads `isDevice` inside its try/catch, so a throwing getter exercises
+// the same detection-failure path.
+const mockDeviceState = { isDevice: true, missing: false }
+jest.mock('expo-device', () => ({
+  __esModule: true,
+  get isDevice(): boolean {
+    if (mockDeviceState.missing) {
+      throw new Error("Cannot find native module 'ExpoDevice'")
+    }
+    return mockDeviceState.isDevice
+  },
+}))
 jest.mock('~/services/imageVariants')
 
 // Image.getSize pulls from a native module; stub it directly rather than
@@ -24,7 +34,8 @@ const VARIANTS = {
 
 beforeEach(() => {
   jest.resetAllMocks()
-  ;(Device as unknown as { isDevice: boolean }).isDevice = true
+  mockDeviceState.isDevice = true
+  mockDeviceState.missing = false
   ;(prepareImageVariants as jest.Mock).mockResolvedValue(VARIANTS)
   ;(ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
     granted: true,
@@ -33,7 +44,7 @@ beforeEach(() => {
 })
 
 it('fails with a device-required message on the iOS simulator instead of crashing', async () => {
-  ;(Device as unknown as { isDevice: boolean }).isDevice = false
+  mockDeviceState.isDevice = false
   const { result } = renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
@@ -43,6 +54,24 @@ it('fails with a device-required message on the iOS simulator instead of crashin
 
   expect(photo).toBeNull()
   expect(result.current.error).toMatch(/physical iOS device/)
+  expect(ImagePicker.requestCameraPermissionsAsync).not.toHaveBeenCalled()
+  expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
+})
+
+it('fails closed on iOS when the expo-device native module is missing', async () => {
+  // Dev clients built before expo-device shipped throw at module evaluation.
+  // The hook must block iOS capture instead of falling through to the
+  // uncatchable simulator crash — even though detection is impossible.
+  mockDeviceState.missing = true
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.captureFromCamera()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toMatch(/not available in this build/)
   expect(ImagePicker.requestCameraPermissionsAsync).not.toHaveBeenCalled()
   expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled()
 })

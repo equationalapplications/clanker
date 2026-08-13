@@ -14,7 +14,6 @@
 
 import { useCallback, useState } from 'react'
 import { Image, Platform } from 'react-native'
-import * as Device from 'expo-device'
 import * as ImagePicker from 'expo-image-picker'
 import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
@@ -53,6 +52,22 @@ function newMessageId(): string {
   // Matches ChatView's messageIdGenerator so photo turns and text turns are
   // indistinguishable downstream.
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+}
+
+/**
+ * `Device.isDevice` behind a deferred require. A static top-level `expo-device`
+ * import throws during module evaluation on dev clients built before the module
+ * was added, and every chat screen imports this hook — so a static import took
+ * down the whole chat tab. Returns null when the native module is unavailable.
+ */
+function detectPhysicalDevice(): boolean | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Device = require('expo-device') as typeof import('expo-device')
+    return Device.isDevice
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -161,10 +176,20 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
       // The iOS simulator has no camera: UIImagePickerController's .camera source
       // type is unavailable there, and expo-image-picker sets it without checking
       // isSourceTypeAvailable, which throws an uncatchable native exception and
-      // crashes the app. Fail with a message instead.
-      if (Platform.OS === 'ios' && !Device.isDevice) {
-        setError('Camera capture requires a physical iOS device.')
-        return null
+      // crashes the app. Fail with a message instead. Detection returns null on
+      // dev clients that predate expo-device; iOS then fails closed because the
+      // simulator crash is uncatchable, while Android falls through (its picker
+      // errors are catchable).
+      if (Platform.OS === 'ios') {
+        const isDevice = detectPhysicalDevice()
+        if (isDevice !== true) {
+          setError(
+            isDevice === null
+              ? 'Camera capture is not available in this build.'
+              : 'Camera capture requires a physical iOS device.',
+          )
+          return null
+        }
       }
       // expo-image-picker never prompts on its own: launchCameraAsync rejects
       // with MissingCameraPermissionException unless permission is ALREADY
