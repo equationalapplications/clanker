@@ -71,6 +71,9 @@ function renderFileChart(directory, edges) {
     '',
     '_Auto-generated. Run `npm run docs:charts` to regenerate._',
     '',
+    // Trailing blank line: prettier requires one before the code fence, and
+    // emitting it keeps regeneration output stable across `prettier --write`.
+    '',
   ].join('\n')
 
   if (edges.length === 0) {
