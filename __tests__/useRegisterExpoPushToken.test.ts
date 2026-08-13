@@ -16,6 +16,11 @@ const defaultExpoConfig = {
 
 const mockRegisterExpoPushTokenFn = jest.fn().mockResolvedValue({ data: { ok: true } })
 
+const mockIsDevSandboxEnabled = jest.fn().mockReturnValue(false)
+jest.mock('~/auth/devSandboxFlag', () => ({
+  isDevSandboxEnabled: (...args: unknown[]) => mockIsDevSandboxEnabled(...args),
+}))
+
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'undetermined' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
@@ -44,6 +49,7 @@ describe('useRegisterExpoPushToken', () => {
     } as unknown as typeof Constants.expoConfig
     window.localStorage.clear()
     mockRegisterExpoPushTokenFn.mockClear()
+    mockIsDevSandboxEnabled.mockReturnValue(false)
     jest.clearAllMocks()
   })
 
@@ -106,5 +112,19 @@ describe('useRegisterExpoPushToken', () => {
       })
     })
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
+  })
+
+  it('skips registration entirely in the dev sandbox', async () => {
+    // Mock auth has no real Firebase identity, so the callable rejects with
+    // "Authentication required" — never attempt it.
+    mockIsDevSandboxEnabled.mockReturnValue(true)
+    const Notifications = require('expo-notifications')
+
+    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled()
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
+    expect(mockRegisterExpoPushTokenFn).not.toHaveBeenCalled()
   })
 })

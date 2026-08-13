@@ -1,6 +1,9 @@
 jest.mock('~/services/apiClient', () => ({
-  getUserState: jest.fn(),
   updateUserProfile: jest.fn(),
+}))
+
+jest.mock('~/auth/bootstrapSession', () => ({
+  bootstrapSession: jest.fn(),
 }))
 
 jest.mock('~/config/firebaseConfig', () => ({
@@ -8,10 +11,10 @@ jest.mock('~/config/firebaseConfig', () => ({
   deleteMyAccountFn: jest.fn(),
 }))
 
-import { getUserState } from '~/services/apiClient'
+import { bootstrapSession } from '~/auth/bootstrapSession'
 import { getUserPrivate } from '~/services/userService'
 
-const mockGetUserState = getUserState as jest.MockedFunction<typeof getUserState>
+const mockBootstrapSession = bootstrapSession as jest.MockedFunction<typeof bootstrapSession>
 
 describe('getUserPrivate', () => {
   beforeEach(() => {
@@ -19,7 +22,7 @@ describe('getUserPrivate', () => {
   })
 
   it('returns credits when plan is active', async () => {
-    mockGetUserState.mockResolvedValue({
+    mockBootstrapSession.mockResolvedValue({
       user: {
         id: 'u1',
         firebaseUid: 'f1',
@@ -51,7 +54,7 @@ describe('getUserPrivate', () => {
   })
 
   it('returns hasAcceptedTermsDate as ISO string for persistence safety', async () => {
-    mockGetUserState.mockResolvedValue({
+    mockBootstrapSession.mockResolvedValue({
       user: {
         id: 'u1',
         firebaseUid: 'f1',

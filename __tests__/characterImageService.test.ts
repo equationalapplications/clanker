@@ -17,6 +17,7 @@ const mockPrepareVariants = jest.fn()
 const mockUploadImageBytes = jest.fn()
 const mockDeleteStorageObject = jest.fn()
 const mockUpdateImageRefs = jest.fn()
+const mockIsDevSandboxEnabled = jest.fn().mockReturnValue(false)
 
 jest.mock('~/database/characterImageDatabase', () => ({
   insertCharacterImage: (...a: unknown[]) => mockInsert(...a),
@@ -48,6 +49,9 @@ jest.mock('~/utilities/generateSecureUuid', () => ({
 jest.mock('~/services/storageService', () => ({
   uploadImageBytes: (...a: unknown[]) => mockUploadImageBytes(...a),
   deleteStorageObject: (...a: unknown[]) => mockDeleteStorageObject(...a),
+}))
+jest.mock('~/auth/devSandboxFlag', () => ({
+  isDevSandboxEnabled: (...a: unknown[]) => mockIsDevSandboxEnabled(...a),
 }))
 // Mocking `react-native/Libraries/Utilities/Platform` directly breaks the
 // jest-expo preset setup, so stub the public `react-native` surface instead.
@@ -84,6 +88,7 @@ beforeEach(() => {
   mockGetActive.mockResolvedValue(null)
   mockGetAllForCharacter.mockResolvedValue([])
   mockGetCharacter.mockResolvedValue({ id: 'char_a', save_to_cloud: false, cloud_id: null })
+  mockIsDevSandboxEnabled.mockReturnValue(false)
   mockPrepareVariants.mockResolvedValue({
     master: { base64: 'M64', mimeType: 'image/webp' },
     thumb: { base64: 'T64', mimeType: 'image/webp' },
@@ -771,6 +776,37 @@ describe('cloud routing', () => {
     })
     expect(mockUploadImageBytes).not.toHaveBeenCalled()
     expect(row.sync_state).toBe('pending_upload')
+  })
+
+  it('skips the cloud upload entirely in the dev sandbox, even for a cloud character', async () => {
+    // Storage rules deny the mock user (403) and the sweeper would retry the
+    // failed rows forever, so the sandbox writes the local copy directly. The
+    // row still lands as pending_upload, but syncAllToCloud is itself
+    // sandbox-gated, so nothing ever sweeps it there.
+    mockIsDevSandboxEnabled.mockReturnValue(true)
+    mockGetCharacter.mockResolvedValue({
+      id: 'char_a',
+      save_to_cloud: true,
+      cloud_id: '12345678-1234-4123-8123-123456789abc',
+    })
+    const row = await saveCharacterImage({
+      characterId: 'char_a',
+      userId: 'user-1',
+      uri: 'file://s.jpg',
+      width: 1024,
+      height: 1024,
+      source: 'generated',
+    })
+    expect(mockUploadImageBytes).not.toHaveBeenCalled()
+    // No reservation either — the local path commits the row in a single insert.
+    expect(mockUpdateImageRefs).not.toHaveBeenCalled()
+    expect(mockInsert).toHaveBeenCalledWith(row)
+    expect(row).toMatchObject({
+      storage_kind: 'file',
+      master_ref: 'file:///doc/uuid-new_master',
+      thumb_ref: 'file:///doc/uuid-new_thumb',
+      sync_state: 'pending_upload',
+    })
   })
 })
 
