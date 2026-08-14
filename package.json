@@ -23,7 +23,7 @@
     "format": "prettier --write \"**/*.{js,jsx,json,md,ts,tsx}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,json,md,ts,tsx}\"",
     "lint": "npx expo lint --fix",
-    "lint:check": "npx expo lint",
+    "lint:check": "npx expo lint --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:generate": "npx expo export --platform web --clear && npm run typecheck",
     "test": "node -e \"const p=require('path');process.env.NODE_OPTIONS=(process.env.NODE_OPTIONS?process.env.NODE_OPTIONS+' ':'')+('--require '+p.resolve('./jest.preload.cjs'));const{spawnSync}=require('child_process');const r=spawnSync(process.platform==='win32'?'jest.cmd':'jest',process.argv.slice(2),{stdio:'inherit',env:process.env});process.exit(r.status??0);\" --",
@@ -69,6 +69,7 @@
     "expo-constants": "~57.0.10",
     "expo-crypto": "~57.0.1",
     "expo-dev-client": "~57.0.11",
+    "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",
     "expo-file-system": "~57.0.2",
     "expo-font": "~57.0.1",
@@ -141,7 +142,9 @@
     "semantic-release-react-native": "^1.12.2",
     "typescript": "~6.0.3"
   },
-  "overrides": {},
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "license": "MIT",
   "expo": {
     "router": {

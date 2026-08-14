@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useState } from 'react'
-import { Image } from 'react-native'
+import { Image, Platform } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { prepareImageVariants, type ImageVariants } from '~/services/imageVariants'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
@@ -52,6 +52,22 @@ function newMessageId(): string {
   // Matches ChatView's messageIdGenerator so photo turns and text turns are
   // indistinguishable downstream.
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+}
+
+/**
+ * `Device.isDevice` behind a deferred require. A static top-level `expo-device`
+ * import throws during module evaluation on dev clients built before the module
+ * was added, and every chat screen imports this hook — so a static import took
+ * down the whole chat tab. Returns null when the native module is unavailable.
+ */
+function detectPhysicalDevice(): boolean | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Device = require('expo-device') as typeof import('expo-device')
+    return Device.isDevice
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -142,6 +158,20 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const pickFromLibrary = useCallback(async (): Promise<PendingChatPhoto | null> => {
     setError(null)
     try {
+      // Mirror the camera branch: expo-image-picker doesn't prompt for the
+      // gallery on Android, and on iOS the PHPicker handles the prompt itself
+      // but still records canAskAgain state when the user has muted it
+      // permanently. Asking up front lets us distinguish a fresh denial
+      // (transient message) from a permanent one (point to device settings).
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        setError(
+          permission.canAskAgain
+            ? 'Photo library access denied'
+            : 'Photo library access is blocked. Enable photos for this app in your device settings.',
+        )
+        return null
+      }
       // No allowsEditing: the OS cropper would force a square (see the module doc).
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -157,6 +187,38 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const captureFromCamera = useCallback(async (): Promise<PendingChatPhoto | null> => {
     setError(null)
     try {
+      // The iOS simulator has no camera: UIImagePickerController's .camera source
+      // type is unavailable there, and expo-image-picker sets it without checking
+      // isSourceTypeAvailable, which throws an uncatchable native exception and
+      // crashes the app. Fail with a message instead. Detection returns null on
+      // dev clients that predate expo-device; iOS then fails closed because the
+      // simulator crash is uncatchable, while Android falls through (its picker
+      // errors are catchable).
+      if (Platform.OS === 'ios') {
+        const isDevice = detectPhysicalDevice()
+        if (isDevice !== true) {
+          setError(
+            isDevice === null
+              ? 'Camera capture is not available in this build — rebuild the dev client to enable it.'
+              : 'Camera capture requires a physical iOS device.',
+          )
+          return null
+        }
+      }
+      // expo-image-picker never prompts on its own: launchCameraAsync rejects
+      // with MissingCameraPermissionException unless permission is ALREADY
+      // granted (ImagePickerModule.swift only checks, it does not request), so
+      // ask explicitly first. canAskAgain distinguishes a fresh denial from a
+      // permanent one the OS will never re-prompt for.
+      const permission = await ImagePicker.requestCameraPermissionsAsync()
+      if (!permission.granted) {
+        setError(
+          permission.canAskAgain
+            ? 'Camera access denied'
+            : 'Camera access is blocked. Enable the camera for this app in your device settings.',
+        )
+        return null
+      }
       const result = await ImagePicker.launchCameraAsync({ quality: 1 })
       return await fromPickerResult(result)
     } catch (err) {

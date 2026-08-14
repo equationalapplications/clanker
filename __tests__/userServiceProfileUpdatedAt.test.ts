@@ -1,6 +1,9 @@
 jest.mock('~/services/apiClient', () => ({
-  getUserState: jest.fn(),
   updateUserProfile: jest.fn(),
+}))
+
+jest.mock('~/auth/bootstrapSession', () => ({
+  bootstrapSession: jest.fn(),
 }))
 
 jest.mock('~/config/firebaseConfig', () => ({
@@ -8,10 +11,11 @@ jest.mock('~/config/firebaseConfig', () => ({
   deleteMyAccountFn: jest.fn(),
 }))
 
-import { getUserState, updateUserProfile } from '~/services/apiClient'
+import { bootstrapSession } from '~/auth/bootstrapSession'
+import { updateUserProfile } from '~/services/apiClient'
 import { getUserProfile, upsertUserProfile } from '~/services/userService'
 
-const mockGetUserState = getUserState as jest.MockedFunction<typeof getUserState>
+const mockBootstrapSession = bootstrapSession as jest.MockedFunction<typeof bootstrapSession>
 const mockUpdateUserProfile = updateUserProfile as jest.MockedFunction<typeof updateUserProfile>
 
 describe('userService profile timestamp mapping', () => {
@@ -23,7 +27,7 @@ describe('userService profile timestamp mapping', () => {
     const createdAt = '2026-04-20T10:00:00.000Z'
     const updatedAt = '2026-04-20T11:00:00.000Z'
 
-    mockGetUserState.mockResolvedValue({
+    mockBootstrapSession.mockResolvedValue({
       user: {
         id: 'u1',
         firebaseUid: 'f1',

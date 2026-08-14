@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View, TextInput, StyleSheet, ActivityIndicator, Platform } from 'react-native'
-import { Button, Dialog, IconButton, Portal, Snackbar, Text, useTheme } from 'react-native-paper'
+import {
+  Button,
+  Dialog,
+  IconButton,
+  Menu,
+  Portal,
+  Snackbar,
+  Text,
+  useTheme,
+} from 'react-native-paper'
 import * as DocumentPicker from 'expo-document-picker'
 import { File as ExpoFile } from 'expo-file-system'
 import * as Crypto from 'expo-crypto'
@@ -75,12 +84,14 @@ export default function ChatComposer({
     height: number
     asset: DocumentPicker.DocumentPickerAsset
   } | null>(null)
+  const [attachMenuVisible, setAttachMenuVisible] = useState(false)
   const lastSeenPhotoErrorRef = useRef<string | null>(null)
   const activeRequestIdRef = useRef(0)
 
   const {
     prepareFromAsset,
     captureFromCamera,
+    pickFromLibrary,
     isPreparing,
     error: photoError,
     clearError: clearPhotoError,
@@ -275,7 +286,10 @@ export default function ChatComposer({
     [hasChanged, forget, ingest, onPhaseChange],
   )
 
-  const handlePlusPress = useCallback(async () => {
+  const handleDocumentPick = useCallback(async () => {
+    // Close first, then invoke: the picker hands control to the OS, and the
+    // menu must not linger while the app is backgrounded.
+    setAttachMenuVisible(false)
     if (!characterId || !userId) return
 
     const pickerResult = await DocumentPicker.getDocumentAsync({
@@ -310,6 +324,31 @@ export default function ChatComposer({
     await ingestDocument(asset)
   }, [characterId, userId, ingestDocument])
 
+  // Only clear the typed caption when the photo turn actually launched — if
+  // sendPhoto rejects (network, credits, etc.) the user keeps their text and
+  // can retry without retyping. Same send shape the old camera button used.
+  const sendPhotoToChat = useCallback(
+    async (photo: PendingChatPhoto) => {
+      const sent = await onSendPhoto?.(photo, text)
+      if (sent) onChangeText('')
+    },
+    [onSendPhoto, text, onChangeText],
+  )
+
+  const handleTakePhoto = useCallback(async () => {
+    setAttachMenuVisible(false)
+    const photo = await captureFromCamera()
+    if (!photo) return
+    await sendPhotoToChat(photo)
+  }, [captureFromCamera, sendPhotoToChat])
+
+  const handlePickFromLibrary = useCallback(async () => {
+    setAttachMenuVisible(false)
+    const photo = await pickFromLibrary()
+    if (!photo) return
+    await sendPhotoToChat(photo)
+  }, [pickFromLibrary, sendPhotoToChat])
+
   const isWeb = Platform.OS === 'web'
   const showPlusButton = Boolean(characterId) && Boolean(userId)
 
@@ -329,38 +368,42 @@ export default function ChatComposer({
             </View>
           ) : (
             <View style={styles.attachmentRow}>
-              <IconButton
-                icon="plus"
-                size={20}
-                onPress={handlePlusPress}
-                style={styles.plusButton}
-                accessibilityLabel="Attach a photo or document"
-                accessibilityHint="Opens the picker to send a photo in chat or add a document to this character's memory"
-              />
-              {canSendPhoto && !isWeb && (
-                // The camera capture path opens expo-image-picker's native
-                // camera intent, which web cannot host. Suppress the button
-                // on web — the picker IconButton above still offers "Send in
-                // chat" via gallery selection.
-                <IconButton
-                  icon="camera"
-                  size={20}
-                  disabled={isSending}
-                  onPress={async () => {
-                    const photo = await captureFromCamera()
-                    if (!photo) return
-                    // Only clear the typed caption when the photo turn
-                    // actually launched — if sendPhoto rejects (network,
-                    // credits, etc.) the user keeps their text and can
-                    // retry without retyping.
-                    const sent = await onSendPhoto?.(photo, text)
-                    if (sent) onChangeText('')
-                  }}
-                  style={styles.plusButton}
-                  accessibilityLabel="Take a photo"
-                  accessibilityHint="Opens the camera and sends the photo in chat"
+              <Menu
+                visible={attachMenuVisible}
+                onDismiss={() => setAttachMenuVisible(false)}
+                anchor={
+                  <IconButton
+                    icon="plus"
+                    size={20}
+                    onPress={() => setAttachMenuVisible(true)}
+                    style={styles.plusButton}
+                    accessibilityLabel="Attach a photo or document"
+                    accessibilityHint="Opens the attachment menu to take a photo, choose one from the library, or add a document"
+                  />
+                }
+              >
+                {canSendPhoto && (
+                  <>
+                    <Menu.Item
+                      leadingIcon="camera"
+                      title="Take photo"
+                      disabled={isSending}
+                      onPress={handleTakePhoto}
+                    />
+                    <Menu.Item
+                      leadingIcon="image"
+                      title="Choose from library"
+                      disabled={isSending}
+                      onPress={handlePickFromLibrary}
+                    />
+                  </>
+                )}
+                <Menu.Item
+                  leadingIcon="file-document-outline"
+                  title="Add document"
+                  onPress={handleDocumentPick}
                 />
-              )}
+              </Menu>
             </View>
           ))}
         <View
@@ -470,11 +513,7 @@ export default function ChatComposer({
                     width: picked.width,
                     height: picked.height,
                   })
-                  // Only clear the typed caption when the photo turn
-                  // actually launched — on rejection the user keeps the
-                  // text and can retry without retyping.
-                  const sent = await onSendPhoto?.(photo, text)
-                  if (sent) onChangeText('')
+                  await sendPhotoToChat(photo)
                 } catch (err) {
                   setToastMessage(err instanceof Error ? err.message : 'Failed to prepare photo.')
                 }

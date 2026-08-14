@@ -56,11 +56,12 @@ jest.mock('~/services/apiClient', () => ({
 const convertDocumentText = mockConvertDocumentText
 const ingest = mockIngest
 const mockCaptureFromCamera = jest.fn()
+const mockPickFromLibrary = jest.fn()
 const mockPrepareFromAsset = jest.fn()
 jest.mock('~/hooks/useChatPhotoUpload', () => ({
   useChatPhotoUpload: () => ({
     prepareFromAsset: (...args: unknown[]) => mockPrepareFromAsset(...args),
-    pickFromLibrary: jest.fn(),
+    pickFromLibrary: (...args: unknown[]) => mockPickFromLibrary(...args),
     captureFromCamera: (...args: unknown[]) => mockCaptureFromCamera(...args),
     isPreparing: false,
     error: null,
@@ -99,16 +100,10 @@ jest.mock('react-native-paper', () => {
   const { View, Text: RNText } = require('react-native')
   return {
     IconButton: (props: any) => {
-      // Tag the plus and camera buttons separately so the existing plus-only
-      // assertions still match exactly one node after Task 15 added a camera.
-      const tag =
-        props.icon === 'camera'
-          ? { __cameraButtonMock: true }
-          : props.icon === 'plus'
-            ? { __iconButtonMock: true }
-            : {}
+      // Tag the plus button so tests can find the attachment-menu anchor.
+      const tag = props.icon === 'plus' ? { __iconButtonMock: true } : {}
       // Same reason as the Button mock: a View ignores `disabled`, so without
-      // this a disabled camera would still fire its handler under test. No-op
+      // this a disabled button would still fire its handler under test. No-op
       // rather than `undefined` so RNTL does not climb to an ancestor handler.
       return React.createElement(View, {
         ...tag,
@@ -145,6 +140,7 @@ jest.mock('react-native-paper', () => {
         Actions: ({ children }: any) => React.createElement(RNText, null, children),
       },
     ),
+    Menu: require('./helpers/paperMenuMock').createMenuMock(React, RNText, { tagItems: true }),
     Text: ({ children }: any) => React.createElement(RNText, null, children),
     useTheme: () => ({
       colors: { primary: '#6200ee', surfaceVariant: '#333', onSurfaceVariant: '#fff' },
@@ -178,6 +174,24 @@ describe('ChatComposer', () => {
     capturedSnackbarProps = null
     jest.useRealTimers()
   })
+
+  // Drive the attachment menu the way a user does: open it from the plus
+  // anchor, then act on an item. All document-ingest tests share this path —
+  // the behavior under test starts at DocumentPicker.
+  async function openAttachMenu(tree: ReturnType<typeof create>): Promise<any> {
+    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    await act(async () => {
+      plusButton.props.onPress()
+    })
+    return tree.root.find((n: any) => n.props?.__attachMenuItemMock === 'Add document')
+  }
+
+  async function pressPlusAndPickDocument(tree: ReturnType<typeof create>) {
+    const addDocumentItem = await openAttachMenu(tree)
+    await act(async () => {
+      await addDocumentItem.props.onPress()
+    })
+  }
 
   it('sends on web when Enter is pressed without Shift', () => {
     // Force Platform.OS to 'web' so the onKeyPress handler the wrapper
@@ -528,10 +542,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockHasChanged).toHaveBeenCalledWith('doc.txt', 'hash123')
     expect(mockForget).toHaveBeenCalledWith({ sourceRef: 'doc.txt' })
@@ -573,10 +584,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockBase64).toHaveBeenCalled()
     expect(mockText).not.toHaveBeenCalled()
@@ -621,10 +629,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockBase64).toHaveBeenCalled()
     expect(mockText).not.toHaveBeenCalled()
@@ -671,10 +676,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockBase64).toHaveBeenCalled()
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
@@ -720,10 +722,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockBase64).toHaveBeenCalled()
     expect(mockConvertDocumentText).toHaveBeenCalledWith({
@@ -766,10 +765,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockIngest).not.toHaveBeenCalled()
     expect(capturedSnackbarProps.children).toBe('Out of Power — recharge to keep chatting.')
@@ -802,10 +798,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockIngest).not.toHaveBeenCalled()
     expect(capturedSnackbarProps.children).toBe('Failed to convert document.')
@@ -851,10 +844,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(calls).toEqual([
       'phase:reading',
@@ -912,10 +902,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(calls).toEqual([
       'phase:reading',
@@ -956,10 +943,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('reading')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -993,10 +977,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('checking')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1030,10 +1011,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
     expect(capturedSnackbarProps.children).toBe('"doc.txt" is already up to date.')
@@ -1068,10 +1046,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('forgetting')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1105,10 +1080,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('converting')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1141,10 +1113,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(capturedSnackbarProps.children).toBe('File too large.')
     expect(onPhaseChange).not.toHaveBeenCalled()
@@ -1175,10 +1144,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'small.txt' }))
   })
@@ -1211,10 +1177,10 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     await act(async () => {
-      const firstPress = plusButton.props.onPress()
-      const secondPress = plusButton.props.onPress()
+      const firstPress = addDocumentItem.props.onPress()
+      const secondPress = addDocumentItem.props.onPress()
       await Promise.all([firstPress, secondPress])
     })
 
@@ -1253,10 +1219,10 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     let pressPromise!: Promise<void>
     await act(async () => {
-      pressPromise = plusButton.props.onPress()
+      pressPromise = addDocumentItem.props.onPress()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
@@ -1296,9 +1262,9 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     await act(async () => {
-      void plusButton.props.onPress()
+      void addDocumentItem.props.onPress()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
@@ -1351,10 +1317,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(calls).toEqual([
       'phase:reading',
@@ -1413,10 +1376,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(calls).toEqual([
       'phase:reading',
@@ -1458,10 +1418,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('reading')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1495,10 +1452,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('checking')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1532,10 +1486,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
     expect(capturedSnackbarProps.children).toBe('"doc.txt" is already up to date.')
@@ -1570,10 +1521,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('forgetting')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1607,10 +1555,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(onPhaseChange).toHaveBeenCalledWith('converting')
     expect(onPhaseChange).toHaveBeenLastCalledWith(null)
@@ -1643,10 +1588,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(capturedSnackbarProps.children).toBe('File too large.')
     expect(onPhaseChange).not.toHaveBeenCalled()
@@ -1677,10 +1619,7 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
-    await act(async () => {
-      await plusButton.props.onPress()
-    })
+    await pressPlusAndPickDocument(tree)
 
     expect(mockIngest).toHaveBeenCalledWith(expect.objectContaining({ sourceRef: 'small.txt' }))
   })
@@ -1713,10 +1652,10 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     await act(async () => {
-      const firstPress = plusButton.props.onPress()
-      const secondPress = plusButton.props.onPress()
+      const firstPress = addDocumentItem.props.onPress()
+      const secondPress = addDocumentItem.props.onPress()
       await Promise.all([firstPress, secondPress])
     })
 
@@ -1754,10 +1693,10 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     let pressPromise!: Promise<void>
     await act(async () => {
-      pressPromise = plusButton.props.onPress()
+      pressPromise = addDocumentItem.props.onPress()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
@@ -1797,9 +1736,9 @@ describe('ChatComposer', () => {
       )
     })
 
-    const plusButton = tree.root.find((n: any) => n.props?.__iconButtonMock === true)
+    const addDocumentItem = await openAttachMenu(tree)
     await act(async () => {
-      void plusButton.props.onPress()
+      void addDocumentItem.props.onPress()
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
@@ -1814,6 +1753,7 @@ describe('ChatComposer', () => {
   describe('image pick: send vs memory (Task 15)', () => {
     beforeEach(() => {
       mockCaptureFromCamera.mockReset()
+      mockPickFromLibrary.mockReset()
       mockPrepareFromAsset.mockReset()
     })
 
@@ -1838,6 +1778,7 @@ describe('ChatComposer', () => {
       )
 
       fireEvent.press(getByLabelText('Attach a photo or document'))
+      fireEvent.press(await findByText('Add document'))
 
       expect(await findByText('Send in chat')).toBeTruthy()
       expect(await findByText('Add to memory')).toBeTruthy()
@@ -1855,7 +1796,7 @@ describe('ChatComposer', () => {
       mockText.mockResolvedValue('hello world')
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, queryByText } = render(
+      const { getByLabelText, getByText, queryByText } = render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1865,8 +1806,9 @@ describe('ChatComposer', () => {
         />,
       )
 
+      fireEvent.press(getByLabelText('Attach a photo or document'))
       await act(async () => {
-        fireEvent.press(getByLabelText('Attach a photo or document'))
+        fireEvent.press(getByText('Add document'))
       })
 
       expect(queryByText('Send in chat')).toBeNull()
@@ -1895,6 +1837,7 @@ describe('ChatComposer', () => {
       )
 
       fireEvent.press(getByLabelText('Attach a photo or document'))
+      fireEvent.press(await findByText('Add document'))
 
       // Never silently degraded to a text-only turn: the option is present and
       // disabled with a reason, so the user is not left with a character that
@@ -1932,13 +1875,17 @@ describe('ChatComposer', () => {
         />,
       )
 
-      // Camera is a direct-to-chat entry point, so it must be inert while busy.
+      // The menu's photo items are direct-to-chat entry points, so they must
+      // be inert while busy.
+      fireEvent.press(getByLabelText('Attach a photo or document'))
       await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
+        fireEvent.press(getByLabelText('Take photo'))
+        fireEvent.press(getByLabelText('Choose from library'))
       })
       expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+      expect(mockPickFromLibrary).not.toHaveBeenCalled()
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      fireEvent.press(getByLabelText('Add document'))
       fireEvent.press(await findByText('Send in chat'))
       expect(mockPrepareFromAsset).not.toHaveBeenCalled()
       expect(onSendPhoto).not.toHaveBeenCalled()
@@ -1979,8 +1926,9 @@ describe('ChatComposer', () => {
         />,
       )
 
+      fireEvent.press(getByLabelText('Attach a photo or document'))
       await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
+        fireEvent.press(getByLabelText('Take photo'))
       })
 
       await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
@@ -2020,8 +1968,9 @@ describe('ChatComposer', () => {
         />,
       )
 
+      fireEvent.press(getByLabelText('Attach a photo or document'))
       await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
+        fireEvent.press(getByLabelText('Take photo'))
       })
 
       await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
@@ -2056,12 +2005,209 @@ describe('ChatComposer', () => {
         />,
       )
 
+      fireEvent.press(getByLabelText('Attach a photo or document'))
       await act(async () => {
-        fireEvent.press(getByLabelText('Take a photo'))
+        fireEvent.press(getByLabelText('Take photo'))
       })
 
       await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
       await waitFor(() => expect(onChangeText).toHaveBeenCalledWith(''))
+    })
+  })
+
+  describe('attachment menu', () => {
+    beforeEach(() => {
+      mockCaptureFromCamera.mockReset()
+      mockPickFromLibrary.mockReset()
+      mockPrepareFromAsset.mockReset()
+    })
+
+    it('opens the attachment menu with all three actions when photos are supported', () => {
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText, queryByLabelText } = render(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          canSendPhoto
+          onSendPhoto={jest.fn()}
+        />,
+      )
+
+      // A closed menu exposes no actions.
+      expect(queryByLabelText('Take photo')).toBeNull()
+      expect(queryByLabelText('Choose from library')).toBeNull()
+      expect(queryByLabelText('Add document')).toBeNull()
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+
+      expect(getByLabelText('Take photo')).toBeTruthy()
+      expect(getByLabelText('Choose from library')).toBeTruthy()
+      expect(getByLabelText('Add document')).toBeTruthy()
+    })
+
+    it('sends a library photo straight to chat', async () => {
+      mockPickFromLibrary.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///library.jpg',
+        width: 1200,
+        height: 900,
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn().mockResolvedValue(true)
+      const { getByLabelText } = render(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Choose from library'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+    })
+
+    it('keeps the typed caption when a library photo send is rejected', async () => {
+      mockPickFromLibrary.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///library.jpg',
+        width: 1200,
+        height: 900,
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn().mockResolvedValue(false)
+      const onChangeText = jest.fn()
+      const { getByLabelText } = render(
+        <ChatComposer
+          text="my caption"
+          onChangeText={onChangeText}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Choose from library'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      expect(onChangeText).not.toHaveBeenCalled()
+    })
+
+    it('clears the typed caption when a library photo send succeeds', async () => {
+      mockPickFromLibrary.mockResolvedValue({
+        imageId: 'img-1',
+        messageId: 'msg_1',
+        uri: 'file:///library.jpg',
+        width: 1200,
+        height: 900,
+        variants: {
+          master: { base64: 'M', mimeType: 'image/jpeg' },
+          thumb: { base64: 'T', mimeType: 'image/jpeg' },
+        },
+        attachment: { mimeType: 'image/jpeg', data: 'M' },
+      })
+
+      const ChatComposer = require('~/components/ChatComposer').default
+      const onSendPhoto = jest.fn().mockResolvedValue(true)
+      const onChangeText = jest.fn()
+      const { getByLabelText } = render(
+        <ChatComposer
+          text="my caption"
+          onChangeText={onChangeText}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          onSendPhoto={onSendPhoto}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Choose from library'))
+      })
+
+      await waitFor(() => expect(onSendPhoto).toHaveBeenCalled())
+      await waitFor(() => expect(onChangeText).toHaveBeenCalledWith(''))
+    })
+
+    it('hides the photo items when the character cannot use the cloud agent', () => {
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText, queryByLabelText } = render(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          canSendPhoto={false}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+
+      expect(queryByLabelText('Take photo')).toBeNull()
+      expect(queryByLabelText('Choose from library')).toBeNull()
+      expect(getByLabelText('Add document')).toBeTruthy()
+    })
+
+    it('disables the photo items while a reply is in flight but keeps Add document enabled', async () => {
+      const ChatComposer = require('~/components/ChatComposer').default
+      const { getByLabelText } = render(
+        <ChatComposer
+          text=""
+          onChangeText={jest.fn()}
+          onSubmit={jest.fn()}
+          characterId="char-1"
+          userId="user-1"
+          canSendPhoto
+          isSending
+          onSendPhoto={jest.fn()}
+        />,
+      )
+
+      fireEvent.press(getByLabelText('Attach a photo or document'))
+
+      const takePhoto = getByLabelText('Take photo')
+      const chooseFromLibrary = getByLabelText('Choose from library')
+      expect(takePhoto.props.accessibilityState).toEqual({ disabled: true })
+      expect(chooseFromLibrary.props.accessibilityState).toEqual({ disabled: true })
+      expect(getByLabelText('Add document').props.accessibilityState).toEqual({ disabled: false })
+
+      // Disabled must actually block the handlers, not merely look disabled.
+      await act(async () => {
+        fireEvent.press(takePhoto)
+        fireEvent.press(chooseFromLibrary)
+      })
+      expect(mockCaptureFromCamera).not.toHaveBeenCalled()
+      expect(mockPickFromLibrary).not.toHaveBeenCalled()
     })
   })
 })

@@ -58,6 +58,7 @@ graph LR
   useMessages --> messageService
   usePowerBalance --> useUserCredits
   usePowerBalance --> useAuthSnapshot
+  useRegisterExpoPushToken --> devSandboxFlag
   useRegisterExpoPushToken --> googleSignin
   useResolvedImage --> characterImageDatabase
   useResolvedImage --> localImageStore

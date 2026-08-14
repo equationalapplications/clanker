@@ -7,6 +7,7 @@
  */
 
 import { Platform } from 'react-native'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { getCharacter } from '~/database/characterDatabase'
 import {
   countCharacterImages,
@@ -114,8 +115,15 @@ export async function saveCharacterImage(
   }
   const imageId = input.imageId ?? generateSecureUuid()
 
+  // The mock-auth sandbox has no real Firebase identity, so Storage rules deny
+  // every upload (403) and the sweeper would keep retrying the failed rows.
+  // Write the local kind directly there; the chat attachment path carries the
+  // bytes inline, so nothing is lost.
   const cloudId =
-    character.save_to_cloud && character.cloud_id && UUID_REGEX.test(character.cloud_id)
+    character.save_to_cloud &&
+    character.cloud_id &&
+    UUID_REGEX.test(character.cloud_id) &&
+    !isDevSandboxEnabled()
       ? character.cloud_id
       : null
 

@@ -224,7 +224,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-asset',
     'expo-apple-authentication',
-    '@react-native-firebase/app',
+    // RNFB v26 resolves firebase-ios-sdk via SPM by default, which requires dynamic
+    // framework linkage; this project pins static linkage (expo-build-properties
+    // above), so keep Firebase on CocoaPods to avoid duplicate-symbol link errors.
+    ['@react-native-firebase/app', { ios: { disableSPM: true } }],
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/app-check',

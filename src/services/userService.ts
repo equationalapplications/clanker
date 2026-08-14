@@ -1,6 +1,6 @@
+import { bootstrapSession, type BootstrapResponse } from '~/auth/bootstrapSession'
 import { appCheckReady, deleteMyAccountFn } from '~/config/firebaseConfig'
-import { getUserState, updateUserProfile } from './apiClient'
-import type { BootstrapResponse } from '~/auth/bootstrapSession'
+import { updateUserProfile } from './apiClient'
 
 export interface UserProfile {
   user_id: string
@@ -62,7 +62,7 @@ const mapUserProfileFromState = (state: BootstrapResponse | null): UserProfile |
  */
 export const getUserProfile = async (): Promise<UserProfile | null> => {
   try {
-    const state = await getUserState()
+    const state = await bootstrapSession()
     return mapUserProfileFromState(state)
   } catch (error) {
     console.error('Error fetching user profile:', error)
@@ -123,7 +123,7 @@ export const getUserPublic = async (): Promise<UserPublic | null> => {
  * Get user private data in the legacy format for compatibility
  */
 export const getUserPrivate = async (): Promise<UserPrivate | null> => {
-  const state = await getUserState()
+  const state = await bootstrapSession()
   const profile = mapUserProfileFromState(state)
 
   if (!profile || !state) {

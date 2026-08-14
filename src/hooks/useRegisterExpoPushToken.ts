@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as Notifications from 'expo-notifications'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { appCheckReady, getCurrentUser, registerExpoPushTokenFn } from '~/config/firebaseConfig'
 
 interface Options {
@@ -73,6 +74,9 @@ async function registerWebPushToken(projectId: string, applicationId: string): P
 export function useRegisterExpoPushToken({ enabled, projectId }: Options): void {
   useEffect(() => {
     if (!enabled) return
+    // The mock-auth sandbox has no real Firebase identity, so the callable
+    // rejects with "Authentication required" — registering can never succeed.
+    if (isDevSandboxEnabled()) return
     if (Platform.OS === 'web' && !isWebPushConfigured()) return
     void (async () => {
       try {

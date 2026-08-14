@@ -6,7 +6,8 @@
 
 # Checks
 
-- After changing `root` or `functions/`, run: `npm run typecheck && npm run lint && npm run test`
+- After changing `root`, run: `npm run typecheck && npm run lint:check && npm run test` (`npm run lint` auto-fixes but does NOT fail on warnings; `lint:check` is the CI gate)
+- After changing `functions/`, run: `cd functions && npm run typecheck && npm run lint && npm test`
 - After changing `cloud-agent/`, run: `cd cloud-agent && npm run typecheck && npm test`
 - After changing `extension/`, run: `cd extension && npm run typecheck && npm test`
 
