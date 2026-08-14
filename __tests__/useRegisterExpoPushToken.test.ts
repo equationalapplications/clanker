@@ -124,6 +124,7 @@ describe('useRegisterExpoPushToken', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled()
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled()
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
     expect(mockRegisterExpoPushTokenFn).not.toHaveBeenCalled()
   })
