@@ -41,6 +41,14 @@ beforeEach(() => {
     granted: true,
     canAskAgain: true,
   })
+  ;(ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+  })
+  ;(ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+    canceled: true,
+    assets: [],
+  })
 })
 
 it('fails with a device-required message on the iOS simulator instead of crashing', async () => {
@@ -205,4 +213,80 @@ it('surfaces an unreadable image as a clear error rather than silently using 0 d
     ).rejects.toThrow(/could not read/i)
   })
   expect(prepareImageVariants).not.toHaveBeenCalled()
+})
+
+it('requests photo library permission before launching the picker', async () => {
+  // expo-image-picker never prompts on its own for the gallery on Android, and
+  // on iOS the PHPicker is privacy-respecting but the OS still records
+  // canAskAgain state we want surfaced as a settings hint when the user has
+  // muted the prompt permanently. Mirror captureFromCamera's preflight.
+  const callOrder: string[] = []
+  ;(ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockImplementation(async () => {
+    callOrder.push('permission')
+    return { granted: true, canAskAgain: true }
+  })
+  ;(ImagePicker.launchImageLibraryAsync as jest.Mock).mockImplementation(async () => {
+    callOrder.push('launch')
+    return { canceled: true, assets: [] }
+  })
+
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  await act(async () => {
+    await result.current.pickFromLibrary()
+  })
+
+  expect(callOrder).toEqual(['permission', 'launch'])
+  expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled()
+  expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled()
+})
+
+it('surfaces a denied photo library permission as an error without launching the picker', async () => {
+  ;(ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: true,
+  })
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.pickFromLibrary()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toBe('Photo library access denied')
+  expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled()
+})
+
+it('points to device settings when the photo library is permanently denied', async () => {
+  ;(ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
+    granted: false,
+    canAskAgain: false,
+  })
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.pickFromLibrary()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toMatch(/device settings/)
+  expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled()
+})
+
+it('returns null when the photo library picker is cancelled', async () => {
+  ;(ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
+    canceled: true,
+    assets: [],
+  })
+  const { result } = renderHook(() => useChatPhotoUpload())
+
+  let photo: unknown
+  await act(async () => {
+    photo = await result.current.pickFromLibrary()
+  })
+
+  expect(photo).toBeNull()
+  expect(result.current.error).toBeNull()
 })

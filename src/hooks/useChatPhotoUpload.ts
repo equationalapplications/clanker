@@ -158,6 +158,20 @@ export function useChatPhotoUpload(): UseChatPhotoUploadReturn {
   const pickFromLibrary = useCallback(async (): Promise<PendingChatPhoto | null> => {
     setError(null)
     try {
+      // Mirror the camera branch: expo-image-picker doesn't prompt for the
+      // gallery on Android, and on iOS the PHPicker handles the prompt itself
+      // but still records canAskAgain state when the user has muted it
+      // permanently. Asking up front lets us distinguish a fresh denial
+      // (transient message) from a permanent one (point to device settings).
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!permission.granted) {
+        setError(
+          permission.canAskAgain
+            ? 'Photo library access denied'
+            : 'Photo library access is blocked. Enable photos for this app in your device settings.',
+        )
+        return null
+      }
       // No allowsEditing: the OS cropper would force a square (see the module doc).
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
