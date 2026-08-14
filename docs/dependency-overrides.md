@@ -24,7 +24,10 @@ spec's rule 6 ("Root alerts are build-time") and the Phase-3 accepted-residue
 table both classified `uuid` as build-time-only; the override reverses
 that disposition for this specific advisory because the vulnerable instance
 is reachable from `xcode` (transitive via `expo-sharing` → `@expo/config-plugins`)
-and the fix is a single-major bump inside the supported CJS path. See
+and the fix is a multi-major dependency override — from `xcode`'s declared
+`uuid@^7.0.3` to the lockfile's `uuid@11.1.1` — that targets the supported
+CJS path. The override introduces no application-facing breaking change:
+`uuid@11` keeps the same CommonJS API surface used by `xcode@3.0.1`. See
 [`uuid: ^11.1.1` — keep](#uuid-1111--keep) below.
 
 The pre-Phase-4 overrides (`@babel/core: ^7.29.7` and `postcss: 8.5.24`) were
@@ -52,7 +55,7 @@ audited and deleted in Phase 4 — see [Removed overrides](#removed-overrides-ph
 | Deviation from spec          | Reverses the Phase-3 disposition for this specific advisory because the `xcode` transitive path is reachable from the iOS build, not the build host. The other 8 open root alerts remain in the accepted-residue table; none of them have an analogous non-build-host transitive path. Spec rule 6 ("Root alerts are build-time") and the Phase-3 residue row are preserved as the default — this is an exception, documented here so future audits do not generalize it. See "Transitive paths" above for the specific chain.                                    |
 | Removal condition            | When every resolved `uuid` in the tree is outside all three vulnerable ranges (`<11.1.1`, `>=12.0.0 <12.0.1`, `>=13.0.0 <13.0.1`) without the override — i.e., when `xcode` (or any other transitive) upgrades to a uuid version that already satisfies the advisory.                                                                                                                                                                                                                                                                                             |
 
-## Accepted-residue table (root, post-Phase-3)
+## Accepted-residue table (root, post-Phase-4)
 
 The root workspace's `npm audit` reports **33 vulnerabilities** (14 moderate,
 19 high) at this post-Phase-4 baseline; the original Phase-3 count was 34

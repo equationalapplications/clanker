@@ -77,6 +77,7 @@ git commit -m "docs(chat): add attachment menu design spec and implementation pl
 - [ ] **Step 3: Capture the baseline**
 
 ```bash
+set -o pipefail
 npm test -- chatComposer 2>&1 | tail -8
 ```
 
@@ -210,6 +211,7 @@ Insert after the `Dialog` entry (before `Text:`) in the `react-native-paper` moc
 - [ ] **Step 4: Run the focused tests — must still be green**
 
 ```bash
+set -o pipefail
 npm test -- chatComposer 2>&1 | tail -8
 ```
 
@@ -516,6 +518,7 @@ beforeEach(() => {
 - [ ] **Step 9: Run the focused tests — expect red, for the right reason**
 
 ```bash
+set -o pipefail
 npm test -- chatComposer 2>&1 | tail -25
 ```
 
@@ -590,6 +593,7 @@ Insert immediately before the file's final closing `})` (after the `image pick` 
           onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
+          canSendPhoto
           onSendPhoto={onSendPhoto}
         />,
       )
@@ -627,6 +631,7 @@ Insert immediately before the file's final closing `})` (after the `image pick` 
           onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
+          canSendPhoto
           onSendPhoto={onSendPhoto}
         />,
       )
@@ -664,6 +669,7 @@ Insert immediately before the file's final closing `})` (after the `image pick` 
           onSubmit={jest.fn()}
           characterId="char-1"
           userId="user-1"
+          canSendPhoto
           onSendPhoto={onSendPhoto}
         />,
       )
@@ -734,6 +740,7 @@ Insert immediately before the file's final closing `})` (after the `image pick` 
 - [ ] **Step 2: Run the focused tests — new tests fail too**
 
 ```bash
+set -o pipefail
 npm test -- chatComposer 2>&1 | grep -E "✕|✓|Tests:" | tail -15
 ```
 
@@ -971,6 +978,7 @@ Notes:
 - [ ] **Step 7: Run the focused tests — everything green**
 
 ```bash
+set -o pipefail
 npm test -- chatComposer 2>&1 | tail -8
 ```
 
@@ -1000,6 +1008,7 @@ git commit -m "feat(chat): consolidate composer attachments behind one plus menu
 - [ ] **Step 1: Run the entire root suite**
 
 ```bash
+set -o pipefail
 npm test 2>&1 | tail -15
 ```
 
