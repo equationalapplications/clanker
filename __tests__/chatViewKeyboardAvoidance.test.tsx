@@ -301,4 +301,18 @@ describe('ChatView keyboard avoidance', () => {
     })
     expect(capturedKavProps[capturedKavProps.length - 1].keyboardVerticalOffset).toBe(141)
   })
+
+  it('subscribes to both keyboardWillShow and keyboardDidShow so the offset is re-measured on every platform', () => {
+    platform.OS = 'ios'
+    mountChat()
+
+    // iOS fires `keyboardWillShow` before the animation and `keyboardDidShow`
+    // after; Android only fires `keyboardDidShow`. Both subscriptions are
+    // needed so the JS-measured offset is refreshed at least once per open on
+    // every platform — the onLayout measurement alone can land mid-transition
+    // and the library's native `automaticOffset` falls back to the
+    // parent-relative frame in that window (upstream #1594).
+    expect(mockKeyboardListeners['keyboardWillShow']).toHaveLength(1)
+    expect(mockKeyboardListeners['keyboardDidShow']).toHaveLength(1)
+  })
 })
