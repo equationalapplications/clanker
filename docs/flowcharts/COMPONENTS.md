@@ -18,7 +18,6 @@ graph LR
   ChatComposer --> apiClient
   ChatImageBubble --> useResolvedImage
   ChatView --> usePowerBalance
-  ChatView --> useTabBarHeight
   ChatView --> useAIChat
   ChatView --> useResolvedImage
   ChatView --> useMachines

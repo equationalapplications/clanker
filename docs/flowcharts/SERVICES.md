@@ -12,9 +12,9 @@ graph LR
   aiChatService --> summarizeTextService
   aiChatService --> messageService
   aiChatService --> chatReplyService
-  apiClient --> bootstrapSession
   characterImageService --> characterDatabase
   characterImageService --> imageVariants
+  characterImageService --> devSandboxFlag
   characterImageService --> characterImageDatabase
   characterImageService --> storageService
   characterImageService --> localImageStore
@@ -52,6 +52,7 @@ graph LR
   localImageStore.web --> storageService.web
   messageService --> messageDatabase
   messageService --> analyticsService
+  userService --> bootstrapSession
   userService --> apiClient
   wikiLlmProvider --> devSandboxFlag
   wikiLlmProvider --> apiClient
