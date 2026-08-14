@@ -1,3 +1,28 @@
+# [31.1.0](https://github.com/equationalapplications/clanker/compare/v31.0.0...v31.1.0) (2026-08-14)
+
+
+### Bug Fixes
+
+* break the apiClient/bootstrapSession require cycle ([c78ce7d](https://github.com/equationalapplications/clanker/commit/c78ce7d96385d56bec8d535cf3be682626643890))
+* **chat:** add media-library permission preflight to pickFromLibrary ([e3db377](https://github.com/equationalapplications/clanker/commit/e3db3776396797e850c10b1cfd83681c56a2d4cc)), closes [#618](https://github.com/equationalapplications/clanker/issues/618)
+* **chat:** guard camera capture on the iOS simulator ([db66398](https://github.com/equationalapplications/clanker/commit/db66398f230ac49aa4e14cc22fccf2d0db639bcd))
+* **chat:** keep chat tab alive on dev clients without expo-device ([e920618](https://github.com/equationalapplications/clanker/commit/e9206185727e1e08fbd3668f306f3a6112bfd2e4))
+* **chat:** keep the composer fully above the keyboard ([1e14f5a](https://github.com/equationalapplications/clanker/commit/1e14f5a45fd370af2c0810669eb4f7741ab8f75f)), closes [kirillzyusko/react-native-keyboard-controller#1594](https://github.com/kirillzyusko/react-native-keyboard-controller/issues/1594)
+* **chat:** request camera permission before launching the camera ([244da15](https://github.com/equationalapplications/clanker/commit/244da159eb0e6ac99530d4e9815ecdfe55f9975c))
+* **cloud-agent/deps:** override three transitive advisories ([d8dc897](https://github.com/equationalapplications/clanker/commit/d8dc8976dfac31407f4eed0417c80418533f2fc3)), closes [#322](https://github.com/equationalapplications/clanker/issues/322) [#233](https://github.com/equationalapplications/clanker/issues/233) [#222](https://github.com/equationalapplications/clanker/issues/222)
+* **deps:** bump transitive uuid to 11.1.1 via npm overrides ([a0a8dbb](https://github.com/equationalapplications/clanker/commit/a0a8dbb5d651c5cd493aea2989b8074b4c7a5473)), closes [#207](https://github.com/equationalapplications/clanker/issues/207)
+* **flowcharts:** emit prettier-stable blank line in generated charts ([c45597b](https://github.com/equationalapplications/clanker/commit/c45597bf80bcc30ce6dfdcac94cf1339aed3c289))
+* **functions/deps:** override three transitive advisories ([73f20d0](https://github.com/equationalapplications/clanker/commit/73f20d05e78be047296bd5ef0961506adb95d74d)), closes [#323](https://github.com/equationalapplications/clanker/issues/323) [#232](https://github.com/equationalapplications/clanker/issues/232) [#215](https://github.com/equationalapplications/clanker/issues/215) [#171](https://github.com/equationalapplications/clanker/issues/171)
+* **functions:** pin firebase-tools locally so deploy runs on system Node ([83a74f5](https://github.com/equationalapplications/clanker/commit/83a74f5c8d930408b78ce130e6a2a754d3d09b75))
+* **images:** skip cloud image upload in the mock-auth sandbox ([660215b](https://github.com/equationalapplications/clanker/commit/660215b5b4c4a1a19c6db887862f3c59f817bcde))
+* **ios:** keep Firebase on CocoaPods for static framework linkage ([7dcfe1b](https://github.com/equationalapplications/clanker/commit/7dcfe1b4f25ca8512ac08449f22cd13cc8d842a4))
+* **notifications:** skip Expo push token registration in the dev sandbox ([03523ce](https://github.com/equationalapplications/clanker/commit/03523cecfbd837082ce9560d1467f03c7ae754bf))
+
+
+### Features
+
+* **chat:** consolidate composer attachments behind one plus menu ([0b409d9](https://github.com/equationalapplications/clanker/commit/0b409d9c8320db8452da579ccaa0b500369b0b68))
+
 # [31.0.0](https://github.com/equationalapplications/clanker/compare/v30.33.1...v31.0.0) (2026-08-12)
 
 
