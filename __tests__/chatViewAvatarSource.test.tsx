@@ -75,6 +75,9 @@ jest.mock('react-native', () => {
   return {
     StyleSheet: { create: (s: any) => s, hairlineWidth: 1 },
     Platform: { OS: 'android', select: (spec: any) => spec.android || spec.default },
+    Keyboard: {
+      addListener: () => ({ remove: () => {} }),
+    },
     View,
     Text,
     TouchableOpacity,

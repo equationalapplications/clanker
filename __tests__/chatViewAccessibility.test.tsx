@@ -74,6 +74,9 @@ jest.mock('react-native', () => {
       },
       select: (spec: any) => spec[mockPlatformOS] || spec.default,
     },
+    Keyboard: {
+      addListener: () => ({ remove: () => {} }),
+    },
     View,
     Text,
     TouchableOpacity,

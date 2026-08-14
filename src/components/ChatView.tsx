@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import { Keyboard, View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -14,7 +14,6 @@ import type { DocumentUploadPhase } from '~/components/ChatComposer'
 import { ChatInputBar } from '~/components/ChatInputBar'
 import { MessageList } from '~/components/MessageList'
 import { LowPowerBanner } from '~/components/LowPowerBanner'
-import { useTabBarHeight } from '~/utils/useTabBarHeight'
 import { useEntityStatus } from '@equationalapplications/expo-llm-wiki'
 import type { Character as AIChatCharacter } from '~/services/aiChatService'
 import type { Message, ChatUser } from '~/types/chat'
@@ -99,15 +98,40 @@ function ChatViewContent({
 }: ChatViewContentProps) {
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors } = useTheme()
-  // The tab bar sits below ChatView on Android. The previous gifted-chat
-  // screen compensated with `bottomOffset={-tabBarHeight}`; the new
-  // KeyboardAvoidingView from react-native-keyboard-controller uses
-  // `keyboardVerticalOffset` for the same purpose. That offset is only honoured
-  // when `behavior` is a concrete supported value — with `undefined` the
-  // component emits an empty style and Android would ignore `tabBarHeight`
-  // entirely, leaving the composer behind the keyboard. iOS keeps `padding`;
-  // Android uses `translate-with-padding`.
-  const tabBarHeight = useTabBarHeight()
+  // KeyboardAvoidingView from react-native-keyboard-controller computes the
+  // keyboard overlap as `frame.y + frame.height - keyboardTop` and adds
+  // `keyboardVerticalOffset` on top, so landing exactly on the keyboard
+  // requires an offset equal to this view's screen-absolute top (status bar +
+  // header); the tab bar below the view then cancels out on its own. The
+  // built-in `automaticOffset` prop measures that natively, but its
+  // viewPositionInWindow call rejects while the screen is still transitioning
+  // in and the component silently falls back to parent-relative coordinates —
+  // leaving the composer behind the keyboard by exactly the header height
+  // (upstream kirillzyusko/react-native-keyboard-controller#1594). The same
+  // delta is measured in JS instead: absolute y from measureInWindow minus the
+  // onLayout y, re-measured whenever the keyboard opens. Behavior must stay a
+  // concrete supported value — with `undefined` the component emits an empty
+  // style and never avoids at all. iOS keeps `padding`; Android uses
+  // `translate-with-padding`.
+  const keyboardAvoidingRef = useRef<View>(null)
+  const keyboardAvoidingRelativeY = useRef(0)
+  const [keyboardAvoidingOffset, setKeyboardAvoidingOffset] = useState(0)
+
+  const remeasureKeyboardAvoidingOffset = useCallback(() => {
+    keyboardAvoidingRef.current?.measureInWindow((_x, y) => {
+      const next = Math.max(0, Math.round(y - keyboardAvoidingRelativeY.current))
+      setKeyboardAvoidingOffset((prev) => (prev === next ? prev : next))
+    })
+  }, [])
+
+  useEffect(() => {
+    // iOS emits `keyboardWillShow`; Android emits `keyboardDidShow`.
+    const subscriptions = [
+      Keyboard.addListener('keyboardWillShow', remeasureKeyboardAvoidingOffset),
+      Keyboard.addListener('keyboardDidShow', remeasureKeyboardAvoidingOffset),
+    ]
+    return () => subscriptions.forEach((subscription) => subscription.remove())
+  }, [remeasureKeyboardAvoidingOffset])
 
   const wikiStatus = useEntityStatus(characterId)
   const [documentPhase, setDocumentPhase] = useState<DocumentUploadPhase>(null)
@@ -268,9 +292,14 @@ function ChatViewContent({
 
   return (
     <KeyboardAvoidingView
+      ref={keyboardAvoidingRef}
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
-      keyboardVerticalOffset={Platform.OS === 'android' ? tabBarHeight : 0}
+      keyboardVerticalOffset={keyboardAvoidingOffset}
+      onLayout={(event) => {
+        keyboardAvoidingRelativeY.current = event.nativeEvent.layout.y
+        remeasureKeyboardAvoidingOffset()
+      }}
     >
       {(wikiStatus.ingesting ||
         wikiStatus.librarian ||
