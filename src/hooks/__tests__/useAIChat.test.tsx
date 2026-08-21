@@ -255,14 +255,12 @@ describe('useAIChat streaming id unification', () => {
     })
 
     let resolveInvalidate!: () => void
-    const invalidateSpy = jest
-      .spyOn(queryClient, 'invalidateQueries')
-      .mockImplementation(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveInvalidate = resolve
-          }),
-      )
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveInvalidate = resolve
+        }),
+    )
 
     const { result } = renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),

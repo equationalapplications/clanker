@@ -10,9 +10,9 @@ Two independent defects ship in **one PR as two separate commits**, each reverta
 
 ## Problem
 
-1. **Streaming flicker.** On every cloud-agent turn the streaming bubble unmounts and a second bubble mounts when the reply is persisted. `useAIChat.ts:125` mints the streaming row `_id` as `streaming_${Date.now()}`, then `useAIChat.ts:154` mints a *different* id (`ai_${Date.now()}_…`) at persist time. Rows are keyed by `_id`, so the stream→persist transition swaps keys and React tears down/rebuilds the node — visible as a blink. There is also a blank-gap window: `onSettled` (`useAIChat.ts:372-376`) clears `streamingMessage` before the invalidation refetch delivers the persisted row.
+1. **Streaming flicker.** On every cloud-agent turn the streaming bubble unmounts and a second bubble mounts when the reply is persisted. `useAIChat.ts:125` mints the streaming row `_id` as `streaming_${Date.now()}`, then `useAIChat.ts:154` mints a _different_ id (`ai_${Date.now()}_…`) at persist time. Rows are keyed by `_id`, so the stream→persist transition swaps keys and React tears down/rebuilds the node — visible as a blink. There is also a blank-gap window: `onSettled` (`useAIChat.ts:372-376`) clears `streamingMessage` before the invalidation refetch delivers the persisted row.
 
-2. **Credit spend has no attribution.** Both credit services mutate grant rows in place — `functions`' `spendCredits(userId, amount)` and cloud-agent's `spendCredit(userId, amount?)` decrement `credit_transactions.remaining_balance` FIFO under lock. No record of *what* a purchase of credits was spent on exists anywhere, so issue #375 and any per-feature cost question are unanswerable.
+2. **Credit spend has no attribution.** Both credit services mutate grant rows in place — `functions`' `spendCredits(userId, amount)` and cloud-agent's `spendCredit(userId, amount?)` decrement `credit_transactions.remaining_balance` FIFO under lock. No record of _what_ a purchase of credits was spent on exists anywhere, so issue #375 and any per-feature cost question are unanswerable.
 
 ### Scope history (why this spec is only two fixes)
 
@@ -70,10 +70,10 @@ Same key start-to-finish means React reconciles the bubble in place; the dedupe 
 
 One Postgres ledger, two writers, identical FIFO semantics and lock order:
 
-| Service | Signature | Style | Call sites |
-|---|---|---|---|
-| `functions/src/services/creditService.ts` | `spendCredits(userId, amount)` | Drizzle query builder | memory ×2, document convert, character gen, wiki LLM, image gen, generateReply, embedding, summarize |
-| `cloud-agent/src/services/creditService.ts` | `spendCredit(userId, amount = AGENT_TURN_CREDIT_COST)` | Raw SQL | per-ADK-iteration chat (`agentEventLoop.ts:105`), browser action (`tools/browserAction.ts:101`), live voice (spend callbacks wired from `wsLiveAgentHandler`) |
+| Service                                     | Signature                                              | Style                 | Call sites                                                                                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `functions/src/services/creditService.ts`   | `spendCredits(userId, amount)`                         | Drizzle query builder | memory ×2, document convert, character gen, wiki LLM, image gen, generateReply, embedding, summarize                                                          |
+| `cloud-agent/src/services/creditService.ts` | `spendCredit(userId, amount = AGENT_TURN_CREDIT_COST)` | Raw SQL               | per-ADK-iteration chat (`agentEventLoop.ts:105`), browser action (`tools/browserAction.ts:101`), live voice (spend callbacks wired from `wsLiveAgentHandler`) |
 
 Cloud-agent is the highest-volume writer (every cloud chat turn spends per iteration), so instrumenting only `functions` would miss most usage. **Both services gain attribution.**
 
@@ -107,18 +107,18 @@ The event row is atomic with the spend: rollback on any later failure removes it
 
 Fixed snake_case tokens; free-form column, documented registry:
 
-| Token | Call site |
-|---|---|
-| `chat_reply` | `generateReply.ts:514` (Firebase escalation path); `agentEventLoop.ts:105` (cloud agent iterations, photo turns included) |
-| `browser_action` | `browserAction.ts:101` |
-| `live_voice` | live-voice spend callback wiring (plan pins exact site) |
-| `memory_action` | `memoryFunctions.ts:1531`, `memoryFunctions.ts:1609` |
-| `document_convert` | `convertDocumentText.ts:157` |
-| `character_generate` | `characterFunctions.ts:438` |
-| `wiki_llm` | `wikiLlm.ts:137` |
-| `image_generate` | `generateImage.ts:127` |
-| `embedding` | `generateEmbedding.ts:190` |
-| `summarize` | `summarizeText.ts:132` |
+| Token                | Call site                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `chat_reply`         | `generateReply.ts:514` (Firebase escalation path); `agentEventLoop.ts:105` (cloud agent iterations, photo turns included) |
+| `browser_action`     | `browserAction.ts:101`                                                                                                    |
+| `live_voice`         | live-voice spend callback wiring (plan pins exact site)                                                                   |
+| `memory_action`      | `memoryFunctions.ts:1531`, `memoryFunctions.ts:1609`                                                                      |
+| `document_convert`   | `convertDocumentText.ts:157`                                                                                              |
+| `character_generate` | `characterFunctions.ts:438`                                                                                               |
+| `wiki_llm`           | `wikiLlm.ts:137`                                                                                                          |
+| `image_generate`     | `generateImage.ts:127`                                                                                                    |
+| `embedding`          | `generateEmbedding.ts:190`                                                                                                |
+| `summarize`          | `summarizeText.ts:132`                                                                                                    |
 
 Plan-time sweep: confirm the live-voice `spend:` wiring site and grep both backends for any additional deduction entry point missed here.
 
@@ -136,12 +136,14 @@ GROUP BY reason ORDER BY total_credits DESC;
 ## Testing
 
 **Fix A**
+
 - Extend the MessageList streaming-key invariant test (`src/components/__tests__/MessageList.test.tsx`): stream→persist with the **same** `_id` renders one row whose key never changes (no remount).
 - New ChatView test: persisted row arrives while `streamingMessage` is set → rendered exactly once.
 - useAIChat tests: persisted id equals streamed id; success clears streaming only after invalidation resolves; failure clears immediately.
 - Known baseline flakes (`useAIChat.test.tsx` "persists the user message…", avatarPicker under parallel load) are pre-existing — do not attribute regressions to them.
 
 **Fix B**
+
 - creditService unit tests (both services): successful spend inserts exactly one event row with correct `reason`/`amount`; insufficient credits inserts none; injected failure after the insert rolls it back.
 - Typecheck enforces full call-site coverage (required param).
 - Migration applied locally against docker Postgres; assert table + indexes exist.
