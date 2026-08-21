@@ -375,31 +375,38 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     onSettled: () => {
       setIsSendingMessage(false)
       setActiveTool(null)
-      setStreamingMessage(null)
     },
 
-    onSuccess: (result) => {
-      if (result?.usageSnapshot) {
-        authService.send({
-          type: 'USAGE_SNAPSHOT_RECEIVED',
-          source: 'generateReply',
-          remainingCredits: result.usageSnapshot.remainingCredits,
-          planTier: result.usageSnapshot.planTier,
-          planStatus: result.usageSnapshot.planStatus,
-          verifiedAt: result.usageSnapshot.verifiedAt,
+    onSuccess: async (result) => {
+      try {
+        if (result?.usageSnapshot) {
+          authService.send({
+            type: 'USAGE_SNAPSHOT_RECEIVED',
+            source: 'generateReply',
+            remainingCredits: result.usageSnapshot.remainingCredits,
+            planTier: result.usageSnapshot.planTier,
+            planStatus: result.usageSnapshot.planStatus,
+            verifiedAt: result.usageSnapshot.verifiedAt,
+          })
+        }
+
+        console.log('✅ AI chat message sent successfully')
+        setError(null)
+
+        // Await the refetch so the persisted row is in the list before the
+        // streamed bubble unmounts — closes the blank-gap window (Fix A.3).
+        await queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
         })
+      } finally {
+        setStreamingMessage(null)
       }
-
-      console.log('✅ AI chat message sent successfully')
-      setError(null)
-
-      // Invalidate to fetch both user message and AI response
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.list(characterId, userId),
-      })
     },
 
     onError: (err, message, context) => {
+      // Failure path: no persisted row will arrive, so drop the bubble at once
+      // instead of waiting for a refetch (Fix A.3).
+      setStreamingMessage(null)
       console.error('❌ Failed to send AI chat message:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
       setError(errorMessage)

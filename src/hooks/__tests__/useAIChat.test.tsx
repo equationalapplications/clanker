@@ -182,4 +182,59 @@ describe('useAIChat streaming id unification', () => {
       expect.anything(),
     )
   })
+
+  it('clears the streamed row only after the post-success refetch resolves', async () => {
+    const { queryClient, Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    // Controllable invalidation: the refetch completes only when we resolve it.
+    let resolveInvalidate!: () => void
+    jest.spyOn(queryClient, 'invalidateQueries').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveInvalidate = resolve
+        }),
+    )
+
+    mockCallCloudAgent.mockResolvedValue({
+      reply: 'final reply',
+      toolCalls: [],
+      usageSnapshot: null,
+    })
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = result.current.sendMessage(userMessage)
+    })
+    await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalled())
+
+    // Mutation done, refetch pending — the bubble must still be held.
+    expect(result.current.streamingMessage).not.toBeNull()
+
+    await act(async () => {
+      resolveInvalidate()
+    })
+    await waitFor(() => expect(result.current.streamingMessage).toBeNull())
+    await sendPromise
+  })
+
+  it('clears the streamed row immediately when the turn fails', async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+
+    await act(async () => {
+      await result.current.sendMessage(userMessage).catch(() => {})
+    })
+
+    // No persisted row will ever arrive on failure — nothing to hand off to.
+    expect(result.current.streamingMessage).toBeNull()
+  })
 })
