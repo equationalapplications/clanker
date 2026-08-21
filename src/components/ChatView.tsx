@@ -89,7 +89,7 @@ function toAIChatCharacter(character: Character): AIChatCharacter {
   }
 }
 
-function ChatViewContent({
+export function ChatViewContent({
   characterId,
   character,
   currentUserId,
@@ -152,7 +152,12 @@ function ChatViewContent({
     character: toAIChatCharacter(character),
   })
 
-  const displayMessages = streamingMessage ? [streamingMessage, ...messages] : messages
+  // While a turn is streaming, the refetch may deliver the persisted row before
+  // the hook clears the streamed copy. Both share one _id (Fix A.1), so filter
+  // by id — whichever copy arrives first wins, and keys stay unique.
+  const displayMessages = streamingMessage
+    ? [streamingMessage, ...messages.filter((m) => String(m._id) !== String(streamingMessage._id))]
+    : messages
 
   // Memoized from primitives: a fresh literal here would change the identity of
   // `handleSend` every render, re-rendering ChatInputBar's send button on every
