@@ -121,8 +121,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }))
 
       setActiveTool(null)
+      // One id per AI reply: minted once, used for the streamed row AND the
+      // persisted row, so the stream→persist transition keeps the same React
+      // key and the bubble reconciles in place instead of remounting (Fix A.1).
+      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       setStreamingMessage({
-        _id: `streaming_${Date.now()}`,
+        _id: aiMsgId,
         text: '',
         createdAt: new Date(),
         user: {
@@ -151,7 +155,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         },
       )
 
-      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       const aiMessageData: Partial<Message> = {
         user: {
           _id: character.id,

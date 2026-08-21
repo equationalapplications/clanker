@@ -1,0 +1,185 @@
+import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
+import { useAIChat } from '../useAIChat'
+import type { Message } from '~/types/chat'
+
+const mockCallCloudAgent = jest.fn()
+jest.mock('~/services/cloudAgentService', () => ({
+  callCloudAgent: (...args: unknown[]) => mockCallCloudAgent(...args),
+}))
+
+const mockSaveAIMessage = jest.fn()
+jest.mock('~/database/messageDatabase', () => ({
+  saveAIMessage: (...args: unknown[]) => mockSaveAIMessage(...args),
+  getUnsyncedMessages: jest.fn(() => Promise.resolve([])),
+  markMessagesAsSynced: jest.fn(() => Promise.resolve()),
+}))
+
+const mockPersistUserMessage = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve())
+jest.mock('~/services/messageService', () => ({
+  sendMessage: (...args: unknown[]) => mockPersistUserMessage(...args),
+}))
+
+const mockTriggerSummary = jest.fn(() => Promise.resolve())
+jest.mock('~/services/aiChatService', () => ({
+  getRecentConversationHistory: jest.fn((history: unknown[]) => history.slice(-20)),
+  triggerConversationSummary: () => mockTriggerSummary(),
+}))
+
+jest.mock('~/hooks/useMessages', () => ({
+  // Faithful shape of the real factory (src/hooks/useMessages.ts:26-31) — the
+  // hook uses these keys for optimistic cache writes and invalidation.
+  useChatMessages: jest.fn(() => [] as Message[]),
+  messageKeys: {
+    all: ['messages'] as const,
+    lists: () => ['messages', 'list'] as const,
+    list: (characterId: string, recipientUserId: string) =>
+      ['messages', 'list', characterId, recipientUserId] as const,
+  },
+}))
+
+const mockAuthSend = jest.fn()
+jest.mock('~/hooks/useMachines', () => ({
+  useAuthMachine: () => ({ send: mockAuthSend }),
+}))
+
+jest.mock('@equationalapplications/expo-llm-wiki', () => ({
+  WikiBusyError: class WikiBusyError extends Error {},
+  formatContext: jest.fn(() => ''),
+  useWiki: () => ({
+    read: jest.fn(() => Promise.resolve(null)),
+    write: jest.fn(() => Promise.resolve()),
+  }),
+}))
+
+const mockWikiWrite = jest.fn(() => Promise.resolve())
+jest.mock('~/hooks/useCharacterWiki', () => ({
+  useCharacterWiki: () => ({
+    read: jest.fn(() => Promise.resolve(null)),
+    write: mockWikiWrite,
+  }),
+}))
+
+// Escalate unconditionally so the mutation takes the cloud-agent path.
+jest.mock('~/hooks/useEdgeAgent', () => ({
+  useEdgeAgent: () => ({
+    sendMessage: jest.fn(() =>
+      Promise.resolve({ escalated: true, text: undefined, usageSnapshot: null }),
+    ),
+    escalationState: 'idle',
+  }),
+  EscalationState: {},
+}))
+
+jest.mock('~/utilities/reportError', () => ({ reportError: jest.fn() }))
+jest.mock('~/services/syncMessage', () => ({ toSyncMessage: jest.fn(() => ({})) }))
+jest.mock('~/database/taskDatabase', () => ({ listTasks: jest.fn(() => Promise.resolve([])) }))
+jest.mock('~/services/CharacterPromptBuilder', () => ({
+  buildContentHistory: jest.fn(() => []),
+}))
+jest.mock('~/auth/devSandboxFlag', () => ({ isDevSandboxEnabled: () => false }))
+jest.mock('~/services/usageSnapshot', () => ({ usageSnapshotFromError: jest.fn(() => null) }))
+jest.mock('~/database/characterImageDatabase', () => ({
+  findCharacterImageByMessageId: jest.fn(() => Promise.resolve(null)),
+}))
+jest.mock('~/services/characterImageService', () => ({
+  saveCharacterImage: jest.fn(() => Promise.resolve()),
+}))
+jest.mock('../../../shared/dev-sandbox', () => ({
+  DEV_CLOUD_CHARACTER_ID: 'dev-sandbox-character',
+}))
+
+const character = {
+  id: 'char-1',
+  name: 'Bot',
+  appearance: '',
+  traits: '',
+  emotions: '',
+  context: '',
+  cloud_id: 'cloud-1',
+  save_to_cloud: 1,
+}
+
+const userMessage: Message = {
+  _id: 'msg_1',
+  text: 'hi',
+  createdAt: new Date(),
+  user: { _id: 'user-1', name: 'You' },
+}
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      // After the turn, cache entries (the optimistic query write, the settled
+      // mutation) arm react-query's default five-minute GC timer, which keeps
+      // the jest worker alive until it is force-exited ("A worker process has
+      // failed to exit gracefully"). Reclaim immediately — nothing needs to
+      // survive the test.
+      queries: { retry: false, gcTime: 0 },
+      mutations: { gcTime: 0 },
+    },
+  })
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  )
+  return { queryClient, Wrapper }
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+  mockSaveAIMessage.mockImplementation(
+    (_characterId: string, _userId: string, text: string, id: string) =>
+      Promise.resolve({
+        _id: id,
+        text,
+        createdAt: new Date(),
+        user: { _id: 'char-1', name: 'Bot' },
+      }),
+  )
+})
+
+describe('useAIChat streaming id unification', () => {
+  it('persists the AI reply under the same _id it streamed under', async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    let resolveTurn!: () => void
+    mockCallCloudAgent.mockImplementation(
+      (_payload: unknown, handlers: { onToken?: (text: string) => void }) =>
+        new Promise((resolve) => {
+          resolveTurn = () => resolve({ reply: 'final reply', toolCalls: [], usageSnapshot: null })
+          handlers.onToken?.('partial ')
+        }),
+    )
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = result.current.sendMessage(userMessage)
+    })
+
+    // Stream started — capture the streamed row's id.
+    await waitFor(() => expect(result.current.streamingMessage?.text).toBe('partial '))
+    const streamedId = result.current.streamingMessage!._id
+    expect(streamedId).toMatch(/^ai_/)
+
+    await act(async () => {
+      resolveTurn()
+    })
+    await waitFor(() => expect(mockSaveAIMessage).toHaveBeenCalled())
+    await sendPromise
+
+    // THE invariant: the persisted row carries the streamed id, not a fresh one.
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'final reply',
+      streamedId,
+      expect.anything(),
+    )
+  })
+})
