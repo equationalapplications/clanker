@@ -2,6 +2,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { useAIChat } from '../useAIChat'
+import { findCharacterImageByMessageId } from '~/database/characterImageDatabase'
 import type { Message } from '~/types/chat'
 
 const mockCallCloudAgent = jest.fn()
@@ -126,6 +127,8 @@ const createWrapper = () => {
   return { queryClient, Wrapper }
 }
 
+const originalCloudAgentUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+
 beforeEach(() => {
   jest.clearAllMocks()
   process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
@@ -138,6 +141,10 @@ beforeEach(() => {
         user: { _id: 'char-1', name: 'Bot' },
       }),
   )
+})
+
+afterEach(() => {
+  process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = originalCloudAgentUrl
 })
 
 describe('useAIChat streaming id unification', () => {
@@ -236,5 +243,56 @@ describe('useAIChat streaming id unification', () => {
 
     // No persisted row will ever arrive on failure — nothing to hand off to.
     expect(result.current.streamingMessage).toBeNull()
+  })
+
+  it('sendPhoto holds the streamed row until the refetch resolves', async () => {
+    const { queryClient, Wrapper } = createWrapper()
+    ;(findCharacterImageByMessageId as jest.Mock).mockResolvedValue({ id: 'existing' })
+    mockCallCloudAgent.mockResolvedValue({
+      reply: 'what a nice photo',
+      toolCalls: [],
+      usageSnapshot: null,
+    })
+
+    let resolveInvalidate!: () => void
+    const invalidateSpy = jest
+      .spyOn(queryClient, 'invalidateQueries')
+      .mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveInvalidate = resolve
+          }),
+      )
+
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    const photo = {
+      messageId: 'msg_photo_1',
+      imageId: 'img_1',
+      uri: 'file:///photo.jpg',
+      width: 10,
+      height: 10,
+      attachment: {},
+      variants: {},
+    } as never
+
+    let photoPromise!: Promise<boolean>
+    act(() => {
+      photoPromise = result.current.sendPhoto(photo, 'look')
+    })
+    await waitFor(() => expect(result.current.streamingMessage).not.toBeNull())
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalled())
+
+    // Held until the refetch resolves — same contract as the text path.
+    expect(result.current.streamingMessage).not.toBeNull()
+
+    await act(async () => {
+      resolveInvalidate()
+    })
+    await waitFor(() => expect(result.current.streamingMessage).toBeNull())
+    await expect(photoPromise).resolves.toBe(true)
   })
 })
