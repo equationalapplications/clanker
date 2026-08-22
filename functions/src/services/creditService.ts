@@ -148,6 +148,12 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       amount: number,
       reason: string,
     ): Promise<CreditSpendAllocation[] | null> {
+      // Runtime backstop for the compile-time required param — a JS caller or a
+      // future refactor dropping the arg must fail loudly, never write an
+      // unattributed spend.
+      if (!reason) {
+        throw new Error('spendCredits requires a non-empty reason')
+      }
       const db = await deps.getDb()
       try {
         return await db.transaction(

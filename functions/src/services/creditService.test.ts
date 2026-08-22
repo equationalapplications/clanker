@@ -376,17 +376,22 @@ test('attribution insert precedes cache sync so a later failure discards both', 
   assert.equal(spendEvents.length, 1) // insert WAS issued, inside the tx, before the failure
 })
 
-test('spendCredits requires a reason argument at the call site', async () => {
-  // Compile-time enforcement is the real gate (required param). This runtime
-  // probe documents that no default crept back in.
+test('spendCredits rejects an empty or missing reason before touching the database', async () => {
+  // Compile-time enforcement is the real gate (required param); this guard is
+  // the runtime backstop, so pin its exact behavior instead of accepting any
+  // rejection.
+  let dbTouched = false
   const service = createCreditService({
-    getDb: async () => ({}) as never,
+    getDb: async () => {
+      dbTouched = true
+      return {} as never
+    },
   })
-  await assert.rejects(
-    () =>
-      (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, undefined),
-    (err: unknown) => err instanceof TypeError || String(err).length > 0,
-  )
+  const callWithoutReason = (reason: unknown) =>
+    (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, reason)
+  await assert.rejects(() => callWithoutReason(undefined), /requires a non-empty reason/)
+  await assert.rejects(() => callWithoutReason(''), /requires a non-empty reason/)
+  assert.equal(dbTouched, false)
 })
 
 // ---------------------------------------------------------------------------
