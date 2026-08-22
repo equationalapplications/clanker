@@ -486,7 +486,7 @@ gh pr create --base staging --title "Credit spend attribution: ledger table + fu
 
 After the user merges PR 2 and BEFORE PR 3 merges, migration 0024 must hit prod Cloud SQL. The runner needs CLOUD_SQL_* credentials and GCP access — if `CLOUD_SQL_CONNECTION_NAME` et al. aren't in the environment, hand this to the user verbatim rather than guessing:
 
-```
+```sh
 cd functions && MIGRATIONS=0024_credit_spend_events.sql npm run migrate
 ```
 

@@ -61,25 +61,74 @@ function renderQuery(query: unknown): string {
 }
 
 // Same response-queue semantics as makeExecuteDb (shared index across db and tx
-// execute), plus a rendered log of every query that ran.
+// execute), plus a rendered log of every query that ran — and Postgres-faithful
+// transaction state: a statement error marks the transaction ABORTED, after
+// which every later statement fails with 25P02 until ROLLBACK TO SAVEPOINT
+// restores it, and COMMIT issued while aborted acts as ROLLBACK (all writes
+// discarded, callback result still returned). Nested transactions model
+// SAVEPOINT/RELEASE around their body; savepoint statements never consume from
+// the response queue. `committed` is false whenever the transaction ended in
+// that implicit-rollback state.
 function makeCapturingDb(responses: Array<{ rows: unknown[] } | Error>): {
   db: DrizzleClient
   queries: string[]
+  state: { committed: boolean }
 } {
   const queries: string[] = []
+  const state = { committed: false }
   let callIndex = 0
+  let active = true
   const run = async (query: unknown) => {
-    queries.push(renderQuery(query))
+    const rendered = typeof query === 'string' ? query : renderQuery(query)
+    queries.push(rendered)
+    if (!active && !/^(savepoint|rollback to savepoint|release savepoint) /i.test(rendered)) {
+      // PostgreSQL rejects everything except savepoint management while
+      // aborted — and ROLLBACK TO SAVEPOINT is the only escape from that state.
+      throw new Error('25P02: current transaction is aborted, commands ignored')
+    }
+    if (/^savepoint /i.test(rendered)) return { rows: [] }
+    if (/^rollback to savepoint /i.test(rendered)) {
+      active = true
+      return { rows: [] }
+    }
+    if (/^release savepoint /i.test(rendered)) return { rows: [] }
     const response = responses[callIndex++]
-    if (response instanceof Error) throw response
+    if (response instanceof Error) {
+      active = false
+      throw response
+    }
     return response ?? { rows: [] }
   }
+  const makeTx = (): DrizzleClient =>
+    ({
+      execute: run,
+      transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+        const spName = `sp${queries.length}`
+        let result: unknown
+        try {
+          await run(`savepoint ${spName}`)
+          result = await callback(makeTx())
+        } catch (err) {
+          await run(`rollback to savepoint ${spName}`)
+          throw err
+        }
+        await run(`release savepoint ${spName}`)
+        return result
+      },
+    }) as unknown as DrizzleClient
   const db = {
     execute: run,
-    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) =>
-      callback({ execute: run } as unknown as DrizzleClient),
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => {
+      const result = await callback(makeTx())
+      // COMMIT on an aborted PostgreSQL transaction does not fail — it is
+      // treated as ROLLBACK: nothing persists, yet the callback's return value
+      // is delivered as if the spend had succeeded.
+      state.committed = active
+      queries.push(active ? 'COMMIT' : 'COMMIT -> implicit ROLLBACK (tx was aborted)')
+      return result
+    },
   } as unknown as DrizzleClient
-  return { db, queries }
+  return { db, queries, state }
 }
 ```
 
@@ -135,22 +184,31 @@ test('spendCredit writes no attribution event when credits are insufficient', as
   assert.equal(queries.filter((q) => q.includes('INSERT INTO credit_spend_events')).length, 0)
 })
 
-test('attribution insert precedes the cache sync so a later failure discards both', async () => {
-  // Mock-level guarantee: the event INSERT is issued inside the SAME transaction
-  // callback before the failing step — Postgres rolls back everything together.
+test('a best-effort cache-sync failure neither rejects nor drops the attribution row', async () => {
+  // Unlike functions/ (whose syncSubscriptionCache propagates), cloud-agent treats
+  // the subscriptions-cache UPDATE as best-effort by design. But a bare try/catch
+  // cannot deliver that contract: a Postgres error aborts the WHOLE transaction,
+  // and COMMIT-on-aborted acts as ROLLBACK — silently discarding the spend AND
+  // the attribution row while callers still see allocations returned. The cache
+  // UPDATE must be isolated in a SAVEPOINT so only it rolls back. This mock
+  // models those Postgres semantics, so asserting `committed` pins persistence.
   const cacheError = new Error('subscriptions cache exploded')
-  const { db, queries } = makeCapturingDb([
+  const { db, queries, state } = makeCapturingDb([
     { rows: [] }, // INSERT subscriptions
     { rows: [{ user_id: 'user-1' }] }, // SELECT FOR UPDATE subscriptions
     { rows: [{ total: '100' }] }, // SELECT net SUM
     { rows: [{ id: 'tx-abc', remaining_balance: '100' }] }, // SELECT rows FOR UPDATE
     { rows: [] }, // UPDATE credit_transactions
-    { rows: [] }, // INSERT credit_spend_events — must succeed FIRST
-    cacheError, // UPDATE subscriptions cache rejects AFTER the event INSERT
+    { rows: [] }, // INSERT credit_spend_events
+    cacheError, // UPDATE subscriptions cache — fails inside its SAVEPOINT only
   ])
   const cs = createCreditService(db)
-  await assert.rejects(() => cs.spendCredit('user-1', 100, 'chat_reply'), /cache exploded/)
-  assert.equal(queries.filter((q) => q.includes('INSERT INTO credit_spend_events')).length, 1)
+  await assert.doesNotReject(() => cs.spendCredit('user-1', 100, 'chat_reply'))
+  const events = queries.filter((q) => q.includes('INSERT INTO credit_spend_events'))
+  assert.equal(events.length, 1)
+  // Real Postgres semantics: rollback-to-savepoint revives the transaction, so
+  // COMMIT genuinely persists both the deduction and this event row.
+  assert.equal(state.committed, true)
 })
 
 test('spendCredit requires amount and reason explicitly (no default)', async () => {

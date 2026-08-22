@@ -18,6 +18,17 @@ function assertPositiveCreditAmount(amount: number): void {
   }
 }
 
+// NOT NULL alone does not keep a blank reason out of credit_spend_events —
+// an empty or whitespace-only value would persist as an unusable attribution
+// row. Reject it before the transaction opens and persist the trimmed value.
+function normalizeSpendReason(reason: string): string {
+  const normalized = typeof reason === 'string' ? reason.trim() : ''
+  if (!normalized) {
+    throw new Error('INVALID_SPEND_REASON')
+  }
+  return normalized
+}
+
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(
@@ -26,6 +37,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
       reason: string,
     ): Promise<CreditSpendAllocation[]> {
       assertPositiveCreditAmount(amount)
+      const reasonText = normalizeSpendReason(reason)
       // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first
       // 2. Then lock and update credit_transactions
@@ -88,7 +100,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
         // and rolls back, atomically with it.
         await tx.execute(sql`
           INSERT INTO credit_spend_events (user_id, amount, reason)
-          VALUES (${userId}, ${amount}, ${reason})
+          VALUES (${userId}, ${amount}, ${reasonText})
         `)
 
         // Update subscriptions cache (row is already locked). Best-effort — but a

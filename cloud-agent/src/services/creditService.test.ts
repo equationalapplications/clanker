@@ -281,6 +281,39 @@ test('spendCredit requires amount and reason explicitly (no default)', async () 
   )
 })
 
+test('spendCredit rejects blank reasons before opening a transaction', async () => {
+  // NOT NULL alone would still admit a blank string into credit_spend_events,
+  // so the guard must fire before ANY statement — transaction included.
+  for (const badReason of [undefined, '', '   ']) {
+    const { db, queries } = makeCapturingDb([])
+    const cs = createCreditService(db)
+    await assert.rejects(
+      () => (cs.spendCredit as (...args: unknown[]) => Promise<unknown>)('user-1', 100, badReason),
+      (err: Error) => err.message === 'INVALID_SPEND_REASON',
+    )
+    assert.equal(queries.length, 0, `statements ran for reason ${JSON.stringify(badReason)}`)
+  }
+})
+
+test('spendCredit persists the normalized (trimmed) reason', async () => {
+  const { db, queries } = makeCapturingDb([
+    { rows: [] }, // INSERT subscriptions
+    { rows: [{ user_id: 'user-1' }] }, // SELECT FOR UPDATE subscriptions
+    { rows: [{ total: '100' }] }, // SELECT net SUM
+    { rows: [{ id: 'tx-abc', remaining_balance: '100' }] }, // SELECT rows FOR UPDATE
+    { rows: [] }, // UPDATE credit_transactions
+    { rows: [] }, // INSERT credit_spend_events
+    { rows: [] }, // UPDATE subscriptions cache
+  ])
+  const cs = createCreditService(db)
+  await cs.spendCredit('user-1', 100, '  chat_reply  ')
+  const events = queries.filter((q) => q.includes('INSERT INTO credit_spend_events'))
+  assert.equal(events.length, 1)
+  // renderQuery emits "text | param | param …" — the bound reason is the last
+  // param, and it must be the trimmed value.
+  assert.match(events[0], /\| chat_reply$/)
+})
+
 // ── refundCredit ──────────────────────────────────────────────────────────────
 
 test('refundCredit resolves without throwing', async () => {

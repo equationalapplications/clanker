@@ -150,8 +150,10 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
     ): Promise<CreditSpendAllocation[] | null> {
       // Runtime backstop for the compile-time required param — a JS caller or a
       // future refactor dropping the arg must fail loudly, never write an
-      // unattributed spend.
-      if (!reason) {
+      // unattributed spend. NOT NULL alone would still admit a blank string, so
+      // whitespace-only counts as missing, and the ledger gets the trimmed value.
+      const normalizedReason = typeof reason === 'string' ? reason.trim() : ''
+      if (!normalizedReason) {
         throw new Error('spendCredits requires a non-empty reason')
       }
       const db = await deps.getDb()
@@ -237,7 +239,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
 
             // Attribution ledger — written inside the same transaction so it
             // commits, and rolls back, atomically with the spend itself.
-            await tx.insert(creditSpendEvents).values({ userId, amount, reason })
+            await tx.insert(creditSpendEvents).values({ userId, amount, reason: normalizedReason })
 
             await syncSubscriptionCache(tx, userId)
 

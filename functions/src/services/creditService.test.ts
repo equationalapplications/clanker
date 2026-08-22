@@ -391,7 +391,68 @@ test('spendCredits rejects an empty or missing reason before touching the databa
     (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, reason)
   await assert.rejects(() => callWithoutReason(undefined), /requires a non-empty reason/)
   await assert.rejects(() => callWithoutReason(''), /requires a non-empty reason/)
+  // NOT NULL alone would still admit a blank string into credit_spend_events.
+  await assert.rejects(() => callWithoutReason('   '), /requires a non-empty reason/)
   assert.equal(dbTouched, false)
+})
+
+test('spendCredits persists the normalized (trimmed) reason', async () => {
+  const insertedValues: Array<Record<string, unknown>> = []
+
+  // select() call order matches the qualifying-row test above.
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ total: 10 }],
+    [{ id: 'tx-abc', remainingBalance: 10 }],
+    [{ total: 9 }],
+    [{ minExpiry: null }],
+    [],
+  ]
+  let selectIdx = 0
+
+  const fakeTx = {
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? []
+      return {
+        from: () => ({
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+              orderBy: () => ({
+                limit: () => ({ for: async () => rows }),
+                for: async () => rows,
+              }),
+            }),
+        }),
+      }
+    },
+    update: () => ({
+      set: (_vals: unknown) => ({
+        where: async () => {},
+      }),
+    }),
+    insert: () => ({
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (
+      fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>,
+      _opts?: unknown,
+    ) => fn(fakeTx),
+  }
+
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.spendCredits('user-1', 1, '  chat_reply  ')
+  // GROUP BY reason over the ledger must not fragment on padding, so the bound
+  // value is the trimmed one.
+  const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
+  assert.deepEqual(spendEvents, [{ userId: 'user-1', amount: 1, reason: 'chat_reply' }])
 })
 
 // ---------------------------------------------------------------------------
