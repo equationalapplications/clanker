@@ -61,4 +61,35 @@ describe('MessageList streaming-key invariant', () => {
     expect(getByText('message a')).toBeTruthy()
     expect(getByText('message b')).toBeTruthy()
   })
+
+  it('does not remount a row when a persisted row replaces the streamed row under the same _id', () => {
+    // Fix A makes stream→persist a same-key, fresh-identity swap: the refetch
+    // delivers a new row object whose _id equals the streamed one. This pins
+    // that MessageList reconciles in place across that swap. Expected green
+    // before and after the useAIChat change — it guards the list layer the id
+    // unification now exercises.
+    let avatarMountCount = 0
+    const CountingAvatar: React.FC = () => {
+      React.useEffect(() => {
+        avatarMountCount += 1
+      }, [])
+      return null
+    }
+    const renderAvatar = (_message: Message) => <CountingAvatar />
+
+    const streamed: Message = { ...baseMessage, _id: 'ai_42', text: '' }
+    const view = render(
+      <MessageList messages={[streamed]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
+    expect(avatarMountCount).toBe(1)
+
+    // Refetch delivers the persisted row: fresh object identity, same _id.
+    const persisted: Message = { ...baseMessage, _id: 'ai_42', text: 'hello world' }
+    view.rerender(
+      <MessageList messages={[persisted]} currentUserId="user" renderAvatar={renderAvatar} />,
+    )
+
+    expect(avatarMountCount).toBe(1)
+    expect(view.getByText('hello world')).toBeTruthy()
+  })
 })
