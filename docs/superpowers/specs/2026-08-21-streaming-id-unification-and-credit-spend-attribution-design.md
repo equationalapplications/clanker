@@ -121,8 +121,9 @@ Fixed snake_case tokens; free-form column, documented registry:
 | `image_generate`     | `generateImage.ts:127`                                                                                                    |
 | `embedding`          | `generateEmbedding.ts:190`                                                                                                |
 | `summarize`          | `summarizeText.ts:132`                                                                                                    |
+| `scheduled_trigger`  | `schedulerTriggerHandler.ts:187` (cloud agent)                                                                            |
 
-Plan-time sweep (done 2026-08-21): found two entry points beyond the original table — `wikiSync.ts:824` (`wiki_sync`) and `cloud-agent`'s `schedulerTriggerHandler.ts:187` (`scheduled_trigger`). The full writer set is the 12 tokens above; every `spendCredits`/`spendCredit` call site is tagged and typecheck-enforced.
+Plan-time sweep (done 2026-08-21): found two entry points beyond the original table — `wikiSync.ts:824` (`wiki_sync`) and `cloud-agent`'s `schedulerTriggerHandler.ts:187` (`scheduled_trigger`). The full writer set is the 12 tokens above; every `spendCredits`/`spendCredit` call site is tagged. What typecheck enforces is that each site passes a reason argument (required third param) — it cannot enforce registry membership, so this table remains the source of truth for tokens.
 
 ### Answering #375
 
