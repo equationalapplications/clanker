@@ -23,13 +23,11 @@ function makeExecuteDb(responses: Array<{ rows: unknown[] }>): DrizzleClient {
   const makeTx = (): DrizzleClient =>
     ({
       execute,
-      transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) =>
-        callback(makeTx()),
+      transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => callback(makeTx()),
     }) as unknown as DrizzleClient
   return {
     execute,
-    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) =>
-      callback(makeTx()),
+    transaction: async (callback: (tx: DrizzleClient) => Promise<unknown>) => callback(makeTx()),
   } as unknown as DrizzleClient
 }
 
