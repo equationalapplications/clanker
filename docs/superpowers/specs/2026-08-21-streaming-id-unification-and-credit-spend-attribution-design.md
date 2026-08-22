@@ -2,9 +2,9 @@
 
 **Date:** 2026-08-21
 **Status:** Approved 2026-08-21 — partially implemented: Fix A (streaming id unification) in PR #621; Fix B (credit attribution) pending
-**Implementation plan:** [2026-08-21-streaming-id-unification-pr1](../plans/2026-08-21-streaming-id-unification-pr1.md) (Fix A)
+**Implementation plan:** [2026-08-21-streaming-id-unification-pr1](../plans/2026-08-21-streaming-id-unification-pr1.md) (Fix A), [2026-08-21-credit-attribution-pr2-functions](../plans/2026-08-21-credit-attribution-pr2-functions.md) and [2026-08-21-credit-attribution-pr3-cloud-agent](../plans/2026-08-21-credit-attribution-pr3-cloud-agent.md) (Fix B)
 **Owner:** equationalapplications
-**Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/src/db/migrations/` (one hand-written file), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
+**Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/drizzle/` (one hand-written file, registered in `functions/scripts/migrationOrder.mjs`), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
 **Depends on:** [gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) (our own `ChatView`/`MessageList` this builds on)
 
 Two independent defects ship as **two separate PRs** (per the approved follow-up decision), each revertable at PR granularity: Fix A (streaming id unification) in PR #621, then Fix B (credit attribution) as a separate PR.
@@ -93,7 +93,7 @@ CREATE INDEX credit_spend_events_user_created_idx
 CREATE INDEX credit_spend_events_reason_idx ON credit_spend_events (reason);
 ```
 
-Append-only side table: nothing that computes balances reads it, so existing queries are untouched. `reason` is free-form `text` — new features never need a migration. Migration is a **hand-written next-index SQL file** in `functions/src/db/migrations/` per repo convention (the drizzle journal is out of sync; never run `drizzle-kit generate`). Mirror the table in `functions/src/db/schema.ts` for typed inserts; cloud-agent inserts via raw SQL (it already touches `credit_transactions` without a local schema declaration).
+Append-only side table: nothing that computes balances reads it, so existing queries are untouched. `reason` is free-form `text` — new features never need a migration. Migration is a **hand-written next-index SQL file** in `functions/drizzle/` per repo convention (the drizzle journal is out of sync; never run `drizzle-kit generate`; register the filename in `functions/scripts/migrationOrder.mjs`). Mirror the table in `functions/src/db/schema.ts` for typed inserts; cloud-agent inserts via raw SQL (it already touches `credit_transactions` without a local schema declaration).
 
 ### Service changes
 
@@ -117,11 +117,12 @@ Fixed snake_case tokens; free-form column, documented registry:
 | `document_convert`   | `convertDocumentText.ts:157`                                                                                              |
 | `character_generate` | `characterFunctions.ts:438`                                                                                               |
 | `wiki_llm`           | `wikiLlm.ts:137`                                                                                                          |
+| `wiki_sync`          | `wikiSync.ts:824` (persists the client-extracted wiki dump — no LLM behind this spend)                                    |
 | `image_generate`     | `generateImage.ts:127`                                                                                                    |
 | `embedding`          | `generateEmbedding.ts:190`                                                                                                |
 | `summarize`          | `summarizeText.ts:132`                                                                                                    |
 
-Plan-time sweep: confirm the live-voice `spend:` wiring site and grep both backends for any additional deduction entry point missed here.
+Plan-time sweep (done 2026-08-21): found two entry points beyond the original table — `wikiSync.ts:824` (`wiki_sync`) and `cloud-agent`'s `schedulerTriggerHandler.ts:187` (`scheduled_trigger`). The full writer set is the 12 tokens above; every `spendCredits`/`spendCredit` call site is tagged and typecheck-enforced.
 
 ### Answering #375
 
