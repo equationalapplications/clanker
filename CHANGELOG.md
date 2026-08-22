@@ -1,3 +1,19 @@
+# [31.2.0](https://github.com/equationalapplications/clanker/compare/v31.1.1...v31.2.0) (2026-08-22)
+
+
+### Bug Fixes
+
+* **cloud-agent:** isolate best-effort cache sync in a SAVEPOINT ([8f2125d](https://github.com/equationalapplications/clanker/commit/8f2125d03f8ca27cc0bcfe572f51b8713c7b7557))
+* **credits:** reject blank spend reasons at both service boundaries ([5b078c8](https://github.com/equationalapplications/clanker/commit/5b078c840e8c21ec7247d4a7b66f9ef1219eb54d)), closes [#625](https://github.com/equationalapplications/clanker/issues/625)
+
+
+### Features
+
+* **cloud-agent:** attribute every credit spend with a required reason ([aec3ebd](https://github.com/equationalapplications/clanker/commit/aec3ebd0fbb46ffe374817fc2000de6ceb250c65))
+* **db:** add credit_spend_events attribution ledger ([d9bfe54](https://github.com/equationalapplications/clanker/commit/d9bfe54d21604a65837e2b86a477abc93e94f2be))
+* **functions:** attribute every credit spend with a required reason ([2587869](https://github.com/equationalapplications/clanker/commit/258786915e5020db9a4deb8e73cc72183ee7dd51))
+* **functions:** runtime-guard spendCredits' required reason ([54c44f7](https://github.com/equationalapplications/clanker/commit/54c44f7df101d6a10ce5a04a2b9b9bd9b9b52ead))
+
 ## [31.1.1](https://github.com/equationalapplications/clanker/compare/v31.1.0...v31.1.1) (2026-08-22)
 
 
