@@ -58,7 +58,7 @@ The two PRs touch disjoint code files and branch independently off `staging` (no
 
 - Produces: table `credit_spend_events(id uuid PK default gen_random_uuid(), user_id uuid NOT NULL FK→users ON DELETE CASCADE, amount integer NOT NULL, reason text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`; indexes `credit_spend_events_user_created_idx (user_id, created_at DESC)` and `credit_spend_events_reason_idx (reason)`. Drizzle export `creditSpendEvents` from `functions/src/db/schema.ts`. Task 3 consumes the export; PR 3's raw-SQL inserts consume the table.
 
-- [ ] **Step 1: Write the failing migration test**
+- [x] **Step 1: Write the failing migration test**
 
 Create `functions/src/db/creditSpendEventsMigration.test.ts` (mirrors `characterImagesMigration.test.ts`; note hand-written SQL uses unquoted identifiers):
 
@@ -91,12 +91,12 @@ test('is re-runnable', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd functions && npm run build >/dev/null 2>&1; NODE_ENV=test node --test lib/db/creditSpendEventsMigration.test.js`
 Expected: FAIL — `ENOENT ... 0024_credit_spend_events.sql` (readFileSync throws at module load).
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `functions/drizzle/0024_credit_spend_events.sql`:
 
@@ -120,7 +120,7 @@ CREATE INDEX IF NOT EXISTS credit_spend_events_user_created_idx
 CREATE INDEX IF NOT EXISTS credit_spend_events_reason_idx ON credit_spend_events (reason);
 ```
 
-- [ ] **Step 4: Register it**
+- [x] **Step 4: Register it**
 
 In `functions/scripts/migrationOrder.mjs`, append after `'0023_character_images_chat.sql',`:
 
@@ -128,7 +128,7 @@ In `functions/scripts/migrationOrder.mjs`, append after `'0023_character_images_
   '0024_credit_spend_events.sql',
 ```
 
-- [ ] **Step 5: Mirror the table in schema.ts**
+- [x] **Step 5: Mirror the table in schema.ts**
 
 In `functions/src/db/schema.ts`, insert immediately after the closing `)` of the `creditTransactions` pgTable (before `export const characters`), matching the file's existing callback-object index style:
 
@@ -158,7 +158,7 @@ export const creditSpendEvents = pgTable(
 
 (`uuid`, `text`, `integer`, `timestamp`, `index` are already imported at the top of the file.)
 
-- [ ] **Step 6: Add the table to seedLocal.ts**
+- [x] **Step 6: Add the table to seedLocal.ts**
 
 In `cloud-agent/scripts/seedLocal.ts`, immediately after the `credit_transactions` CREATE TABLE statement's closing backtick-paren, add:
 
@@ -180,17 +180,17 @@ await db.execute(
 )
 ```
 
-- [ ] **Step 7: Run the migration test + order test to verify they pass**
+- [x] **Step 7: Run the migration test + order test to verify they pass**
 
 Run: `cd functions && NODE_ENV=test node --test lib/db/creditSpendEventsMigration.test.js scripts/migrationOrder.test.mjs`
 Expected: PASS (all).
 
-- [ ] **Step 8: Apply locally if docker Postgres is up; otherwise record it**
+- [x] **Step 8: Apply locally if docker Postgres is up; otherwise record it**
 
 Run: `docker info >/dev/null 2>&1 && cd functions && npm run migrate:dev || echo "SKIPPED: docker not running"`
 If applied, verify: `docker exec $(docker ps -qf name=postgres) psql -U clanker_dev -d clanker -c '\d credit_spend_events'` shows the columns and both indexes. If docker is down, do NOT claim local application — report it skipped; prod application in Task 5 is the authoritative step.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add functions/drizzle/0024_credit_spend_events.sql functions/scripts/migrationOrder.mjs functions/src/db/schema.ts functions/src/db/creditSpendEventsMigration.test.ts cloud-agent/scripts/seedLocal.ts
@@ -210,7 +210,7 @@ git commit -m "feat(db): add credit_spend_events attribution ledger"
 - Consumes: `creditSpendEvents` export from Task 1.
 - Produces: `spendCredits(userId: string, amount: number, reason: string): Promise<CreditSpendAllocation[] | null>` (null still means insufficient credits). Return type and all other service methods unchanged.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `functions/src/services/creditService.test.ts`, first convert the two happy-path spend tests' `fakeTx.insert` to a capturing, dual-shape mock (must serve BOTH the `.values(v).onConflictDoNothing(…)` subscriptions insert and the awaited-plain `.values(v)` event insert), and thread the new third argument. In test `spendCredits returns transactionId and decrements balance on qualifying row`:
 
@@ -342,12 +342,12 @@ test('spendCredits requires a reason argument at the call site', async () => {
 
 (Note: the last test intentionally does not pin the failure mode — with the required param, passing `undefined` reaches the DB layer and fails; the meaningful enforcement is `tsc`. If it proves brittle under Node's exact error surface, tighten it to expect rejection of ANY kind and move on.)
 
-- [ ] **Step 2: Run to verify the new tests fail**
+- [x] **Step 2: Run to verify the new tests fail**
 
 Run: `cd functions && NODE_ENV=test node --test lib/services/creditService.test.js`
 Expected: FAIL — the deepEqual on `spendEvents` sees `[]` (no event insert yet), and the old two-arg calls still "work" so the failure is specifically the new assertions.
 
-- [ ] **Step 3: Implement the service change**
+- [x] **Step 3: Implement the service change**
 
 In `functions/src/services/creditService.ts`:
 
@@ -377,12 +377,12 @@ await tx.insert(creditSpendEvents).values({ userId, amount, reason })
 
 No other method changes. Lock order, balance math, and `syncSubscriptionCache` stay byte-identical.
 
-- [ ] **Step 4: Run the service tests**
+- [x] **Step 4: Run the service tests**
 
 Run: `cd functions && NODE_ENV=test node --test lib/services/creditService.test.js`
 Expected: PASS — but `npm run typecheck` FAILS: all 10 call sites now miss the required third argument. That is the compiler-enforced coverage working.
 
-- [ ] **Step 5: Tag all 10 functions call sites**
+- [x] **Step 5: Tag all 10 functions call sites**
 
 Exact replacements (tokens per the spec registry):
 
@@ -401,12 +401,12 @@ Exact replacements (tokens per the spec registry):
 
 Token notes: `wiki_sync` (not `wiki_llm`) for `wikiSync.ts` because `wikiSyncHandler` persists a client-extracted dump — no LLM runs behind that spend. Existing test doubles that stub `spendCredits` with fewer parameters remain valid TypeScript (fewer-param functions are assignable) and ignore the extra runtime argument — do not chase phantom failures there.
 
-- [ ] **Step 6: Verify the whole functions suite + typecheck**
+- [x] **Step 6: Verify the whole functions suite + typecheck**
 
 Run: `cd functions && npm test && npm run typecheck`
 Expected: PASS, including `migrationOrder.test.mjs` and the migration static test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add functions/src/services/creditService.ts functions/src/services/creditService.test.ts functions/src/memoryFunctions.ts functions/src/convertDocumentText.ts functions/src/characterFunctions.ts functions/src/generateReply.ts functions/src/generateImage.ts functions/src/wikiLlm.ts functions/src/wikiSync.ts functions/src/generateEmbedding.ts functions/src/summarizeText.ts
@@ -419,7 +419,7 @@ git commit -m "feat(functions): attribute every credit spend with a required rea
 
 - Modify: `docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md`
 
-- [ ] **Step 1: Correct the migration path and register this half's token**
+- [x] **Step 1: Correct the migration path and register this half's token**
 
 Four small edits, all factual corrections discovered at plan time (the sweep found `wikiSync.ts:824` and `schedulerTriggerHandler.ts:187` beyond the spec's original table):
 
@@ -430,7 +430,7 @@ Four small edits, all factual corrections discovered at plan time (the sweep fou
 
 Leave the `Status:` line alone — it flips in PR 3 when both halves exist.
 
-- [ ] **Step 2: Prettier-check the touched markdown and commit**
+- [x] **Step 2: Prettier-check the touched markdown and commit**
 
 Run: `npx prettier --check docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md docs/superpowers/plans/` (fix formatting only in these files, never a sweep).
 
@@ -441,23 +441,23 @@ git commit -m "docs(spec): credit-attribution plan links, wiki_sync token, migra
 
 ### Task 4: Full verification
 
-- [ ] **Step 1: Backend gates**
+- [x] **Step 1: Backend gates**
 
 Run: `cd functions && npm test && npm run typecheck && npm run lint`
 Expected: PASS (lint runs eslint without `--fix` = check-mode ✓).
 
-- [ ] **Step 2: Repo-wide format gate**
+- [x] **Step 2: Repo-wide format gate**
 
 Run from repo root: `npm run format:check`
 Expected: PASS. If a file this branch touched fails, format ONLY those files in a separate `style:` commit — never a sweep.
 
-- [ ] **Step 3: Honest status report**
+- [x] **Step 3: Honest status report**
 
 State plainly: what passed, whether Step 8 of Task 1 (local docker apply) ran or was skipped, and that prod migration is pending (Task 5).
 
 ### Task 5: Ship + prod migration ordering (STOP point)
 
-- [ ] **Step 1: Push and open the PR**
+- [x] **Step 1: Push and open the PR**
 
 Branch `feat/credit-attribution-functions` off `staging` was created at start; push and:
 
@@ -465,7 +465,7 @@ Branch `feat/credit-attribution-functions` off `staging` was created at start; p
 gh pr create --base staging --title "Credit spend attribution: ledger table + functions backend" --body "Implements the functions half of Fix B …"
 ```
 
-- [ ] **Step 2: STOP — prod migration is the user's authenticated step**
+- [x] **Step 2: STOP — prod migration is the user's authenticated step**
 
 After the user merges PR 2 and BEFORE PR 3 merges, migration 0024 must hit prod Cloud SQL. The runner needs CLOUD_SQL_* credentials and GCP access — if `CLOUD_SQL_CONNECTION_NAME` et al. aren't in the environment, hand this to the user verbatim rather than guessing:
 
