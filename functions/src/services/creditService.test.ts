@@ -371,10 +371,7 @@ test('attribution insert precedes cache sync so a later failure discards both', 
     transaction: async (fn: (tx: typeof fakeTx) => Promise<unknown>) => fn(fakeTx),
   }
   const service = createCreditService({ getDb: async () => fakeDb as never })
-  await assert.rejects(
-    () => service.spendCredits('user-1', 1, 'chat_reply'),
-    /cache-sync exploded/,
-  )
+  await assert.rejects(() => service.spendCredits('user-1', 1, 'chat_reply'), /cache-sync exploded/)
   const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
   assert.equal(spendEvents.length, 1) // insert WAS issued, inside the tx, before the failure
 })
@@ -386,7 +383,8 @@ test('spendCredits requires a reason argument at the call site', async () => {
     getDb: async () => ({}) as never,
   })
   await assert.rejects(
-    () => (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, undefined),
+    () =>
+      (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, undefined),
     (err: unknown) => err instanceof TypeError || String(err).length > 0,
   )
 })
