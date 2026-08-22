@@ -550,14 +550,14 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         setError(err instanceof Error ? err.message : 'Failed to send photo')
         return false
       } finally {
-        turnInFlightRef.current = false
-        setIsSendingMessage(false)
         try {
           // Same handoff rule as the text path: the refetched list must contain
           // the persisted row before the streamed bubble unmounts (Fix A.3).
           await queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })
         } finally {
           setStreamingMessage(null)
+          turnInFlightRef.current = false
+          setIsSendingMessage(false)
         }
       }
     },

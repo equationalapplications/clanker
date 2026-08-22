@@ -26,6 +26,9 @@ const mockTriggerSummary = jest.fn(() => Promise.resolve())
 jest.mock('~/services/aiChatService', () => ({
   getRecentConversationHistory: jest.fn((history: unknown[]) => history.slice(-20)),
   triggerConversationSummary: () => mockTriggerSummary(),
+  // Real value import at useAIChat.ts:5 — without it a future Firebase-path
+  // test dies with "sendMessageWithAIResponse is not a function".
+  sendMessageWithAIResponse: jest.fn(),
 }))
 
 jest.mock('~/hooks/useMessages', () => ({
@@ -292,5 +295,115 @@ describe('useAIChat streaming id unification', () => {
     })
     await waitFor(() => expect(result.current.streamingMessage).toBeNull())
     await expect(photoPromise).resolves.toBe(true)
+  })
+
+  it('keeps photo-turn gates closed until the refetch settles so the next turn is not wiped', async () => {
+    const { queryClient, Wrapper } = createWrapper()
+    ;(findCharacterImageByMessageId as jest.Mock).mockResolvedValue({ id: 'existing' })
+
+    // Every invalidateQueries call parks until the test resolves it. Entries
+    // land in call order: turn 1's cleanup first, then any later turn's
+    // onSuccess — resolving them one at a time keeps the interleaving exact.
+    const invalidationResolvers: (() => void)[] = []
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          invalidationResolvers.push(resolve)
+        }),
+    )
+
+    // Turn 1 (photo): the model call resolves immediately, so its finally is
+    // parked on invalidation #0 while the test holds it there.
+    mockCallCloudAgent.mockImplementationOnce(() =>
+      Promise.resolve({ reply: 'photo reply', toolCalls: [], usageSnapshot: null }),
+    )
+    // A later turn streams a token before resolving, so its live bubble is
+    // observable. The base implementation covers any further calls.
+    mockCallCloudAgent.mockImplementationOnce((_payload, handlers) => {
+      handlers.onToken?.('second ')
+      return Promise.resolve({ reply: 'second reply', toolCalls: [], usageSnapshot: null })
+    })
+    mockCallCloudAgent.mockImplementation(() =>
+      Promise.resolve({ reply: 'overflow', toolCalls: [], usageSnapshot: null }),
+    )
+
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    const photo = {
+      messageId: 'msg_photo_race',
+      imageId: 'img_race',
+      uri: 'file:///photo.jpg',
+      width: 10,
+      height: 10,
+      attachment: {},
+      variants: {},
+    } as never
+
+    let photoPromise!: Promise<boolean>
+    act(() => {
+      photoPromise = result.current.sendPhoto(photo, 'look')
+    })
+    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(1))
+    await act(async () => {})
+
+    // Turn 1 is parked mid-finally. Its bubble must still be held…
+    expect(result.current.streamingMessage).not.toBeNull()
+    // …and its gates must STILL be closed. Releasing them before the refetch
+    // settles is exactly the bug that let a second turn start, only for this
+    // cleanup to destroy that second turn's bubble when it resumed.
+    expect(result.current.isGeneratingResponse).toBe(true)
+
+    const secondUserMessage: Message = {
+      _id: 'msg_2',
+      text: 'again',
+      createdAt: new Date(),
+      user: { _id: 'user-1', name: 'You' },
+    }
+
+    let secondPromise!: Promise<void>
+    act(() => {
+      secondPromise = result.current.sendMessage(secondUserMessage)
+    })
+    // Drain generously: with a premature release, turn 2 races through
+    // persistence and into the model within a few microtask generations.
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+    }
+
+    // The mutex was never opened, so turn 2 cannot have reached the model.
+    expect(mockCallCloudAgent).toHaveBeenCalledTimes(1)
+
+    // Settle turn 1's refetch — bubble and gates clear together.
+    await act(async () => {
+      const resolveFirst = invalidationResolvers.shift()
+      resolveFirst?.()
+    })
+    await waitFor(() => expect(result.current.streamingMessage).toBeNull())
+    await waitFor(() => expect(result.current.isGeneratingResponse).toBe(false))
+    await expect(photoPromise).resolves.toBe(true)
+
+    // With the gates genuinely free, the retried second turn streams normally,
+    // and its bubble stays alive until its OWN refetch settles.
+    let retryPromise!: Promise<void>
+    act(() => {
+      retryPromise = result.current.sendMessage(secondUserMessage)
+    })
+    await waitFor(() => expect(result.current.streamingMessage?.text).toBe('second '))
+    expect(result.current.isGeneratingResponse).toBe(true)
+
+    while (invalidationResolvers.length > 0) {
+      await act(async () => {
+        const resolveNext = invalidationResolvers.shift()
+        resolveNext?.()
+      })
+    }
+    await waitFor(() => expect(result.current.streamingMessage).toBeNull())
+    await retryPromise
+    await expect(secondPromise).resolves.toBeUndefined()
   })
 })
