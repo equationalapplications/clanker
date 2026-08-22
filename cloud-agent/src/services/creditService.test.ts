@@ -220,11 +220,7 @@ test('spendCredit requires amount and reason explicitly (no default)', async () 
   const { db } = makeCapturingDb([])
   const cs = createCreditService(db)
   await assert.rejects(() =>
-    (cs.spendCredit as (...args: unknown[]) => Promise<unknown>)(
-      'user-1',
-      undefined,
-      'chat_reply',
-    ),
+    (cs.spendCredit as (...args: unknown[]) => Promise<unknown>)('user-1', undefined, 'chat_reply'),
   )
 })
 

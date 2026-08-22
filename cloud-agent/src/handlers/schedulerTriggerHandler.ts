@@ -185,7 +185,11 @@ export function createSchedulerTriggerHandler(
     let allocations: CreditSpendAllocation[] | null = null
     if (!isDuplicateRun) {
       try {
-        allocations = await creditService.spendCredit(userId, AGENT_TURN_CREDIT_COST, 'scheduled_trigger')
+        allocations = await creditService.spendCredit(
+          userId,
+          AGENT_TURN_CREDIT_COST,
+          'scheduled_trigger',
+        )
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg === 'INSUFFICIENT_CREDITS') {

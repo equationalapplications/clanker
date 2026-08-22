@@ -99,7 +99,11 @@ export function browserActionTool(
       let sessionCreated = false
       if (!context.preBilled) {
         try {
-          allocations = await deps.creditService.spendCredit(deps.userId, AGENT_TURN_CREDIT_COST, 'browser_action')
+          allocations = await deps.creditService.spendCredit(
+            deps.userId,
+            AGENT_TURN_CREDIT_COST,
+            'browser_action',
+          )
         } catch {
           deps.resumeBilling?.()
           return 'You are out of credits for browser actions.'
