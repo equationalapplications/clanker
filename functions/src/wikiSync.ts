@@ -821,7 +821,7 @@ export const wikiSyncHandler = async (
     }
   }
 
-  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST)
+  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_sync')
   if (spendAllocations === null) {
     throw new HttpsError('failed-precondition', 'Insufficient credits.')
   }

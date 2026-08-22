@@ -435,7 +435,11 @@ export const syncCharacterHandler = async (
 
   let spendAllocations: CreditSpendAllocation[] | null = null
   try {
-    spendAllocations = await actualDeps.creditService.spendCredits(user.id, 100)
+    spendAllocations = await actualDeps.creditService.spendCredits(
+      user.id,
+      100,
+      'character_generate',
+    )
     if (spendAllocations === null) {
       throw new HttpsError('failed-precondition', 'Insufficient credits.')
     }

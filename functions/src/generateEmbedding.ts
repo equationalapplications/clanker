@@ -187,7 +187,7 @@ export const generateEmbeddingHandler = async (
   })
 
   const cost = computeEmbeddingCreditCost(trimmedText.length)
-  const spendAllocations = await credits.spendCredits(user.id, cost)
+  const spendAllocations = await credits.spendCredits(user.id, cost, 'embedding')
   if (!spendAllocations) {
     throw new HttpsError('failed-precondition', 'Insufficient credits to generate embedding.')
   }
