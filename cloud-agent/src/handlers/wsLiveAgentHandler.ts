@@ -475,7 +475,7 @@ export async function handleLiveWsUpgrade(
         billingInFlight = true
         void (async () => {
           try {
-            await cs.spendCredit(userId!, LIVE_SESSION_CREDIT_COST)
+            await cs.spendCredit(userId!, LIVE_SESSION_CREDIT_COST, 'live_voice')
             let newBalance: number
             try {
               newBalance = await cs.getBalance(userId!)

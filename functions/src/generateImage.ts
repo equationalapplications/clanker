@@ -124,7 +124,11 @@ async function chargeForImage(
   userId: string,
   credits: Pick<typeof creditService, 'spendCredits'>,
 ): Promise<CreditSpendAllocation[]> {
-  const spendAllocations = await credits.spendCredits(userId, IMAGE_GENERATION_COST)
+  const spendAllocations = await credits.spendCredits(
+    userId,
+    IMAGE_GENERATION_COST,
+    'image_generate',
+  )
   if (spendAllocations === null) {
     throw new HttpsError('failed-precondition', 'Insufficient credits.')
   }

@@ -149,13 +149,14 @@ test('spendCredits returns null when no qualifying creditTransactions row found'
   }
 
   const service = createCreditService({ getDb: async () => fakeDb as never })
-  const result = await service.spendCredits('user-1', 1)
+  const result = await service.spendCredits('user-1', 1, 'chat_reply')
   assert.equal(result, null)
 })
 
 test('spendCredits returns transactionId and decrements balance on qualifying row', async () => {
   let updatedId: string | null = null
   let cacheUpdated = false
+  const insertedValues: Array<Record<string, unknown>> = []
 
   // select() call order:
   // 1. subscriptions FOR UPDATE lock
@@ -198,9 +199,12 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
       }),
     }),
     insert: () => ({
-      values: (_vals: unknown) => ({
-        onConflictDoNothing: (_opts: unknown) => ({}),
-      }),
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
     }),
   }
   const fakeDb = {
@@ -211,15 +215,18 @@ test('spendCredits returns transactionId and decrements balance on qualifying ro
   }
 
   const service = createCreditService({ getDb: async () => fakeDb as never })
-  const result = await service.spendCredits('user-1', 1)
+  const result = await service.spendCredits('user-1', 1, 'chat_reply')
   assert.deepEqual(result, [{ transactionId: 'tx-abc', amount: 1 }])
   assert.equal(updatedId, 'tx-abc')
   assert.equal(cacheUpdated, true)
   assert.equal(selectIdx, 6)
+  const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
+  assert.deepEqual(spendEvents, [{ userId: 'user-1', amount: 1, reason: 'chat_reply' }])
 })
 
 test('spendCredits spends across multiple rows when balance is fragmented', async () => {
   let decrementCount = 0
+  const insertedValues: Array<Record<string, unknown>> = []
 
   // select() call order:
   // 1. subscriptions FOR UPDATE lock
@@ -262,7 +269,12 @@ test('spendCredits spends across multiple rows when balance is fragmented', asyn
       }),
     }),
     insert: () => ({
-      values: () => ({ onConflictDoNothing: (_opts?: unknown) => ({}) }),
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
     }),
   }
   const fakeDb = {
@@ -273,12 +285,174 @@ test('spendCredits spends across multiple rows when balance is fragmented', asyn
   }
 
   const service = createCreditService({ getDb: async () => fakeDb as never })
-  const result = await service.spendCredits('user-1', 2)
+  const result = await service.spendCredits('user-1', 2, 'chat_reply')
   assert.deepEqual(result, [
     { transactionId: 'tx-early', amount: 1 },
     { transactionId: 'tx-late', amount: 1 },
   ])
   assert.equal(decrementCount, 2) // both fragmented rows decremented
+  const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
+  assert.deepEqual(spendEvents, [{ userId: 'user-1', amount: 2, reason: 'chat_reply' }])
+})
+
+test('spendCredits writes no attribution event when credits are insufficient', async () => {
+  const insertedValues: Array<Record<string, unknown>> = []
+  // selectQueue: 1. subscriptions lock, 2. net balance -> 0 (< amount) — fails before any insert
+  const selectQueue: unknown[][] = [[{ userId: 'user-1' }], [{ total: 0 }]]
+  let selectIdx = 0
+  const fakeTx = {
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? []
+      return {
+        from: () => ({
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+            }),
+        }),
+      }
+    },
+    update: () => ({ set: () => ({ where: async () => {} }) }),
+    insert: () => ({
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<unknown>) => fn(fakeTx),
+  }
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const result = await service.spendCredits('user-1', 5, 'chat_reply')
+  assert.equal(result, null)
+  assert.equal(insertedValues.filter((v) => 'reason' in v && 'amount' in v).length, 0)
+})
+
+test('attribution insert precedes cache sync so a later failure discards both', async () => {
+  // Mock-level guarantee: the event insert is issued inside the SAME tx callback,
+  // before the failing step — Postgres then rolls back everything together.
+  const insertedValues: Array<Record<string, unknown>> = []
+  const selectQueue: Array<unknown[] | undefined> = [
+    [{ userId: 'user-1' }], // 1. subscriptions FOR UPDATE lock
+    [{ total: 10 }], // 2. net balance
+    [{ id: 'tx-abc', remainingBalance: 10 }], // 3. spend rows FOR UPDATE
+    undefined, // 4. syncSubscriptionCache total — THROWS
+  ]
+  let selectIdx = 0
+  const fakeTx = {
+    select: () => {
+      const idx = selectIdx++
+      if (idx === 3) throw new Error('cache-sync exploded')
+      const rows = selectQueue[idx] ?? []
+      return {
+        from: () => ({
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+              orderBy: () => ({ for: async () => rows }),
+            }),
+        }),
+      }
+    },
+    update: () => ({ set: () => ({ where: async () => {} }) }),
+    insert: () => ({
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<unknown>) => fn(fakeTx),
+  }
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await assert.rejects(() => service.spendCredits('user-1', 1, 'chat_reply'), /cache-sync exploded/)
+  const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
+  assert.equal(spendEvents.length, 1) // insert WAS issued, inside the tx, before the failure
+})
+
+test('spendCredits rejects an empty or missing reason before touching the database', async () => {
+  // Compile-time enforcement is the real gate (required param); this guard is
+  // the runtime backstop, so pin its exact behavior instead of accepting any
+  // rejection.
+  let dbTouched = false
+  const service = createCreditService({
+    getDb: async () => {
+      dbTouched = true
+      return {} as never
+    },
+  })
+  const callWithoutReason = (reason: unknown) =>
+    (service.spendCredits as (...args: unknown[]) => Promise<unknown>)('user-1', 1, reason)
+  await assert.rejects(() => callWithoutReason(undefined), /requires a non-empty reason/)
+  await assert.rejects(() => callWithoutReason(''), /requires a non-empty reason/)
+  // NOT NULL alone would still admit a blank string into credit_spend_events.
+  await assert.rejects(() => callWithoutReason('   '), /requires a non-empty reason/)
+  assert.equal(dbTouched, false)
+})
+
+test('spendCredits persists the normalized (trimmed) reason', async () => {
+  const insertedValues: Array<Record<string, unknown>> = []
+
+  // select() call order matches the qualifying-row test above.
+  const selectQueue: unknown[][] = [
+    [{ userId: 'user-1' }],
+    [{ total: 10 }],
+    [{ id: 'tx-abc', remainingBalance: 10 }],
+    [{ total: 9 }],
+    [{ minExpiry: null }],
+    [],
+  ]
+  let selectIdx = 0
+
+  const fakeTx = {
+    select: () => {
+      const rows = selectQueue[selectIdx++] ?? []
+      return {
+        from: () => ({
+          where: () =>
+            Object.assign(Promise.resolve(rows), {
+              limit: () => Object.assign(Promise.resolve(rows), { for: async () => rows }),
+              orderBy: () => ({
+                limit: () => ({ for: async () => rows }),
+                for: async () => rows,
+              }),
+            }),
+        }),
+      }
+    },
+    update: () => ({
+      set: (_vals: unknown) => ({
+        where: async () => {},
+      }),
+    }),
+    insert: () => ({
+      values: (vals: Record<string, unknown>) => {
+        insertedValues.push(vals)
+        return Object.assign(Promise.resolve(), {
+          onConflictDoNothing: (_opts?: unknown) => ({}),
+        })
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (
+      fn: (tx: typeof fakeTx) => Promise<CreditSpendAllocation[] | null>,
+      _opts?: unknown,
+    ) => fn(fakeTx),
+  }
+
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await service.spendCredits('user-1', 1, '  chat_reply  ')
+  // GROUP BY reason over the ledger must not fragment on padding, so the bound
+  // value is the trimmed one.
+  const spendEvents = insertedValues.filter((v) => 'reason' in v && 'amount' in v)
+  assert.deepEqual(spendEvents, [{ userId: 'user-1', amount: 1, reason: 'chat_reply' }])
 })
 
 // ---------------------------------------------------------------------------

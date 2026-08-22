@@ -1,6 +1,7 @@
 node_modules
 ios
 android
+.superpowers
 .vscode
 ignite/ignite.json
 package.json

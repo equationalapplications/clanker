@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../db/client.js'
-import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 
 export type CreditSpendAllocation = {
   transactionId: string
@@ -8,7 +7,7 @@ export type CreditSpendAllocation = {
 }
 
 export type CreditService = {
-  spendCredit: (userId: string, amount?: number) => Promise<CreditSpendAllocation[]>
+  spendCredit: (userId: string, amount: number, reason: string) => Promise<CreditSpendAllocation[]>
   refundCredit: (userId: string, allocations: CreditSpendAllocation[]) => Promise<void>
   getBalance: (userId: string) => Promise<number>
 }
@@ -19,13 +18,26 @@ function assertPositiveCreditAmount(amount: number): void {
   }
 }
 
+// NOT NULL alone does not keep a blank reason out of credit_spend_events —
+// an empty or whitespace-only value would persist as an unusable attribution
+// row. Reject it before the transaction opens and persist the trimmed value.
+function normalizeSpendReason(reason: string): string {
+  const normalized = typeof reason === 'string' ? reason.trim() : ''
+  if (!normalized) {
+    throw new Error('INVALID_SPEND_REASON')
+  }
+  return normalized
+}
+
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(
       userId: string,
-      amount = AGENT_TURN_CREDIT_COST,
+      amount: number,
+      reason: string,
     ): Promise<CreditSpendAllocation[]> {
       assertPositiveCreditAmount(amount)
+      const reasonText = normalizeSpendReason(reason)
       // Match functions/ lock order to prevent deadlocks:
       // 1. Ensure subscriptions row exists and lock it first
       // 2. Then lock and update credit_transactions
@@ -84,22 +96,37 @@ export function createCreditService(db: DrizzleClient): CreditService {
           throw new Error('INSUFFICIENT_CREDITS')
         }
 
-        // Update subscriptions cache (row is already locked)
-        try {
-          await tx.execute(sql`
-            UPDATE subscriptions
-            SET current_credits = (
-              SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
-              FROM credit_transactions
+        // Attribution ledger — same transaction as the spend, so it commits,
+        // and rolls back, atomically with it.
+        await tx.execute(sql`
+          INSERT INTO credit_spend_events (user_id, amount, reason)
+          VALUES (${userId}, ${amount}, ${reasonText})
+        `)
+
+        // Update subscriptions cache (row is already locked). Best-effort — but a
+        // bare try/catch cannot deliver that: a Postgres error here aborts the
+        // WHOLE transaction (25P02), and Drizzle's final COMMIT on an aborted
+        // transaction acts as ROLLBACK, silently discarding the spend AND the
+        // attribution row above while allocations were still returned. The
+        // SAVEPOINT isolates the failure so only the cache write rolls back and
+        // the outer commit stays real.
+        await tx
+          .transaction(async (cacheTx) => {
+            await cacheTx.execute(sql`
+              UPDATE subscriptions
+              SET current_credits = (
+                SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+                FROM credit_transactions
+                WHERE user_id = ${userId}
+                  AND (expires_at IS NULL OR expires_at > NOW())
+              )
               WHERE user_id = ${userId}
-                AND (expires_at IS NULL OR expires_at > NOW())
-            )
-            WHERE user_id = ${userId}
-          `)
-        } catch (err) {
-          // Best-effort cache sync; credit_transactions is the source of truth.
-          console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
-        }
+            `)
+          })
+          .catch((err) => {
+            // Best-effort cache sync; credit_transactions is the source of truth.
+            console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
+          })
 
         return allocations
       })

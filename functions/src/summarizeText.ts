@@ -129,7 +129,7 @@ const handler = async (
     displayName: decoded.name,
   })
 
-  const spendAllocations = await credits.spendCredits(user.id, SUMMARIZE_TEXT_COST)
+  const spendAllocations = await credits.spendCredits(user.id, SUMMARIZE_TEXT_COST, 'summarize')
   if (!spendAllocations) {
     throw new HttpsError('failed-precondition', 'Insufficient credits to summarize text.')
   }

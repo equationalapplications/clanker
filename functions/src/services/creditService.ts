@@ -2,7 +2,7 @@ import { eq, sql, and, or, isNull, gt, ne, like } from 'drizzle-orm'
 import * as logger from 'firebase-functions/logger'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { getDb } from '../db/cloudSql.js'
-import { subscriptions, creditTransactions } from '../db/schema.js'
+import { subscriptions, creditTransactions, creditSpendEvents } from '../db/schema.js'
 import type { TransactionType } from '../db/schema.js'
 import type * as schema from '../db/schema.js'
 
@@ -143,7 +143,19 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       return Number(rows[0]?.total ?? 0)
     },
 
-    async spendCredits(userId: string, amount: number): Promise<CreditSpendAllocation[] | null> {
+    async spendCredits(
+      userId: string,
+      amount: number,
+      reason: string,
+    ): Promise<CreditSpendAllocation[] | null> {
+      // Runtime backstop for the compile-time required param — a JS caller or a
+      // future refactor dropping the arg must fail loudly, never write an
+      // unattributed spend. NOT NULL alone would still admit a blank string, so
+      // whitespace-only counts as missing, and the ledger gets the trimmed value.
+      const normalizedReason = typeof reason === 'string' ? reason.trim() : ''
+      if (!normalizedReason) {
+        throw new Error('spendCredits requires a non-empty reason')
+      }
       const db = await deps.getDb()
       try {
         return await db.transaction(
@@ -224,6 +236,10 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
               })
               throw new InsufficientCreditsError()
             }
+
+            // Attribution ledger — written inside the same transaction so it
+            // commits, and rolls back, atomically with the spend itself.
+            await tx.insert(creditSpendEvents).values({ userId, amount, reason: normalizedReason })
 
             await syncSubscriptionCache(tx, userId)
 

@@ -155,6 +155,22 @@ async function seed() {
     )
   `)
 
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS credit_spend_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    )
+  `)
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS credit_spend_events_user_created_idx ON credit_spend_events (user_id, created_at DESC)`,
+  )
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS credit_spend_events_reason_idx ON credit_spend_events (reason)`,
+  )
+
   console.log('Seeding test data...')
 
   await db.execute(sql`
