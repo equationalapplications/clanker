@@ -127,6 +127,28 @@ export const creditTransactions = pgTable(
   }),
 )
 
+// Append-only attribution ledger for credit spends. Written only by
+// spendCredits inside its spend transaction; nothing that computes balances
+// reads it. The user-created index is (user_id, created_at DESC) in the SQL
+// migration — drizzle's builder cannot express DESC, and the index shape only
+// matters to SQL readers, so the mirror declares plain column order.
+export const creditSpendEvents = pgTable(
+  'credit_spend_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    reason: text('reason').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userCreatedIdx: index('credit_spend_events_user_created_idx').on(table.userId, table.createdAt),
+    reasonIdx: index('credit_spend_events_reason_idx').on(table.reason),
+  }),
+)
+
 export const characters = pgTable(
   'characters',
   {
