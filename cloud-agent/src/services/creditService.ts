@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../db/client.js'
-import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 
 export type CreditSpendAllocation = {
   transactionId: string
@@ -8,7 +7,7 @@ export type CreditSpendAllocation = {
 }
 
 export type CreditService = {
-  spendCredit: (userId: string, amount?: number) => Promise<CreditSpendAllocation[]>
+  spendCredit: (userId: string, amount: number, reason: string) => Promise<CreditSpendAllocation[]>
   refundCredit: (userId: string, allocations: CreditSpendAllocation[]) => Promise<void>
   getBalance: (userId: string) => Promise<number>
 }
@@ -23,7 +22,8 @@ export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(
       userId: string,
-      amount = AGENT_TURN_CREDIT_COST,
+      amount: number,
+      reason: string,
     ): Promise<CreditSpendAllocation[]> {
       assertPositiveCreditAmount(amount)
       // Match functions/ lock order to prevent deadlocks:
@@ -83,6 +83,13 @@ export function createCreditService(db: DrizzleClient): CreditService {
           // Net balance passed under lock but rows could not cover it — should be unreachable.
           throw new Error('INSUFFICIENT_CREDITS')
         }
+
+        // Attribution ledger — same transaction as the spend, so it commits,
+        // and rolls back, atomically with it.
+        await tx.execute(sql`
+          INSERT INTO credit_spend_events (user_id, amount, reason)
+          VALUES (${userId}, ${amount}, ${reason})
+        `)
 
         // Update subscriptions cache (row is already locked)
         try {
