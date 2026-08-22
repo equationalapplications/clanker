@@ -147,7 +147,13 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = originalCloudAgentUrl
+  // Assigning undefined into process.env stores the string "undefined", which
+  // reads as enabled — delete instead so a genuinely unset var stays unset.
+  if (originalCloudAgentUrl === undefined) {
+    delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
+  } else {
+    process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = originalCloudAgentUrl
+  }
 })
 
 describe('useAIChat streaming id unification', () => {
