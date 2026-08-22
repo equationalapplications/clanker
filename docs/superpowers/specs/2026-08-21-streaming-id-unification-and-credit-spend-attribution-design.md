@@ -1,7 +1,7 @@
 # Streaming ID Unification & Credit Spend Attribution
 
 **Date:** 2026-08-21
-**Status:** Approved 2026-08-21 — implementation pending
+**Status:** Approved 2026-08-21 — Fix A implemented in PR #621; Fix B (credit attribution) pending
 **Owner:** equationalapplications
 **Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/src/db/migrations/` (one hand-written file), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
 **Depends on:** [gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) (our own `ChatView`/`MessageList` this builds on)
