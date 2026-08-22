@@ -1,7 +1,7 @@
 # Streaming ID Unification & Credit Spend Attribution
 
 **Date:** 2026-08-21
-**Status:** Approved 2026-08-21 — partially implemented: Fix A (streaming id unification) in PR #621; Fix B (credit attribution) pending
+**Status:** Code-complete 2026-08-22 — Fix A shipped (PR #621, merged to main via release PR #622); Fix B in PR #623 (`functions` + migration) and `feat/credit-attribution-cloud-agent` (this branch)
 **Implementation plan:** [2026-08-21-streaming-id-unification-pr1](../plans/2026-08-21-streaming-id-unification-pr1.md) (Fix A)
 **Owner:** equationalapplications
 **Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/src/db/migrations/` (one hand-written file), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
@@ -112,7 +112,8 @@ Fixed snake_case tokens; free-form column, documented registry:
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `chat_reply`         | `generateReply.ts:514` (Firebase escalation path); `agentEventLoop.ts:105` (cloud agent iterations, photo turns included) |
 | `browser_action`     | `browserAction.ts:101`                                                                                                    |
-| `live_voice`         | live-voice spend callback wiring (plan pins exact site)                                                                   |
+| `live_voice`         | `wsLiveAgentHandler.ts:478` (per-session wall-clock billing timer)                                                        |
+| `scheduled_trigger`  | `schedulerTriggerHandler.ts:187` (one spend per scheduler-triggered agent run)                                            |
 | `memory_action`      | `memoryFunctions.ts:1531`, `memoryFunctions.ts:1609`                                                                      |
 | `document_convert`   | `convertDocumentText.ts:157`                                                                                              |
 | `character_generate` | `characterFunctions.ts:438`                                                                                               |

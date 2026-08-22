@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { NextFunction, Request, Response } from 'express'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
+import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 import type { TaskDoc } from '../../../shared/dsl-types.js'
 import { singleActionSchema } from '../../../shared/dsl-schema.js'
@@ -184,7 +185,11 @@ export function createSchedulerTriggerHandler(
     let allocations: CreditSpendAllocation[] | null = null
     if (!isDuplicateRun) {
       try {
-        allocations = await creditService.spendCredit(userId)
+        allocations = await creditService.spendCredit(
+          userId,
+          AGENT_TURN_CREDIT_COST,
+          'scheduled_trigger',
+        )
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg === 'INSUFFICIENT_CREDITS') {
