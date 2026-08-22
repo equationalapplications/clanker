@@ -1,3 +1,14 @@
+## [31.1.1](https://github.com/equationalapplications/clanker/compare/v31.1.0...v31.1.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* **chat:** await refetch before dropping the streamed photo bubble ([5cd98c5](https://github.com/equationalapplications/clanker/commit/5cd98c57b32e8508526a8712a61f3df63792e716))
+* **chat:** dedupe streamed and persisted rows sharing an id ([4d91ecc](https://github.com/equationalapplications/clanker/commit/4d91eccbcf390d761ed15527c3447e99edfca71c))
+* **chat:** hold photo-turn gates until the refetch settles ([97a310a](https://github.com/equationalapplications/clanker/commit/97a310a2ee0e906afdb5e6392ae44d3ff576d5b1))
+* **chat:** hold the streaming bubble until the refetch lands ([351aa7f](https://github.com/equationalapplications/clanker/commit/351aa7ff808ee78e47743a8f14972f4d58ce4a55))
+* **chat:** reuse one AI reply id from stream start through persist ([66bceda](https://github.com/equationalapplications/clanker/commit/66bceda8f8fbb5d055970e4ea2de18d194ceb495))
+
 # [31.1.0](https://github.com/equationalapplications/clanker/compare/v31.0.0...v31.1.0) (2026-08-14)
 
 
