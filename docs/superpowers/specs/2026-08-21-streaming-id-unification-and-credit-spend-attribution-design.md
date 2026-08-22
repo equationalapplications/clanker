@@ -7,7 +7,7 @@
 **Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/src/db/migrations/` (one hand-written file), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
 **Depends on:** [gifted-chat Removal](./2026-08-11-gifted-chat-removal-design.md) (our own `ChatView`/`MessageList` this builds on)
 
-Two independent defects ship in **one PR as two separate commits**, each revertable at commit granularity.
+Two independent defects ship as **two separate PRs** (per the approved follow-up decision), each revertable at PR granularity: Fix A (streaming id unification) in PR #621, then Fix B (credit attribution) as a separate PR.
 
 ## Problem
 
@@ -151,8 +151,8 @@ GROUP BY reason ORDER BY total_credits DESC;
 
 ## Rollout & rollback
 
-- One PR → `staging`; commit 1 = Fix A (app), commit 2 = Fix B (schema + both backends + migration). CI gates run `:check` scripts only; no formatting sweeps mixed in.
-- Fix A revert = revert one commit.
+- One PR per fix → `staging`: PR #621 carries Fix A (app); Fix B (schema + both backends + migration) ships as a separate PR. CI gates run `:check` scripts only; no formatting sweeps mixed in.
+- Fix A revert = revert PR #621.
 - Fix B migration is purely additive; reverting the code stops event writes and leaves an inert table. Dropping it later is a deliberate follow-up, never automatic.
 - Functions/cloud-agent deploys go straight to production on merge (no staging environment) — additive-only keeps blast radius minimal. Check whether `cloud-agent/scripts/seedLocal.ts` needs the new table for fresh local DBs.
 
