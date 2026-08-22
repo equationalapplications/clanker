@@ -511,7 +511,7 @@ async function chargeForReply(
   credits: Pick<typeof creditService, 'spendCredits' | 'refundCredit' | 'getCredits'>,
   cost: number,
 ): Promise<{ spendAllocations: CreditSpendAllocation[]; remainingCredits: number }> {
-  const spendAllocations = await credits.spendCredits(userId, cost)
+  const spendAllocations = await credits.spendCredits(userId, cost, 'chat_reply')
   if (spendAllocations === null) {
     throw new HttpsError('failed-precondition', 'Insufficient credits.')
   }

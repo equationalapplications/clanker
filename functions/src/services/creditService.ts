@@ -2,7 +2,7 @@ import { eq, sql, and, or, isNull, gt, ne, like } from 'drizzle-orm'
 import * as logger from 'firebase-functions/logger'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { getDb } from '../db/cloudSql.js'
-import { subscriptions, creditTransactions } from '../db/schema.js'
+import { subscriptions, creditTransactions, creditSpendEvents } from '../db/schema.js'
 import type { TransactionType } from '../db/schema.js'
 import type * as schema from '../db/schema.js'
 
@@ -143,7 +143,11 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
       return Number(rows[0]?.total ?? 0)
     },
 
-    async spendCredits(userId: string, amount: number): Promise<CreditSpendAllocation[] | null> {
+    async spendCredits(
+      userId: string,
+      amount: number,
+      reason: string,
+    ): Promise<CreditSpendAllocation[] | null> {
       const db = await deps.getDb()
       try {
         return await db.transaction(
@@ -224,6 +228,10 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
               })
               throw new InsufficientCreditsError()
             }
+
+            // Attribution ledger — written inside the same transaction so it
+            // commits, and rolls back, atomically with the spend itself.
+            await tx.insert(creditSpendEvents).values({ userId, amount, reason })
 
             await syncSubscriptionCache(tx, userId)
 

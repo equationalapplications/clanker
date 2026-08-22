@@ -134,7 +134,7 @@ export const wikiLlmHandler = async (
     throw new HttpsError('internal', 'Failed to bootstrap user.')
   }
 
-  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST)
+  const spendAllocations = await credits.spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')
   if (spendAllocations === null) {
     throw new HttpsError('failed-precondition', 'Insufficient credits.')
   }
