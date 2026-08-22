@@ -121,8 +121,12 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }))
 
       setActiveTool(null)
+      // One id per AI reply: minted once, used for the streamed row AND the
+      // persisted row, so the stream→persist transition keeps the same React
+      // key and the bubble reconciles in place instead of remounting (Fix A.1).
+      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       setStreamingMessage({
-        _id: `streaming_${Date.now()}`,
+        _id: aiMsgId,
         text: '',
         createdAt: new Date(),
         user: {
@@ -151,7 +155,6 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         },
       )
 
-      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       const aiMessageData: Partial<Message> = {
         user: {
           _id: character.id,
@@ -372,31 +375,38 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     onSettled: () => {
       setIsSendingMessage(false)
       setActiveTool(null)
-      setStreamingMessage(null)
     },
 
-    onSuccess: (result) => {
-      if (result?.usageSnapshot) {
-        authService.send({
-          type: 'USAGE_SNAPSHOT_RECEIVED',
-          source: 'generateReply',
-          remainingCredits: result.usageSnapshot.remainingCredits,
-          planTier: result.usageSnapshot.planTier,
-          planStatus: result.usageSnapshot.planStatus,
-          verifiedAt: result.usageSnapshot.verifiedAt,
+    onSuccess: async (result) => {
+      try {
+        if (result?.usageSnapshot) {
+          authService.send({
+            type: 'USAGE_SNAPSHOT_RECEIVED',
+            source: 'generateReply',
+            remainingCredits: result.usageSnapshot.remainingCredits,
+            planTier: result.usageSnapshot.planTier,
+            planStatus: result.usageSnapshot.planStatus,
+            verifiedAt: result.usageSnapshot.verifiedAt,
+          })
+        }
+
+        console.log('✅ AI chat message sent successfully')
+        setError(null)
+
+        // Await the refetch so the persisted row is in the list before the
+        // streamed bubble unmounts — closes the blank-gap window (Fix A.3).
+        await queryClient.invalidateQueries({
+          queryKey: messageKeys.list(characterId, userId),
         })
+      } finally {
+        setStreamingMessage(null)
       }
-
-      console.log('✅ AI chat message sent successfully')
-      setError(null)
-
-      // Invalidate to fetch both user message and AI response
-      queryClient.invalidateQueries({
-        queryKey: messageKeys.list(characterId, userId),
-      })
     },
 
     onError: (err, message, context) => {
+      // Failure path: no persisted row will arrive, so drop the bubble at once
+      // instead of waiting for a refetch (Fix A.3).
+      setStreamingMessage(null)
       console.error('❌ Failed to send AI chat message:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
       setError(errorMessage)
@@ -540,10 +550,15 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         setError(err instanceof Error ? err.message : 'Failed to send photo')
         return false
       } finally {
-        turnInFlightRef.current = false
-        setIsSendingMessage(false)
-        setStreamingMessage(null)
-        void queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })
+        try {
+          // Same handoff rule as the text path: the refetched list must contain
+          // the persisted row before the streamed bubble unmounts (Fix A.3).
+          await queryClient.invalidateQueries({ queryKey: messageKeys.list(characterId, userId) })
+        } finally {
+          setStreamingMessage(null)
+          turnInFlightRef.current = false
+          setIsSendingMessage(false)
+        }
       }
     },
     [
