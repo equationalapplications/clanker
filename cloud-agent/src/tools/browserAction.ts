@@ -2,6 +2,7 @@ import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import type { FirestoreSession } from '../services/firestoreSession.js'
 import type { FcmDispatcher } from '../services/fcmDispatcher.js'
+import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 import type { TaskIntent, TaskDoc } from '../../../shared/dsl-types.js'
 import { intentRequiresAuth } from '../../../shared/constants.js'
@@ -98,7 +99,11 @@ export function browserActionTool(
       let sessionCreated = false
       if (!context.preBilled) {
         try {
-          allocations = await deps.creditService.spendCredit(deps.userId)
+          allocations = await deps.creditService.spendCredit(
+            deps.userId,
+            AGENT_TURN_CREDIT_COST,
+            'browser_action',
+          )
         } catch {
           deps.resumeBilling?.()
           return 'You are out of credits for browser actions.'

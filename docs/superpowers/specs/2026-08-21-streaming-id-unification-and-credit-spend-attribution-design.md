@@ -1,7 +1,7 @@
 # Streaming ID Unification & Credit Spend Attribution
 
 **Date:** 2026-08-21
-**Status:** Approved 2026-08-21 — partially implemented: Fix A (streaming id unification) in PR #621; Fix B (credit attribution) pending
+**Status:** Code-complete 2026-08-22 — Fix A shipped (PR #621, merged to main via release PR #622); Fix B split across two PRs: cloud-agent side merged (PR #624), functions side in PR #623 (`functions` + migration, this branch)
 **Implementation plan:** [2026-08-21-streaming-id-unification-pr1](../plans/2026-08-21-streaming-id-unification-pr1.md) (Fix A), [2026-08-21-credit-attribution-pr2-functions](../plans/2026-08-21-credit-attribution-pr2-functions.md) and [2026-08-21-credit-attribution-pr3-cloud-agent](../plans/2026-08-21-credit-attribution-pr3-cloud-agent.md) (Fix B)
 **Owner:** equationalapplications
 **Files affected:** `src/hooks/useAIChat.ts`, `src/components/ChatView.tsx`, `functions/src/services/creditService.ts`, `functions/src/db/schema.ts`, `functions/drizzle/` (one hand-written file, registered in `functions/scripts/migrationOrder.mjs`), `cloud-agent/src/services/creditService.ts`, and the spend call sites listed below
@@ -112,7 +112,8 @@ Fixed snake_case tokens; free-form column, documented registry:
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `chat_reply`         | `generateReply.ts:514` (Firebase escalation path); `agentEventLoop.ts:105` (cloud agent iterations, photo turns included) |
 | `browser_action`     | `browserAction.ts:101`                                                                                                    |
-| `live_voice`         | live-voice spend callback wiring (plan pins exact site)                                                                   |
+| `live_voice`         | `wsLiveAgentHandler.ts:478` (per-session wall-clock billing timer)                                                        |
+| `scheduled_trigger`  | `schedulerTriggerHandler.ts:187` (one spend per scheduler-triggered agent run)                                            |
 | `memory_action`      | `memoryFunctions.ts:1531`, `memoryFunctions.ts:1609`                                                                      |
 | `document_convert`   | `convertDocumentText.ts:157`                                                                                              |
 | `character_generate` | `characterFunctions.ts:438`                                                                                               |
@@ -121,7 +122,6 @@ Fixed snake_case tokens; free-form column, documented registry:
 | `image_generate`     | `generateImage.ts:127`                                                                                                    |
 | `embedding`          | `generateEmbedding.ts:190`                                                                                                |
 | `summarize`          | `summarizeText.ts:132`                                                                                                    |
-| `scheduled_trigger`  | `schedulerTriggerHandler.ts:187` (cloud agent)                                                                            |
 
 Plan-time sweep (done 2026-08-21): found two entry points beyond the original table — `wikiSync.ts:824` (`wiki_sync`) and `cloud-agent`'s `schedulerTriggerHandler.ts:187` (`scheduled_trigger`). The full writer set is the 12 tokens above; every `spendCredits`/`spendCredit` call site is tagged. What typecheck enforces is that each site passes a reason argument (required third param) — it cannot enforce registry membership, so this table remains the source of truth for tokens.
 

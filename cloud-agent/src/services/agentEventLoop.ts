@@ -102,7 +102,11 @@ export async function consumeAgentEvents(
   const chargeLoopIteration = async (): Promise<boolean> => {
     loopCount += 1
     try {
-      const allocations = await creditService.spendCredit(userId)
+      const allocations = await creditService.spendCredit(
+        userId,
+        AGENT_TURN_CREDIT_COST,
+        'chat_reply',
+      )
       spentAllocations.push(...allocations)
     } catch (creditErr) {
       const msg = creditErr instanceof Error ? creditErr.message : ''
