@@ -164,7 +164,7 @@ test('spendCredit requires amount and reason explicitly (no default)', async () 
 
 - [ ] **Step 4: Run to verify failures**
 
-Run: `cd cloud-agent && npm run build >/dev/null 2>&1; NODE_ENV=test node --test dist/services/creditService.test.js`
+Run: `cd cloud-agent && npm run build >/dev/null 2>&1 && NODE_ENV=test node --test dist/services/creditService.test.js`
 Expected: FAIL on the new assertions (no event INSERT exists yet; the two-arg happy-path tests updated in Step 2 also fail because the queue positions don't yet match an INSERT-less implementation... they actually still pass mechanically via the `?? {rows:[]}` fallback — the REAL failures are the four new tests). If any Step-2 test unexpectedly fails, fix its queue/comment first, then proceed.
 
 - [ ] **Step 5: Implement**

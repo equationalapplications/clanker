@@ -1,4 +1,4 @@
-# Credit Spend Attribution — PR 2 of 2 (migration + functions) Implementation Plan
+# Credit Spend Attribution — PR 2 of 3 (migration + functions) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -93,8 +93,8 @@ test('is re-runnable', () => {
 
 - [x] **Step 2: Run it to verify it fails**
 
-Run: `cd functions && npm run build >/dev/null 2>&1; NODE_ENV=test node --test lib/db/creditSpendEventsMigration.test.js`
-Expected: FAIL — `ENOENT ... 0024_credit_spend_events.sql` (readFileSync throws at module load).
+Run: `cd functions && npm run build >/dev/null 2>&1 && NODE_ENV=test node --test lib/db/creditSpendEventsMigration.test.js`
+Expected: FAIL — `ENOENT ... 0024_credit_spend_events.sql` (readFileSync throws at module load). `&&` keeps a build failure from running tests against stale compiled output.
 
 - [x] **Step 3: Write the migration**
 
@@ -187,7 +187,17 @@ Expected: PASS (all).
 
 - [x] **Step 8: Apply locally if docker Postgres is up; otherwise record it**
 
-Run: `docker info >/dev/null 2>&1 && cd functions && npm run migrate:dev || echo "SKIPPED: docker not running"`
+Run:
+
+```bash
+if docker info >/dev/null 2>&1; then
+  (cd functions && npm run migrate:dev)
+else
+  echo "SKIPPED: docker not running"
+fi
+```
+
+The `if/else` skips only on Docker being down — a `migrate:dev` failure still fails the step with its real exit status, instead of being masked as SKIPPED by the old `&& … || echo` chain.
 If applied, verify: `docker exec $(docker ps -qf name=postgres) psql -U clanker_dev -d clanker -c '\d credit_spend_events'` shows the columns and both indexes. If docker is down, do NOT claim local application — report it skipped; prod application in Task 5 is the authoritative step.
 
 - [x] **Step 9: Commit**
@@ -432,10 +442,10 @@ Leave the `Status:` line alone — it flips in PR 3 when both halves exist.
 
 - [x] **Step 2: Prettier-check the touched markdown and commit**
 
-Run: `npx prettier --check docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md docs/superpowers/plans/` (fix formatting only in these files, never a sweep).
+Run: `npx prettier --check docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md docs/superpowers/plans/2026-08-21-credit-attribution-pr2-functions.md docs/superpowers/plans/2026-08-21-credit-attribution-pr3-cloud-agent.md` (only the files this PR touched — checking the whole `plans/` directory would sweep in files this branch never modified).
 
 ```bash
-git add docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md docs/superpowers/plans/
+git add docs/superpowers/specs/2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md docs/superpowers/plans/2026-08-21-credit-attribution-pr2-functions.md docs/superpowers/plans/2026-08-21-credit-attribution-pr3-cloud-agent.md
 git commit -m "docs(spec): credit-attribution plan links, wiki_sync token, migration path fix"
 ```
 
@@ -446,12 +456,19 @@ git commit -m "docs(spec): credit-attribution plan links, wiki_sync token, migra
 Run: `cd functions && npm test && npm run typecheck && npm run lint`
 Expected: PASS (lint runs eslint without `--fix` = check-mode ✓).
 
-- [x] **Step 2: Repo-wide format gate**
+- [x] **Step 2: Cloud-agent gates**
+
+Task 1 modified `cloud-agent/scripts/seedLocal.ts`, so AGENTS.md's cloud-agent rule applies even though PR 2 is the functions half.
+
+Run: `cd cloud-agent && npm run typecheck && npm test`
+Expected: PASS — seedLocal.ts is script-only; the suite baseline is unchanged.
+
+- [x] **Step 3: Repo-wide format gate**
 
 Run from repo root: `npm run format:check`
 Expected: PASS. If a file this branch touched fails, format ONLY those files in a separate `style:` commit — never a sweep.
 
-- [x] **Step 3: Honest status report**
+- [x] **Step 4: Honest status report**
 
 State plainly: what passed, whether Step 8 of Task 1 (local docker apply) ran or was skipped, and that prod migration is pending (Task 5).
 
