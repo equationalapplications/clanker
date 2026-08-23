@@ -64,7 +64,6 @@ const credits = createCreditService({ getDb: servicesGetDb })
 
 const makeRcDeps = () => {
   const purchaseCalls: Array<Record<string, unknown>> = []
-  const refundCalls: Array<Record<string, unknown>> = []
   const deps = {
     // REAL lookup against clanker_test (mirrors defaultDeps :112-116).
     findUserByFirebaseUid: async (uid: string) => {
@@ -113,11 +112,9 @@ const makeRcDeps = () => {
     sendPurchaseEvent: async (p: Record<string, unknown>) => {
       purchaseCalls.push(p)
     },
-    sendRefundEvent: async (p: Record<string, unknown>) => {
-      refundCalls.push(p)
-    },
+    sendRefundEvent: async () => {},
   }
-  return { deps, purchaseCalls, refundCalls }
+  return { deps, purchaseCalls }
 }
 
 const rcEvent = (fields: Record<string, unknown>) => ({
