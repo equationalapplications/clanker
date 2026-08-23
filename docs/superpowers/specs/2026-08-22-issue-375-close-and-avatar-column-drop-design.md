@@ -55,13 +55,13 @@ new indexes.
 
 ### Cloud-side code (functions/)
 
-| File | Change |
-| --- | --- |
-| `src/db/schema.ts` (~160) | Remove `avatar: text('avatar')` from the `characters` pgTable. |
-| `src/services/characterService.ts` (~9, ~26) | Remove `'avatar'` from the select field list and from the row→object mapping. |
-| `src/characterFunctions.ts` (~16) | Remove `avatar` from `SyncCharacterPayload`; `syncCharacter` stops parsing (`parseOptionalTextField(character.avatar, ...)`) and storing it — old clients' extra payload field is simply ignored. |
-| `src/characterFunctions.ts` (~87) | Drop `'avatar'` from the `updateCharacterField` field union. Old clients calling with `field: 'avatar'` get a validation error — acceptable; no current app code calls it. |
-| `serializeCharacter` | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged. |
+| File                                         | Change                                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/db/schema.ts` (~160)                    | Remove `avatar: text('avatar')` from the `characters` pgTable.                                                                                                                                    |
+| `src/services/characterService.ts` (~9, ~26) | Remove `'avatar'` from the select field list and from the row→object mapping.                                                                                                                     |
+| `src/characterFunctions.ts` (~16)            | Remove `avatar` from `SyncCharacterPayload`; `syncCharacter` stops parsing (`parseOptionalTextField(character.avatar, ...)`) and storing it — old clients' extra payload field is simply ignored. |
+| `src/characterFunctions.ts` (~87)            | Drop `'avatar'` from the `updateCharacterField` field union. Old clients calling with `field: 'avatar'` get a validation error — acceptable; no current app code calls it.                        |
+| `serializeCharacter`                         | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged.                                |
 
 `parseOptionalTextField` itself **stays** — it is shared by appearance/traits/emotions/context. Only
 the avatar argument/call-site goes; do not delete the helper.
@@ -92,16 +92,16 @@ the net that catches any reference missed here.
     **no casts and no `avatar?: never` placeholder type are needed** anywhere.
 - **Untouched on purpose:** `src/database/*` (local column goes inert),
   `src/machines/characterMachine.ts` (optimistic `event.data.avatar ?? null` stays valid against the
-  unchanged local type), and everything avatar-*named* but not this column — `src/types/chat.ts`
+  unchanged local type), and everything avatar-_named_ but not this column — `src/types/chat.ts`
   (user photo), `aiChatService`/`useAIChat` (`appearance`-based), `userService.avatarUrl`,
   `users.avatar_url`.
 
 ### Compatibility matrix
 
-| App version ↓ · Backend state → | Old backend (column live) | New backend (column dropped) |
-| --- | --- | --- |
-| **Pre-Phase-1 app** (reads/writes `avatar`) | today's behavior | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
-| **New app** (post-drop, no `avatar` code) | works; backend stores/returns `avatar: null`, new client ignores it. Transient window only: between OTA publish and the backend deploy. | target state |
+| App version ↓ · Backend state →             | Old backend (column live)                                                                                                               | New backend (column dropped)                                                                                                                                                                                                            |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pre-Phase-1 app** (reads/writes `avatar`) | today's behavior                                                                                                                        | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
+| **New app** (post-drop, no `avatar` code)   | works; backend stores/returns `avatar: null`, new client ignores it. Transient window only: between OTA publish and the backend deploy. | target state                                                                                                                                                                                                                            |
 
 Because every cell tolerates its mismatch, **deploy ordering is unconstrained**: the backend deploy
 (which applies migration 0025 via `scripts/migrate.mjs`) and the app OTA cannot race badly. The
@@ -111,7 +111,7 @@ OTA — and that row's cost is exactly the accepted portrait loss above.
 ### Rollback posture
 
 Stating it plainly because it is the point of the exercise: once 0025 has applied, reverting the
-code restores the *field*, not the *data*. Legacy portraits are unrecoverable after the column
+code restores the _field_, not the _data_. Legacy portraits are unrecoverable after the column
 drops; gallery-backed portraits are unaffected. This replaces — deliberately — the rollback net the
 column used to provide.
 

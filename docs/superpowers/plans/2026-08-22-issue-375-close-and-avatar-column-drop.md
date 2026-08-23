@@ -30,12 +30,14 @@ These apply to every task implicitly:
 ### Task 1: Migration 0025 + migration-shape guard
 
 **Files:**
+
 - Create: `functions/drizzle/0025_drop_characters_avatar.sql`
 - Modify: `functions/scripts/migrationOrder.mjs:34` (append to `MIGRATION_ORDER`)
 - Modify: `functions/scripts/migrationOrder.test.mjs` (imports + two new tests)
 - Modify: `docs/db-migrations.md` ("Production: Applied Migrations" table, after the row for 24 at line 92)
 
 **Interfaces:**
+
 - Consumes: nothing (first task).
 - Produces: `MIGRATION_ORDER` whose last entry is `'0025_drop_characters_avatar.sql'`; a SQL file on disk whose entire content is exactly `ALTER TABLE characters DROP COLUMN IF EXISTS avatar;`. Task 2's schema edit mirrors this end state; Task 5 applies it locally.
 
@@ -44,27 +46,27 @@ These apply to every task implicitly:
 Add these imports to the top of `functions/scripts/migrationOrder.test.mjs` (this file uses semicolons — match it):
 
 ```js
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 ```
 
 Append at the bottom of the file:
 
 ```js
-const DRIZZLE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
+const DRIZZLE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'drizzle')
 
 test('the newest tracked migration is the characters.avatar drop', () => {
-  assert.equal(MIGRATION_ORDER[MIGRATION_ORDER.length - 1], '0025_drop_characters_avatar.sql');
-});
+  assert.equal(MIGRATION_ORDER[MIGRATION_ORDER.length - 1], '0025_drop_characters_avatar.sql')
+})
 
 test("0025's SQL drops the avatar column and nothing else", () => {
   // Shape guard: the journal is out of sync, so an accidental `drizzle-kit
   // generate` could swap different SQL in under a registered filename. Pin the
   // exact text — this starts the repo's first SQL-text-shape convention.
-  const sql = readFileSync(join(DRIZZLE_DIR, '0025_drop_characters_avatar.sql'), 'utf8').trim();
-  assert.equal(sql, 'ALTER TABLE characters DROP COLUMN IF EXISTS avatar;');
-});
+  const sql = readFileSync(join(DRIZZLE_DIR, '0025_drop_characters_avatar.sql'), 'utf8').trim()
+  assert.equal(sql, 'ALTER TABLE characters DROP COLUMN IF EXISTS avatar;')
+})
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -100,7 +102,7 @@ Expected: PASS (all tests in the file, including the eight pre-existing ones).
 In `docs/db-migrations.md`, add to the "Production: Applied Migrations" table directly after the row numbered 24 (line ~92), matching the table's alignment:
 
 ```markdown
-| 25      | `0025_drop_characters_avatar.sql`                  | Drop legacy `characters.avatar` rollback-net column (Phase 1 OTA cycle elapsed; readers migrated in the same PR). Rides OTA with the app-side removal |
+| 25 | `0025_drop_characters_avatar.sql` | Drop legacy `characters.avatar` rollback-net column (Phase 1 OTA cycle elapsed; readers migrated in the same PR). Rides OTA with the app-side removal |
 ```
 
 Then confirm formatting: `npx prettier --check docs/db-migrations.md`
@@ -118,6 +120,7 @@ git commit -m "chore(db): hand-write migration 0025 dropping characters.avatar"
 ### Task 2: Cloud-side reader removal (`functions/`)
 
 **Files:**
+
 - Modify: `functions/src/db/schema.ts:160` (drop the column from the pgTable)
 - Modify: `functions/src/services/characterService.ts:9,26` (Pick union + update-values mapping)
 - Modify: `functions/src/characterFunctions.ts:16,87,413,452` (payload type, parser union, parse call-site, upsert value)
@@ -125,6 +128,7 @@ git commit -m "chore(db): hand-write migration 0025 dropping characters.avatar"
 - Test: `functions/src/characterFunctions.test.ts` (repurpose one test, add one test, strip fixture keys)
 
 **Interfaces:**
+
 - Consumes: Task 1's registered migration (schema mirror must match its end state).
 - Produces: cloud API responses with no `avatar` key anywhere (`serializeCharacter` spreads whole rows, so removing the column removes the output field with zero edits to `serializeCharacter` itself); `SyncCharacterPayload` without `avatar` (old clients sending it are silently ignored); `parseOptionalTextField` retained with union `'appearance' | 'traits' | 'emotions' | 'context' | 'voice'`.
 
@@ -262,18 +266,19 @@ type CharacterUpdateInput = Pick<
 ```
 
 ```ts
-  const updateValues = {
-    name: character.name,
-    appearance: character.appearance,
-    traits: character.traits,
-    emotions: character.emotions,
-    context: character.context,
-    ...(normalizedVoice === undefined ? {} : { voice: normalizedVoice }),
-    updatedAt: character.updatedAt ?? new Date(),
-  }
+const updateValues = {
+  name: character.name,
+  appearance: character.appearance,
+  traits: character.traits,
+  emotions: character.emotions,
+  context: character.context,
+  ...(normalizedVoice === undefined ? {} : { voice: normalizedVoice }),
+  updatedAt: character.updatedAt ?? new Date(),
+}
 ```
 
 `functions/src/characterFunctions.ts` — four deletions:
+
 1. Line 16: `  avatar?: string | null` out of `SyncCharacterPayload`.
 2. Line 87: shrink the parser union to `field: 'appearance' | 'traits' | 'emotions' | 'context' | 'voice',` (keep the function itself — it stays for appearance/traits/emotions/context/voice).
 3. Line 413: delete `const avatar = parseOptionalTextField(character.avatar, 'avatar')`.
@@ -298,10 +303,12 @@ git commit -m "refactor(functions): stop reading and writing characters.avatar"
 ### Task 3: App-side wire types and sync service
 
 **Files:**
+
 - Modify: `src/services/apiClient.ts:86,135`
 - Modify: `src/services/characterSyncService.ts:346,452,499`
 
 **Interfaces:**
+
 - Consumes: nothing from Tasks 1–2 at compile time (independent worktrees of the same removal), but semantically pairs with Task 2's response shape.
 - Produces: `CharacterSnapshot` and `SyncCharacterPayload` without `avatar`; the three sync sites rewritten so no reference to the field survives anywhere in `src/` (root typecheck is the completeness net).
 
@@ -354,7 +361,7 @@ Expected: clean. If any `cloud*.avatar` read survived anywhere in `src/`, this f
 - [ ] **Step 4: Scoped sanity test**
 
 Run: `npx jest src/components/__tests__/ChatView.test.tsx`
-Expected: PASS — its `baseCharacter` fixture is the *local* `Character` type (which keeps `avatar`), so this file is untouched; the run proves no collateral damage.
+Expected: PASS — its `baseCharacter` fixture is the _local_ `Character` type (which keeps `avatar`), so this file is untouched; the run proves no collateral damage.
 
 - [ ] **Step 5: Commit**
 
@@ -368,10 +375,12 @@ git commit -m "refactor(app): drop avatar from cloud character wire types and sy
 ### Task 4: Remove the deliberate UI tail fallbacks
 
 **Files:**
+
 - Modify: `app/(drawer)/(tabs)/talk/index.tsx:86–94`
 - Modify: `src/components/ChatView.tsx:182–188`
 
 **Interfaces:**
+
 - Consumes: `useResolvedImage(imageId, variant)` → `{ uri: string | null; isResolved: boolean }` (`src/hooks/useResolvedImage.ts`).
 - Produces: `headerAvatar`/`bodyAvatar`/`characterAvatar` keep their exact names and their exact `string | null` types — downstream JSX needs zero edits. `CharacterAvatar` continues supplying the bundled default when null.
 
@@ -382,24 +391,24 @@ Replace lines 86–94 of `app/(drawer)/(tabs)/talk/index.tsx` — delete the dep
 Before:
 
 ```tsx
-  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
-  // tail fallback for devices whose one-shot migration has not run and for
-  // characters that predate `avatar_data`. `CharacterAvatar` supplies the
-  // bundled default when both are null. Two variants because the body avatar is
-  // the screen's focal element and the header is 40px.
-  const { uri: resolvedHeaderAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
-  const headerAvatar = resolvedHeaderAvatar ?? character?.avatar ?? null
-  const { uri: resolvedBodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
-  const bodyAvatar = resolvedBodyAvatar ?? character?.avatar ?? null
+// Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
+// tail fallback for devices whose one-shot migration has not run and for
+// characters that predate `avatar_data`. `CharacterAvatar` supplies the
+// bundled default when both are null. Two variants because the body avatar is
+// the screen's focal element and the header is 40px.
+const { uri: resolvedHeaderAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
+const headerAvatar = resolvedHeaderAvatar ?? character?.avatar ?? null
+const { uri: resolvedBodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
+const bodyAvatar = resolvedBodyAvatar ?? character?.avatar ?? null
 ```
 
 After:
 
 ```tsx
-  // Two variants because the body avatar is the screen's focal element and the
-  // header is 40px. `CharacterAvatar` supplies the bundled default when null.
-  const { uri: headerAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
-  const { uri: bodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
+// Two variants because the body avatar is the screen's focal element and the
+// header is 40px. `CharacterAvatar` supplies the bundled default when null.
+const { uri: headerAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
+const { uri: bodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
 ```
 
 - [ ] **Step 2: chat header**
@@ -409,20 +418,20 @@ Replace lines 182–188 of `src/components/ChatView.tsx`:
 Before:
 
 ```tsx
-  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
-  // tail fallback for devices whose one-shot migration has not run and for
-  // characters that predate `avatar_data` entirely — those legitimately have a
-  // working legacy URL and no gallery row. `CharacterAvatar` supplies the
-  // bundled default when both are null.
-  const { uri: resolvedAvatar } = useResolvedImage(character.active_image_id, 'thumb')
-  const characterAvatar = resolvedAvatar ?? character.avatar ?? null
+// Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
+// tail fallback for devices whose one-shot migration has not run and for
+// characters that predate `avatar_data` entirely — those legitimately have a
+// working legacy URL and no gallery row. `CharacterAvatar` supplies the
+// bundled default when both are null.
+const { uri: resolvedAvatar } = useResolvedImage(character.active_image_id, 'thumb')
+const characterAvatar = resolvedAvatar ?? character.avatar ?? null
 ```
 
 After:
 
 ```tsx
-  // `CharacterAvatar` supplies the bundled default when null.
-  const { uri: characterAvatar } = useResolvedImage(character.active_image_id, 'thumb')
+// `CharacterAvatar` supplies the bundled default when null.
+const { uri: characterAvatar } = useResolvedImage(character.active_image_id, 'thumb')
 ```
 
 - [ ] **Step 3: Typecheck and scoped test**
@@ -444,6 +453,7 @@ git commit -m "refactor(app): remove legacy characters.avatar tail fallbacks"
 **Files:** none changed — this is verification only.
 
 **Interfaces:**
+
 - Consumes: Task 1's migration + registration; the dev runner tracks applied files in a `dev_migrations` table and refuses non-listed files.
 
 - [ ] **Step 1: Bring Postgres up (skip if already running)**
@@ -491,9 +501,11 @@ No commit — nothing changes.
 ### Task 7: Issue #375 — verify premise and prepare the analysis
 
 **Files:**
+
 - Create (scratch, outside repo): `/tmp/issue-375-comment.md`
 
 **Interfaces:**
+
 - Consumes: prod `credit_spend_events` (live since 2026-08-22, migration 0024) and `subscriptions.plan_tier`.
 - Produces: the drafted comment Task 9 posts, and the three queries handed to the user.
 
@@ -613,9 +625,11 @@ Closing manually (`Closes:` does not fire from a `staging`-targeted PR). Compani
 ### Task 8: Full gate sweep, push, open the PR
 
 **Files:**
+
 - None created; pushes the branch and opens the PR (base `staging`).
 
 **Interfaces:**
+
 - Consumes: Tasks 1–6 complete and committed.
 - Produces: the PR URL that Task 9's closing comment links.
 
@@ -672,10 +686,10 @@ render bundled default/initials after this ships. No backfill (user decision,
 
 ## Compatibility matrix (deploy ordering unconstrained)
 
-| App ↓ · Backend → | Old backend (column live) | New backend (column dropped) |
-| --- | --- | --- |
-| Pre-Phase-1 app | today's behavior | upload field ignored; responses lack `avatar` → bundled default (accepted loss, no crash surface) |
-| New app (post-drop) | works; backend stores/returns `avatar: null`, client ignores it (transient OTA↔deploy window) | target state |
+| App ↓ · Backend →   | Old backend (column live)                                                                     | New backend (column dropped)                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Pre-Phase-1 app     | today's behavior                                                                              | upload field ignored; responses lack `avatar` → bundled default (accepted loss, no crash surface) |
+| New app (post-drop) | works; backend stores/returns `avatar: null`, client ignores it (transient OTA↔deploy window) | target state                                                                                      |
 
 ## Rollback posture
 
@@ -700,6 +714,7 @@ staging→main promotion flow.
 **Files:** none; GitHub state changes only.
 
 **Interfaces:**
+
 - Consumes: Task 7's filled-in comment (user-pasted results) and Task 8's PR number.
 - Produces: issue #375 closed with a documented decision.
 
