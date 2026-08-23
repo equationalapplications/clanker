@@ -23,6 +23,14 @@ export const startWebhookServer = (handler: WebhookHandler): Promise<HarnessServ
         const req = nativeReq as http.IncomingMessage & { rawBody?: Buffer }
         req.rawBody = Buffer.concat(chunks)
 
+        // Response timeout guard: a handler that never responds would leave
+        // this socket open past node:test's 10s per-test timeout, keeping the
+        // child process alive after the run ends. Race every response against
+        // a timer under that budget (9s), destroying the connection on expiry;
+        // 'finish' always clears it so normal fast responses are unaffected.
+        const responseTimeout = setTimeout(() => nativeRes.destroy(), 9_000)
+        nativeRes.on('finish', () => clearTimeout(responseTimeout))
+
         const res = {
           status: (code: number) => ({
             send: (body?: string) => {
