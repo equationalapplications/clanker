@@ -1,0 +1,204 @@
+# Close #375 + drop `characters.avatar` — design
+
+- **Date:** 2026-08-22
+- **Status:** Approved (design); implementation to follow on this branch
+- **Branch / PR:** `chore/issue-375-and-avatar-column-drop`, one PR targeting `staging`
+- **Related specs:** [avatar render pipeline divergence](2026-08-10-avatar-render-pipeline-divergence-design.md), [avatar bubble unification](2026-08-10-avatar-bubble-unification-design.md), [streaming-id unification & credit-spend attribution](2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md)
+
+## Context
+
+Two follow-ups ship together as one PR:
+
+1. **Issue #375** ("Validate free-tier librarian cost with autoLibrarianThreshold: 5") was blocked
+   on spend attribution. Attribution now exists: `credit_spend_events` went live in prod on
+   2026-08-22 (migration 0024, both backends deployed the same evening), and every spend is tagged
+   with a reason token from the registry. The issue is now answerable with SQL — analysis plus a
+   comment/close, no code.
+2. **`characters.avatar`** is the Phase 1 rollback net from the avatar pipeline refactor
+   (PR #589). Phase 2 shipped and releases #609/#618/#622/#625 have all gone out since, so the
+   one-release-cycle fence has elapsed. The column's remaining readers are migrated off it and the
+   column is dropped.
+
+## Goals
+
+- Answer #375 with production numbers and a documented decision; close the issue.
+- Remove `characters.avatar` from the cloud schema and every read/write path that still touches it.
+- Keep the change OTA-safe for existing clients.
+
+## Non-goals
+
+- **No backfill of the legacy cohort.** Characters whose only portrait is a legacy `characters.avatar`
+  URL (created before `character_images` existed, never re-edited) lose that portrait permanently.
+  Accepted explicitly (user decision, 2026-08-22): those characters render the bundled default /
+  initials after this ships. `character_images.storage_path` is Firebase-Storage-paths-only, so a
+  URL-preserving backfill has no clean home — rejected rather than half-done.
+- **No local SQLite schema change.** The device-side `characters.avatar` / `avatar_data` /
+  `avatar_mime_type` columns stay, going inert. Avoiding an on-device migration removes the only
+  real risk surface this change would otherwise have.
+- **Not in this PR:** the purchase integration test suite idea (separate parked thread).
+
+---
+
+## Part A — drop `characters.avatar`
+
+### Migration 0025
+
+Hand-write `functions/drizzle/0025_drop_characters_avatar.sql`:
+
+```sql
+ALTER TABLE characters DROP COLUMN IF EXISTS avatar;
+```
+
+Register it in `functions/scripts/migrationOrder.mjs`. Never run `drizzle-kit generate` (the drizzle
+journal is out of sync; hand-written next-index SQL is the repo convention). No data backfill, no
+new indexes.
+
+### Cloud-side code (functions/)
+
+| File | Change |
+| --- | --- |
+| `src/db/schema.ts` (~160) | Remove `avatar: text('avatar')` from the `characters` pgTable. |
+| `src/services/characterService.ts` (~9, ~26) | Remove `'avatar'` from the select field list and from the row→object mapping. |
+| `src/characterFunctions.ts` (~16) | Remove `avatar` from `SyncCharacterPayload`; `syncCharacter` stops parsing (`parseOptionalTextField(character.avatar, ...)`) and storing it — old clients' extra payload field is simply ignored. |
+| `src/characterFunctions.ts` (~87) | Drop `'avatar'` from the `updateCharacterField` field union. Old clients calling with `field: 'avatar'` get a validation error — acceptable; no current app code calls it. |
+| `serializeCharacter` | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged. |
+
+Line numbers are from 2026-08-22 — verify against current code at implementation time. Typecheck is
+the net that catches any reference missed here.
+
+### App-side code (src/, app/)
+
+- **Remove the two deliberate tail fallbacks** (they stop being load-bearing only now):
+  - `app/(drawer)/(tabs)/talk/index.tsx` (~92–94): `headerAvatar` / `bodyAvatar` become just the
+    `useResolvedImage` results.
+  - `src/components/ChatView.tsx` (~189): `characterAvatar` becomes just the resolved image.
+  - Delete their "deprecated `characters.avatar` column" comments along with the fallbacks.
+- **Types:** remove `avatar` from `CharacterSnapshot` and `SyncCharacterPayload` in
+  `src/services/apiClient.ts` (~86, ~135).
+- **`src/services/characterSyncService.ts`** (~346, ~452, ~499): stop uploading `avatar` in the sync
+  payload; stop reading `cloudChar.avatar` when building local rows. Where the current code carries
+  an existing local value across (the INSERT OR REPLACE preservation pattern), keep that carry-over
+  (`existingLocal?.avatar ?? null`) — never hard-null legacy copies on un-migrated devices.
+- **Untouched on purpose:** `src/database/*` (local column goes inert),
+  `src/machines/characterMachine.ts` (optimistic `event.data.avatar ?? null` stays valid against the
+  unchanged local type), and everything avatar-*named* but not this column — `src/types/chat.ts`
+  (user photo), `aiChatService`/`useAIChat` (`appearance`-based), `userService.avatarUrl`,
+  `users.avatar_url`.
+
+### Compatibility matrix
+
+| Client \ Backend | Old backend (column live) | New backend (column dropped) |
+| --- | --- | --- |
+| **Old app** (reads/writes `avatar`) | today's behavior | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
+| **New app** (no `avatar` code) | works; backend stores/returns `avatar: null`, new client ignores it | target state |
+
+Because both directions tolerate the mismatch, **deploy ordering is unconstrained**: the backend
+deploy (which applies migration 0025 via `scripts/migrate.mjs`) and the app OTA cannot race badly.
+
+### Rollback posture
+
+Stating it plainly because it is the point of the exercise: once 0025 has applied, reverting the
+code restores the *field*, not the *data*. Legacy portraits are unrecoverable after the column
+drops; gallery-backed portraits are unaffected. This replaces — deliberately — the rollback net the
+column used to provide.
+
+Deploy shape: JS/TS + SQL only → rides OTA, **no `BREAKING CHANGE:` footer** (runtimeVersion =
+package MAJOR; a footer would force a store update). There is no deployed staging environment; the
+PR targets the `staging` branch per repo convention and reaches prod via the normal promotion flow,
+with the post-deploy traffic check on the new revision.
+
+---
+
+## Part B — close issue #375
+
+### Premise correction (verified in code)
+
+The issue assumes librarian LLM calls are an open-ended free-tier cost. They are not:
+`functions/src/wikiLlm.ts` (~135) calls `spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')`
+**before** the model call, and a `null` allocation throws `failed-precondition` ('Insufficient
+credits'). A free user therefore can never spend past their balance: lifetime librarian exposure is
+capped by their spendable credits — at most the 5,000-credit signup grant. The real product risk was
+trial cannibalization, not COGS. (Failed model calls refund the spend, but refunds do **not** write
+negative rows into `credit_spend_events` — `refundCredit` touches only `credit_transactions` — so
+ledger totals below are gross attempted spends.)
+
+### Analysis SQL (run against prod Cloud SQL; results pasted back)
+
+Coverage window note for the comment: the ledger only has rows since 2026-08-22, so absolute volumes
+are ~1 day old; the structural cap above does not depend on volume.
+
+Sanity sweep — ledger by reason:
+
+```sql
+SELECT reason,
+       COUNT(*)                AS events,
+       COUNT(DISTINCT user_id) AS users,
+       SUM(amount)             AS total_credits
+FROM credit_spend_events
+GROUP BY reason
+ORDER BY total_credits DESC;
+```
+
+Librarian spend split by plan tier (`subscriptions.plan_tier`: 'free' vs paid tiers):
+
+```sql
+SELECT s.plan_tier,
+       e.reason,
+       COUNT(*)                  AS events,
+       COUNT(DISTINCT e.user_id) AS users,
+       SUM(e.amount)             AS gross_credits,
+       ROUND(SUM(e.amount)::numeric / NULLIF(COUNT(DISTINCT e.user_id), 0), 1)
+                                 AS avg_gross_per_user
+FROM credit_spend_events e
+JOIN subscriptions s ON s.user_id = e.user_id
+WHERE e.reason IN ('wiki_llm', 'wiki_sync')
+GROUP BY s.plan_tier, e.reason
+ORDER BY s.plan_tier, gross_credits DESC;
+```
+
+Per-user distribution:
+
+```sql
+SELECT s.plan_tier,
+       percentile_cont(0.5)  WITHIN GROUP (ORDER BY u.gross) AS median_per_user,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY u.gross) AS p95_per_user,
+       MAX(u.gross)          AS max_single_user
+FROM (
+  SELECT e.user_id, SUM(e.amount) AS gross
+  FROM credit_spend_events e
+  WHERE e.reason IN ('wiki_llm', 'wiki_sync')
+  GROUP BY e.user_id
+) u
+JOIN subscriptions s ON s.user_id = u.user_id
+GROUP BY s.plan_tier;
+```
+
+### Mechanics
+
+1. Draft the comment on #375: premise correction + the three query results + decision.
+2. Expected decision: **"cost acceptable, no change"** — structurally capped, monitoring continues
+   via the ledger. If the pasted numbers contradict the premise in some unexpected way, flag it and
+   discuss before closing rather than forcing the expected verdict; either way the issue requires a
+   documented decision, which the comment provides.
+3. Post the comment, then **close #375 manually** — `Closes #375` in the PR description will not
+   auto-fire because PRs here merge to `staging`, not the repository's default branch. Link the PR
+   from the closing comment.
+4. The PR itself carries no code for this item — the issue comment is the deliverable.
+
+---
+
+## Testing & verification
+
+- **Migration:** run the local docker Postgres through `scripts/migrate-dev.mjs`; confirm 0025
+  applies cleanly and `information_schema.columns` no longer lists `characters.avatar`.
+- **Typecheck** in every touched workspace — primary completeness check for reader removal.
+- **Unit tests:** update fixtures/tests referencing the removed field; run scoped only
+  (`npx jest <path>` at root — a bare run collects the unrigged tree).
+- **Manual smoke (web or emulator):** a character with a gallery row still renders its portrait via
+  `useResolvedImage`; a character without one renders bundled default / initials on the talk screen
+  header+body and the chat header; cloud sync round-trips without error.
+
+## Commit hygiene
+
+Avatar-drop changes are logic changes and land as such — no formatting sweeps mixed into the same
+commits. CI must stay `:check`, never `--write`/`--fix`.
