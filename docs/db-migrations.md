@@ -179,4 +179,11 @@ If a migration depends on an object created by an earlier one (an index backing 
 `ON CONFLICT`, a column, a constraint), the ordering guard in step 4 is what enforces it — but
 state the dependency in a SQL comment too, as `0021` does.
 
+**Destructive migrations vs deployed code:** Drizzle enumerates `schema.ts` columns for bare
+`.select()`/`.returning()`, so a currently-deployed functions bundle whose schema still declares
+a column fails with Postgres `42703` the moment a migration drops that column — even for
+requests that never touch it. Deploy the code revision that stopped reading/writing the column
+FIRST, confirm it is live, and only then apply the drop; and do not roll the code back past an
+applied destructive migration without re-checking `schema.ts`.
+
 Do **not** update `_journal.json` or add Drizzle snapshot files as part of routine schema changes — that's a deliberate, separate re-sync operation, not part of normal migration authoring.
