@@ -154,7 +154,6 @@ function baseCharacter(overrides: Record<string, unknown>) {
   return {
     id: 'char-1',
     name: 'Frodo',
-    avatar: null,
     active_image_id: null,
     voice: 'Aoede',
     save_to_cloud: 1,

@@ -233,7 +233,6 @@ function baseCharacter(overrides: Record<string, unknown>) {
   return {
     id: 'char-1',
     name: 'Nova',
-    avatar: null,
     active_image_id: null,
     appearance: 'Friendly AI',
     traits: 'calm',
