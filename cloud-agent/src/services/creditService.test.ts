@@ -331,6 +331,34 @@ test('refundCredit resolves without throwing', async () => {
   )
 })
 
+test('refundCredit persists the refund when the cache sync fails', async () => {
+  // Sibling of the spendCredit prover above: cloud-agent treats the cache
+  // UPDATE as best-effort, but a bare try/catch cannot deliver that contract —
+  // a Postgres error aborts the WHOLE transaction, and COMMIT-on-aborted acts
+  // as ROLLBACK, silently discarding the refund while callers still see
+  // success. The cache UPDATE must sit in a SAVEPOINT so only it rolls back.
+  const cacheError = new Error('subscriptions cache exploded')
+  const { db, queries, state } = makeCapturingDb([
+    { rows: [] }, // INSERT subscriptions bootstrap
+    { rows: [{ user_id: 'user-1' }] }, // SELECT FOR UPDATE subscriptions
+    { rows: [{ id: 'tx-abc' }] }, // UPDATE credit_transactions RETURNING id
+    cacheError, // UPDATE subscriptions cache — fails inside its SAVEPOINT only
+  ])
+  const cs = createCreditService(db)
+  await assert.doesNotReject(() =>
+    cs.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 5 }]),
+  )
+  const refunds = queries.filter(
+    (q) =>
+      q.includes('UPDATE credit_transactions') &&
+      q.includes('remaining_balance = remaining_balance +'),
+  )
+  assert.equal(refunds.length, 1)
+  // Real Postgres semantics: rollback-to-savepoint revives the transaction, so
+  // COMMIT genuinely persists the refund.
+  assert.equal(state.committed, true)
+})
+
 test('refundCredit restores every row in a multi-row allocation atomically', async () => {
   // Call 1: INSERT subscriptions, Call 2: SELECT FOR UPDATE subscriptions
   // Call 3: UPDATE credit_transactions tx-1 RETURNING id
@@ -385,6 +413,10 @@ test('refundCredit makes correct number of execute calls', async () => {
           executeCalls++
           return { rows: [] }
         },
+        // Pass-through nested transaction (SAVEPOINT in real Postgres): the
+        // cache-sync SAVEPOINT body reuses this same execute counter.
+        transaction: async (nested: (tx2: DrizzleClient) => Promise<unknown>) =>
+          nested(tx as unknown as DrizzleClient),
       }
       return await callback(tx as unknown as DrizzleClient)
     },
