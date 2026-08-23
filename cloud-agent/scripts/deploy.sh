@@ -59,14 +59,6 @@ else
   DEPLOY_ARGS+=(--no-allow-unauthenticated)
 fi
 
-# Remember what the newest revision was BEFORE deploying, so the traffic check
-# below can report whether this deploy created a revision at all (a redeploy of
-# unchanged config reuses the existing revision). Guarded because the service
-# may not exist yet on a first-ever deploy.
-PREV_LATEST_REVISION="$(gcloud run services describe "${SERVICE}" \
-  --project "${PROJECT_ID}" --region "${REGION}" \
-  --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
-
 gcloud run deploy "${SERVICE}" "${DEPLOY_ARGS[@]}"
 
 # --- Post-deploy traffic assertion -------------------------------------------
@@ -87,6 +79,24 @@ if [[ "${SKIP_TRAFFIC_CHECK:-}" == "true" ]]; then
 elif printf '%s\n' "${DEPLOY_ARGS[@]}" | grep -qx -- '--no-traffic'; then
   echo "--no-traffic deploy requested, skipping post-deploy traffic check."
 else
+  # Clamp TRAFFIC_CHECK_ATTEMPTS to a positive integer (default 6). Under
+  # `set -e` a non-numeric value would crash `seq` and abort the script
+  # AFTER a successful deploy — suppressing the very check this block exists
+  # to enforce. A zero value silently disables the loop; clamp to 1 instead.
+  _TRAFFIC_CHECK_ATTEMPTS="${TRAFFIC_CHECK_ATTEMPTS:-6}"
+  if ! [[ "${_TRAFFIC_CHECK_ATTEMPTS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: TRAFFIC_CHECK_ATTEMPTS must be a positive integer (got '${_TRAFFIC_CHECK_ATTEMPTS}')." >&2
+    exit 1
+  fi
+
+  # Remember what the newest revision was BEFORE deploying, so the traffic
+  # check can report whether this deploy created a revision at all (a
+  # redeploy of unchanged config reuses the existing revision). Guarded
+  # because the service may not exist yet on a first-ever deploy.
+  PREV_LATEST_REVISION="$(gcloud run services describe "${SERVICE}" \
+    --project "${PROJECT_ID}" --region "${REGION}" \
+    --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
+
   TARGET_REVISION="$(gcloud run services describe "${SERVICE}" \
     --project "${PROJECT_ID}" --region "${REGION}" \
     --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
@@ -104,7 +114,7 @@ else
   # Traffic application is normally immediate once deploy returns; retries only
   # absorb API/eventual-consistency lag. Each row is "<revision>,<percent>"; a
   # revision can appear twice (split + tagged route), so take its largest share.
-  for _attempt in $(seq 1 "${TRAFFIC_CHECK_ATTEMPTS:-6}"); do
+  for _attempt in $(seq 1 "${_TRAFFIC_CHECK_ATTEMPTS}"); do
     TRAFFIC_ROWS="$(gcloud run services describe "${SERVICE}" \
       --project "${PROJECT_ID}" --region "${REGION}" \
       --format='csv[no-heading](status.traffic.revisionName,status.traffic.percent)' 2>/dev/null || true)"
@@ -114,7 +124,11 @@ else
     if (( PCT > 0 )); then
       break
     fi
-    sleep 5
+    # Don't sleep after the final iteration — would just waste time before
+    # the error block prints.
+    if (( _attempt < _TRAFFIC_CHECK_ATTEMPTS )); then
+      sleep 5
+    fi
   done
 
   PCT="${TRAFFIC_PERCENT:-0}"; PCT="${PCT%%.*}"
