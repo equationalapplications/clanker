@@ -63,6 +63,9 @@ new indexes.
 | `src/characterFunctions.ts` (~87) | Drop `'avatar'` from the `updateCharacterField` field union. Old clients calling with `field: 'avatar'` get a validation error — acceptable; no current app code calls it. |
 | `serializeCharacter` | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged. |
 
+`parseOptionalTextField` itself **stays** — it is shared by appearance/traits/emotions/context. Only
+the avatar argument/call-site goes; do not delete the helper.
+
 Line numbers are from 2026-08-22 — verify against current code at implementation time. Typecheck is
 the net that catches any reference missed here.
 
@@ -75,10 +78,18 @@ the net that catches any reference missed here.
   - Delete their "deprecated `characters.avatar` column" comments along with the fallbacks.
 - **Types:** remove `avatar` from `CharacterSnapshot` and `SyncCharacterPayload` in
   `src/services/apiClient.ts` (~86, ~135).
-- **`src/services/characterSyncService.ts`** (~346, ~452, ~499): stop uploading `avatar` in the sync
-  payload; stop reading `cloudChar.avatar` when building local rows. Where the current code carries
-  an existing local value across (the INSERT OR REPLACE preservation pattern), keep that carry-over
-  (`existingLocal?.avatar ?? null`) — never hard-null legacy copies on un-migrated devices.
+- **`src/services/characterSyncService.ts`** — three sites, two shapes:
+  - **On push** (`syncUnsyncedToCloud`, upload payload ~447–452): drop `avatar` from the payload
+    entirely. This erases nothing locally — it only stops writing toward the server.
+  - **On pull** (`restoreFromCloud` row mapping ~346; `importSharedCharacterFromCloud` insert
+    ~499): these build local rows via INSERT OR REPLACE from a cloud snapshot, where `existingLocal`
+    is genuinely the un-migrated-device preservation case. Replace the `cloud*.avatar` read with the
+    carry-over `existingLocal?.avatar ?? null` (in scope at both sites). A brand-new local row gets
+    `null` — the intended "no gallery portrait yet" state, not a regression. Never hard-null legacy
+    copies on un-migrated devices.
+  - Removing `avatar` from `CharacterSnapshot` turns every remaining `cloud*.avatar` read into a
+    compile error — which is the point: after this rewrite no reference to the field survives, so
+    **no casts and no `avatar?: never` placeholder type are needed** anywhere.
 - **Untouched on purpose:** `src/database/*` (local column goes inert),
   `src/machines/characterMachine.ts` (optimistic `event.data.avatar ?? null` stays valid against the
   unchanged local type), and everything avatar-*named* but not this column — `src/types/chat.ts`
@@ -87,13 +98,15 @@ the net that catches any reference missed here.
 
 ### Compatibility matrix
 
-| Client \ Backend | Old backend (column live) | New backend (column dropped) |
+| App version ↓ · Backend state → | Old backend (column live) | New backend (column dropped) |
 | --- | --- | --- |
-| **Old app** (reads/writes `avatar`) | today's behavior | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
-| **New app** (no `avatar` code) | works; backend stores/returns `avatar: null`, new client ignores it | target state |
+| **Pre-Phase-1 app** (reads/writes `avatar`) | today's behavior | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
+| **New app** (post-drop, no `avatar` code) | works; backend stores/returns `avatar: null`, new client ignores it. Transient window only: between OTA publish and the backend deploy. | target state |
 
-Because both directions tolerate the mismatch, **deploy ordering is unconstrained**: the backend
-deploy (which applies migration 0025 via `scripts/migrate.mjs`) and the app OTA cannot race badly.
+Because every cell tolerates its mismatch, **deploy ordering is unconstrained**: the backend deploy
+(which applies migration 0025 via `scripts/migrate.mjs`) and the app OTA cannot race badly. The
+pairing that persists indefinitely is pre-Phase-1 app × new backend — devices that never take the
+OTA — and that row's cost is exactly the accepted portrait loss above.
 
 ### Rollback posture
 
@@ -102,8 +115,15 @@ code restores the *field*, not the *data*. Legacy portraits are unrecoverable af
 drops; gallery-backed portraits are unaffected. This replaces — deliberately — the rollback net the
 column used to provide.
 
+**Support runbook:** after this ships, "my character lost its portrait" tickets on legacy
+characters have no technical recovery path. Respond with that fact and offer re-generating an image
+via AvatarPicker (which writes through the gallery pipeline).
+
 Deploy shape: JS/TS + SQL only → rides OTA, **no `BREAKING CHANGE:` footer** (runtimeVersion =
-package MAJOR; a footer would force a store update). There is no deployed staging environment; the
+package MAJOR; a footer would force a store update and prune OTA installs on both platforms). For a
+pure DROP there are no new column semantics an old client would ever need to learn, so the OTA
+coverage preserved by omitting the footer is the right trade. There is no deployed staging
+environment; the
 PR targets the `staging` branch per repo convention and reaches prod via the normal promotion flow,
 with the post-deploy traffic check on the new revision.
 
@@ -114,13 +134,17 @@ with the post-deploy traffic check on the new revision.
 ### Premise correction (verified in code)
 
 The issue assumes librarian LLM calls are an open-ended free-tier cost. They are not:
-`functions/src/wikiLlm.ts` (~135) calls `spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')`
+`functions/src/wikiLlm.ts` (:137) calls `spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')`
 **before** the model call, and a `null` allocation throws `failed-precondition` ('Insufficient
 credits'). A free user therefore can never spend past their balance: lifetime librarian exposure is
 capped by their spendable credits — at most the 5,000-credit signup grant. The real product risk was
 trial cannibalization, not COGS. (Failed model calls refund the spend, but refunds do **not** write
 negative rows into `credit_spend_events` — `refundCredit` touches only `credit_transactions` — so
-ledger totals below are gross attempted spends.)
+ledger totals below are gross attempted spends.) This premise does not depend on refund
+bookkeeping at all — the ledger structurally records spend attempts only; PR #626's SAVEPOINT fix
+(cache-sync isolation inside `refundCredit`) is orthogonal here. One visibility limit to name in
+the comment: gross ≠ net when a wiki call fails and is refunded, and the ledger cannot separate
+those refunds out — quantifying the failure/refund share is out of scope for this analysis.
 
 ### Analysis SQL (run against prod Cloud SQL; results pasted back)
 
@@ -191,12 +215,22 @@ GROUP BY s.plan_tier;
 
 - **Migration:** run the local docker Postgres through `scripts/migrate-dev.mjs`; confirm 0025
   applies cleanly and `information_schema.columns` no longer lists `characters.avatar`.
+- **Migration-shape guard:** extend `functions/scripts/migrationOrder.test.mjs` (node:test; already
+  in the functions `npm test` glob via `scripts/**/*.test.mjs`) with two assertions: `MIGRATION_ORDER`'s
+  last entry is `0025_drop_characters_avatar.sql`, and the file's SQL is exactly
+  `ALTER TABLE characters DROP COLUMN IF EXISTS avatar;`. There is no existing SQL-text-shape test
+  convention to mirror (the cited-by-review `creditSpendEventsMigration.test.ts` does not exist) —
+  this starts one and blocks an accidental `drizzle-kit generate` from swapping in different SQL.
 - **Typecheck** in every touched workspace — primary completeness check for reader removal.
 - **Unit tests:** update fixtures/tests referencing the removed field; run scoped only
   (`npx jest <path>` at root — a bare run collects the unrigged tree).
 - **Manual smoke (web or emulator):** a character with a gallery row still renders its portrait via
   `useResolvedImage`; a character without one renders bundled default / initials on the talk screen
-  header+body and the chat header; cloud sync round-trips without error.
+  header+body and the chat header; cloud sync round-trips without error; **shared-character import
+  still lands a portrait** — verified during design: that path consumes `getPublicCharacter`'s
+  `avatarSignedUrl` (active_image_id → signed Storage URL, with a signed-URL-expiry retry) and
+  re-stores it under the importer's account via `saveCharacterImage`; it does not lean on the
+  dropped column. Only imports of legacy-cohort characters lose portraits — same accepted loss.
 
 ## Commit hygiene
 
