@@ -1,4 +1,8 @@
 import { sql } from 'drizzle-orm'
+import type { ExtractTablesWithRelations } from 'drizzle-orm'
+import type { PgTransaction } from 'drizzle-orm/pg-core'
+import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
+import type * as schema from '../db/schema.js'
 import type { DrizzleClient } from '../db/client.js'
 
 export type CreditSpendAllocation = {
@@ -29,6 +33,15 @@ function normalizeSpendReason(reason: string): string {
   return normalized
 }
 
+// The tx handle Drizzle hands to a transaction() callback — spelled via
+// drizzle's exported PgTransaction type rather than NodePgDatabase, whose
+// required $client property no transaction-scoped handle carries.
+type CreditMutationTx = PgTransaction<
+  NodePgQueryResultHKT,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>
+
 // Update subscriptions cache (row is already locked by the outer tx). Best-effort
 // — but a bare try/catch cannot deliver that: a Postgres error here aborts the
 // WHOLE transaction (25P02), and Drizzle's final COMMIT on an aborted
@@ -36,15 +49,12 @@ function normalizeSpendReason(reason: string): string {
 // while callers still see success. The SAVEPOINT isolates the failure so only
 // the cache write rolls back and the outer commit stays real.
 // credit_transactions is the source of truth; this column is a denormalized
-// cache recomputed on each mutation. Typed structurally so both the outer db
-// and the SAVEPOINT-bound tx satisfy it (their Drizzle types differ only in
-// whether $client is present).
-type CacheSyncTx = {
-  transaction<T>(callback: (tx: CacheSyncTx) => Promise<T>): Promise<T>
-  execute(query: unknown): Promise<{ rows: unknown[] }>
-}
-
-async function syncSubscriptionsCacheBestEffort(tx: CacheSyncTx, userId: string): Promise<void> {
+// cache recomputed on each mutation.
+async function syncSubscriptionsCacheBestEffort(
+  tx: CreditMutationTx,
+  userId: string,
+  direction: 'decrement' | 'increment',
+): Promise<void> {
   await tx
     .transaction(async (cacheTx) => {
       await cacheTx.execute(sql`
@@ -59,7 +69,7 @@ async function syncSubscriptionsCacheBestEffort(tx: CacheSyncTx, userId: string)
       `)
     })
     .catch((err) => {
-      console.warn(`subscriptions.current_credits cache sync failed user=${userId}`, err)
+      console.warn(`subscriptions.current_credits ${direction} failed user=${userId}`, err)
     })
 }
 
@@ -137,7 +147,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
           VALUES (${userId}, ${amount}, ${reasonText})
         `)
 
-        await syncSubscriptionsCacheBestEffort(tx, userId)
+        await syncSubscriptionsCacheBestEffort(tx, userId, 'decrement')
 
         return allocations
       })
@@ -185,7 +195,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
           }
         }
 
-        await syncSubscriptionsCacheBestEffort(tx, userId)
+        await syncSubscriptionsCacheBestEffort(tx, userId, 'increment')
       })
     },
 
