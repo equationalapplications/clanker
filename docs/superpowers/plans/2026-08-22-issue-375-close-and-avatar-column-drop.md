@@ -4,7 +4,7 @@
 
 **Goal:** Ship one combined PR to `staging` that (A) migrates every remaining reader off the legacy `characters.avatar` column and drops it via hand-written migration 0025, and (B) closes issue #375 with production numbers from the `credit_spend_events` ledger.
 
-**Architecture:** Part A removes the retired Phase 1 rollback net top-down — SQL migration first (with a shape-guard test), then the cloud read/write paths in `functions/`, then the app-side wire types and sync code, then the two deliberate UI tail fallbacks. Every mismatch cell in the old-client/new-backend compatibility matrix tolerates its counterpart, so deploy ordering is unconstrained and the change rides OTA. Part B is analysis-only: three SQL queries the user runs against prod, a drafted issue comment, a manual close.
+**Architecture:** Part A removes the retired Phase 1 rollback net top-down — SQL migration first (with a shape-guard test), then the cloud read/write paths in `functions/`, then the app-side wire types and sync code, then the two deliberate UI tail fallbacks. Every mismatch cell in the old-client/new-backend compatibility matrix tolerates its counterpart and the change rides OTA, but ordering is constrained on the backend axis: migration 0025 is destructive and the old functions revision still references `characters.avatar`, so the new backend revision must be deployed and serving traffic before 0025 applies. Part B is analysis-only: three SQL queries the user runs against prod, a drafted issue comment, a manual close.
 
 **Tech Stack:** TypeScript (Expo app root workspace), Firebase Functions (`functions/`, node:test — NOT Jest), Drizzle schema mirror with hand-written SQL migrations, PostgreSQL 18 (Cloud SQL), GitHub CLI for the issue/PR mechanics.
 
@@ -288,8 +288,8 @@ Leave `serializeCharacter`, `getPublicCharacterHandler` (its portrait path is `a
 
 - [ ] **Step 4: Run to verify green**
 
-Run: `cd functions && npm run typecheck && npm test`
-Expected: typecheck clean; full functions suite green (~469+ tests — the two new ones included, the repurposed one passing against `appearance`).
+Run: `cd functions && npm run typecheck && npm run lint && npm test`
+Expected: typecheck and lint clean; full functions suite green (~469+ tests — the two new ones included, the repurposed one passing against `appearance`).
 
 - [ ] **Step 5: Commit**
 
@@ -569,15 +569,20 @@ GROUP BY s.plan_tier;
 Write `/tmp/issue-375-comment.md` using this template (fill `<PASTE: …>` slots once the user replies; Task 9 posts it):
 
 ```markdown
-## Premise correction: librarian cost is structurally capped
+## Premise correction: spend-before-call bounds net spend, not lifetime attempts
 
-This issue assumed librarian LLM calls are an open-ended free-tier cost. They are not:
+This issue assumed librarian LLM calls are an open-ended free-tier cost. The spend-before-call
+pattern does bound **net** spend, but it does not establish a lifetime cap on attempts:
 
 - `wikiLlm` spends credits **before** every model call (`functions/src/wikiLlm.ts` —
   `spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')`) and hard-fails with
-  `failed-precondition` ("Insufficient credits") when the allocation comes back empty. A
-  free-tier user can never spend past their balance, so lifetime librarian exposure is
-  capped by spendable credits — at most the **5,000-credit signup grant**.
+  `failed-precondition` ("Insufficient credits") when the allocation comes back empty. A free-tier
+  user's balance can therefore never go negative: net librarian spend is capped by the spendable
+  balance — at most the **5,000-credit signup grant**.
+- However, failed model calls are **refunded**, and refunds restore the same allocation for reuse.
+  The grant caps concurrent spendable credits, not the number of librarian attempts over time —
+  refunded retries are not bounded by it. Bounding gross attempts would require failure-path data
+  the ledger does not currently separate out.
 - The real product risk was therefore trial cannibalization (librarian burning the
   conversion runway), not COGS.
 
@@ -587,7 +592,7 @@ not `credit_spend_events`, so the ledger cannot separate refunded attempts out. 
 net for failed calls; quantifying the failure/refund share is out of scope here.
 
 Coverage window: `credit_spend_events` went live 2026-08-22 (attribution shipped in
-#623/#624), so absolute volumes below are ~1 day old — the structural cap above does not
+#623/#624), so absolute volumes below are ~1 day old — the net-spend cap above does not
 depend on volume.
 
 ## Production numbers
@@ -612,9 +617,11 @@ depend on volume.
 
 ## Decision
 
-Cost acceptable, no change — exposure is structurally capped per user; ongoing
-monitoring continues via the `credit_spend_events` ledger. Queries preserved above for
-re-runs.
+Decision conditional on failure-path data: refunds restore the 5,000-credit allocation after
+failed calls while the ledger records gross attempts, so gross totals alone do not establish a
+lifetime cap on librarian attempts. If the pasted numbers show low gross volume, record
+"cost acceptable, no change" with that evidence; otherwise quantify refunded retries before
+deciding. Queries preserved above for re-runs.
 
 Closing manually (`Closes:` does not fire from a `staging`-targeted PR). Companion PR:
 #<PR_NUMBER>.
@@ -638,7 +645,7 @@ Closing manually (`Closes:` does not fire from a `staging`-targeted PR). Compani
 After ANY late commit, gates go stale — re-run them all at the final head, never trust earlier greens (recorded lesson from PR #624's format drift):
 
 ```bash
-cd functions && npm run typecheck && npm test && cd ..
+cd functions && npm run typecheck && npm run lint && npm test && cd ..
 npm run typecheck
 git diff --name-only origin/staging | grep -E '\.(ts|tsx|md|mjs)$' | xargs npx prettier --check
 ```
@@ -684,7 +691,9 @@ Explicitly accepted: legacy-cohort characters whose only portrait was the droppe
 render bundled default/initials after this ships. No backfill (user decision,
 2026-08-22). Local SQLite columns stay and go inert — no device migration.
 
-## Compatibility matrix (deploy ordering unconstrained)
+## Compatibility matrix (backend deploy must precede migration 0025)
+
+The old functions revision still references `characters.avatar`; against the post-migration schema it raises SQL errors. Applying 0025 before traffic moves to the new revision is the one unsupported state.
 
 | App ↓ · Backend →   | Old backend (column live)                                                                     | New backend (column dropped)                                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -743,7 +752,7 @@ Expected: `state: CLOSED`. (`Closes #375` was deliberately absent from the PR bo
 
 Recorded here so the sequence survives session boundaries — none of this is an executor task:
 
-1. Apply to prod: `cd functions && MIGRATIONS=0025_drop_characters_avatar.sql npm run deploy:migrations` (automatic on-demand Cloud SQL backup first; idempotency re-run should print "Skipping … already applied"). Ordering vs deploys/OTA is unconstrained per the compatibility matrix, but applying the migration first matches established practice.
-2. Promote and deploy the functions backend; confirm all updated functions report success.
-3. Publish the OTA update — verify no commit on the promoted range carries a `BREAKING CHANGE:` footer.
+1. Promote and deploy the updated functions backend FIRST; confirm all updated functions report success and traffic has moved off the previous revision — the old revision still references `characters.avatar`, which errors against the post-migration schema. Deploying the backend removal before the destructive migration is mandatory.
+2. Only then apply to prod: `cd functions && MIGRATIONS=0025_drop_characters_avatar.sql npm run deploy:migrations` (automatic on-demand Cloud SQL backup first; idempotency re-run should print "Skipping … already applied"). Never run this while the previous backend revision can still serve traffic.
+3. Publish the OTA update — verify no commit on the promoted range carries a `BREAKING CHANGE:` footer. This can go any time after step 1; it cannot race badly with a new-schema backend.
 4. Support runbook (from the spec): "my character lost its portrait" tickets on legacy characters have **no technical recovery path** — respond with that fact and offer re-generation via AvatarPicker.

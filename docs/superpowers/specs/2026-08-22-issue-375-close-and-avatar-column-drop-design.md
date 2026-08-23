@@ -55,13 +55,13 @@ new indexes.
 
 ### Cloud-side code (functions/)
 
-| File                                         | Change                                                                                                                                                                                            |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/db/schema.ts` (~160)                    | Remove `avatar: text('avatar')` from the `characters` pgTable.                                                                                                                                    |
-| `src/services/characterService.ts` (~9, ~26) | Remove `'avatar'` from the select field list and from the row→object mapping.                                                                                                                     |
-| `src/characterFunctions.ts` (~16)            | Remove `avatar` from `SyncCharacterPayload`; `syncCharacter` stops parsing (`parseOptionalTextField(character.avatar, ...)`) and storing it — old clients' extra payload field is simply ignored. |
-| `src/characterFunctions.ts` (~87)            | Drop `'avatar'` from the `updateCharacterField` field union. Old clients calling with `field: 'avatar'` get a validation error — acceptable; no current app code calls it.                        |
-| `serializeCharacter`                         | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged.                                |
+| File                                         | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/db/schema.ts` (~160)                    | Remove `avatar: text('avatar')` from the `characters` pgTable.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `src/services/characterService.ts` (~9, ~26) | Remove `'avatar'` from the select field list and from the row→object mapping.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `src/characterFunctions.ts` (~16)            | Remove `avatar` from `SyncCharacterPayload`; `syncCharacter` stops parsing (`parseOptionalTextField(character.avatar, ...)`) and storing it — old clients' extra payload field is simply ignored.                                                                                                                                                                                                                                                                                                             |
+| `src/characterFunctions.ts`                  | No single-field-update callable exists — validation flows through the `syncCharacter` payload contract instead: `SyncCharacterPayload` optional text fields (`appearance`, `traits`, `emotions`, `context`, `voice`) pass through `parseOptionalTextField` (must be a string or null when present; otherwise `invalid-argument`), `name` must be a non-empty string, and `id` must be a UUID when provided. Remove `avatar` from `SyncCharacterPayload`; old clients sending it have the extra field ignored. |
+| `serializeCharacter`                         | Stops emitting `avatar` in API responses. `getPublicCharacter` already resolves portraits via `active_image_id` → signed Storage URL and keeps doing so unchanged.                                                                                                                                                                                                                                                                                                                                            |
 
 `parseOptionalTextField` itself **stays** — it is shared by appearance/traits/emotions/context. Only
 the avatar argument/call-site goes; do not delete the helper.
@@ -103,10 +103,13 @@ the net that catches any reference missed here.
 | **Pre-Phase-1 app** (reads/writes `avatar`) | today's behavior                                                                                                                        | upload field ignored; responses lack `avatar` → UI falls through to bundled default. Pre-Phase-1 clients lose legacy portraits — this is the accepted cost of the drop, not a crash surface (`avatar` is optional/nullable everywhere). |
 | **New app** (post-drop, no `avatar` code)   | works; backend stores/returns `avatar: null`, new client ignores it. Transient window only: between OTA publish and the backend deploy. | target state                                                                                                                                                                                                                            |
 
-Because every cell tolerates its mismatch, **deploy ordering is unconstrained**: the backend deploy
-(which applies migration 0025 via `scripts/migrate.mjs`) and the app OTA cannot race badly. The
-pairing that persists indefinitely is pre-Phase-1 app × new backend — devices that never take the
-OTA — and that row's cost is exactly the accepted portrait loss above.
+Every app↔backend cell above tolerates its mismatch, but there is one state the matrix's backend
+axis must not enter: **old functions revision × new schema**. The old revision still references
+`characters.avatar`, so once migration 0025 has dropped the column, any request it serves can
+raise SQL errors (`column "avatar" does not exist`). That pairing is therefore forbidden rather
+than tolerated: the new backend revision must be deployed and serving traffic before 0025
+applies. The pairing that does persist indefinitely is pre-Phase-1 app × new backend — devices
+that never take the OTA — and that row's cost is exactly the accepted portrait loss above.
 
 ### Rollback posture
 
@@ -127,24 +130,34 @@ environment; the
 PR targets the `staging` branch per repo convention and reaches prod via the normal promotion flow,
 with the post-deploy traffic check on the new revision.
 
+Safe rollout sequence (ordering is constrained on the backend axis):
+
+1. Promote and deploy the new functions revision; confirm all updated functions report success
+   and traffic has moved off the previous revision (post-deploy traffic check).
+2. Only then apply migration 0025 — never while the old revision can still serve traffic,
+   because it still references `characters.avatar`.
+3. Publish the OTA update any time after step 1; it cannot race badly with a new-schema backend.
+
 ---
 
 ## Part B — close issue #375
 
 ### Premise correction (verified in code)
 
-The issue assumes librarian LLM calls are an open-ended free-tier cost. They are not:
+The issue assumes librarian LLM calls are an open-ended free-tier cost. The spend-before-call
+pattern bounds **net** spend but does not establish a lifetime cap on attempts:
 `functions/src/wikiLlm.ts` (:137) calls `spendCredits(user.id, WIKI_CREDIT_COST, 'wiki_llm')`
 **before** the model call, and a `null` allocation throws `failed-precondition` ('Insufficient
-credits'). A free user therefore can never spend past their balance: lifetime librarian exposure is
-capped by their spendable credits — at most the 5,000-credit signup grant. The real product risk was
-trial cannibalization, not COGS. (Failed model calls refund the spend, but refunds do **not** write
-negative rows into `credit_spend_events` — `refundCredit` touches only `credit_transactions` — so
-ledger totals below are gross attempted spends.) This premise does not depend on refund
-bookkeeping at all — the ledger structurally records spend attempts only; PR #626's SAVEPOINT fix
-(cache-sync isolation inside `refundCredit`) is orthogonal here. One visibility limit to name in
-the comment: gross ≠ net when a wiki call fails and is refunded, and the ledger cannot separate
-those refunds out — quantifying the failure/refund share is out of scope for this analysis.
+credits') — so a free user's balance can never go negative, and net librarian spend is capped by
+the spendable balance (at most the 5,000-credit signup grant). However, failed model calls are
+**refunded**, and `refundCredit` restores the same allocation for reuse — so the grant caps
+concurrent spendable credits, not the number of librarian attempts over time. Bounding gross
+attempts would require failure-path data the ledger does not separate out. The real product risk
+was trial cannibalization, not COGS. (Refunds do not write negative rows into
+`credit_spend_events` — `refundCredit` touches only `credit_transactions` — so ledger totals
+below are gross attempted spends, and gross ≠ net whenever a wiki call fails and is refunded;
+quantifying the failure/refund share is out of scope for this analysis.) PR #626's SAVEPOINT fix
+(cache-sync isolation inside `refundCredit`) is orthogonal here.
 
 ### Analysis SQL (run against prod Cloud SQL; results pasted back)
 
@@ -200,10 +213,12 @@ GROUP BY s.plan_tier;
 ### Mechanics
 
 1. Draft the comment on #375: premise correction + the three query results + decision.
-2. Expected decision: **"cost acceptable, no change"** — structurally capped, monitoring continues
-   via the ledger. If the pasted numbers contradict the premise in some unexpected way, flag it and
-   discuss before closing rather than forcing the expected verdict; either way the issue requires a
-   documented decision, which the comment provides.
+2. Expected decision: **"cost acceptable, no change"**, conditional on the failure-path data —
+   refunds restore the 5,000-credit allocation after failed calls while the ledger records gross
+   attempts, so gross totals alone do not bound lifetime librarian attempts. If the pasted numbers
+   contradict the premise in some unexpected way (or show meaningful refunded-retry volume without
+   a failure-path breakdown), flag it and discuss before closing rather than forcing the expected
+   verdict; either way the issue requires a documented decision, which the comment provides.
 3. Post the comment, then **close #375 manually** — `Closes #375` in the PR description will not
    auto-fire because PRs here merge to `staging`, not the repository's default branch. Link the PR
    from the closing comment.
@@ -222,6 +237,8 @@ GROUP BY s.plan_tier;
   convention to mirror (the cited-by-review `creditSpendEventsMigration.test.ts` does not exist) —
   this starts one and blocks an accidental `drizzle-kit generate` from swapping in different SQL.
 - **Typecheck** in every touched workspace — primary completeness check for reader removal.
+- **Functions lint:** any `functions/**` change also runs `cd functions && npm run lint` — the full
+  gate is `cd functions && npm run typecheck && npm run lint && npm test` per repo guidelines.
 - **Unit tests:** update fixtures/tests referencing the removed field; run scoped only
   (`npx jest <path>` at root — a bare run collects the unrigged tree).
 - **Manual smoke (web or emulator):** a character with a gallery row still renders its portrait via
