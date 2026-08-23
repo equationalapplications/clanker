@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MIGRATION_ORDER, migrationIndex, missingPrerequisites } from './migrationOrder.mjs';
 
 test('MIGRATION_ORDER has no duplicates', () => {
@@ -62,4 +65,18 @@ test('missing prerequisites are reported in apply order', () => {
   const target = '0005_subscriptions_document_counter.sql';
   const missing = missingPrerequisites(target, new Set());
   assert.deepEqual(missing, MIGRATION_ORDER.slice(0, migrationIndex(target)));
+});
+
+const DRIZZLE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
+
+test('the newest tracked migration is the characters.avatar drop', () => {
+  assert.equal(MIGRATION_ORDER[MIGRATION_ORDER.length - 1], '0025_drop_characters_avatar.sql');
+});
+
+test("0025's SQL drops the avatar column and nothing else", () => {
+  // Shape guard: the journal is out of sync, so an accidental `drizzle-kit
+  // generate` could swap different SQL in under a registered filename. Pin the
+  // exact text — this starts the repo's first SQL-text-shape convention.
+  const sql = readFileSync(join(DRIZZLE_DIR, '0025_drop_characters_avatar.sql'), 'utf8').trim();
+  assert.equal(sql, 'ALTER TABLE characters DROP COLUMN IF EXISTS avatar;');
 });

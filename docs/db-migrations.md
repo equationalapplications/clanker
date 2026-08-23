@@ -63,33 +63,34 @@ SELECT filename, applied_at FROM schema_migrations ORDER BY id;
 This table is kept as a human-readable changelog of what each migration does. It is no longer
 load-bearing, and was demonstrably unreliable while it was (see the incident note above).
 
-| #       | File                                               | Notes                                                                                                                                   |
-| ------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| initial | `0000_dazzling_kid_colt.sql`                       | Initial schema                                                                                                                          |
-| 1       | `0001_credit_transactions_idempotency.sql`         | Idempotency index. **Not actually applied until 2026-08-01** despite this table long claiming otherwise — see incident note above       |
-| 2       | `0002_users_timestamps_not_null.sql`               | NOT NULL constraints                                                                                                                    |
-| 3       | `0003_character_voice.sql`                         | `characters.voice` (applied manually, not in Drizzle journal)                                                                           |
-| 4       | `0004_wiki_memory.sql`                             | Wiki memory tables                                                                                                                      |
-| 5       | `0004_lame_gwen_stacy.sql`                         | `source_hash`/`source_ref`, updated constraint                                                                                          |
-| 6       | `0005_subscriptions_document_counter.sql`          | Document counter columns                                                                                                                |
-| 7       | `0006_partial_source_hash_index.sql`               | Partial index                                                                                                                           |
-| 8       | `0007_source_ref_idx.sql`                          | Index on source_ref                                                                                                                     |
-| 9       | `0008_wiki_memory_v2.sql`                          | LLM wiki tables + `characters.save_to_cloud`                                                                                            |
-| 10      | `0009_odd_sandman.sql`                             | LLM wiki columns                                                                                                                        |
-| 11      | `0010_fix_source_type_check.sql`                   | Fix CHECK constraint                                                                                                                    |
-| 12      | `0011_credits_redesign.sql`                        | Credit transactions redesign                                                                                                            |
-| 13      | `0012_update_handle_new_user_trigger.sql`          | Update signup credit trigger                                                                                                            |
-| 14      | `0013_cloud_agent_tasks.sql`                       | Cloud agent task tracking                                                                                                               |
-| 15      | `0015_organizations.sql`                           | `organizations`/`organization_members` tables                                                                                           |
-| 16      | `0016_llm_wiki_graph.sql`                          | `llm_wiki_edges`/`llm_wiki_ontology` tables                                                                                             |
-| 17      | `0017_expo_push_token.sql`                         | `users.expo_push_token` column for Expo Push (bridge Phase 2)                                                                           |
-| 18      | `0018_billing_hardening.sql`                       | `subscriptions.subscription_provider`/`cancel_at_period_end`, `processed_stripe_events` dedupe table, unique `stripe_customer_id` index |
-| 19      | `0019_character_voice_default_fix.sql`             | Fix `characters.voice` default/backfill off stale `Umbriel` value                                                                       |
-| 20      | `0020_credit_power_scale.sql`                      | Inflate `credit_transactions`/`subscriptions` credit balances ×100 for Power unit rename                                                |
-| 21      | `0021_fix_handle_new_user_trigger_power_scale.sql` | Fix `handle_new_user()` trigger still hardcoding 50 (missed by 0020, which only updated existing rows) — new signups now get 5,000      |
-| 22      | `0022_character_images.sql`                        | `character_images` table + `characters.active_image_id` for the image pipeline refactor (PR #580)                                       |
-| 23      | `0023_character_images_chat.sql`                   | `character_images.message_id` for chat photo uploads (Phase 2 vision/chat-uploads)                                                      |
-| 24      | `0024_credit_spend_events.sql`                     | Append-only `credit_spend_events` attribution ledger (issue #375; PR #623). Applied to prod 2026-08-22 with pre-backup                  |
+| #       | File                                               | Notes                                                                                                                                                 |
+| ------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| initial | `0000_dazzling_kid_colt.sql`                       | Initial schema                                                                                                                                        |
+| 1       | `0001_credit_transactions_idempotency.sql`         | Idempotency index. **Not actually applied until 2026-08-01** despite this table long claiming otherwise — see incident note above                     |
+| 2       | `0002_users_timestamps_not_null.sql`               | NOT NULL constraints                                                                                                                                  |
+| 3       | `0003_character_voice.sql`                         | `characters.voice` (applied manually, not in Drizzle journal)                                                                                         |
+| 4       | `0004_wiki_memory.sql`                             | Wiki memory tables                                                                                                                                    |
+| 5       | `0004_lame_gwen_stacy.sql`                         | `source_hash`/`source_ref`, updated constraint                                                                                                        |
+| 6       | `0005_subscriptions_document_counter.sql`          | Document counter columns                                                                                                                              |
+| 7       | `0006_partial_source_hash_index.sql`               | Partial index                                                                                                                                         |
+| 8       | `0007_source_ref_idx.sql`                          | Index on source_ref                                                                                                                                   |
+| 9       | `0008_wiki_memory_v2.sql`                          | LLM wiki tables + `characters.save_to_cloud`                                                                                                          |
+| 10      | `0009_odd_sandman.sql`                             | LLM wiki columns                                                                                                                                      |
+| 11      | `0010_fix_source_type_check.sql`                   | Fix CHECK constraint                                                                                                                                  |
+| 12      | `0011_credits_redesign.sql`                        | Credit transactions redesign                                                                                                                          |
+| 13      | `0012_update_handle_new_user_trigger.sql`          | Update signup credit trigger                                                                                                                          |
+| 14      | `0013_cloud_agent_tasks.sql`                       | Cloud agent task tracking                                                                                                                             |
+| 15      | `0015_organizations.sql`                           | `organizations`/`organization_members` tables                                                                                                         |
+| 16      | `0016_llm_wiki_graph.sql`                          | `llm_wiki_edges`/`llm_wiki_ontology` tables                                                                                                           |
+| 17      | `0017_expo_push_token.sql`                         | `users.expo_push_token` column for Expo Push (bridge Phase 2)                                                                                         |
+| 18      | `0018_billing_hardening.sql`                       | `subscriptions.subscription_provider`/`cancel_at_period_end`, `processed_stripe_events` dedupe table, unique `stripe_customer_id` index               |
+| 19      | `0019_character_voice_default_fix.sql`             | Fix `characters.voice` default/backfill off stale `Umbriel` value                                                                                     |
+| 20      | `0020_credit_power_scale.sql`                      | Inflate `credit_transactions`/`subscriptions` credit balances ×100 for Power unit rename                                                              |
+| 21      | `0021_fix_handle_new_user_trigger_power_scale.sql` | Fix `handle_new_user()` trigger still hardcoding 50 (missed by 0020, which only updated existing rows) — new signups now get 5,000                    |
+| 22      | `0022_character_images.sql`                        | `character_images` table + `characters.active_image_id` for the image pipeline refactor (PR #580)                                                     |
+| 23      | `0023_character_images_chat.sql`                   | `character_images.message_id` for chat photo uploads (Phase 2 vision/chat-uploads)                                                                    |
+| 24      | `0024_credit_spend_events.sql`                     | Append-only `credit_spend_events` attribution ledger (issue #375; PR #623). Applied to prod 2026-08-22 with pre-backup                                |
+| 25      | `0025_drop_characters_avatar.sql`                  | Drop legacy `characters.avatar` rollback-net column (Phase 1 OTA cycle elapsed; readers migrated in the same PR). Rides OTA with the app-side removal |
 
 `0014_pgvector_wiki_embeddings.sql` **is** applied to `clanker-prod` (a 2026-08-01 schema audit
 confirmed the `vector` extension, `llm_wiki_entries.embedding`, and the HNSW index
