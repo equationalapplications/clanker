@@ -1,7 +1,7 @@
 # Close #375 + drop `characters.avatar` — design
 
 - **Date:** 2026-08-22
-- **Status:** Approved (design); implementation to follow on this branch
+- **Status:** Implemented (2026-08-23) on `chore/issue-375-and-avatar-column-drop` — code tasks 1–4 complete and task-reviewed; manual smoke (Task 6) handed to user; issue #375 comment + close pending production numbers
 - **Branch / PR:** `chore/issue-375-and-avatar-column-drop`, one PR targeting `staging`
 - **Related specs:** [avatar render pipeline divergence](2026-08-10-avatar-render-pipeline-divergence-design.md), [avatar bubble unification](2026-08-10-avatar-bubble-unification-design.md), [streaming-id unification & credit-spend attribution](2026-08-21-streaming-id-unification-and-credit-spend-attribution-design.md)
 
