@@ -1,9 +1,11 @@
 /**
  * Avatar source precedence for ChatView's header and message bubbles.
  *
- * Chain: resolved(active_image_id) → legacy characters.avatar → bundled default.
- * The header is installed through drawerNav.setOptions, so it is captured and
- * rendered separately from the main tree.
+ * Chain: resolved(active_image_id) → bundled default. The legacy
+ * `characters.avatar` tail fallback was removed when the column was dropped; a
+ * missing resolve now goes straight to the bundled default. The header is
+ * installed through drawerNav.setOptions, so it is captured and rendered
+ * separately from the main tree.
  */
 
 import React from 'react'
@@ -293,24 +295,16 @@ describe('ChatView avatar source', () => {
     mockUseAIChat.mockReturnValue(mockDefaultAIChatMock())
   })
 
-  it('header prefers the resolved image over a stale legacy avatar URL', () => {
+  it('header prefers the resolved image when a row is present', () => {
     mockResolved = 'file:///new.webp'
-    renderChat(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
+    renderChat(baseCharacter({ active_image_id: 'img-1' }))
     renderHeader()
 
     expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'thumb')
     expect(capturedAvatarProps[0].imageUrl).toBe('file:///new.webp')
   })
 
-  it('header falls back to the legacy avatar URL when nothing resolves', () => {
-    mockResolved = null
-    renderChat(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
-    renderHeader()
-
-    expect(capturedAvatarProps[0].imageUrl).toBe('https://old.example/legacy.png')
-  })
-
-  it('header passes null when there is neither a row nor a legacy URL', () => {
+  it('header passes null when nothing resolves', () => {
     mockResolved = null
     renderChat(baseCharacter({}))
     renderHeader()
@@ -318,21 +312,10 @@ describe('ChatView avatar source', () => {
     expect(capturedAvatarProps[0].imageUrl).toBeNull()
   })
 
-  it('message bubbles prefer the resolved image over a stale legacy avatar URL', () => {
+  it('message bubbles prefer the resolved image when a row is present', () => {
     mockResolved = 'file:///new.webp'
 
-    expect(
-      bubbleCharacterProps({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' })
-        .imageUrl,
-    ).toBe('file:///new.webp')
-  })
-
-  it('message bubbles fall back to the legacy avatar URL', () => {
-    mockResolved = null
-
-    expect(bubbleCharacterProps({ avatar: 'https://old.example/legacy.png' }).imageUrl).toBe(
-      'https://old.example/legacy.png',
-    )
+    expect(bubbleCharacterProps({ active_image_id: 'img-1' }).imageUrl).toBe('file:///new.webp')
   })
 
   // The phase 2 change itself: an avatar-less character renders the bundled
