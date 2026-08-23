@@ -33,10 +33,6 @@ CORS_ORIGIN="${CORS_ORIGIN:-https://clanker-ai.com,https://clanker-prod.web.app,
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${REPO_ROOT}"
 
-echo "Building and pushing ${IMAGE}..."
-gcloud builds submit --project "${PROJECT_ID}" --config cloudbuild.yaml .
-
-echo "Deploying ${SERVICE} to Cloud Run (${REGION})..."
 DEPLOY_ARGS=(
   --project "${PROJECT_ID}"
   --image "${IMAGE}"
@@ -58,6 +54,28 @@ if [[ "${ALLOW_UNAUTHENTICATED}" == "true" ]]; then
 else
   DEPLOY_ARGS+=(--no-allow-unauthenticated)
 fi
+
+# TRAFFIC_CHECK_ATTEMPTS governs the post-deploy traffic assertion below.
+# Validate it BEFORE building/deploying: under `set -e` a bad value would
+# otherwise abort the script only when that check runs — after a successful
+# deploy — reporting a healthy deploy as failed. Reject anything that is not a
+# positive integer (a zero would silently disable the retry loop). Gated on the
+# same escape hatches as the assertion itself: SKIP_TRAFFIC_CHECK=true and
+# --no-traffic deploys never read this value, so aborting them here would block
+# deliberate holds/emergency deploys over a variable they don't consume.
+if [[ "${SKIP_TRAFFIC_CHECK:-}" != "true" ]] \
+    && ! printf '%s\n' "${DEPLOY_ARGS[@]}" | grep -qx -- '--no-traffic'; then
+  _TRAFFIC_CHECK_ATTEMPTS="${TRAFFIC_CHECK_ATTEMPTS:-6}"
+  if ! [[ "${_TRAFFIC_CHECK_ATTEMPTS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: TRAFFIC_CHECK_ATTEMPTS must be a positive integer (got '${_TRAFFIC_CHECK_ATTEMPTS}')." >&2
+    exit 1
+  fi
+fi
+
+echo "Building and pushing ${IMAGE}..."
+gcloud builds submit --project "${PROJECT_ID}" --config cloudbuild.yaml .
+
+echo "Deploying ${SERVICE} to Cloud Run (${REGION})..."
 
 # Remember what the newest revision was BEFORE deploying, so the traffic
 # check below can report whether this deploy created a revision at all (a
@@ -87,16 +105,6 @@ if [[ "${SKIP_TRAFFIC_CHECK:-}" == "true" ]]; then
 elif printf '%s\n' "${DEPLOY_ARGS[@]}" | grep -qx -- '--no-traffic'; then
   echo "--no-traffic deploy requested, skipping post-deploy traffic check."
 else
-  # Clamp TRAFFIC_CHECK_ATTEMPTS to a positive integer (default 6). Under
-  # `set -e` a non-numeric value would crash `seq` and abort the script
-  # AFTER a successful deploy — suppressing the very check this block exists
-  # to enforce. A zero value silently disables the loop; clamp to 1 instead.
-  _TRAFFIC_CHECK_ATTEMPTS="${TRAFFIC_CHECK_ATTEMPTS:-6}"
-  if ! [[ "${_TRAFFIC_CHECK_ATTEMPTS}" =~ ^[1-9][0-9]*$ ]]; then
-    echo "Error: TRAFFIC_CHECK_ATTEMPTS must be a positive integer (got '${_TRAFFIC_CHECK_ATTEMPTS}')." >&2
-    exit 1
-  fi
-
   TARGET_REVISION="$(gcloud run services describe "${SERVICE}" \
     --project "${PROJECT_ID}" --region "${REGION}" \
     --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
