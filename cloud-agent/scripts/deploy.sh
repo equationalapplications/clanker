@@ -59,6 +59,14 @@ else
   DEPLOY_ARGS+=(--no-allow-unauthenticated)
 fi
 
+# Remember what the newest revision was BEFORE deploying, so the traffic
+# check below can report whether this deploy created a revision at all (a
+# redeploy of unchanged config reuses the existing revision). Guarded
+# because the service may not exist yet on a first-ever deploy.
+PREV_LATEST_REVISION="$(gcloud run services describe "${SERVICE}" \
+  --project "${PROJECT_ID}" --region "${REGION}" \
+  --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
+
 gcloud run deploy "${SERVICE}" "${DEPLOY_ARGS[@]}"
 
 # --- Post-deploy traffic assertion -------------------------------------------
@@ -88,14 +96,6 @@ else
     echo "Error: TRAFFIC_CHECK_ATTEMPTS must be a positive integer (got '${_TRAFFIC_CHECK_ATTEMPTS}')." >&2
     exit 1
   fi
-
-  # Remember what the newest revision was BEFORE deploying, so the traffic
-  # check can report whether this deploy created a revision at all (a
-  # redeploy of unchanged config reuses the existing revision). Guarded
-  # because the service may not exist yet on a first-ever deploy.
-  PREV_LATEST_REVISION="$(gcloud run services describe "${SERVICE}" \
-    --project "${PROJECT_ID}" --region "${REGION}" \
-    --format='value(status.latestCreatedRevisionName)' 2>/dev/null || true)"
 
   TARGET_REVISION="$(gcloud run services describe "${SERVICE}" \
     --project "${PROJECT_ID}" --region "${REGION}" \
