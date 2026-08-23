@@ -29,6 +29,40 @@ function normalizeSpendReason(reason: string): string {
   return normalized
 }
 
+// Update subscriptions cache (row is already locked by the outer tx). Best-effort
+// — but a bare try/catch cannot deliver that: a Postgres error here aborts the
+// WHOLE transaction (25P02), and Drizzle's final COMMIT on an aborted
+// transaction acts as ROLLBACK, silently discarding the spend/refund above
+// while callers still see success. The SAVEPOINT isolates the failure so only
+// the cache write rolls back and the outer commit stays real.
+// credit_transactions is the source of truth; this column is a denormalized
+// cache recomputed on each mutation. Typed structurally so both the outer db
+// and the SAVEPOINT-bound tx satisfy it (their Drizzle types differ only in
+// whether $client is present).
+type CacheSyncTx = {
+  transaction<T>(callback: (tx: CacheSyncTx) => Promise<T>): Promise<T>
+  execute(query: unknown): Promise<{ rows: unknown[] }>
+}
+
+async function syncSubscriptionsCacheBestEffort(tx: CacheSyncTx, userId: string): Promise<void> {
+  await tx
+    .transaction(async (cacheTx) => {
+      await cacheTx.execute(sql`
+        UPDATE subscriptions
+        SET current_credits = (
+          SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+          FROM credit_transactions
+          WHERE user_id = ${userId}
+            AND (expires_at IS NULL OR expires_at > NOW())
+        )
+        WHERE user_id = ${userId}
+      `)
+    })
+    .catch((err) => {
+      console.warn(`subscriptions.current_credits cache sync failed user=${userId}`, err)
+    })
+}
+
 export function createCreditService(db: DrizzleClient): CreditService {
   return {
     async spendCredit(
@@ -103,30 +137,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
           VALUES (${userId}, ${amount}, ${reasonText})
         `)
 
-        // Update subscriptions cache (row is already locked). Best-effort — but a
-        // bare try/catch cannot deliver that: a Postgres error here aborts the
-        // WHOLE transaction (25P02), and Drizzle's final COMMIT on an aborted
-        // transaction acts as ROLLBACK, silently discarding the spend AND the
-        // attribution row above while allocations were still returned. The
-        // SAVEPOINT isolates the failure so only the cache write rolls back and
-        // the outer commit stays real.
-        await tx
-          .transaction(async (cacheTx) => {
-            await cacheTx.execute(sql`
-              UPDATE subscriptions
-              SET current_credits = (
-                SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
-                FROM credit_transactions
-                WHERE user_id = ${userId}
-                  AND (expires_at IS NULL OR expires_at > NOW())
-              )
-              WHERE user_id = ${userId}
-            `)
-          })
-          .catch((err) => {
-            // Best-effort cache sync; credit_transactions is the source of truth.
-            console.warn(`subscriptions.current_credits decrement failed user=${userId}`, err)
-          })
+        await syncSubscriptionsCacheBestEffort(tx, userId)
 
         return allocations
       })
@@ -174,29 +185,7 @@ export function createCreditService(db: DrizzleClient): CreditService {
           }
         }
 
-        // Update subscriptions cache (row is already locked). Best-effort — but a
-        // bare try/catch cannot deliver that: a Postgres error here aborts the
-        // WHOLE transaction (25P02), and Drizzle's final COMMIT on an aborted
-        // transaction acts as ROLLBACK, silently discarding the refund above
-        // while callers still see success. The SAVEPOINT isolates the failure
-        // so only the cache write rolls back and the outer commit stays real.
-        await tx
-          .transaction(async (cacheTx) => {
-            await cacheTx.execute(sql`
-              UPDATE subscriptions
-              SET current_credits = (
-                SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
-                FROM credit_transactions
-                WHERE user_id = ${userId}
-                  AND (expires_at IS NULL OR expires_at > NOW())
-              )
-              WHERE user_id = ${userId}
-            `)
-          })
-          .catch((err) => {
-            // Best-effort cache sync; credit_transactions is the source of truth.
-            console.warn(`subscriptions.current_credits increment failed user=${userId}`, err)
-          })
+        await syncSubscriptionsCacheBestEffort(tx, userId)
       })
     },
 
