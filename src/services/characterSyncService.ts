@@ -89,6 +89,29 @@ function generateLocalCharacterId() {
   return `char_${generateSecureUuid()}`
 }
 
+// Carry over the three legacy portrait columns from the local row, never
+// read from the cloud snapshot:
+// - `avatar` stopped shipping with the cloud snapshot when migration 0025
+//   dropped characters.avatar. batchInsertCharacters is INSERT OR REPLACE,
+//   so hardcoding null here would wipe the rollback copy of any character
+//   the one-shot migration has not converted yet (a partial migration
+//   retries on the next launch, and this restore can run in between). On a
+//   genuinely new device there is no local row and this is null anyway.
+// - `avatar_data` and `avatar_mime_type` live in `character_images` now
+//   (see reconcileCharacterImages), so these legacy columns are inert but
+//   still carried over from the local row for the same reason.
+function legacyPortraitCarryOver(existingLocal: LocalCharacter | undefined): {
+  avatar: string | null
+  avatar_data: string | null
+  avatar_mime_type: string | null
+} {
+  return {
+    avatar: existingLocal?.avatar ?? null,
+    avatar_data: existingLocal?.avatar_data ?? null,
+    avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
+  }
+}
+
 export async function getLastSyncTime(): Promise<string | null> {
   return Storage.getItem(LAST_SYNC_KEY)
 }
@@ -343,24 +366,7 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
           id: localId,
           user_id: localUserId,
           name: cloudChar.name,
-          // The cloud snapshot stopped carrying the legacy `avatar` URL when
-          // the column was dropped (migration 0025). batchInsertCharacters is
-          // INSERT OR REPLACE, so carry over whatever the local row has rather
-          // than hard-nulling — on un-migrated devices that local value is the
-          // last copy of a legacy portrait. A genuinely new device has no local
-          // row and gets null: the intended "no gallery portrait yet" state.
-          avatar: existingLocal?.avatar ?? null,
-          // Never read from the cloud snapshot — images live in
-          // `character_images` now (see reconcileCharacterImages below), so
-          // this legacy column is inert. But it is carried over from the
-          // local row rather than nulled: batchInsertCharacters is INSERT OR
-          // REPLACE, so hardcoding null here would wipe the rollback copy of
-          // any character the one-shot migration has not converted yet (a
-          // partial migration retries on the next launch, and this restore
-          // can run in between). On a genuinely new device there is no local
-          // row and this is null anyway.
-          avatar_data: existingLocal?.avatar_data ?? null,
-          avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
+          ...legacyPortraitCarryOver(existingLocal),
           appearance: cloudChar.appearance,
           traits: cloudChar.traits,
           emotions: cloudChar.emotions,
@@ -501,12 +507,7 @@ export async function importSharedCharacterFromCloud(
       id: localCharacterId,
       user_id: localUserId,
       name: cloudCharacter.name,
-      // Same reasoning as restoreFromCloud: the snapshot no longer carries the
-      // dropped legacy column, and INSERT OR REPLACE means preserve whatever a
-      // previous import of this character already had locally.
-      avatar: existingLocal?.avatar ?? null,
-      avatar_data: existingLocal?.avatar_data ?? null,
-      avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
+      ...legacyPortraitCarryOver(existingLocal),
       appearance: cloudCharacter.appearance,
       traits: cloudCharacter.traits,
       emotions: cloudCharacter.emotions,
