@@ -148,7 +148,7 @@ test('syncCharacterHandler rejects invalid optional text fields', async () => {
           data: {
             character: {
               name: 'Nova',
-              avatar: 42,
+              appearance: 42,
             },
           },
         } as never,
@@ -157,8 +157,54 @@ test('syncCharacterHandler rejects invalid optional text fields', async () => {
     (err: unknown) =>
       err instanceof HttpsError &&
       err.code === 'invalid-argument' &&
-      err.message.includes('character.avatar must be a string or null'),
+      err.message.includes('character.appearance must be a string or null'),
   )
+})
+
+test('syncCharacterHandler silently drops the removed avatar payload field', async () => {
+  const captured: unknown[] = []
+  const createdAt = new Date('2026-01-01T00:00:00.000Z')
+  const updatedAt = new Date('2026-01-02T00:00:00.000Z')
+  const result = await syncCharacterHandler(
+    {
+      auth,
+      data: {
+        // Pre-drop clients still send `avatar`; the field must be ignored —
+        // neither rejected nor stored.
+        character: { name: 'Nova', avatar: 'https://example.com/legacy.png' },
+      },
+    } as never,
+    {
+      userRepository: {
+        findUserByFirebaseUid: async () => ({ id: 'user-1' }) as never,
+      },
+      characterService: {
+        upsertCharacter: async (...args: unknown[]) => {
+          captured.push(args[0])
+          return {
+            id: 'character-1',
+            userId: 'user-1',
+            name: 'Nova',
+            appearance: null,
+            traits: null,
+            emotions: null,
+            context: null,
+            isPublic: false,
+            createdAt,
+            updatedAt,
+          } as never
+        },
+      } as never,
+      creditService: {
+        spendCredits: async () => [{ transactionId: 'tx-123', amount: 1 }],
+        refundCredit: async () => {},
+      },
+    } as unknown as CharacterFunctionDeps,
+  )
+
+  assert.equal((result as Record<string, unknown>).name, 'Nova')
+  assert.equal(captured.length, 1)
+  assert.equal('avatar' in (captured[0] as Record<string, unknown>), false)
 })
 
 test('syncCharacterHandler rejects invalid optional boolean field', async () => {
@@ -209,7 +255,6 @@ test('syncCharacterHandler returns timestamps as ISO strings', async () => {
             id: 'character-1',
             userId: 'user-1',
             name: 'Nova',
-            avatar: null,
             appearance: null,
             traits: null,
             emotions: null,
@@ -564,7 +609,6 @@ test('getUserCharactersHandler returns character timestamps as ISO strings', asy
               id: 'character-1',
               userId: 'user-1',
               name: 'Nova',
-              avatar: null,
               appearance: null,
               traits: null,
               emotions: null,
@@ -679,7 +723,6 @@ test('getUserCharactersHandler allows users without cloud-character subscription
               id: 'character-1',
               userId: 'user-1',
               name: 'Nova',
-              avatar: null,
               appearance: null,
               traits: null,
               emotions: null,
@@ -720,7 +763,6 @@ test('getPublicCharacterHandler allows users without cloud-character subscriptio
               id: 'character-1',
               userId: 'user-1',
               name: 'Nova',
-              avatar: null,
               appearance: null,
               traits: null,
               emotions: null,
@@ -762,7 +804,6 @@ test('getPublicCharacterHandler returns shared public character', async () => {
               id: '123e4567-e89b-42d3-a456-426614174000',
               userId: 'owner-1',
               name: 'Nova',
-              avatar: 'https://example.com/avatar.png',
               appearance: 'Tall',
               traits: 'Calm',
               emotions: 'Happy',
@@ -888,7 +929,6 @@ test('syncCharacterHandler response includes ownerUserId', async () => {
             id: 'character-1',
             userId: 'user-1',
             name: 'Nova',
-            avatar: null,
             appearance: null,
             traits: null,
             emotions: null,

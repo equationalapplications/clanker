@@ -157,7 +157,6 @@ export const characters = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    avatar: text('avatar'),
     appearance: text('appearance'),
     traits: text('traits'),
     emotions: text('emotions'),
