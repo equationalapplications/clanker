@@ -69,8 +69,11 @@ test('missing prerequisites are reported in apply order', () => {
 
 const DRIZZLE_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'drizzle');
 
-test('the newest tracked migration is the characters.avatar drop', () => {
-  assert.equal(MIGRATION_ORDER[MIGRATION_ORDER.length - 1], '0025_drop_characters_avatar.sql');
+test('0025_drop_characters_avatar.sql is registered in MIGRATION_ORDER', () => {
+  // Inclusion, not "is last": a positional pin would fail on every future
+  // migration appended after 0025, and the shape guard below already pins
+  // 0025's contents.
+  assert.ok(MIGRATION_ORDER.includes('0025_drop_characters_avatar.sql'));
 });
 
 test("0025's SQL drops the avatar column and nothing else", () => {
