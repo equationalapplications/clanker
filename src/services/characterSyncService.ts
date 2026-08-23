@@ -343,7 +343,13 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
           id: localId,
           user_id: localUserId,
           name: cloudChar.name,
-          avatar: cloudChar.avatar,
+          // The cloud snapshot stopped carrying the legacy `avatar` URL when
+          // the column was dropped (migration 0025). batchInsertCharacters is
+          // INSERT OR REPLACE, so carry over whatever the local row has rather
+          // than hard-nulling — on un-migrated devices that local value is the
+          // last copy of a legacy portrait. A genuinely new device has no local
+          // row and gets null: the intended "no gallery portrait yet" state.
+          avatar: existingLocal?.avatar ?? null,
           // Never read from the cloud snapshot — images live in
           // `character_images` now (see reconcileCharacterImages below), so
           // this legacy column is inert. But it is carried over from the
@@ -449,7 +455,6 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
         character: {
           ...(cloudId ? { id: cloudId } : {}),
           name: char.name,
-          avatar: char.avatar,
           appearance: char.appearance,
           traits: char.traits,
           emotions: char.emotions,
@@ -496,9 +501,10 @@ export async function importSharedCharacterFromCloud(
       id: localCharacterId,
       user_id: localUserId,
       name: cloudCharacter.name,
-      avatar: cloudCharacter.avatar,
-      // Same reasoning as restoreFromCloud: INSERT OR REPLACE, so preserve
-      // whatever a previous import of this character already had locally.
+      // Same reasoning as restoreFromCloud: the snapshot no longer carries the
+      // dropped legacy column, and INSERT OR REPLACE means preserve whatever a
+      // previous import of this character already had locally.
+      avatar: existingLocal?.avatar ?? null,
       avatar_data: existingLocal?.avatar_data ?? null,
       avatar_mime_type: existingLocal?.avatar_mime_type ?? null,
       appearance: cloudCharacter.appearance,
