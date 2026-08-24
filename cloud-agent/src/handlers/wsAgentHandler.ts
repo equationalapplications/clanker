@@ -29,6 +29,8 @@ export interface WsHandlerOptions {
   mockStreamReply?: string
   /** Test hook: grounding payload emitted with mockStreamReply */
   mockGroundingMetadata?: GroundingMetadata
+  /** Test hook: emit this payload as an agent_image frame during the mockStreamReply branch. */
+  mockGeneratedImage?: { imageBase64: string; mimeType: string }
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -144,6 +146,13 @@ export async function handleWsUpgrade(
             groundingMetadata: options.mockGroundingMetadata,
           })
         }
+        if (options.mockGeneratedImage) {
+          safeSend({
+            type: 'agent_image',
+            imageBase64: options.mockGeneratedImage.imageBase64,
+            mimeType: options.mockGeneratedImage.mimeType,
+          })
+        }
         let newBalance: number | null = null
         try {
           newBalance = await cs.getBalance(userId)
@@ -184,7 +193,6 @@ export async function handleWsUpgrade(
           undefined,
           { creditService: cs },
         )
-        void imageCollector
         const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
         const sessionId = crypto.randomUUID()
 
@@ -227,6 +235,13 @@ export async function handleWsUpgrade(
             safeSend({ type: 'tool_end', name })
           },
         })
+
+        if (imageCollector.length > 0) {
+          // Post-loop delivery (§6.3): text streamed first; the image lands with
+          // completion, before usage_snapshot/close. One frame max per run.
+          const img = imageCollector[0]
+          safeSend({ type: 'agent_image', imageBase64: img.imageBase64, mimeType: img.mimeType })
+        }
 
         if (result.groundingMetadata) {
           safeSend({

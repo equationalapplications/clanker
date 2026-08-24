@@ -265,6 +265,117 @@ test('streams grounding_metadata before usage_snapshot when mock grounding is pr
   await close()
 })
 
+function collectFrameTypes(ws: WebSocket, types: string[]): void {
+  ws.on('message', (data) => {
+    const msg = JSON.parse(data.toString()) as { type: string }
+    types.push(msg.type)
+  })
+}
+
+const AGENT_RUN_FRAME = { type: 'agent_run', message: 'hello', characterId: CHAR_UUID }
+
+test('emits agent_image before usage_snapshot when mockGeneratedImage provided', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const { server, close } = createTestWsServer({
+    db,
+    // Above AGENT_TURN_CREDIT_COST so the turn survives the pre-flight check.
+    creditService: { ...mockCreditService, getBalance: async () => 1000 },
+    verifyToken: async () => ({ uid: 'firebase-uid' }),
+    mockStreamReply: 'Hello from WebSocket',
+    mockGeneratedImage: { imageBase64: 'QUJD', mimeType: 'image/png' },
+  })
+  const port = await listen(server)
+
+  const frameTypes: string[] = []
+  let imageFrame: { type: string; imageBase64?: string; mimeType?: string } | null = null
+
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    collectFrameTypes(ws, frameTypes)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
+      ws.send(JSON.stringify(AGENT_RUN_FRAME))
+    })
+
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as {
+        type: string
+        imageBase64?: string
+        mimeType?: string
+      }
+      if (msg.type === 'agent_image') imageFrame = msg
+      if (msg.type === 'usage_snapshot') {
+        clearTimeout(timeout)
+        ws.close()
+      }
+    })
+
+    ws.on('close', () => resolve())
+    ws.on('error', reject)
+  })
+
+  await close()
+
+  assert.ok(imageFrame, 'expected an agent_image frame')
+  assert.equal((imageFrame as { imageBase64?: string }).imageBase64, 'QUJD')
+  assert.equal((imageFrame as { mimeType?: string }).mimeType, 'image/png')
+  assert.deepEqual(
+    frameTypes.filter((t) => t === 'agent_image'),
+    ['agent_image'],
+    `expected exactly one agent_image frame; got ${JSON.stringify(frameTypes)}`,
+  )
+  assert.ok(
+    frameTypes.indexOf('agent_image') !== -1 &&
+      frameTypes.indexOf('agent_image') < frameTypes.indexOf('usage_snapshot'),
+    `agent_image must precede usage_snapshot; got ${JSON.stringify(frameTypes)}`,
+  )
+})
+
+test('omits agent_image when no image was generated', async () => {
+  const db = makeMockDb([[mockUser], [mockCharacter]])
+  const { server, close } = createTestWsServer({
+    db,
+    // Above AGENT_TURN_CREDIT_COST so the turn survives the pre-flight check.
+    creditService: { ...mockCreditService, getBalance: async () => 1000 },
+    verifyToken: async () => ({ uid: 'firebase-uid' }),
+    mockStreamReply: 'Hello from WebSocket',
+  })
+  const port = await listen(server)
+
+  const frameTypes: string[] = []
+  await new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
+    collectFrameTypes(ws, frameTypes)
+    const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
+      ws.send(JSON.stringify(AGENT_RUN_FRAME))
+    })
+
+    ws.on('message', (data) => {
+      const msg = JSON.parse(data.toString()) as { type: string }
+      if (msg.type === 'usage_snapshot') {
+        clearTimeout(timeout)
+        ws.close()
+      }
+    })
+
+    ws.on('close', () => resolve())
+    ws.on('error', reject)
+  })
+
+  await close()
+  // The turn must have completed — otherwise the absence below is vacuous.
+  assert.ok(
+    frameTypes.includes('usage_snapshot'),
+    `expected the turn to complete; got ${JSON.stringify(frameTypes)}`,
+  )
+  assert.equal(frameTypes.includes('agent_image'), false)
+})
+
 test('rejects invalid token with 4001 close code', async () => {
   const db = makeMockDb()
   const { server, close } = createTestWsServer({
