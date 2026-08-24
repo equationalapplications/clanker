@@ -9,11 +9,16 @@ const mockEmbed = async (_text: string): Promise<number[]> => new Array(1536).fi
 // The wiring probe drives the real generate_image execute(), whose default cs
 // would be createCreditService(mockDb) — that rejects with a TypeError out of
 // db.transaction rather than INSUFFICIENT_CREDITS, escaping execute. The stub
-// spends nothing so the probe exercises the wiring, not the ledger.
+// spends nothing so the probe exercises the wiring, not the ledger. The fake
+// imageGenerator below keeps the probe off the network BY CONSTRUCTION:
+// without it execute would reach defaultVertexImageGenerator and make a real
+// ~8 s billable Vertex call whenever live GCP creds are present.
 const stubCs = {
   spendCredit: async () => [],
   refundCredit: async () => {},
 }
+
+const stubGeneratedImage = { imageBase64: 'QUJD', mimeType: 'image/png' }
 
 test('buildAgent returns an agent with expected name and instruction', () => {
   const { agent } = buildAgent(mockDb, 'user-123', 'char-456', 'Test instruction', 'UTC', mockEmbed)
@@ -54,6 +59,7 @@ test('assembleSystemInstruction includes recent chat history when provided', () 
 })
 
 test('buildAgent wires generate_image and returns a fresh run-scoped collector', () => {
+  const buildOpts = { creditService: stubCs, imageGenerator: async () => stubGeneratedImage }
   const first = buildAgent(
     mockDb,
     'user-123',
@@ -63,7 +69,7 @@ test('buildAgent wires generate_image and returns a fresh run-scoped collector',
     mockEmbed,
     undefined,
     undefined,
-    { creditService: stubCs },
+    buildOpts,
   )
   const second = buildAgent(
     mockDb,
@@ -74,7 +80,7 @@ test('buildAgent wires generate_image and returns a fresh run-scoped collector',
     mockEmbed,
     undefined,
     undefined,
-    { creditService: stubCs },
+    buildOpts,
   )
 
   const names = first.agent.tools.map((t) => (t as { name: string }).name)
@@ -83,16 +89,16 @@ test('buildAgent wires generate_image and returns a fresh run-scoped collector',
   assert.deepEqual(first.imageCollector, [])
   assert.notEqual(first.imageCollector, second.imageCollector, 'collector must be per-run')
 
-  // The tool closes over THIS run's collector: driving it pushes there, not elsewhere.
+  // The tool closes over THIS run's collector: driving it — against the
+  // injected fake generator, so no network is reachable from this probe —
+  // pushes there, not elsewhere.
   const execute = (
     first.agent.tools.find((t) => (t as { name: string }).name === 'generate_image') as unknown as {
       execute: (args: unknown) => Promise<string>
     }
   ).execute
   return execute({ prompt: 'probe' }).then(() => {
-    // The push itself is asserted end-to-end in tools/generateImage.test.ts
-    // with a fake cs. Here we only pin that the wired tool resolves rather
-    // than throws on wiring.
-    assert.ok(true)
+    assert.deepEqual(first.imageCollector, [stubGeneratedImage])
+    assert.deepEqual(second.imageCollector, [])
   })
 })
