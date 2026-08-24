@@ -134,9 +134,7 @@ const PAYMENT_TABLES = [
 
 /** TRUNCATE users plus the payment tables; CASCADE handles FK children, RESTART IDENTITY resets sequences. */
 export const truncateAll = async (): Promise<void> => {
-  await getPool().query(
-    `TRUNCATE users, ${PAYMENT_TABLES.join(', ')} RESTART IDENTITY CASCADE`,
-  )
+  await getPool().query(`TRUNCATE users, ${PAYMENT_TABLES.join(', ')} RESTART IDENTITY CASCADE`)
 }
 
 /** Assert zero rows in every payment table — proves a handler path performed no writes. */

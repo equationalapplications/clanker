@@ -1573,7 +1573,7 @@ Summarize: commits landed, test counts (integration N/N, default baseline), any 
 | Neutralize exactly two outbound surfaces (Dec 3)               | `makeFakeStripe` (factory seam), recording GA4 no-ops (both suites)          |
 | node:http shim fallback (Deferral 1)                           | Task 2 Step 5 (Express confirmed ABSENT from functions deps — shim applies)  |
 | clanker_test sibling DB + migrate-once + truncation (Dec 5)    | Task 2 Step 6; `beforeEach(truncateAll)`                                     |
-| loopback + db-name hard guard                                  | `resolveTestUrl()` throws on non-loopback host or non-`clanker_test` db                                      |
+| loopback + db-name hard guard                                  | `resolveTestUrl()` throws on non-loopback host or non-`clanker_test` db      |
 | Separate tsconfig/scripts; default suite untouched (Dec 6)     | Task 2 Steps 1–3; Task 5 Step 2                                              |
 | DATABASE_URL fail-fast with copyable commands                  | `requiredTestUrl()`                                                          |
 | Lease expiry via SQL backdate (Dec 7)                          | Task 3 Step 7 D3                                                             |
