@@ -1,3 +1,26 @@
+# [31.3.0](https://github.com/equationalapplications/clanker/compare/v31.2.1...v31.3.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **client:** notice instead of silent no-op when viewer actions beat the master ([dd00576](https://github.com/equationalapplications/clanker/commit/dd0057634185f5174b1c2c023d455905692ff017))
+* **client:** restore fsevents dev-only flag in lockfile ([82d6d0a](https://github.com/equationalapplications/clanker/commit/82d6d0a0fe8c75aa788362cf6b09b1f593ebff44))
+* **cloud-agent:** refund image spend when agent_image delivery fails ([2456610](https://github.com/equationalapplications/clanker/commit/24566103087c14fc5868a32c25b6b2751cb2a9c1))
+* **cloud-agent:** refund paid image when the run fails after generation ([ab95c47](https://github.com/equationalapplications/clanker/commit/ab95c47895312c22f1435420ac80684178105675))
+* **functions:** coerce subscription cache aggregates before date gating ([49fe5c0](https://github.com/equationalapplications/clanker/commit/49fe5c0051902d9ef363c78216c165303d0f90d2))
+
+
+### Features
+
+* **client:** funnel agent_image WS frame and HTTP field through onAgentImage ([42856b3](https://github.com/equationalapplications/clanker/commit/42856b358f361444516215eeb1f16e66bb34c090))
+* **client:** persist agent-generated chat images via saveCharacterImage ([756fc22](https://github.com/equationalapplications/clanker/commit/756fc225f934a505057ede6e6259fad37446cab8))
+* **client:** save-to-Photos and share for chat image viewer ([455696c](https://github.com/equationalapplications/clanker/commit/455696c93da964eb0e6eb060671b1d0fbed9d087))
+* **cloud-agent:** add generate_image tool with spend-before-generate credits ([f39a565](https://github.com/equationalapplications/clanker/commit/f39a56567a043a3f89cdb30b4c0897a90c05af60))
+* **cloud-agent:** attach generatedImage to /agent/run JSON result ([3227ed1](https://github.com/equationalapplications/clanker/commit/3227ed1c6b8ba190f8e2db4f44161aeac9e11e9b))
+* **cloud-agent:** buildAgent wires generate_image and returns run-scoped image collector ([ba6c163](https://github.com/equationalapplications/clanker/commit/ba6c163f7a390fbfe825c352b2e829858158369a))
+* **cloud-agent:** emit agent_image WS frame post-loop before usage_snapshot ([b3ce504](https://github.com/equationalapplications/clanker/commit/b3ce50434c269e37d9e4dbd8c21aeab45d12f019))
+* **cloud-agent:** pin chat image generation to global-region Lite SKU ([502affe](https://github.com/equationalapplications/clanker/commit/502affed3192f2c5dbb1fe33620995421ee8d464))
+
 ## [31.2.1](https://github.com/equationalapplications/clanker/compare/v31.2.0...v31.2.1) (2026-08-24)
 
 
