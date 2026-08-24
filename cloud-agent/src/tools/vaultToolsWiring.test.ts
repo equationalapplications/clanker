@@ -17,13 +17,22 @@ function vaultDeps() {
 }
 
 test('buildAgent includes vault_* tools only when vault deps provided', () => {
-  const withVault = buildAgent(fakeDb, 'u1', 'c1', 'sys', 'UTC', embed, undefined, vaultDeps())
-  const names = withVault.tools.map((t) => (t as { name: string }).name)
+  const { agent: withVaultAgent } = buildAgent(
+    fakeDb,
+    'u1',
+    'c1',
+    'sys',
+    'UTC',
+    embed,
+    undefined,
+    vaultDeps(),
+  )
+  const names = withVaultAgent.tools.map((t) => (t as { name: string }).name)
   assert.ok(names.includes('vault_wiki_search'))
   assert.ok(names.includes('vault_related_chunks'))
 
-  const without = buildAgent(fakeDb, 'u1', 'c1', 'sys', 'UTC', embed)
-  const namesWithout = without.tools.map((t) => (t as { name: string }).name)
+  const { agent: withoutAgent } = buildAgent(fakeDb, 'u1', 'c1', 'sys', 'UTC', embed)
+  const namesWithout = withoutAgent.tools.map((t) => (t as { name: string }).name)
   assert.ok(!namesWithout.some((n: string) => n.startsWith('vault_')))
 })
 

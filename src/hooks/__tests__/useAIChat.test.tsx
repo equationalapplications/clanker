@@ -3,7 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { useAIChat } from '../useAIChat'
 import { findCharacterImageByMessageId } from '~/database/characterImageDatabase'
+import { saveCharacterImage } from '~/services/characterImageService'
+import { reportError } from '~/utilities/reportError'
 import type { Message } from '~/types/chat'
+
+const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const mockCallCloudAgent = jest.fn()
 jest.mock('~/services/cloudAgentService', () => ({
@@ -89,6 +93,7 @@ jest.mock('~/database/characterImageDatabase', () => ({
 }))
 jest.mock('~/services/characterImageService', () => ({
   saveCharacterImage: jest.fn(() => Promise.resolve()),
+  setActiveImageId: jest.fn(),
 }))
 jest.mock('../../../shared/dev-sandbox', () => ({
   DEV_CLOUD_CHARACTER_ID: 'dev-sandbox-character',
@@ -135,6 +140,11 @@ const originalCloudAgentUrl = process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
 beforeEach(() => {
   jest.clearAllMocks()
   process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://localhost:8080'
+  // The sendPhoto tests below leave a PERSISTENT mockResolvedValue({ id: … })
+  // on this mock; clearAllMocks only clears call history, not implementations.
+  // Re-arm the factory default so turn-scoped tests start without a phantom
+  // dedupe hit.
+  ;(findCharacterImageByMessageId as jest.Mock).mockResolvedValue(null)
   mockSaveAIMessage.mockImplementation(
     (_characterId: string, _userId: string, text: string, id: string) =>
       Promise.resolve({
@@ -411,5 +421,137 @@ describe('useAIChat streaming id unification', () => {
     await waitFor(() => expect(result.current.streamingMessage).toBeNull())
     await retryPromise
     await expect(secondPromise).resolves.toBeUndefined()
+  })
+})
+
+describe('agent chat image ingestion', () => {
+  const fireTurnWithImage = async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    let resolveTurn!: () => void
+    let fireImage!: (img: { imageBase64: string; mimeType: string }) => void
+    mockCallCloudAgent.mockImplementation(
+      (
+        _payload: unknown,
+        handlers: {
+          onToken?: (text: string) => void
+          onAgentImage?: (img: { imageBase64: string; mimeType: string }) => void
+        },
+      ) =>
+        new Promise((resolve) => {
+          fireImage = handlers.onAgentImage!
+          resolveTurn = () =>
+            resolve({
+              reply: 'here is your chart',
+              toolCalls: ['generate_image'],
+              usageSnapshot: { remainingCredits: 800 },
+            })
+          handlers.onToken?.('drawing…')
+        }),
+    )
+
+    let sendPromise!: Promise<void>
+    act(() => {
+      sendPromise = result.current.sendMessage(userMessage)
+    })
+    await waitFor(() => expect(result.current.streamingMessage?.text).toBe('drawing…'))
+    const streamedId = result.current.streamingMessage!._id
+
+    await act(async () => {
+      fireImage({ imageBase64: 'QUJD', mimeType: 'image/png' })
+      resolveTurn()
+    })
+    await waitFor(() => expect(mockSaveAIMessage).toHaveBeenCalled())
+    await sendPromise
+    return { streamedId }
+  }
+
+  it('persists via saveCharacterImage and carries imageId on the assistant row', async () => {
+    const { streamedId } = await fireTurnWithImage()
+
+    expect(saveCharacterImage).toHaveBeenCalledTimes(1)
+    expect(saveCharacterImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterId: 'char-1',
+        userId: 'user-1',
+        uri: 'data:image/png;base64,QUJD',
+        width: 1024,
+        height: 1024,
+        source: 'chat',
+        messageId: streamedId,
+      }),
+    )
+    const savedImageId = (saveCharacterImage as jest.Mock).mock.calls[0][0].imageId as string
+    expect(savedImageId).toMatch(UUID_LIKE)
+
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'here is your chart',
+      streamedId,
+      expect.objectContaining({ imageId: savedImageId }),
+    )
+
+    // A chat image is a gallery row, never an avatar choice (same rule as photos).
+    const imageServiceMock = jest.requireMock('~/services/characterImageService') as {
+      setActiveImageId: jest.Mock
+    }
+    expect(imageServiceMock.setActiveImageId).not.toHaveBeenCalled()
+  })
+
+  it('reuses the deduped row id instead of saving twice on retry', async () => {
+    const { findCharacterImageByMessageId: mockFind } = jest.requireMock(
+      '~/database/characterImageDatabase',
+    ) as { findCharacterImageByMessageId: jest.Mock }
+    mockFind.mockResolvedValueOnce({ id: 'existing-img-id' })
+
+    const { streamedId } = await fireTurnWithImage()
+
+    expect(saveCharacterImage).not.toHaveBeenCalled()
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'here is your chart',
+      streamedId,
+      expect.objectContaining({ imageId: 'existing-img-id' }),
+    )
+  })
+
+  it('keeps the text reply when the local save fails', async () => {
+    ;(saveCharacterImage as jest.Mock).mockRejectedValueOnce(new Error('disk full'))
+
+    const { streamedId } = await fireTurnWithImage()
+
+    expect(reportError).toHaveBeenCalled()
+    expect(mockSaveAIMessage).toHaveBeenCalledWith(
+      'char-1',
+      'user-1',
+      'here is your chart',
+      streamedId,
+      expect.not.objectContaining({ imageId: expect.anything() }),
+    )
+  })
+
+  it('persists no imageId on plain text turns', async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+    mockCallCloudAgent.mockResolvedValue({
+      reply: 'plain text',
+      toolCalls: [],
+      usageSnapshot: null,
+    })
+    await act(async () => {
+      await result.current.sendMessage(userMessage)
+    })
+    expect(saveCharacterImage).not.toHaveBeenCalled()
+    const dataArg = mockSaveAIMessage.mock.calls[0][4] as Record<string, unknown>
+    expect(dataArg.imageId).toBeUndefined()
   })
 })

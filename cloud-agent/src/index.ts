@@ -21,6 +21,7 @@ import {
   assertAgentTurnCredits,
   AgentInsufficientCreditsError,
   consumeAgentEvents,
+  type ConsumeAgentEventsResult,
 } from './services/agentEventLoop.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
@@ -50,6 +51,11 @@ import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
 import { MAX_AGENT_RUN_BODY_BYTES } from '../../shared/cloudAgentAttachments.js'
 import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
 import { buildNewMessage } from './agentMessage.js'
+import {
+  refundGeneratedImages,
+  type GeneratedImage,
+  type VertexImageGenerator,
+} from './tools/generateImage.js'
 
 export { INSTANCE_ID } from './services/instanceId.js'
 
@@ -66,6 +72,8 @@ export interface RunAgentParams {
   timezone: string
   embed: (text: string) => Promise<number[]>
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+  /** Test hook: replaces defaultVertexImageGenerator inside buildAgent. */
+  imageGenerator?: VertexImageGenerator
   /** At most one in Phase 2; delivered as a leading inlineData part. */
   attachments?: AgentAttachment[]
 }
@@ -73,9 +81,13 @@ export interface RunAgentParams {
 export interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
-  runAgentFn: (
-    params: RunAgentParams,
-  ) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
+  runAgentFn: (params: RunAgentParams) => Promise<{
+    reply: string
+    toolCalls: string[]
+    groundingMetadata?: GroundingMetadata
+    /** Present when the agent called generate_image this run (§6.3 HTTP parity). */
+    generatedImage?: GeneratedImage | null
+  }>
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
   wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
@@ -87,9 +99,13 @@ export interface AppOptions {
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
-export async function runAgentReal(
-  params: RunAgentParams,
-): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
+export async function runAgentReal(params: RunAgentParams): Promise<{
+  reply: string
+  toolCalls: string[]
+  groundingMetadata?: GroundingMetadata
+  /** Present when the agent called generate_image this run (§6.3 HTTP parity). */
+  generatedImage?: GeneratedImage | null
+}> {
   const {
     db,
     userId,
@@ -101,6 +117,7 @@ export async function runAgentReal(
     timezone,
     embed,
     creditService,
+    imageGenerator,
     attachments = [],
   } = params
   const bridge = getApps().length
@@ -120,7 +137,7 @@ export async function runAgentReal(
         desktopBridge,
       })
     : undefined
-  const agent = buildAgent(
+  const { agent, imageCollector, imageSpendAllocations } = buildAgent(
     db,
     userId,
     characterId,
@@ -129,6 +146,7 @@ export async function runAgentReal(
     embed,
     bridge,
     vault,
+    { creditService, imageGenerator },
   )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
@@ -159,7 +177,21 @@ export async function runAgentReal(
     newMessage: buildNewMessage(message, attachments),
   })
 
-  return consumeAgentEvents(events, userId, creditService)
+  let consumed: ConsumeAgentEventsResult
+  try {
+    consumed = await consumeAgentEvents(events, userId, creditService)
+  } catch (err) {
+    // §7: if generate_image already succeeded this run, its spend sits outside
+    // consumeAgentEvents' own refund scope — return it before rethrowing so
+    // the route's 500 never keeps the image's credits.
+    await refundGeneratedImages(userId, creditService, imageCollector, imageSpendAllocations)
+    throw err
+  }
+  return {
+    ...consumed,
+    // Post-loop delivery point (§6.3): at most one image per run.
+    generatedImage: imageCollector.length > 0 ? imageCollector[0] : null,
+  }
 }
 
 // ── App factory ───────────────────────────────────────────────────────────────
@@ -371,7 +403,9 @@ export function createApp(options: AppOptions) {
         const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
         // Credit spend happens per internal ADK loop iteration inside runAgentFn
-        // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
+        // (see services/agentEventLoop.ts); the loop refunds its own spends on
+        // failure, and runAgentReal additionally refunds a generated image's
+        // spend before rethrowing (spec §7).
         const result = await runAgentFn({
           db,
           userId,
@@ -394,12 +428,13 @@ export function createApp(options: AppOptions) {
           console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
         }
 
-        // RESPOND
+        // RESPOND — generatedImage mirrors the WS agent_image frame: { imageBase64, mimeType }
         res.json({
           reply: result.reply,
           toolCalls: result.toolCalls,
           usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
           groundingMetadata: result.groundingMetadata,
+          generatedImage: result.generatedImage ?? null,
         })
       } catch (err) {
         console.error('agent/run error:', err)

@@ -7,6 +7,12 @@ import type { Content, GroundingMetadata } from '@google/genai'
 import { hasGroundingData } from '../groundingMetadata.js'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
+import type { CreditSpendAllocation } from '../services/creditService.js'
+import {
+  refundGeneratedImages,
+  type GeneratedImage,
+  type VertexImageGenerator,
+} from '../tools/generateImage.js'
 import { embedText } from '../db/embeddings.js'
 import { buildAgent, assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { bulkInsertUnsynced } from '../services/unsyncedHistory.js'
@@ -25,10 +31,14 @@ export interface WsHandlerOptions {
   db: DrizzleClient
   creditService?: CreditService
   verifyToken?: (token: string) => Promise<{ uid: string }>
+  /** Test hook: replaces defaultVertexImageGenerator inside buildAgent. */
+  imageGenerator?: VertexImageGenerator
   /** Test hook: bypass ADK and stream canned events */
   mockStreamReply?: string
   /** Test hook: grounding payload emitted with mockStreamReply */
   mockGroundingMetadata?: GroundingMetadata
+  /** Test hook: emit this payload as an agent_image frame during the mockStreamReply branch. */
+  mockGeneratedImage?: { imageBase64: string; mimeType: string }
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -50,14 +60,22 @@ export async function handleWsUpgrade(
   let abortController: AbortController | null = null
   let hasRun = false
 
-  /** Send that can't throw — a disconnected/closing socket must never be mistaken for an ADK processing error. */
-  const safeSend = (payload: unknown) => {
+  /**
+   * Send that can't throw — a disconnected/closing socket must never be
+   * mistaken for an ADK processing error. Returns whether the frame actually
+   * went out, so callers carrying irrevocable spend (agent_image) can refund
+   * when delivery fails (spec §7: a failed turn never keeps image credits).
+   */
+  const safeSend = (payload: unknown): boolean => {
     try {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(payload))
+        return true
       }
+      return false
     } catch (err) {
       console.error('ws.send failed:', err)
+      return false
     }
   }
 
@@ -144,6 +162,13 @@ export async function handleWsUpgrade(
             groundingMetadata: options.mockGroundingMetadata,
           })
         }
+        if (options.mockGeneratedImage) {
+          safeSend({
+            type: 'agent_image',
+            imageBase64: options.mockGeneratedImage.imageBase64,
+            mimeType: options.mockGeneratedImage.mimeType,
+          })
+        }
         let newBalance: number | null = null
         try {
           newBalance = await cs.getBalance(userId)
@@ -170,8 +195,30 @@ export async function handleWsUpgrade(
         return
       }
 
+      // Hoisted out of the try so the catch path can still see what the run
+      // generated — a loop throw after a successful generation must refund the
+      // image spend (§7), which needs both arrays even though the try block
+      // that filled them has unwound.
+      let imageCollector: GeneratedImage[] = []
+      let imageSpendAllocations: CreditSpendAllocation[] = []
+
       try {
-        const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embedText)
+        // Pass the handler's injected cs so the tool spends/refunds hit the same
+        // credit service the loop bills with.
+        const built = buildAgent(
+          db,
+          userId,
+          characterId,
+          systemInstruction,
+          timezone,
+          embedText,
+          undefined,
+          undefined,
+          { creditService: cs, imageGenerator: options.imageGenerator },
+        )
+        imageCollector = built.imageCollector
+        imageSpendAllocations = built.imageSpendAllocations
+        const { agent } = built
         const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
         const sessionId = crypto.randomUUID()
 
@@ -215,6 +262,26 @@ export async function handleWsUpgrade(
           },
         })
 
+        if (imageCollector.length > 0) {
+          // Post-loop delivery (§6.3): text streamed first; the image lands with
+          // completion, before usage_snapshot/close. One frame max per run.
+          // A dropped frame (socket closed mid-run, send throw) means the user
+          // never sees the bytes — refund the spend rather than charging for an
+          // undelivered image (§7). The collector is drained so a later failure
+          // path can't double-refund the same allocation.
+          const img = imageCollector[0]
+          const delivered = safeSend({
+            type: 'agent_image',
+            imageBase64: img.imageBase64,
+            mimeType: img.mimeType,
+          })
+          if (!delivered) {
+            imageCollector = []
+            await refundGeneratedImages(userId, cs, [img], imageSpendAllocations)
+            imageSpendAllocations = []
+          }
+        }
+
         if (result.groundingMetadata) {
           safeSend({
             type: 'grounding_metadata',
@@ -237,6 +304,10 @@ export async function handleWsUpgrade(
         isCompleted = true
         ws.close(1000, 'Agent execution complete')
       } catch (adkErr) {
+        // §7: if generate_image already succeeded this run, its spend sits
+        // outside consumeAgentEvents' own refund scope — return it before the
+        // error frame so a failed turn never keeps the image's credits.
+        await refundGeneratedImages(userId, cs, imageCollector, imageSpendAllocations)
         console.error('ADK execution error:', adkErr)
         const mapped = mapAgentExecutionError(adkErr)
         safeSend({ type: 'error', code: mapped.code, message: mapped.message })
