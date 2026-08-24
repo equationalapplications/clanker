@@ -50,6 +50,22 @@ export function assertIdempotentDeltaMatch(params: {
   }
 }
 
+// drizzle-orm 0.45.2 returns bare sql<> aggregates (SUM/MIN) as strings at runtime
+// even when typed as number/Date, so every aggregate read must be coerced before
+// use. A string-coerced nextExpiryDate fails the instanceof Date gate below,
+// which makes .set({nextExpiryDate}) throw and roll back the whole transaction.
+function coerceAggregateNumber(value: unknown): number {
+  if (value === null || value === undefined) return 0
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+function coerceAggregateDate(value: unknown): Date | null {
+  if (value === null || value === undefined) return null
+  const d = value instanceof Date ? value : new Date(String(value))
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 async function syncSubscriptionCache(tx: DbTx, userId: string): Promise<number> {
   const totalResult = await tx
     .select({
@@ -75,8 +91,8 @@ async function syncSubscriptionCache(tx: DbTx, userId: string): Promise<number> 
       ),
     )
 
-  const total = totalResult[0]?.total ?? 0
-  const nextExpiry = nextExpiryResult[0]?.minExpiry ?? null
+  const total = coerceAggregateNumber(totalResult[0]?.total)
+  const nextExpiry = coerceAggregateDate(nextExpiryResult[0]?.minExpiry)
 
   const existingSubscription = await tx
     .select({
@@ -191,7 +207,7 @@ export const createCreditService = (deps: CreditServiceDeps = { getDb }) => {
               )
               .limit(1)
 
-            if ((netResult[0]?.total ?? 0) < amount) {
+            if (coerceAggregateNumber(netResult[0]?.total) < amount) {
               throw new InsufficientCreditsError()
             }
 

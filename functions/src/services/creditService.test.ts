@@ -1019,3 +1019,112 @@ test('getLastProcessedChargeRefundTotal treats legacy chargeId-only referenceId 
   const total = await service.getLastProcessedChargeRefundTotal('ch_legacy')
   assert.equal(total, Number.MAX_SAFE_INTEGER)
 })
+
+// ---------------------------------------------------------------------------
+// syncSubscriptionCache — drizzle 0.45.2 returns bare sql<> aggregates as
+// strings at runtime; they must be coerced before use (see PR fix).
+// ---------------------------------------------------------------------------
+
+test('getCredits coerces string aggregates and sets nextExpiryDate from a future-dated row', async () => {
+  // select order: (1) total with .limit(), (2) minExpiry awaited directly.
+  let selectCount = 0
+  let capturedSet: Record<string, unknown> | undefined
+  const fakeTx = {
+    select: () => {
+      selectCount++
+      return {
+        from: () => ({
+          where: () => {
+            // drizzle-orm 0.45.2 runtime behavior: SUM/MIN come back as strings
+            const rows =
+              selectCount % 2 !== 0
+                ? [{ total: '75' }]
+                : [{ minExpiry: '2030-01-01T00:00:00.000Z' }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
+          },
+        }),
+      }
+    },
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        capturedSet = values
+        return { where: async () => {} }
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
+  }
+
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  const credits = await service.getCredits('user-1')
+  assert.equal(credits, 75)
+  const expiry = capturedSet?.nextExpiryDate as Date
+  assert.ok(expiry instanceof Date, 'nextExpiryDate must be a real Date, not a string')
+  assert.equal(expiry.toISOString(), '2030-01-01T00:00:00.000Z')
+})
+
+test('getCredits coerces numeric aggregates without change', async () => {
+  let selectCount = 0
+  let capturedSet: Record<string, unknown> | undefined
+  const fakeTx = {
+    select: () => {
+      selectCount++
+      return {
+        from: () => ({
+          where: () => {
+            const rows = selectCount % 2 !== 0 ? [{ total: 42 }] : [{ minExpiry: null }]
+            return Object.assign(Promise.resolve(rows), { limit: async () => rows })
+          },
+        }),
+      }
+    },
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        capturedSet = values
+        return { where: async () => {} }
+      },
+    }),
+  }
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<number>) => fn(fakeTx),
+  }
+
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  assert.equal(await service.getCredits('user-1'), 42)
+  assert.equal(capturedSet?.nextExpiryDate, null)
+})
+
+test('spendCredits coerces string net-balance aggregate before the insufficient check', async () => {
+  // select order: (1) subscriptions lock, (2) net balance check → spend proceeds,
+  // (3) rows to allocate — empty so it reports no qualifying row.
+  const selectQueue: unknown[][] = [[{ userId: 'user-1' }], [{ total: '100' }], []]
+  let selectIdx = 0
+  const deferredRows = (rows: unknown[]) => {
+    // NOTE: limit must NOT be an async function — an async wrapper would resolve
+    // the returned thenable into a fresh Promise without the .for expando.
+    const p = Object.assign(Promise.resolve(rows), {
+      limit: () => p,
+      orderBy: () => p,
+      for: async () => rows,
+    }) as Promise<unknown[]> & { limit: () => unknown; for: () => Promise<unknown[]> }
+    return p
+  }
+  const fakeTx = {
+    insert: () => ({ values: () => ({ onConflictDoNothing: async () => {} }) }),
+    select: () => ({
+      from: () => ({
+        where: () => deferredRows(selectQueue[selectIdx++] ?? []),
+      }),
+    }),
+  }
+  const service = createCreditService({
+    getDb: async () =>
+      ({
+        transaction: async (fn: (tx: typeof fakeTx) => Promise<unknown>) => fn(fakeTx),
+      }) as never,
+  })
+  const result = await service.spendCredits('user-1', 50, 'test spend')
+  // Net balance "100" >= 50 passes the gate; empty allocation rows → null result.
+  assert.equal(result, null)
+})
