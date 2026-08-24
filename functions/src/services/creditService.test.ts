@@ -1098,11 +1098,7 @@ test('getCredits coerces numeric aggregates without change', async () => {
 test('spendCredits coerces string net-balance aggregate before the insufficient check', async () => {
   // select order: (1) subscriptions lock, (2) net balance check → spend proceeds,
   // (3) rows to allocate — empty so it reports no qualifying row.
-  const selectQueue: unknown[][] = [
-    [{ userId: 'user-1' }],
-    [{ total: '100' }],
-    [],
-  ]
+  const selectQueue: unknown[][] = [[{ userId: 'user-1' }], [{ total: '100' }], []]
   let selectIdx = 0
   const deferredRows = (rows: unknown[]) => {
     // NOTE: limit must NOT be an async function — an async wrapper would resolve
