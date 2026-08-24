@@ -27,7 +27,12 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   const [viewerOpen, setViewerOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // `useResolvedImage` returns null both while the lookup is in flight and
+  // after a completed lookup that found no row (see `useResolvedImage.ts`).
+  // `isResolved` is the only signal that distinguishes the two: a null thumb
+  // before that is just the spinner for the row fetch, not a real absence.
   const { uri: thumbUri, isResolved: thumbResolved } = useResolvedImage(imageId, 'thumb')
+  // Resolved only while the viewer is open so scrollback never pulls masters.
   const { uri: masterUri } = useResolvedImage(viewerOpen ? imageId : null, 'master')
 
   if (!imageId) return null
@@ -62,6 +67,11 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   }
 
   if (!thumbUri) {
+    // Don't render the "Photo unavailable" placeholder until the lookup has
+    // completed — the row may simply be mid-sync on this device (message
+    // arrived first, image row still en route from another device). Once the
+    // lookup completes with no thumbUri, the row is genuinely missing or
+    // evicted, and the placeholder is the correct fallback.
     if (!thumbResolved) return null
     return (
       <View style={styles.placeholder} accessible accessibilityLabel="Photo unavailable">
@@ -129,6 +139,13 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
               </Text>
             </Pressable>
           </View>
+          {/*
+            The image is full-bleed and sits on top of the backdrop, so tapping
+            the photo itself never reaches the backdrop's dismiss. This button is
+            the only affordance a screen-reader or keyboard user can land on —
+            and on web `onRequestClose` does not fire for Escape, so without it
+            the viewer has no reachable exit at all.
+          */}
           <Pressable
             style={styles.viewerClose}
             onPress={() => setViewerOpen(false)}
