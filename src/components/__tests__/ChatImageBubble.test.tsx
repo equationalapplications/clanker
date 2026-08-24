@@ -5,11 +5,17 @@ import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
 
 jest.mock('~/hooks/useResolvedImage', () => ({
-  useResolvedImage: (imageId: string | null, variant: 'thumb' | 'master') => ({
+  useResolvedImage: (imageId: string | null, variant: 'thumb' | 'master') =>
+    mockUseResolvedImage(imageId, variant),
+}))
+
+// Overridable per-test: the default resolves instantly for any non-null id.
+const mockUseResolvedImage = jest.fn(
+  (imageId: string | null, variant: 'thumb' | 'master') => ({
     uri: imageId ? `file:///cache/${variant}.webp` : null,
     isResolved: !!imageId,
   }),
-}))
+)
 
 jest.mock('expo-media-library', () => ({
   requestPermissionsAsync: jest.fn(),
@@ -93,5 +99,71 @@ describe('ChatImageBubble viewer actions', () => {
     fireEvent.press(screen.getByLabelText('Share photo'))
 
     await waitFor(() => expect(screen.getByText("Couldn't share this image")).toBeTruthy())
+  })
+
+  describe('while the master lookup is still in flight', () => {
+    beforeEach(() => {
+      mockUseResolvedImage.mockImplementation(
+        (imageId: string | null, variant: 'thumb' | 'master') => ({
+          // Thumb resolves instantly; the master never comes back.
+          uri: variant === 'thumb' && imageId ? `file:///cache/thumb.webp` : null,
+          isResolved: variant === 'thumb' && !!imageId,
+        }),
+      )
+    })
+
+    it('Save shows a loading notice and touches nothing', async () => {
+      ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Save to Photos'))
+
+      await waitFor(() =>
+        expect(screen.getByText('Loading photo — try again in a moment')).toBeTruthy(),
+      )
+      expect(MediaLibrary.requestPermissionsAsync).not.toHaveBeenCalled()
+      expect(MediaLibrary.saveToLibraryAsync).not.toHaveBeenCalled()
+    })
+
+    it('Share shows a loading notice and opens no sheet', async () => {
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Share photo'))
+
+      await waitFor(() =>
+        expect(screen.getByText('Loading photo — try again in a moment')).toBeTruthy(),
+      )
+      expect(Sharing.shareAsync).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('after the master lookup completes without a URI', () => {
+    beforeEach(() => {
+      mockUseResolvedImage.mockImplementation(
+        (imageId: string | null, variant: 'thumb' | 'master') => ({
+          uri: variant === 'thumb' && imageId ? `file:///cache/thumb.webp` : null,
+          isResolved: variant === 'thumb' ? !!imageId : true,
+        }),
+      )
+    })
+
+    it('Save reports the photo as unavailable', async () => {
+      ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Save to Photos'))
+
+      await waitFor(() => expect(screen.getByText('Photo unavailable')).toBeTruthy())
+      expect(MediaLibrary.saveToLibraryAsync).not.toHaveBeenCalled()
+    })
+
+    it('Share reports the photo as unavailable', async () => {
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Share photo'))
+
+      await waitFor(() => expect(screen.getByText('Photo unavailable')).toBeTruthy())
+      expect(Sharing.shareAsync).not.toHaveBeenCalled()
+    })
   })
 })

@@ -33,12 +33,24 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   // before that is just the spinner for the row fetch, not a real absence.
   const { uri: thumbUri, isResolved: thumbResolved } = useResolvedImage(imageId, 'thumb')
   // Resolved only while the viewer is open so scrollback never pulls masters.
-  const { uri: masterUri } = useResolvedImage(viewerOpen ? imageId : null, 'master')
+  const { uri: masterUri, isResolved: masterResolved } = useResolvedImage(
+    viewerOpen ? imageId : null,
+    'master',
+  )
 
   if (!imageId) return null
 
+  // A press before the master lookup resolves must not silently no-op: say
+  // what's happening instead (loading while in flight, unavailable once the
+  // lookup completed without a master).
+  const guardMasterReady = (): boolean => {
+    if (masterUri) return true
+    setNotice(masterResolved ? 'Photo unavailable' : 'Loading photo — try again in a moment')
+    return false
+  }
+
   const saveToPhotos = async (): Promise<void> => {
-    if (!masterUri) return
+    if (!guardMasterReady() || !masterUri) return
     try {
       // writeOnly → the add-only prompt backed by NSPhotoLibraryAddUsageDescription.
       const perm = await MediaLibrary.requestPermissionsAsync(true)
@@ -54,7 +66,7 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   }
 
   const shareImage = async (): Promise<void> => {
-    if (!masterUri) return
+    if (!guardMasterReady() || !masterUri) return
     try {
       if (!(await Sharing.isAvailableAsync())) {
         setNotice('Sharing is not available here')
