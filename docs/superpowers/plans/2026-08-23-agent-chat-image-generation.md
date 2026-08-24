@@ -31,9 +31,11 @@
 ### Task 0: Spike — verify the Vertex image model SKU and IAM (spec §10.1–10.2)
 
 **Files:**
+
 - Modify (only the constant's comment/value): `cloud-agent/src/constants/images.ts` — created in Task 1; this task decides its value.
 
 **Interfaces:**
+
 - Produces: the decided value of `CHAT_IMAGE_MODEL_ID` (`gemini-3.1-flash-lite-image` if callable, else `gemini-2.5-flash-image`) and confirmation that clanker-prod's runtime identity may call it. Task 1 consumes this decision.
 
 - [ ] **Step 1: Ensure local ADC credentials are live**
@@ -81,12 +83,14 @@ for (const model of ['gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image']) {
 ### Task 1: Cloud-agent constants + `generate_image` tool (spec §6.1, §6.4, §6.8)
 
 **Files:**
+
 - Create: `cloud-agent/src/constants/images.ts`
 - Modify: `cloud-agent/src/constants/credits.ts`
 - Create: `cloud-agent/src/tools/generateImage.ts`
 - Test: `cloud-agent/src/tools/generateImage.test.ts`
 
 **Interfaces:**
+
 - Consumes: `CreditService` pick `{ spendCredit, refundCredit }` from `../services/creditService.js`; constants from `../constants/*`.
 - Produces (Tasks 2+ rely on these exact names):
   - `export interface GeneratedImage { imageBase64: string; mimeType: string }`
@@ -119,10 +123,10 @@ interface FakeCsCalls {
   refunds: CreditSpendAllocation[][]
 }
 
-function makeFakeCs(opts?: {
-  spendError?: Error
-  refundRejects?: boolean
-}): { cs: Pick<CreditService, 'spendCredit' | 'refundCredit'>; calls: FakeCsCalls } {
+function makeFakeCs(opts?: { spendError?: Error; refundRejects?: boolean }): {
+  cs: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+  calls: FakeCsCalls
+} {
   const calls: FakeCsCalls = { order: [], spends: [], refunds: [] }
   return {
     calls,
@@ -376,7 +380,7 @@ export function generateImage(
   return new FunctionTool({
     name: 'generate_image',
     description:
-      "Create an image and send it to the user in your reply — suited to charts, diagrams, visual plans, or a selfie of yourself. " +
+      'Create an image and send it to the user in your reply — suited to charts, diagrams, visual plans, or a selfie of yourself. ' +
       'Call it ONLY when the user asks you to create/draw/generate an image, or explicitly says yes right after you offered to draw something. ' +
       'Offering in plain text ("want me to draw that?") is always allowed and costs nothing. ' +
       `At most ONE image per reply; each image costs the user ${IMAGE_GENERATION_COST} credits.`,
@@ -470,6 +474,7 @@ git commit -m "feat(cloud-agent): add generate_image tool with spend-before-gene
 ### Task 2: `buildAgent` mints the run-scoped collector and wires the tool (spec §6.2)
 
 **Files:**
+
 - Modify: `cloud-agent/src/services/agentCore.ts`
 - Modify: `cloud-agent/src/handlers/wsAgentHandler.ts:174` (caller destructure; emission itself is Task 3)
 - Modify: `cloud-agent/src/index.ts:123-132` (`runAgentReal` caller destructure)
@@ -477,6 +482,7 @@ git commit -m "feat(cloud-agent): add generate_image tool with spend-before-gene
 - Test: `cloud-agent/src/agent.test.ts`, `cloud-agent/src/tools/vaultToolsWiring.test.ts` (update destructuring)
 
 **Interfaces:**
+
 - Consumes: `generateImage`, `GeneratedImage` from Task 1.
 - Produces:
   - `export interface BuildAgentResult { agent: LlmAgent; imageCollector: GeneratedImage[] }`
@@ -676,10 +682,12 @@ git commit -m "feat(cloud-agent): buildAgent wires generate_image and returns ru
 ### Task 3: WS handler emits the `agent_image` frame (spec §6.3)
 
 **Files:**
+
 - Modify: `cloud-agent/src/handlers/wsAgentHandler.ts` (real emission + `mockGeneratedImage` test hook)
 - Test: `cloud-agent/src/handlers/wsAgentHandler.test.ts`
 
 **Interfaces:**
+
 - Consumes: `imageCollector` from `buildAgent` (Task 2); `WsHandlerOptions.mockGeneratedImage` (new, test-only).
 - Produces: wire frame `{ type: 'agent_image', imageBase64: string, mimeType: string }` emitted once, after the event loop, **before** `usage_snapshot` and close. Old clients ignore unknown frames (verified dispatch) — additive-safe.
 
@@ -844,10 +852,12 @@ git commit -m "feat(cloud-agent): emit agent_image WS frame post-loop before usa
 ### Task 4: HTTP `/agent/run` carries `generatedImage` (spec §6.3)
 
 **Files:**
+
 - Modify: `cloud-agent/src/index.ts` (`res.json` body in the `/agent/run` handler ~line 398)
 - Test: `cloud-agent/src/index.test.ts`
 
 **Interfaces:**
+
 - Consumes: `result.generatedImage?: GeneratedImage | null` on the `runAgentFn` return (widened in Task 2).
 - Produces: response JSON gains `generatedImage: { imageBase64, mimeType } | null` beside `reply`/`toolCalls`/`usageSnapshot`/`groundingMetadata`.
 
@@ -930,9 +940,11 @@ git commit -m "feat(cloud-agent): attach generatedImage to /agent/run JSON resul
 ### Task 5: Extend `transportParity.test.ts` for the new payload (spec §6.3)
 
 **Files:**
+
 - Modify: `cloud-agent/src/transportParity.test.ts`
 
 **Interfaces:**
+
 - Consumes: source-text conventions established in Tasks 3-4 (this file greps SOURCE, not behavior — house style of the existing suite).
 
 - [ ] **Step 1: Add the parity test inside the existing `for` loop**
@@ -967,10 +979,12 @@ git commit -m "test(cloud-agent): assert agent_image/generatedImage parity acros
 ### Task 6: Client `cloudAgentService` — one `onAgentImage` consumer for both transports (spec §6.5)
 
 **Files:**
+
 - Modify: `src/services/cloudAgentService.ts`
 - Test: `src/services/__tests__/cloudAgentService.agentImage.test.ts` (new)
 
 **Interfaces:**
+
 - Consumes: WS frame `{type:'agent_image',...}` (Task 3), HTTP `generatedImage` field (Task 4).
 - Produces (Task 7 relies on this exact signature):
   - `export interface AgentImagePayload { imageBase64: string; mimeType: string }`
@@ -1061,7 +1075,9 @@ describe('WS agent_image frame', () => {
     socket.emit('message', {
       data: JSON.stringify({ type: 'agent_image', imageBase64: 'QUJD', mimeType: 'image/png' }),
     })
-    socket.emit('message', { data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 800 }) })
+    socket.emit('message', {
+      data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 800 }),
+    })
     socket.emit('close', { code: 1000 })
 
     const result = await pending
@@ -1082,7 +1098,9 @@ describe('WS agent_image frame', () => {
     const socket = lastSocket()
     socket.emit('open', {})
     socket.emit('message', { data: JSON.stringify({ type: 'agent_image' }) })
-    socket.emit('message', { data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 1 }) })
+    socket.emit('message', {
+      data: JSON.stringify({ type: 'usage_snapshot', remainingCredits: 1 }),
+    })
     socket.emit('close', { code: 1000 })
     await pending
     expect(seen).toEqual([])
@@ -1162,11 +1180,7 @@ In `runViaHttp`, change signature to `(payload: CloudAgentPayload, callbacks?: C
 
 ```typescript
 const rawImage = data.generatedImage as AgentImagePayload | null | undefined
-if (
-  rawImage &&
-  typeof rawImage.imageBase64 === 'string' &&
-  typeof rawImage.mimeType === 'string'
-) {
+if (rawImage && typeof rawImage.imageBase64 === 'string' && typeof rawImage.mimeType === 'string') {
   callbacks?.onAgentImage?.({ imageBase64: rawImage.imageBase64, mimeType: rawImage.mimeType })
 }
 ```
@@ -1203,10 +1217,12 @@ git commit -m "feat(client): funnel agent_image WS frame and HTTP field through 
 ### Task 7: Client `useAIChat` ingestion — save through the existing pipeline, carry `imageId` in `message_data` (spec §6.5)
 
 **Files:**
+
 - Modify: `src/hooks/useAIChat.ts` (inside `runCloudAgentTurn`)
 - Test: `src/hooks/__tests__/useAIChat.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `onAgentImage` callback (Task 6); `saveCharacterImage` (`~/services/characterImageService`, existing); `findCharacterImageByMessageId` (`~/database/characterImageDatabase`, existing); `generateSecureUuid` (`~/utilities/generateSecureUuid`, existing); the streaming id `aiMsgId` minted in `runCloudAgentTurn` (post-#621: exactly one AI id per stream).
 - Produces: assistant row whose `message_data` JSON carries `imageId`; gallery row with `source:'chat'`, `message_id = aiMsgId`. `MessageBubble → ChatImageBubble → useResolvedImage` render untouched (`MessageBubble.tsx:40` already branches on `message.imageId`).
 
@@ -1442,12 +1458,14 @@ git commit -m "feat(client): persist agent-generated chat images via saveCharact
 ### Task 8: Save-to-Photos + Share in the viewer (spec §6.6)
 
 **Files:**
+
 - Modify: `package.json` (+`expo-media-library@~57.0.3`, lockfile) — install with `npx expo install expo-media-library` so the Expo 57-compatible line is chosen
 - Modify: `app.config.ts` (`ios.infoPlist`)
 - Modify: `src/components/ChatImageBubble.tsx`
 - Test: `src/components/__tests__/ChatImageBubble.test.tsx` (new)
 
 **Interfaces:**
+
 - Consumes: `useResolvedImage(imageId,'master')` URI already resolved while the viewer is open; `expo-sharing` API used identically to `src/utilities/okfSave.ts:42`.
 - Produces: viewer modal gains "Save to Photos" and "Share" actions; failures degrade to an inline notice (gallery/viewer state unaffected).
 
@@ -1670,11 +1688,7 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
         accessibilityLabel="Photo in this message"
         accessibilityHint="Opens the photo full screen"
       >
-        <Image
-          source={{ uri: thumbUri }}
-          style={styles.thumb}
-          resizeMode="contain"
-        />
+        <Image source={{ uri: thumbUri }} style={styles.thumb} resizeMode="contain" />
       </Pressable>
 
       <Modal visible={viewerOpen} transparent onRequestClose={() => setViewerOpen(false)}>
@@ -1816,9 +1830,11 @@ git commit -m "feat(client): save-to-Photos and share for chat image viewer"
 ### Task 9: Full verification, deploy, and rollout gates
 
 **Files:**
+
 - No code changes. Verification + deploy only.
 
 **Interfaces:**
+
 - Consumes: everything above; `cloud-agent/scripts/deploy.sh` via `npm run deploy`.
 
 - [ ] **Step 1: Cloud-agent suite**
@@ -1864,6 +1880,7 @@ Expected: 100% on the newly created revision. If it shows 0%, canary explicitly 
 - [ ] **Step 5: Manual device gate (spec §9)**
 
 On a dev client / ad-hoc store build containing the new native dep:
+
 1. Ask a cloud-synced character to "draw a bar chart of X" → image bubble renders in the reply.
 2. Open viewer → Save → photo appears in Photos; Share → sheet opens.
 3. Character gallery contains the image with a chat-message association.

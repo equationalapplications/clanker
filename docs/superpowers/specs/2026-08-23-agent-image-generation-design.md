@@ -14,7 +14,7 @@ The feature is dual-purpose by design: a work tool (charts, diagrams, visual pla
 ## 2. Goals
 
 1. User asks in chat → character generates and sends an image within the same reply.
-2. Character may *offer* unprompted ("want me to draw that?"); an offer never spends; generation requires the request or an explicit yes.
+2. Character may _offer_ unprompted ("want me to draw that?"); an offer never spends; generation requires the request or an explicit yes.
 3. Generated images render in the chat bubble immediately, land in the character's gallery, and survive across devices through existing sync.
 4. Save-to-Photos and Share available from the image viewer on day one.
 5. Cost is transparent: same 200-credit price as avatar generation, visible in the turn's usage snapshot.
@@ -32,12 +32,12 @@ The feature is dual-purpose by design: a work tool (charts, diagrams, visual pla
 
 ## 4. Locked product decisions (agreed with user — do not revisit)
 
-| # | Decision |
-|---|---|
-| 1 | Request-only trigger; agent may offer unprompted |
-| 2 | 200 credits/image, spend-before-generate, refund-on-failure |
-| 3 | Save + share included this phase |
-| 4 | Max 1 image per assistant reply |
+| #   | Decision                                                    |
+| --- | ----------------------------------------------------------- |
+| 1   | Request-only trigger; agent may offer unprompted            |
+| 2   | 200 credits/image, spend-before-generate, refund-on-failure |
+| 3   | Save + share included this phase                            |
+| 4   | Max 1 image per assistant reply                             |
 
 ## 5. Architecture
 
@@ -84,7 +84,7 @@ House-pattern factory: `generateImage(db, userId, cs)` returning a `FunctionTool
 
 ### 6.3 Transport delivery (parity is mandatory)
 
-- **WS** (`wsAgentHandler.ts`): after the event loop, if the collector is non-empty, emit `{ type: 'agent_image', imageBase64, mimeType }` once, *before* `usage_snapshot` and close. Unknown frame types are ignored by old clients (verified client dispatch), making this additive-safe.
+- **WS** (`wsAgentHandler.ts`): after the event loop, if the collector is non-empty, emit `{ type: 'agent_image', imageBase64, mimeType }` once, _before_ `usage_snapshot` and close. Unknown frame types are ignored by old clients (verified client dispatch), making this additive-safe.
 - **HTTP** (`index.ts` `/agent/run`): attach `generatedImage: { imageBase64, mimeType } | null` to the final result object next to `reply`/`toolCalls`/`usageSnapshot`.
 - `transportParity.test.ts` is extended to assert both transports deliver identically-shaped payloads.
 - v1 emission point is post-loop only (single code path, trivial parity): text streams first, image lands with completion. Earlier mid-stream emission can be a fast-follow behind the same frame type.
@@ -124,16 +124,16 @@ Reuse `'chat'`. The TS union `'generated'|'uploaded'|'imported'|'chat'` and the 
 
 ## 7. Error handling matrix
 
-| Failure | Layer | Outcome |
-|---|---|---|
-| Insufficient credits | tool spend | Sentence to model; agent relays; nothing generated, nothing refunded (nothing taken) |
-| Vertex error / empty response / guard trip | tool | Full refund + failure sentence to model |
-| Second generation attempt in one run | tool flag | Declining sentence to model; no spend |
-| Client save/upload fails | client hook | Text reply stands; image lost locally; existing reservation rollback cleans up |
-| Old mobile client receives frame | transport | Frame ignored; text-only reply |
-| Web client receives frame | transport | Ignored; web rendering out of scope |
+| Failure                                                                         | Layer                          | Outcome                                                                                                            |
+| ------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Insufficient credits                                                            | tool spend                     | Sentence to model; agent relays; nothing generated, nothing refunded (nothing taken)                               |
+| Vertex error / empty response / guard trip                                      | tool                           | Full refund + failure sentence to model                                                                            |
+| Second generation attempt in one run                                            | tool flag                      | Declining sentence to model; no spend                                                                              |
+| Client save/upload fails                                                        | client hook                    | Text reply stands; image lost locally; existing reservation rollback cleans up                                     |
+| Old mobile client receives frame                                                | transport                      | Frame ignored; text-only reply                                                                                     |
+| Web client receives frame                                                       | transport                      | Ignored; web rendering out of scope                                                                                |
 | Loop throws after a successful generation (ADK error event / empty final reply) | handler catch path (WS + HTTP) | Image spend refunded with its recorded allocations; error frame / 500 replaces the text reply — no image delivered |
-| Collector empty at emit time | handlers | No frame / null field — silent, valid |
+| Collector empty at emit time                                                    | handlers                       | No frame / null field — silent, valid                                                                              |
 
 ## 8. Security considerations
 
@@ -145,12 +145,14 @@ Reuse `'chat'`. The TS union `'generated'|'uploaded'|'imported'|'chat'` and the 
 ## 9. Testing
 
 **cloud-agent (node:test — NOT Jest):**
+
 - New `tools/generateImage.test.ts`: spend-before-generate ordering against a fake credit service; refund asserted on every failure branch; INSUFFICIENT_CREDITS sentence path; second-call decline; prompt truncation; MIME/base64 guards; collector push shape.
 - Handler tests: WS emits `agent_image` before `usage_snapshot`/close when collector non-empty, omits when empty; HTTP result carries `generatedImage`.
 - `transportParity.test.ts` extension for the new payload.
 - Baseline discipline: suite currently 288 (287 pass, 1 skipped) + two known flakes.
 
 **Client (Jest, scoped runs):**
+
 - `useAIChat` ingestion: mocked `onAgentImage` → asserts saveCharacterImage call shape (pre-minted ids, `source:'chat'`, dedupe), `message_data.imageId` persisted on settle, `setActiveImageId` NOT called.
 - Viewer actions with `MediaLibrary`/`Sharing` mocked: success, permission-denied, and error-toast paths.
 - React-query suites keep `gcTime: 0`; root filtering via `npx jest <path>`.
