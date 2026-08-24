@@ -10,12 +10,10 @@ jest.mock('~/hooks/useResolvedImage', () => ({
 }))
 
 // Overridable per-test: the default resolves instantly for any non-null id.
-const mockUseResolvedImage = jest.fn(
-  (imageId: string | null, variant: 'thumb' | 'master') => ({
-    uri: imageId ? `file:///cache/${variant}.webp` : null,
-    isResolved: !!imageId,
-  }),
-)
+const mockUseResolvedImage = jest.fn((imageId: string | null, variant: 'thumb' | 'master') => ({
+  uri: imageId ? `file:///cache/${variant}.webp` : null,
+  isResolved: !!imageId,
+}))
 
 jest.mock('expo-media-library', () => ({
   requestPermissionsAsync: jest.fn(),
