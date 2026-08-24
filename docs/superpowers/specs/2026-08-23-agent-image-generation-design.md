@@ -9,7 +9,7 @@
 
 AI characters can generate one image per reply during cloud-agent chat conversations. The character's tool call runs server-side (Vertex image model), the 200-credit charge is taken inside the tool with spend-before-generate / refund-on-failure semantics, and the resulting base64 rides the live turn response back to the sending device. The client persists it through the **existing** `saveCharacterImage` pipeline exactly as chat photo uploads do today — no new server persistence, no new sync paths, zero database migrations.
 
-The feature is dual-purpose by design: a work tool (charts, diagrams, visual plans requested mid-project) and a fun one (character selfies). A companion static SEO page (`public/image-generation/`, plan drafted) ships on this same branch.
+The feature is dual-purpose by design: a work tool (charts, diagrams, visual plans requested mid-project) and a fun one (character selfies). A companion static SEO page (`public/image-generation/`, plan drafted) ships **separately** from this code change — it is NOT part of this release; see §11.
 
 ## 2. Goals
 
@@ -64,7 +64,7 @@ Key constraint driving this shape: tool returns reach only the model — never t
 
 ### 6.1 Cloud-agent tool — `cloud-agent/src/tools/generateImage.ts` (new)
 
-House-pattern factory: `generateImage(db, userId, cs)` returning a `FunctionTool`:
+House-pattern closure factory: `generateImage(userId, cs, collector, vertexGenerate?, spendLedger?)` returning a `FunctionTool`. `db` is intentionally omitted — the tool never touches the database. `collector` is the run-scoped `GeneratedImage[]` minted by `buildAgent()` per agent_run (tool results reach only the model, so bytes reach the client through it); `vertexGenerate` is the optional injection seam tests use to stub the Vertex call; `spendLedger` records the exact credit allocations backing a successful generation so post-tool failure paths can refund them.
 
 - **name** `generate_image`; **parameters** Zod `{ prompt: z.string().min(1).max(2000) }`.
 - **description** carries ALL usage rules (the system instruction contains no tool guidance anywhere in cloud-agent): generate only when the user requests an image or explicitly accepts a prior offer; offering in plain text is always allowed and free; at most one image per reply; suited to charts, diagrams, visual plans, and selfies.
@@ -110,7 +110,7 @@ House-pattern factory: `generateImage(db, userId, cs)` returning a `FunctionTool
 
 - **Save to Photos:** `expo-media-library` (new dependency, Expo 57-compatible line), add-only permission flow, new `NSPhotoLibraryAddUsageDescription` in `app.config.ts`. Verified per house rule with a prebuild Info.plist diff — not just tests.
 - **Share:** `expo-sharing` (already installed; currently used only by OKF export) sharing the resolved master URI.
-- Either action failing degrades to a toast; gallery rows and viewer state unaffected.
+- Either action failing — or a press while the master lookup is still in flight, or one after it completed without a URI — degrades to an **inline notice rendered inside the viewer** (the `noticePill`); no toasts. Gallery rows and viewer state are unaffected.
 
 ### 6.7 Source semantics
 
@@ -168,7 +168,7 @@ Reuse `'chat'`. The TS union `'generated'|'uploaded'|'imported'|'chat'` and the 
 
 ## 11. Companion marketing page
 
-Static SEO page ships on this branch per the approved-plan-pending draft at `.superpowers/plans/2026-08-23-seo-character-images-page.md` (slug `public/image-generation/`, sitemap entry, footer/welcome links). Built and reviewed separately from the code change; claims restricted to facts in §2 (200 credits, cloud-powered availability, save/share).
+Static SEO page ships **separately from this release** per the approved-plan-pending draft at `.superpowers/plans/2026-08-23-seo-character-images-page.md` (slug `public/image-generation/`, sitemap entry, footer/welcome links). Built and reviewed independently of the code change; claims restricted to facts in §2 (200 credits, cloud-powered availability, save/share).
 
 ## 12. References
 
