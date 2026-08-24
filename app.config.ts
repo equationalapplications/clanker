@@ -136,6 +136,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         'Allow Clanker to access your photo library to set a character avatar.',
+      // Add-only permission for saving agent-generated/chat images (expo-media-library
+      // writeOnly flow). Read access stays with expo-image-picker's existing prompts.
+      NSPhotoLibraryAddUsageDescription:
+        'Allow Clanker to save images your characters create to your photo library.',
       // Microphone permission was previously supplied by the expo-speech-recognition
       // config plugin (deleted in c695ab0e). @speechmatics/expo-two-way-audio, the
       // current Talk-tab voice stack, ships no config plugin and hard-fatalErrors

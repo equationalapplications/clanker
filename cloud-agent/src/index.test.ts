@@ -330,6 +330,45 @@ test('POST /agent/run returns reply from runAgentFn', async () => {
   assert.equal((res.body as { reply: string }).reply, 'Hello from mock agent')
 })
 
+test('POST /agent/run returns generatedImage when runAgentFn produced one', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => ({
+      reply: 'here is your chart',
+      toolCalls: ['generate_image'],
+      generatedImage: { imageBase64: 'QUJD', mimeType: 'image/png' },
+    }),
+    creditService: mockCreditService,
+  })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: CHAR_UUID })
+  assert.equal(res.status, 200)
+  assert.deepEqual((res.body as { generatedImage: unknown }).generatedImage, {
+    imageBase64: 'QUJD',
+    mimeType: 'image/png',
+  })
+})
+
+test('POST /agent/run returns generatedImage null when nothing was generated', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => ({ reply: 'plain text', toolCalls: [] }),
+    creditService: mockCreditService,
+  })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: CHAR_UUID })
+  assert.equal(res.status, 200)
+  assert.equal((res.body as { generatedImage: unknown }).generatedImage, null)
+})
+
 test('POST /agent/run returns 404 when character not found for this user', async () => {
   // User found, but character not found (or belongs to another user)
   const db = makeMockDb([[mockUser] as InsertedRow[], []])
@@ -775,4 +814,97 @@ test('WS upgrade with a non-allowlisted Origin is rejected with 403', async () =
     if (orig !== undefined) process.env.CORS_ORIGIN = orig
     else delete process.env.CORS_ORIGIN
   }
+})
+
+test('runAgentReal refunds a generated image when the loop throws after tool success', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const refunds: {
+    userId: string
+    allocations: { transactionId: string; amount: number }[]
+  }[] = []
+  // Distinguish the image spend from the loop's per-iteration spends — only
+  // the former belongs to runAgentReal's failure path.
+  const cs = {
+    spendCredit: async (
+      _userId: string,
+      amount: number,
+      reason: string,
+    ): Promise<{ transactionId: string; amount: number }[]> =>
+      reason === 'image_generate'
+        ? [{ transactionId: 'http-image-txid', amount }]
+        : [{ transactionId: 'http-turn-txid', amount }],
+    refundCredit: async (
+      userId: string,
+      allocations: { transactionId: string; amount: number }[],
+    ): Promise<void> => {
+      refunds.push({ userId, allocations })
+    },
+    getBalance: async (_userId: string): Promise<number> => 1000,
+  }
+
+  const originalRunAsync = InMemoryRunner.prototype.runAsync
+  ;(
+    InMemoryRunner.prototype as unknown as {
+      runAsync: () => AsyncGenerator<unknown, void, undefined>
+    }
+  ).runAsync = function runAsyncMock(this: unknown) {
+    const runner = this as { agent?: { tools?: unknown[] } }
+    return (async function* () {
+      // Drive the REAL generate_image execute (against the injected fake Vertex
+      // generator), then poison the stream so consumeAgentEvents throws.
+      const tools = runner.agent?.tools ?? []
+      const imageTool = tools.find((t) => (t as { name?: string }).name === 'generate_image') as
+        { execute: (args: unknown) => Promise<string> } | undefined
+      await imageTool?.execute({ prompt: 'draw a cat' })
+      yield {
+        id: 'mock-event-fc',
+        invocationId: 'mock-invocation-fc',
+        author: 'mock-agent',
+        actions: { stateDelta: {}, artifactDelta: {} },
+        timestamp: Date.now(),
+        content: {
+          role: 'model',
+          parts: [{ functionCall: { name: 'generate_image', args: { prompt: 'draw a cat' } } }],
+        },
+      }
+      yield {
+        id: 'mock-event-err',
+        invocationId: 'mock-invocation-err',
+        author: 'mock-agent',
+        actions: { stateDelta: {}, artifactDelta: {} },
+        timestamp: Date.now(),
+        errorCode: 'ADK_STREAM_ERROR',
+        errorMessage: 'mid-stream failure after generation',
+      }
+    })()
+  }
+
+  try {
+    await assert.rejects(
+      runAgentReal({
+        db,
+        userId: mockUser.id,
+        firebaseUid: 'user-1',
+        characterId: CHAR_UUID,
+        systemInstruction: 'You are Alice.',
+        message: 'draw me a cat',
+        history: [],
+        timezone: 'UTC',
+        embed: async () => new Array(1536).fill(0),
+        creditService: cs,
+        imageGenerator: async () => ({ imageBase64: 'QUJD', mimeType: 'image/png' }),
+      }),
+      /ADK error/,
+    )
+  } finally {
+    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
+      originalRunAsync
+  }
+
+  const imageRefund = refunds.find((r) =>
+    r.allocations.some((a) => a.transactionId === 'http-image-txid'),
+  )
+  assert.ok(imageRefund, 'expected the image spend to be refunded on the failure path')
+  assert.deepEqual(imageRefund.allocations, [{ transactionId: 'http-image-txid', amount: 200 }])
+  assert.equal(imageRefund.userId, mockUser.id)
 })

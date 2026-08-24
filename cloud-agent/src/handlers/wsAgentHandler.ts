@@ -7,6 +7,12 @@ import type { Content, GroundingMetadata } from '@google/genai'
 import { hasGroundingData } from '../groundingMetadata.js'
 import type { DrizzleClient } from '../db/client.js'
 import { users, characters } from '../db/schema.js'
+import type { CreditSpendAllocation } from '../services/creditService.js'
+import {
+  refundGeneratedImages,
+  type GeneratedImage,
+  type VertexImageGenerator,
+} from '../tools/generateImage.js'
 import { embedText } from '../db/embeddings.js'
 import { buildAgent, assembleSystemInstruction, queryWikiContext } from '../services/agentCore.js'
 import { bulkInsertUnsynced } from '../services/unsyncedHistory.js'
@@ -25,10 +31,14 @@ export interface WsHandlerOptions {
   db: DrizzleClient
   creditService?: CreditService
   verifyToken?: (token: string) => Promise<{ uid: string }>
+  /** Test hook: replaces defaultVertexImageGenerator inside buildAgent. */
+  imageGenerator?: VertexImageGenerator
   /** Test hook: bypass ADK and stream canned events */
   mockStreamReply?: string
   /** Test hook: grounding payload emitted with mockStreamReply */
   mockGroundingMetadata?: GroundingMetadata
+  /** Test hook: emit this payload as an agent_image frame during the mockStreamReply branch. */
+  mockGeneratedImage?: { imageBase64: string; mimeType: string }
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -144,6 +154,13 @@ export async function handleWsUpgrade(
             groundingMetadata: options.mockGroundingMetadata,
           })
         }
+        if (options.mockGeneratedImage) {
+          safeSend({
+            type: 'agent_image',
+            imageBase64: options.mockGeneratedImage.imageBase64,
+            mimeType: options.mockGeneratedImage.mimeType,
+          })
+        }
         let newBalance: number | null = null
         try {
           newBalance = await cs.getBalance(userId)
@@ -170,8 +187,30 @@ export async function handleWsUpgrade(
         return
       }
 
+      // Hoisted out of the try so the catch path can still see what the run
+      // generated — a loop throw after a successful generation must refund the
+      // image spend (§7), which needs both arrays even though the try block
+      // that filled them has unwound.
+      let imageCollector: GeneratedImage[] = []
+      let imageSpendAllocations: CreditSpendAllocation[] = []
+
       try {
-        const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embedText)
+        // Pass the handler's injected cs so the tool spends/refunds hit the same
+        // credit service the loop bills with.
+        const built = buildAgent(
+          db,
+          userId,
+          characterId,
+          systemInstruction,
+          timezone,
+          embedText,
+          undefined,
+          undefined,
+          { creditService: cs, imageGenerator: options.imageGenerator },
+        )
+        imageCollector = built.imageCollector
+        imageSpendAllocations = built.imageSpendAllocations
+        const { agent } = built
         const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
         const sessionId = crypto.randomUUID()
 
@@ -215,6 +254,13 @@ export async function handleWsUpgrade(
           },
         })
 
+        if (imageCollector.length > 0) {
+          // Post-loop delivery (§6.3): text streamed first; the image lands with
+          // completion, before usage_snapshot/close. One frame max per run.
+          const img = imageCollector[0]
+          safeSend({ type: 'agent_image', imageBase64: img.imageBase64, mimeType: img.mimeType })
+        }
+
         if (result.groundingMetadata) {
           safeSend({
             type: 'grounding_metadata',
@@ -237,6 +283,10 @@ export async function handleWsUpgrade(
         isCompleted = true
         ws.close(1000, 'Agent execution complete')
       } catch (adkErr) {
+        // §7: if generate_image already succeeded this run, its spend sits
+        // outside consumeAgentEvents' own refund scope — return it before the
+        // error frame so a failed turn never keeps the image's credits.
+        await refundGeneratedImages(userId, cs, imageCollector, imageSpendAllocations)
         console.error('ADK execution error:', adkErr)
         const mapped = mapAgentExecutionError(adkErr)
         safeSend({ type: 'error', code: mapped.code, message: mapped.message })

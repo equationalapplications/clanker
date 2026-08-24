@@ -1,3 +1,16 @@
+## [31.2.1](https://github.com/equationalapplications/clanker/compare/v31.2.0...v31.2.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **cloud-agent:** assert post-deploy traffic landed on new revision ([14e7d9a](https://github.com/equationalapplications/clanker/commit/14e7d9a1d4bbf11340ab51ef1983b05f79f90485))
+* **cloud-agent:** isolate refundCredit cache sync in a SAVEPOINT ([ca9342f](https://github.com/equationalapplications/clanker/commit/ca9342fd83b9e29a77cc36b76d943898cd00de88))
+* **cloud-agent:** restore spend/refund warn markers; name the tx handle type ([e182d35](https://github.com/equationalapplications/clanker/commit/e182d35eb9ab2a6f397d1a62192d08aff33b80aa))
+* **deploy:** capture PREV_LATEST_REVISION before deploy ([84e230e](https://github.com/equationalapplications/clanker/commit/84e230e2bde3242de3c55d875817a70527198d5d))
+* **deploy:** guard TRAFFIC_CHECK_ATTEMPTS and avoid wasted fetch on skip ([1e6531e](https://github.com/equationalapplications/clanker/commit/1e6531e7d6955495cd085a404660bd02b4057bae))
+* **deploy:** validate TRAFFIC_CHECK_ATTEMPTS before build, exempting skip paths ([66159c4](https://github.com/equationalapplications/clanker/commit/66159c47a3f9e212064f98ea899b2268696a2027))
+* **functions:** address CodeRabbit review findings on integration suite ([5cd2d9b](https://github.com/equationalapplications/clanker/commit/5cd2d9b4968df3537f54f38232336e57259cb19a))
+
 # [31.2.0](https://github.com/equationalapplications/clanker/compare/v31.1.1...v31.2.0) (2026-08-22)
 
 
