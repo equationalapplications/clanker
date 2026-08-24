@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-23
 **Branch:** `feat/chat-image-generation`
-**Status:** Approved design (brainstorming session 2026-08-23/24); implementation plan to follow via writing-plans.
+**Status:** Implemented (verified 2026-08-24).
 **Supersedes the deferral in:** image-pipeline refactor §18 and vision-chat-uploads §11, both of which scoped this feature explicitly.
 
 ## 1. Summary
