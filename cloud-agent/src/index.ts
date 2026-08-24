@@ -409,12 +409,13 @@ export function createApp(options: AppOptions) {
           console.warn(`getBalance failed user=${userId}, returning null snapshot`, balErr)
         }
 
-        // RESPOND
+        // RESPOND — generatedImage mirrors the WS agent_image frame: { imageBase64, mimeType }
         res.json({
           reply: result.reply,
           toolCalls: result.toolCalls,
           usageSnapshot: newBalance !== null ? { remainingCredits: newBalance } : null,
           groundingMetadata: result.groundingMetadata,
+          generatedImage: result.generatedImage ?? null,
         })
       } catch (err) {
         console.error('agent/run error:', err)

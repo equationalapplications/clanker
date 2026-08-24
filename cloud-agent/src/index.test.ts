@@ -330,6 +330,45 @@ test('POST /agent/run returns reply from runAgentFn', async () => {
   assert.equal((res.body as { reply: string }).reply, 'Hello from mock agent')
 })
 
+test('POST /agent/run returns generatedImage when runAgentFn produced one', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => ({
+      reply: 'here is your chart',
+      toolCalls: ['generate_image'],
+      generatedImage: { imageBase64: 'QUJD', mimeType: 'image/png' },
+    }),
+    creditService: mockCreditService,
+  })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: CHAR_UUID })
+  assert.equal(res.status, 200)
+  assert.deepEqual((res.body as { generatedImage: unknown }).generatedImage, {
+    imageBase64: 'QUJD',
+    mimeType: 'image/png',
+  })
+})
+
+test('POST /agent/run returns generatedImage null when nothing was generated', async () => {
+  const db = makeMockDb([[mockUser] as InsertedRow[], [mockCharacter] as InsertedRow[], []])
+  const app = createApp({
+    verifyToken: mockVerify,
+    db,
+    runAgentFn: async () => ({ reply: 'plain text', toolCalls: [] }),
+    creditService: mockCreditService,
+  })
+  const res = await request(app)
+    .post('/agent/run')
+    .set('Authorization', 'Bearer valid-token')
+    .send({ message: 'hello', characterId: CHAR_UUID })
+  assert.equal(res.status, 200)
+  assert.equal((res.body as { generatedImage: unknown }).generatedImage, null)
+})
+
 test('POST /agent/run returns 404 when character not found for this user', async () => {
   // User found, but character not found (or belongs to another user)
   const db = makeMockDb([[mockUser] as InsertedRow[], []])
