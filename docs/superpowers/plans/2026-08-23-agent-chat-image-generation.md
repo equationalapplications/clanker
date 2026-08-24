@@ -1844,6 +1844,7 @@ git commit -m "feat(client): save-to-Photos and share for chat image viewer"
 - [ ] **Step 1: Cloud-agent suite**
 
 ```bash
+set -o pipefail
 cd cloud-agent && npm test 2>&1 | tail -12
 ```
 

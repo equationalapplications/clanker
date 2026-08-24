@@ -154,7 +154,7 @@ Reuse `'chat'`. The TS union `'generated'|'uploaded'|'imported'|'chat'` and the 
 **Client (Jest, scoped runs):**
 
 - `useAIChat` ingestion: mocked `onAgentImage` → asserts saveCharacterImage call shape (pre-minted ids, `source:'chat'`, dedupe), `message_data.imageId` persisted on settle, `setActiveImageId` NOT called.
-- Viewer actions with `MediaLibrary`/`Sharing` mocked: success, permission-denied, and error-toast paths.
+- Viewer actions with `MediaLibrary`/`Sharing` mocked: success, permission-denied, and failure paths — each failure renders the inline `noticePill` inside the viewer (no toasts, no gallery-row or viewer-state changes).
 - React-query suites keep `gcTime: 0`; root filtering via `npx jest <path>`.
 
 **Manual verification gate:** device run — ask a character for a chart → bubble renders → save/share → gallery entry → second device sees it after Cloud Sync pull.
