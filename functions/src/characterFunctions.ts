@@ -13,7 +13,6 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f][0-9a-f]{3}-[89ab][0-9a-f]{
 type SyncCharacterPayload = {
   id?: string
   name: string
-  avatar?: string | null
   appearance?: string | null
   traits?: string | null
   emotions?: string | null
@@ -84,7 +83,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseOptionalTextField(
   value: unknown,
-  field: 'avatar' | 'appearance' | 'traits' | 'emotions' | 'context' | 'voice',
+  field: 'appearance' | 'traits' | 'emotions' | 'context' | 'voice',
 ): string | null | undefined {
   if (value === undefined || value === null) {
     return value
@@ -410,7 +409,6 @@ export const syncCharacterHandler = async (
     throw new HttpsError('invalid-argument', 'character.name must be a non-empty string.')
   }
 
-  const avatar = parseOptionalTextField(character.avatar, 'avatar')
   const appearance = parseOptionalTextField(character.appearance, 'appearance')
   const traits = parseOptionalTextField(character.traits, 'traits')
   const emotions = parseOptionalTextField(character.emotions, 'emotions')
@@ -449,7 +447,6 @@ export const syncCharacterHandler = async (
         ...(character.id ? { id: character.id } : {}),
         userId: user.id,
         name: character.name,
-        avatar,
         appearance,
         traits,
         emotions,

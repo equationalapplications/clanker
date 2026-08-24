@@ -11,7 +11,6 @@ import { characters } from '../db/schema.js'
 test('buildCharacterUpdateValues omits isPublic when field is undefined', () => {
   const result = buildCharacterUpdateValues({
     name: 'Updated',
-    avatar: null,
     appearance: null,
     traits: null,
     emotions: null,
@@ -26,7 +25,6 @@ test('buildCharacterUpdateValues omits isPublic when field is undefined', () => 
 test('buildCharacterUpdateValues includes isPublic when field is provided', () => {
   const result = buildCharacterUpdateValues({
     name: 'Updated',
-    avatar: null,
     appearance: null,
     traits: null,
     emotions: null,
@@ -42,7 +40,6 @@ test('buildCharacterUpdateValues includes isPublic when field is provided', () =
 test('buildCharacterUpdateValues omits undefined voice', () => {
   const result = buildCharacterUpdateValues({
     name: 'Updated',
-    avatar: null,
     appearance: null,
     traits: null,
     emotions: null,
@@ -143,4 +140,19 @@ test('assertCharacterOwnership does not throw when the character does not exist'
   const service = createCharacterService({ getDb: async () => fakeDb as never })
 
   await assert.doesNotReject(async () => service.assertCharacterOwnership('missing', 'user-1'))
+})
+
+test('buildCharacterUpdateValues never writes the dropped avatar column', () => {
+  const result = buildCharacterUpdateValues({
+    name: 'Updated',
+    appearance: null,
+    traits: null,
+    emotions: null,
+    context: null,
+    voice: 'narrator',
+    isPublic: true,
+    updatedAt: undefined,
+  })
+
+  assert.equal('avatar' in result, false)
 })
