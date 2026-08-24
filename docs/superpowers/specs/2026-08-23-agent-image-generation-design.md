@@ -132,6 +132,7 @@ Reuse `'chat'`. The TS union `'generated'|'uploaded'|'imported'|'chat'` and the 
 | Client save/upload fails | client hook | Text reply stands; image lost locally; existing reservation rollback cleans up |
 | Old mobile client receives frame | transport | Frame ignored; text-only reply |
 | Web client receives frame | transport | Ignored; web rendering out of scope |
+| Loop throws after a successful generation (ADK error event / empty final reply) | handler catch path (WS + HTTP) | Image spend refunded with its recorded allocations; error frame / 500 replaces the text reply — no image delivered |
 | Collector empty at emit time | handlers | No frame / null field — silent, valid |
 
 ## 8. Security considerations

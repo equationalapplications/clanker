@@ -21,6 +21,7 @@ import {
   assertAgentTurnCredits,
   AgentInsufficientCreditsError,
   consumeAgentEvents,
+  type ConsumeAgentEventsResult,
 } from './services/agentEventLoop.js'
 import { handleWsUpgrade, type WsHandlerOptions } from './handlers/wsAgentHandler.js'
 import { handleLiveWsUpgrade, type WsLiveHandlerOptions } from './handlers/wsLiveAgentHandler.js'
@@ -50,7 +51,11 @@ import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
 import { MAX_AGENT_RUN_BODY_BYTES } from '../../shared/cloudAgentAttachments.js'
 import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
 import { buildNewMessage } from './agentMessage.js'
-import type { GeneratedImage } from './tools/generateImage.js'
+import {
+  refundGeneratedImages,
+  type GeneratedImage,
+  type VertexImageGenerator,
+} from './tools/generateImage.js'
 
 export { INSTANCE_ID } from './services/instanceId.js'
 
@@ -67,6 +72,8 @@ export interface RunAgentParams {
   timezone: string
   embed: (text: string) => Promise<number[]>
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+  /** Test hook: replaces defaultVertexImageGenerator inside buildAgent. */
+  imageGenerator?: VertexImageGenerator
   /** At most one in Phase 2; delivered as a leading inlineData part. */
   attachments?: AgentAttachment[]
 }
@@ -110,6 +117,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     timezone,
     embed,
     creditService,
+    imageGenerator,
     attachments = [],
   } = params
   const bridge = getApps().length
@@ -129,7 +137,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
         desktopBridge,
       })
     : undefined
-  const { agent, imageCollector } = buildAgent(
+  const { agent, imageCollector, imageSpendAllocations } = buildAgent(
     db,
     userId,
     characterId,
@@ -138,7 +146,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     embed,
     bridge,
     vault,
-    { creditService },
+    { creditService, imageGenerator },
   )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
@@ -169,7 +177,16 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     newMessage: buildNewMessage(message, attachments),
   })
 
-  const consumed = await consumeAgentEvents(events, userId, creditService)
+  let consumed: ConsumeAgentEventsResult
+  try {
+    consumed = await consumeAgentEvents(events, userId, creditService)
+  } catch (err) {
+    // §7: if generate_image already succeeded this run, its spend sits outside
+    // consumeAgentEvents' own refund scope — return it before rethrowing so
+    // the route's 500 never keeps the image's credits.
+    await refundGeneratedImages(userId, creditService, imageCollector, imageSpendAllocations)
+    throw err
+  }
   return {
     ...consumed,
     // Post-loop delivery point (§6.3): at most one image per run.
@@ -386,7 +403,9 @@ export function createApp(options: AppOptions) {
         const systemInstruction = assembleSystemInstruction(character, wikiContext)
 
         // Credit spend happens per internal ADK loop iteration inside runAgentFn
-        // (see services/agentEventLoop.ts) — refund-on-failure is handled there too.
+        // (see services/agentEventLoop.ts); the loop refunds its own spends on
+        // failure, and runAgentReal additionally refunds a generated image's
+        // spend before rethrowing (spec §7).
         const result = await runAgentFn({
           db,
           userId,

@@ -17,14 +17,25 @@ import { llmWikiEntries } from '../db/schema.js'
 
 import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
 import { buildVaultTools, type VaultToolDeps } from '../tools/vaultTools.js'
-import type { CreditService } from './creditService.js'
+import type { CreditService, CreditSpendAllocation } from './creditService.js'
 import { createCreditService } from './creditService.js'
-import { generateImage, type GeneratedImage } from '../tools/generateImage.js'
+import {
+  defaultVertexImageGenerator,
+  generateImage,
+  type GeneratedImage,
+  type VertexImageGenerator,
+} from '../tools/generateImage.js'
 
 export interface BuildAgentResult {
   agent: LlmAgent
   /** Run-scoped: images generate_image produced during THIS agent_run. Empty otherwise. */
   imageCollector: GeneratedImage[]
+  /**
+   * Run-scoped: the credit allocations backing each imageCollector entry (the
+   * two are pushed together by the tool). Lets transport failure paths refund
+   * exactly what was spent when a run dies after a successful generation.
+   */
+  imageSpendAllocations: CreditSpendAllocation[]
 }
 
 export function buildAgent(
@@ -36,10 +47,15 @@ export function buildAgent(
   embed: (text: string) => Promise<number[]>,
   bridge?: BrowserActionDeps,
   vault?: VaultToolDeps,
-  opts?: { creditService?: Pick<CreditService, 'spendCredit' | 'refundCredit'> },
+  opts?: {
+    creditService?: Pick<CreditService, 'spendCredit' | 'refundCredit'>
+    /** Test hook: replaces defaultVertexImageGenerator so wiring probes make no network calls. */
+    imageGenerator?: VertexImageGenerator
+  },
 ): BuildAgentResult {
   const cs = opts?.creditService ?? createCreditService(db)
   const imageCollector: GeneratedImage[] = []
+  const imageSpendAllocations: CreditSpendAllocation[] = []
   const tools = [
     getCurrentTimeTool(timezone),
     wikiReadTool(db, userId, characterId, embed),
@@ -59,7 +75,15 @@ export function buildAgent(
   if (vault) tools.push(...buildVaultTools(vault))
   // Unconditional (§6.2): credit spending works on both transports; the tool's
   // own rules + cap gate usage.
-  tools.push(generateImage(userId, cs, imageCollector))
+  tools.push(
+    generateImage(
+      userId,
+      cs,
+      imageCollector,
+      opts?.imageGenerator ?? defaultVertexImageGenerator,
+      imageSpendAllocations,
+    ),
+  )
   return {
     agent: new LlmAgent({
       name: 'clanker-cloud-agent',
@@ -68,6 +92,7 @@ export function buildAgent(
       tools,
     }),
     imageCollector,
+    imageSpendAllocations,
   }
 }
 

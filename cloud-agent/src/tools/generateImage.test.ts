@@ -90,6 +90,29 @@ test('success pushes onto the collector and returns ok JSON without base64', asy
   assert.deepEqual(collector, [{ imageBase64: 'QUJD', mimeType: 'image/png' }])
 })
 
+test('success records its spend allocations in the run-scoped ledger', async () => {
+  const { cs } = makeFakeCs()
+  const vertex = makeFakeVertex()
+  const spendLedger: CreditSpendAllocation[] = []
+  await executeOf(generateImage('user-1', cs, [], vertex.generate, spendLedger))({
+    prompt: 'a diagram',
+  })
+  // The handler catch paths refund exactly these allocations if the run dies
+  // after this point (spec §7 post-tool-success row).
+  assert.deepEqual(spendLedger, [{ transactionId: 'tx-1', amount: 200 }])
+})
+
+test('failure branches that self-refund leave the spend ledger empty', async () => {
+  const { cs, calls } = makeFakeCs()
+  const vertex = makeFakeVertex({ error: new Error('VERTEX_DOWN') })
+  const spendLedger: CreditSpendAllocation[] = []
+  await executeOf(generateImage('user-1', cs, [], vertex.generate, spendLedger))({ prompt: 'x' })
+  // The internal tryRefund already made the user whole — a ledger entry here
+  // would cause a double refund downstream.
+  assert.deepEqual(spendLedger, [])
+  assert.equal(calls.refunds.length, 1)
+})
+
 test('INSUFFICIENT_CREDITS relays a sentence, generates nothing, refunds nothing', async () => {
   const { cs, calls } = makeFakeCs({ spendError: new Error('INSUFFICIENT_CREDITS') })
   const vertex = makeFakeVertex()

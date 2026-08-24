@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { GoogleGenAI } from '@google/genai'
 import { IMAGE_GENERATION_COST } from '../constants/credits.js'
 import { CHAT_IMAGE_MODEL_ID, CHAT_IMAGE_REGION } from '../constants/images.js'
-import type { CreditService } from '../services/creditService.js'
+import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 
 /** One generated image riding this agent_run's turn response to the client. */
 export interface GeneratedImage {
@@ -64,6 +64,7 @@ export function generateImage(
   cs: Pick<CreditService, 'spendCredit' | 'refundCredit'>,
   collector: GeneratedImage[],
   vertexGenerate: VertexImageGenerator = defaultVertexImageGenerator,
+  spendLedger?: CreditSpendAllocation[],
 ): FunctionTool {
   // Run-scoped hard cap (decision #4): one successful generation per reply,
   // enforced here regardless of what the model does with the description.
@@ -132,6 +133,10 @@ export function generateImage(
 
         generatedThisRun = true
         collector.push({ imageBase64: data, mimeType: normalizedMime })
+        // Record the exact allocations backing this image so a failure path
+        // AFTER this point (loop throw post-tool-success) can refund what was
+        // spent — consumeAgentEvents' rollback only covers its own spends.
+        spendLedger?.push(...allocations)
         // Never return the base64 here — tool results are tokenized into the
         // model context. The bytes leave through the run-scoped collector.
         return JSON.stringify({ status: 'ok' })
@@ -142,4 +147,27 @@ export function generateImage(
       }
     },
   })
+}
+
+/**
+ * Failure-path rollback for an image whose generation already succeeded:
+ * when consumeAgentEvents throws after the tool ran (mid-stream ADK error,
+ * empty final reply), its catch refunds only its own per-iteration spends —
+ * without this the run's 200 image credits stay taken while the bytes are
+ * discarded (spec §7). Best-effort by contract: a failed refund must never
+ * mask the original error, so it swallows and warns like every other
+ * refund site.
+ */
+export async function refundGeneratedImages(
+  userId: string,
+  cs: Pick<CreditService, 'refundCredit'>,
+  collector: GeneratedImage[],
+  spendLedger: CreditSpendAllocation[],
+): Promise<void> {
+  if (collector.length === 0 || spendLedger.length === 0) return
+  try {
+    await cs.refundCredit(userId, spendLedger)
+  } catch (refundErr) {
+    console.error(`[CRITICAL] image refundCredit failed user=${userId}`, refundErr)
+  }
 }
