@@ -6,7 +6,6 @@ import { DEFAULT_VOICE } from '../constants/voiceDefaults.js'
 type CharacterUpdateInput = Pick<
   typeof characters.$inferInsert,
   | 'name'
-  | 'avatar'
   | 'appearance'
   | 'traits'
   | 'emotions'
@@ -23,7 +22,6 @@ export function buildCharacterUpdateValues(character: CharacterUpdateInput) {
 
   const updateValues = {
     name: character.name,
-    avatar: character.avatar,
     appearance: character.appearance,
     traits: character.traits,
     emotions: character.emotions,

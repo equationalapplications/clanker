@@ -36,6 +36,7 @@ functions/.env.*
 !functions/.env.example
 .firebase
 functions/lib
+functions/lib-integration
 firebase-functions/firebase-debug.log
 firebase-functions/firestore-debug.log
 firebase-functions/ui-debug.log

@@ -83,15 +83,10 @@ function TalkGroundingDisplay({ metadata }: { metadata: GroundingMetadata }) {
 
 function TalkView({ characterId }: { characterId: string }) {
   const { data: character } = useCharacter(characterId)
-  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
-  // tail fallback for devices whose one-shot migration has not run and for
-  // characters that predate `avatar_data`. `CharacterAvatar` supplies the
-  // bundled default when both are null. Two variants because the body avatar is
-  // the screen's focal element and the header is 40px.
-  const { uri: resolvedHeaderAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
-  const headerAvatar = resolvedHeaderAvatar ?? character?.avatar ?? null
-  const { uri: resolvedBodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
-  const bodyAvatar = resolvedBodyAvatar ?? character?.avatar ?? null
+  // Two variants because the body avatar is the screen's focal element and the
+  // header is 40px. `CharacterAvatar` supplies the bundled default when null.
+  const { uri: headerAvatar } = useResolvedImage(character?.active_image_id, 'thumb')
+  const { uri: bodyAvatar } = useResolvedImage(character?.active_image_id, 'master')
   const {
     isConnecting,
     isLive,

@@ -626,6 +626,44 @@ test('refundCredit restores each fragmented spend row by allocation', async () =
   assert.equal(updateCalls, 2)
 })
 
+test('refundCredit rejects when the cache sync fails so the refund cannot be silently dropped', async () => {
+  // Contract pin for THIS backend's asymmetry with cloud-agent: functions'
+  // syncSubscriptionCache propagates (same as in spendCredits above), so a
+  // cache failure rolls back the whole refund and surfaces to the caller's
+  // logger.error. cloud-agent isolates its cache write in a SAVEPOINT instead.
+  // If this ever stops rejecting, refunds are being silently discarded.
+  let refundUpdateRan = false
+  const fakeTx = {
+    update: () => ({
+      set: () => ({
+        where: () =>
+          Object.assign(Promise.resolve(undefined), {
+            returning: async () => {
+              refundUpdateRan = true
+              return [{ id: 'tx-abc' }]
+            },
+          }),
+      }),
+    }),
+    insert: () => ({ values: async () => {} }),
+    select: () => {
+      throw new Error('cache-sync exploded')
+    },
+  }
+  const fakeDb = {
+    transaction: async (fn: (tx: typeof fakeTx) => Promise<void>) => fn(fakeTx),
+  }
+
+  const service = createCreditService({ getDb: async () => fakeDb as never })
+  await assert.rejects(
+    () => service.refundCredit('user-1', [{ transactionId: 'tx-abc', amount: 1 }]),
+    /cache-sync exploded/,
+  )
+  // The refund UPDATE itself was attempted inside the tx before the failure —
+  // Postgres then discards it together with everything else on rollback.
+  assert.equal(refundUpdateRan, true)
+})
+
 // ---------------------------------------------------------------------------
 // setCredits — atomic: lock + insert + expire old active rows + sync cache
 // ---------------------------------------------------------------------------

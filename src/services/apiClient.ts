@@ -83,7 +83,6 @@ export interface AcceptTermsResponse {
 export interface SyncCharacterPayload {
   id?: string
   name: string
-  avatar?: string | null
   appearance?: string | null
   traits?: string | null
   emotions?: string | null
@@ -132,7 +131,6 @@ export interface CharacterSnapshot {
   id: string
   userId: string
   name: string
-  avatar: string | null
   appearance: string | null
   traits: string | null
   emotions: string | null

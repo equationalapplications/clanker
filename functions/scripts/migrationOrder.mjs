@@ -32,6 +32,7 @@ export const MIGRATION_ORDER = [
   '0022_character_images.sql',
   '0023_character_images_chat.sql',
   '0024_credit_spend_events.sql',
+  '0025_drop_characters_avatar.sql',
 ];
 
 /** Index of a migration in the canonical order, or -1 if untracked. */

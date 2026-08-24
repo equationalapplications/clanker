@@ -1,9 +1,11 @@
 /**
  * Avatar source precedence for the Talk screen's header and body avatars.
  *
- * Chain: resolved(active_image_id) → legacy characters.avatar → bundled default.
- * The header goes through drawerNav.setOptions, so it is captured and rendered
- * separately; the body avatar is in the main tree.
+ * Chain: resolved(active_image_id) → bundled default. The legacy
+ * `characters.avatar` tail fallback was removed when the column was dropped; a
+ * missing resolve now goes straight to the bundled default. The header goes
+ * through drawerNav.setOptions, so it is captured and rendered separately; the
+ * body avatar is in the main tree.
  */
 
 import React from 'react'
@@ -152,7 +154,6 @@ function baseCharacter(overrides: Record<string, unknown>) {
   return {
     id: 'char-1',
     name: 'Frodo',
-    avatar: null,
     active_image_id: null,
     voice: 'Aoede',
     save_to_cloud: 1,
@@ -185,22 +186,15 @@ describe('Talk screen avatar source', () => {
     mockResolved = null
   })
 
-  it('body avatar prefers the resolved master over a stale legacy URL', () => {
+  it('body avatar prefers the resolved master when a row is present', () => {
     mockResolved = 'file:///new-master.webp'
-    renderTalk(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
+    renderTalk(baseCharacter({ active_image_id: 'img-1' }))
 
     expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'master')
     expect(bodyAvatarProps().imageUrl).toBe('file:///new-master.webp')
   })
 
-  it('body avatar falls back to the legacy URL when nothing resolves', () => {
-    mockResolved = null
-    renderTalk(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
-
-    expect(bodyAvatarProps().imageUrl).toBe('https://old.example/legacy.png')
-  })
-
-  it('body avatar passes null when there is neither a row nor a legacy URL', () => {
+  it('body avatar passes null when nothing resolves', () => {
     mockResolved = null
     renderTalk(baseCharacter({}))
 
@@ -209,17 +203,10 @@ describe('Talk screen avatar source', () => {
 
   it('header avatar requests the thumb variant and prefers the resolved image', () => {
     mockResolved = 'file:///new-thumb.webp'
-    renderTalk(baseCharacter({ avatar: 'https://old.example/stale.png', active_image_id: 'img-1' }))
+    renderTalk(baseCharacter({ active_image_id: 'img-1' }))
 
     expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'thumb')
     expect(headerAvatarProps().imageUrl).toBe('file:///new-thumb.webp')
-  })
-
-  it('header avatar falls back to the legacy URL', () => {
-    mockResolved = null
-    renderTalk(baseCharacter({ avatar: 'https://old.example/legacy.png' }))
-
-    expect(headerAvatarProps().imageUrl).toBe('https://old.example/legacy.png')
   })
 
   // Guards the useLayoutEffect dependency array. The resolve is async, so the

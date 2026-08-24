@@ -179,13 +179,8 @@ export function ChatViewContent({
 
   const characterName = character.name || 'Character'
 
-  // Phase 1 pipeline first, then the deprecated `characters.avatar` column as a
-  // tail fallback for devices whose one-shot migration has not run and for
-  // characters that predate `avatar_data` entirely — those legitimately have a
-  // working legacy URL and no gallery row. `CharacterAvatar` supplies the
-  // bundled default when both are null.
-  const { uri: resolvedAvatar } = useResolvedImage(character.active_image_id, 'thumb')
-  const characterAvatar = resolvedAvatar ?? character.avatar ?? null
+  // `CharacterAvatar` supplies the bundled default when null.
+  const { uri: characterAvatar } = useResolvedImage(character.active_image_id, 'thumb')
 
   React.useLayoutEffect(() => {
     const drawerNav = navigation.getParent?.()?.getParent?.()
