@@ -15,7 +15,7 @@
 ## Global Constraints
 
 - Branch: work lands on `feat/chat-image-generation`; PRs target **`staging`**, never `main`.
-- **cloud-agent tests use node:test — NOT Jest.** Suite runs compiled output: `cd cloud-agent && npm test`. Baseline: 288 suites-worth of files (287 pass, 1 skipped) + two known flakes.
+- **cloud-agent tests use node:test — NOT Jest.** Suite runs compiled output: `cd cloud-agent && npm test`. Test counts (tests, not files/suites): baseline before this feature = 288 tests (287 passing + 1 skipped); final PR #631 count = 318 tests (317 passing + 1 skipped). Two known flakes are pre-existing and unrelated — rerun those individually before diagnosing.
 - Root/client tests are Jest with scoped runs only: `npx jest <path>` (`npm test -- <path>` does NOT filter). React-query tests need `gcTime: 0`.
 - Credits: exactly **200** per image (`IMAGE_GENERATION_COST`), spend-before-generate, refund on every failure branch after the spend.
 - Hard cap one image per assistant reply, enforced by a closure-local flag independent of model obedience.
@@ -54,7 +54,7 @@ Run from `cloud-agent/`:
 ```bash
 node --input-type=module -e "
 import { GoogleGenAI } from '@google/genai'
-const ai = new GoogleGenAI({ vertexai: true, project: 'clanker-prod', location: 'us-central1' })
+const ai = new GoogleGenAI({ vertexai: true, project: 'clanker-prod', location: 'global' })
 for (const model of ['gemini-3.1-flash-lite-image', 'gemini-2.5-flash-image']) {
   try {
     const r = await ai.models.generateContent({
@@ -290,9 +290,12 @@ Create `cloud-agent/src/constants/images.ts` (model value per Task 0's decision)
 // 1024-master/256-thumb variant pipeline; lowest latency/cost).
 // Fallback (documented, swap = one-line change): 'gemini-2.5-flash-image'
 // — today's prod avatar model in functions/src/generateImage.ts.
-// Per-image price (Vertex, verified 2026-08-XX spike): $0.0XX
+// Per-image price (official Gemini pricing page, checked 2026-08-24):
+// $30/1M image tokens ≈ $0.0336 per 1K image (1,120 image tokens);
+// input $0.25/M, text output $1.50/M. Region pin is `global` — the Lite
+// SKU returns 404 NOT_FOUND in us-central1.
 export const CHAT_IMAGE_MODEL_ID = 'gemini-3.1-flash-lite-image'
-export const CHAT_IMAGE_REGION = 'us-central1'
+export const CHAT_IMAGE_REGION = 'global'
 ```
 
 Append to `cloud-agent/src/constants/credits.ts` (mirrors `functions/src/constants/credits.ts:8`):
@@ -428,9 +431,10 @@ export function generateImage(
         const { imageBase64, mimeType } = await vertexGenerate(trimmed)
 
         const normalizedMime = mimeType.trim().toLowerCase()
+        const data = imageBase64.trim()
         if (
-          !imageBase64 ||
-          imageBase64.length > MAX_BASE64_LENGTH ||
+          !data ||
+          data.length > MAX_BASE64_LENGTH ||
           !ALLOWED_IMAGE_MIME_TYPES.has(normalizedMime)
         ) {
           await tryRefund()
@@ -438,7 +442,7 @@ export function generateImage(
         }
 
         generatedThisRun = true
-        collector.push({ imageBase64, mimeType: normalizedMime })
+        collector.push({ imageBase64: data, mimeType: normalizedMime })
         // Never return the base64 here — tool results are tokenized into the
         // model context. The bytes leave through the run-scoped collector.
         return JSON.stringify({ status: 'ok' })
@@ -720,7 +724,7 @@ test('emits agent_image before usage_snapshot when mockGeneratedImage provided',
   let imageFrame: { type: string; imageBase64?: string; mimeType?: string } | null = null
 
   await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket(`ws://[IP_ADDRESS]:${port}`)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
     collectFrameTypes(ws, frameTypes)
     const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
 
@@ -770,7 +774,7 @@ test('omits agent_image when no image was generated', async () => {
 
   const frameTypes: string[] = []
   await new Promise<void>((resolve, reject) => {
-    const ws = new WebSocket(`ws://[IP_ADDRESS]:${port}`)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`)
     collectFrameTypes(ws, frameTypes)
     const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
 
@@ -1843,7 +1847,7 @@ git commit -m "feat(client): save-to-Photos and share for chat image viewer"
 cd cloud-agent && npm test 2>&1 | tail -12
 ```
 
-Expected: all pass; suite count = baseline (288 files / 287 passing + 1 skipped) plus the new test files. Known flakes may flake — rerun those individually before diagnosing.
+Expected: all pass; test count = baseline (288 tests / 287 passing + 1 skipped) plus the new image-generation tests. Known flakes may flake — rerun those individually before diagnosing.
 
 - [ ] **Step 2: Client scoped suites**
 
@@ -1900,5 +1904,5 @@ PR body notes: baseline suite numbers, Task 0 spike findings (SKU + price), preb
 ## Self-review record
 
 - **Spec coverage:** §6.1→Task 1 · §6.2→Task 2 · §6.3→Tasks 3-5 · §6.4→Task 0 + constants in Task 1 · §6.5→Tasks 6-7 · §6.6→Task 8 · §6.7→Task 7 (`source:'chat'`, union untouched) · §6.8→Task 1 constants + Task 9 ledger check · §7 matrix→covered rows: insufficient (T1 test), refund branches (T1), second-call decline (T1), client-save-failure (T7), old-client/web tolerance (T3/T6 malformed-frame case + T9 step 6 note), empty-collector silence (T3 omission test) · §9 testing→distributed per task · §10 spikes→Tasks 0, 8 (prebuild diff), 9 (traffic) · §11 SEO page→explicitly excluded (own plan). §8 security: behavioral rules live in the tool description (T1), no new auth/storage surface anywhere.
-- **Placeholder scan:** none — every code step carries full code; the only "decide" is Task 0's constant value, which is the spec's own plan-stage spike with an explicit decision rule.
+- **Placeholder scan:** Task 0's spike findings are now resolved and recorded (2026-08-24): model `gemini-3.1-flash-lite-image`, region `global` (the Lite SKU returns 404 NOT_FOUND in us-central1), price ≈ $0.0336 per 1K image tokens at 1,120 image tokens — see the constants snippet in Task 1 and `cloud-agent/src/constants/images.ts`. An earlier revision of this record claimed no placeholders remained while Task 0/1 still carried `$0.0XX` / `2026-08-XX` / `us-central1`; that claim was wrong and has been corrected.
 - **Type consistency:** `GeneratedImage{imageBase64,mimeType}` (server) ↔ `AgentImagePayload{imageBase64,mimeType}` (client) ↔ wire keys identical; `buildAgent → BuildAgentResult{agent,imageCollector}` destructured consistently in Tasks 2-3; `onAgentImage(image: AgentImagePayload)` signature shared Tasks 6-7; `IMAGE_GENERATION_COST` referenced by name everywhere.
