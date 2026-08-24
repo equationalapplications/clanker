@@ -43,10 +43,17 @@ export interface CloudAgentResult {
   groundingMetadata?: GroundingMetadata
 }
 
+export interface AgentImagePayload {
+  imageBase64: string
+  mimeType: string
+}
+
 export interface CloudAgentStreamCallbacks {
   onToken?: (text: string) => void
   onToolStart?: (name: string) => void
   onToolEnd?: (name: string) => void
+  /** Fires once when the agent generated an image this turn (either transport). */
+  onAgentImage?: (image: AgentImagePayload) => void
 }
 
 // Must outlast a Cloud Run cold start (~7.5s observed) or the first message of a
@@ -92,7 +99,10 @@ function mapWebSocketError(code: string, message: string): Error {
   return new Error(`WebSocket error: ${code} - ${message}`)
 }
 
-export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgentResult> {
+export async function runViaHttp(
+  payload: CloudAgentPayload,
+  callbacks?: CloudAgentStreamCallbacks,
+): Promise<CloudAgentResult> {
   const url = `${getCloudAgentBaseUrl()}/agent/run`
 
   const token = await getCurrentUser()?.getIdToken()
@@ -133,6 +143,7 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
     toolCalls?: string[]
     usageSnapshot?: { remainingCredits?: unknown } | null
     groundingMetadata?: unknown
+    generatedImage?: unknown
   }
 
   if (!data.reply || typeof data.reply !== 'string') {
@@ -146,6 +157,15 @@ export async function runViaHttp(payload: CloudAgentPayload): Promise<CloudAgent
     remainingCredits >= 0
       ? { remainingCredits }
       : null
+
+  const rawImage = data.generatedImage as AgentImagePayload | null | undefined
+  if (
+    rawImage &&
+    typeof rawImage.imageBase64 === 'string' &&
+    typeof rawImage.mimeType === 'string'
+  ) {
+    callbacks?.onAgentImage?.({ imageBase64: rawImage.imageBase64, mimeType: rawImage.mimeType })
+  }
 
   return {
     reply: data.reply,
@@ -227,6 +247,8 @@ async function runViaWebSocket(
           name?: string
           text?: string
           remainingCredits?: number
+          imageBase64?: unknown
+          mimeType?: unknown
         }
 
         if (msg.type === 'error') {
@@ -257,6 +279,15 @@ async function runViaWebSocket(
           )
           if (parsed) {
             groundingMetadata = parsed
+          }
+        } else if (msg.type === 'agent_image') {
+          // Unknown-frame tolerance keeps old servers safe; malformed payloads are
+          // dropped rather than trusted.
+          if (typeof msg.imageBase64 === 'string' && typeof msg.mimeType === 'string') {
+            callbacks?.onAgentImage?.({
+              imageBase64: msg.imageBase64,
+              mimeType: msg.mimeType as string,
+            })
           }
         } else if (msg.type === 'usage_snapshot') {
           const remaining = msg.remainingCredits
@@ -310,7 +341,7 @@ export async function callCloudAgent(
   }
 
   if (Date.now() < wsDisabledUntil) {
-    return await runViaHttp(resolvedPayload)
+    return await runViaHttp(resolvedPayload, callbacks)
   }
 
   try {
@@ -330,6 +361,6 @@ export async function callCloudAgent(
       wsDisabledUntil = Date.now() + WS_RETRY_COOLDOWN_MS
     }
     console.warn('WebSocket failed, falling back to HTTP:', wsErr)
-    return await runViaHttp(resolvedPayload)
+    return await runViaHttp(resolvedPayload, callbacks)
   }
 }
