@@ -31,4 +31,15 @@ for (const [name, source] of [
     // An inline parts literal is the exact regression this guards.
     assert.equal(/newMessage:\s*\{\s*role:/.test(source), false)
   })
+
+  test(`${name} handler delivers the agent-image payload with matching keys`, () => {
+    if (name === 'ws') {
+      assert.match(source, /type:\s*'agent_image'/)
+    } else {
+      assert.match(source, /generatedImage:\s*result\.generatedImage \?\? null/)
+    }
+    // Both transports must carry the same two-field shape.
+    assert.match(source, /imageBase64/)
+    assert.match(source, /mimeType/)
+  })
 }
