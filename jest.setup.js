@@ -127,6 +127,16 @@ jest.mock('react-native-webview', () => {
   }
 })
 
+// Mock expo-media-library to prevent native module initialization errors in
+// Jest: ChatImageBubble imports it at module scope, so every suite that
+// renders a message list fails to load without this. Suites that exercise the
+// save/share actions override it with their own jest.mock factories.
+jest.mock('expo-media-library', () => ({
+  __esModule: true,
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: false }),
+  saveToLibraryAsync: jest.fn().mockResolvedValue(undefined),
+}))
+
 // Mock expo-router without requireActual — expo-router now depends on
 // standard-navigation (ESM), which Jest cannot parse from node_modules.
 jest.mock('expo-router', () => {
