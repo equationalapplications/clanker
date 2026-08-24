@@ -506,117 +506,120 @@ test('WS accepts a captionless photo', async () => {
   assert.deepEqual(errors, [])
 })
 
-test('refunds generated-image credits when the loop fails after tool success', { timeout: 10_000 }, async () => {
-  const db = makeMockDb([[mockUser], [mockCharacter]])
-  const refunds: {
-    userId: string
-    allocations: { transactionId: string; amount: number }[]
-  }[] = []
-  // Distinguish the image spend from the loop's own per-iteration spends:
-  // only the former belongs to the handler's failure path.
-  const cs = {
-    spendCredit: async (
-      _userId: string,
-      amount: number,
-      reason: string,
-    ): Promise<{ transactionId: string; amount: number }[]> =>
-      reason === 'image_generate'
-        ? [{ transactionId: 'image-txid', amount }]
-        : [{ transactionId: 'turn-txid', amount }],
-    refundCredit: async (
-      userId: string,
-      allocations: { transactionId: string; amount: number }[],
-    ): Promise<void> => {
-      refunds.push({ userId, allocations })
-    },
-    getBalance: async (_userId: string): Promise<number> => 1000,
-  }
-
-  const originalRunAsync = InMemoryRunner.prototype.runAsync
-  ;(
-    InMemoryRunner.prototype as unknown as {
-      runAsync: () => AsyncGenerator<unknown, void, undefined>
+test(
+  'refunds generated-image credits when the loop fails after tool success',
+  { timeout: 10_000 },
+  async () => {
+    const db = makeMockDb([[mockUser], [mockCharacter]])
+    const refunds: {
+      userId: string
+      allocations: { transactionId: string; amount: number }[]
+    }[] = []
+    // Distinguish the image spend from the loop's own per-iteration spends:
+    // only the former belongs to the handler's failure path.
+    const cs = {
+      spendCredit: async (
+        _userId: string,
+        amount: number,
+        reason: string,
+      ): Promise<{ transactionId: string; amount: number }[]> =>
+        reason === 'image_generate'
+          ? [{ transactionId: 'image-txid', amount }]
+          : [{ transactionId: 'turn-txid', amount }],
+      refundCredit: async (
+        userId: string,
+        allocations: { transactionId: string; amount: number }[],
+      ): Promise<void> => {
+        refunds.push({ userId, allocations })
+      },
+      getBalance: async (_userId: string): Promise<number> => 1000,
     }
-  ).runAsync = function runAsyncMock(this: unknown) {
-    const runner = this as { agent?: { tools?: unknown[] } }
-    return (async function* () {
-      // Drive the REAL generate_image execute (against the injected fake Vertex
-      // generator) so the collector + spend ledger fill exactly as in
-      // production — then poison the stream so consumeAgentEvents throws.
-      const tools = runner.agent?.tools ?? []
-      const imageTool = tools.find((t) => (t as { name?: string }).name === 'generate_image') as
-        | { execute: (args: unknown) => Promise<string> }
-        | undefined
-      await imageTool?.execute({ prompt: 'draw a cat' })
-      yield {
-        id: 'mock-event-fc',
-        invocationId: 'mock-invocation-fc',
-        author: 'mock-agent',
-        actions: { stateDelta: {}, artifactDelta: {} },
-        timestamp: Date.now(),
-        content: {
-          role: 'model',
-          parts: [{ functionCall: { name: 'generate_image', args: { prompt: 'draw a cat' } } }],
-        },
+
+    const originalRunAsync = InMemoryRunner.prototype.runAsync
+    ;(
+      InMemoryRunner.prototype as unknown as {
+        runAsync: () => AsyncGenerator<unknown, void, undefined>
       }
-      yield {
-        id: 'mock-event-err',
-        invocationId: 'mock-invocation-err',
-        author: 'mock-agent',
-        actions: { stateDelta: {}, artifactDelta: {} },
-        timestamp: Date.now(),
-        errorCode: 'ADK_STREAM_ERROR',
-        errorMessage: 'mid-stream failure after generation',
-      }
-    })()
-  }
+    ).runAsync = function runAsyncMock(this: unknown) {
+      const runner = this as { agent?: { tools?: unknown[] } }
+      return (async function* () {
+        // Drive the REAL generate_image execute (against the injected fake Vertex
+        // generator) so the collector + spend ledger fill exactly as in
+        // production — then poison the stream so consumeAgentEvents throws.
+        const tools = runner.agent?.tools ?? []
+        const imageTool = tools.find((t) => (t as { name?: string }).name === 'generate_image') as
+          { execute: (args: unknown) => Promise<string> } | undefined
+        await imageTool?.execute({ prompt: 'draw a cat' })
+        yield {
+          id: 'mock-event-fc',
+          invocationId: 'mock-invocation-fc',
+          author: 'mock-agent',
+          actions: { stateDelta: {}, artifactDelta: {} },
+          timestamp: Date.now(),
+          content: {
+            role: 'model',
+            parts: [{ functionCall: { name: 'generate_image', args: { prompt: 'draw a cat' } } }],
+          },
+        }
+        yield {
+          id: 'mock-event-err',
+          invocationId: 'mock-invocation-err',
+          author: 'mock-agent',
+          actions: { stateDelta: {}, artifactDelta: {} },
+          timestamp: Date.now(),
+          errorCode: 'ADK_STREAM_ERROR',
+          errorMessage: 'mid-stream failure after generation',
+        }
+      })()
+    }
 
-  const { server, close } = createTestWsServer({
-    db,
-    creditService: cs,
-    verifyToken: async () => ({ uid: 'firebase-uid' }),
-    imageGenerator: async () => ({ imageBase64: 'QUJD', mimeType: 'image/png' }),
-  })
-  const port = await listen(server)
-
-  let errorFrame: { code?: string } | null = null
-  // Loopback assembled from octets so IP-literal sanitizers can't corrupt the URL.
-  const loopback = ['127', '0', '0', '1'].join('.')
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(`ws://${loopback}:${port}`)
-      const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
-
-      ws.on('open', () => {
-        ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
-        ws.send(JSON.stringify(AGENT_RUN_FRAME))
-      })
-
-      ws.on('message', (data) => {
-        const msg = JSON.parse(data.toString()) as { type: string; code?: string }
-        if (msg.type === 'error') errorFrame = msg
-      })
-
-      ws.on('close', () => {
-        clearTimeout(timeout)
-        resolve()
-      })
-
-      ws.on('error', reject)
+    const { server, close } = createTestWsServer({
+      db,
+      creditService: cs,
+      verifyToken: async () => ({ uid: 'firebase-uid' }),
+      imageGenerator: async () => ({ imageBase64: 'QUJD', mimeType: 'image/png' }),
     })
-  } finally {
-    ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
-      originalRunAsync
-    await close()
-  }
+    const port = await listen(server)
 
-  assert.ok(errorFrame, 'expected an error frame despite the earlier successful generation')
-  assert.equal((errorFrame as { code?: string }).code, 'INTERNAL_ERROR')
+    let errorFrame: { code?: string } | null = null
+    // Loopback assembled from octets so IP-literal sanitizers can't corrupt the URL.
+    const loopback = ['127', '0', '0', '1'].join('.')
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(`ws://${loopback}:${port}`)
+        const timeout = setTimeout(() => reject(new Error('test timeout')), 5000)
 
-  const imageRefund = refunds.find((r) =>
-    r.allocations.some((a) => a.transactionId === 'image-txid'),
-  )
-  assert.ok(imageRefund, 'expected the image spend to be refunded on the failure path')
-  assert.deepEqual(imageRefund.allocations, [{ transactionId: 'image-txid', amount: 200 }])
-  assert.equal(imageRefund.userId, mockUser.id)
-})
+        ws.on('open', () => {
+          ws.send(JSON.stringify({ type: 'auth', token: 'valid-token' }))
+          ws.send(JSON.stringify(AGENT_RUN_FRAME))
+        })
+
+        ws.on('message', (data) => {
+          const msg = JSON.parse(data.toString()) as { type: string; code?: string }
+          if (msg.type === 'error') errorFrame = msg
+        })
+
+        ws.on('close', () => {
+          clearTimeout(timeout)
+          resolve()
+        })
+
+        ws.on('error', reject)
+      })
+    } finally {
+      ;(InMemoryRunner.prototype as unknown as { runAsync: typeof originalRunAsync }).runAsync =
+        originalRunAsync
+      await close()
+    }
+
+    assert.ok(errorFrame, 'expected an error frame despite the earlier successful generation')
+    assert.equal((errorFrame as { code?: string }).code, 'INTERNAL_ERROR')
+
+    const imageRefund = refunds.find((r) =>
+      r.allocations.some((a) => a.transactionId === 'image-txid'),
+    )
+    assert.ok(imageRefund, 'expected the image spend to be refunded on the failure path')
+    assert.deepEqual(imageRefund.allocations, [{ transactionId: 'image-txid', amount: 200 }])
+    assert.equal(imageRefund.userId, mockUser.id)
+  },
+)

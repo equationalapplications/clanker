@@ -854,8 +854,7 @@ test('runAgentReal refunds a generated image when the loop throws after tool suc
       // generator), then poison the stream so consumeAgentEvents throws.
       const tools = runner.agent?.tools ?? []
       const imageTool = tools.find((t) => (t as { name?: string }).name === 'generate_image') as
-        | { execute: (args: unknown) => Promise<string> }
-        | undefined
+        { execute: (args: unknown) => Promise<string> } | undefined
       await imageTool?.execute({ prompt: 'draw a cat' })
       yield {
         id: 'mock-event-fc',
