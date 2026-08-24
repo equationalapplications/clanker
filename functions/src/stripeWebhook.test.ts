@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHmac } from 'node:crypto'
 import test, { TestContext } from 'node:test'
 import Stripe from 'stripe'
 
@@ -48,6 +49,27 @@ function createResponseRecorder(): ResponseRecorder {
     },
   }
 }
+
+/**
+ * Builds a genuinely-signed Stripe webhook header over the exact wire bytes:
+ * `t=<unixSeconds>,v1=HMAC_SHA256(secret, "<t>.<payload>")`.
+ * Used instead of stubbing constructEvent so bad-signature paths are real.
+ */
+const signStripeHeader = (
+  payload: string,
+  secret: string,
+  timestampSeconds: number = Math.floor(Date.now() / 1000),
+): string => {
+  const timestamp = String(timestampSeconds)
+  const mac = createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex')
+  return `t=${timestamp},v1=${mac}`
+}
+
+/** Convenience POST body + header pair for one signed webhook delivery. */
+const signedDelivery = (payloadJson: string, secret: string) => ({
+  rawBody: Buffer.from(payloadJson, 'utf8'),
+  headers: { 'stripe-signature': signStripeHeader(payloadJson, secret) },
+})
 
 test('stripeWebhookHandler only accepts POST', async () => {
   const res = createResponseRecorder()
@@ -127,18 +149,7 @@ test('stripeWebhookHandler trims whitespace from STRIPE_WEBHOOK_SECRET and signa
   // newline, which made Stripe reject every event with a signature error.
   process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_123\n'
 
-  let capturedSecret: unknown
-  let capturedSignature: unknown
   const stripe = new Stripe('sk_test_123')
-  t.mock.method(
-    stripe.webhooks,
-    'constructEvent',
-    (_payload: unknown, signature: unknown, secret: unknown) => {
-      capturedSignature = signature
-      capturedSecret = secret
-      return { id: 'evt_trim_1', type: 'unhandled.event', data: { object: {} } } as never
-    },
-  )
   setStripeClientFactoryForTests(() => stripe)
   t.after(() => {
     setStripeClientFactoryForTests(null)
@@ -160,36 +171,42 @@ test('stripeWebhookHandler trims whitespace from STRIPE_WEBHOOK_SECRET and signa
     getLastProcessedChargeRefundTotal: async () => 0,
   }
 
+  // Sign over the exact wire bytes using the TRIMMED secret. If the handler
+  // failed to trim the env value, verification would fail with a 400 — the
+  // same incident, now reproduced through real HMAC verification.
+  const eventPayload = JSON.stringify({
+    id: 'evt_trim_1',
+    type: 'unhandled.event',
+    data: { object: {} },
+  })
   await stripeWebhookHandler(
     {
       method: 'POST',
-      headers: { 'stripe-signature': '  t=1,v1=sig  ' },
-      rawBody: Buffer.from('{}'),
+      rawBody: Buffer.from(eventPayload, 'utf8'),
+      // Pad the header too: the handler must trim it before verifying.
+      headers: {
+        'stripe-signature': `  ${signStripeHeader(eventPayload, 'whsec_test_123')}  `,
+      },
     } as never,
     res as never,
     deps as never,
   )
 
   assert.equal(res.statusCode, 200)
-  assert.equal(capturedSecret, 'whsec_test_123')
-  assert.equal(capturedSignature, 't=1,v1=sig')
+  assert.deepEqual(res.body, { received: true })
 })
 
 test('stripeWebhookHandler does not call sendPurchaseEvent for an already-processed event', async (t) => {
+  process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_123'
   const stripe = new Stripe('sk_test_123')
-  t.mock.method(
-    stripe.webhooks,
-    'constructEvent',
-    (_payload: unknown, _signature: unknown, _secret: unknown) => {
-      return {
-        id: 'evt_dedupe_1',
-        type: 'checkout.session.completed',
-        data: { object: {} },
-      } as never
-    },
-  )
   setStripeClientFactoryForTests(() => stripe)
   t.after(() => setStripeClientFactoryForTests(null))
+
+  const eventPayload = JSON.stringify({
+    id: 'evt_dedupe_1',
+    type: 'checkout.session.completed',
+    data: { object: {} },
+  })
 
   const res = createResponseRecorder()
   let called = false
@@ -217,8 +234,7 @@ test('stripeWebhookHandler does not call sendPurchaseEvent for an already-proces
   await stripeWebhookHandler(
     {
       method: 'POST',
-      headers: { 'stripe-signature': 't=1,v1=sig' },
-      rawBody: Buffer.from('{}'),
+      ...signedDelivery(eventPayload, 'whsec_test_123'),
     } as never,
     res as never,
     deps as never,
@@ -702,9 +718,13 @@ test('handleSubscriptionUpdated does not renew credits when planStatus is not ac
   assert.equal(renewalCalled, false)
 })
 
-function stubConstructEvent(t: TestContext, event: Stripe.Event) {
+/**
+ * Installs a real SDK Stripe client for stripeWebhookHandler: constructEvent
+ * verification now runs for real, while the factory keeps serving the
+ * REST-callback stubs (e.g. mocked customers.retrieve) individual tests set up.
+ */
+function useTestStripeClient(t: TestContext) {
   const stripe = new Stripe('sk_test_123')
-  t.mock.method(stripe.webhooks, 'constructEvent', () => event as never)
   setStripeClientFactoryForTests(() => stripe)
   t.after(() => {
     setStripeClientFactoryForTests(null)
@@ -712,13 +732,14 @@ function stubConstructEvent(t: TestContext, event: Stripe.Event) {
 }
 
 test('stripeWebhookHandler skips dispatch and returns 200 for an already-processed event', async (t) => {
+  process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_123'
   const res = createResponseRecorder()
-  const event = {
+  const eventPayload = JSON.stringify({
     id: 'evt_dup_1',
     type: 'customer.subscription.deleted',
     data: { object: { id: 'sub_1', customer: 'cus_1' } },
-  } as unknown as Stripe.Event
-  stubConstructEvent(t, event)
+  })
+  useTestStripeClient(t)
 
   let dispatched = false
   const deps = {
@@ -745,8 +766,7 @@ test('stripeWebhookHandler skips dispatch and returns 200 for an already-process
   await stripeWebhookHandler(
     {
       method: 'POST',
-      headers: { 'stripe-signature': 't=1,v1=sig' },
-      rawBody: Buffer.from('{}'),
+      ...signedDelivery(eventPayload, 'whsec_test_123'),
     } as never,
     res as never,
     deps as never,
@@ -757,13 +777,14 @@ test('stripeWebhookHandler skips dispatch and returns 200 for an already-process
 })
 
 test('stripeWebhookHandler unmarks the event when handler dispatch throws, so Stripe can retry', async (t) => {
+  process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_123'
   const res = createResponseRecorder()
-  const event = {
+  const eventPayload = JSON.stringify({
     id: 'evt_fail_1',
     type: 'customer.subscription.deleted',
     data: { object: { id: 'sub_1', customer: 'cus_1' } },
-  } as unknown as Stripe.Event
-  stubConstructEvent(t, event)
+  })
+  useTestStripeClient(t)
 
   let markedEventId: string | null = null
   let unmarkedEventId: string | null = null
@@ -794,8 +815,7 @@ test('stripeWebhookHandler unmarks the event when handler dispatch throws, so St
   await stripeWebhookHandler(
     {
       method: 'POST',
-      headers: { 'stripe-signature': 't=1,v1=sig' },
-      rawBody: Buffer.from('{}'),
+      ...signedDelivery(eventPayload, 'whsec_test_123'),
     } as never,
     res as never,
     deps as never,
