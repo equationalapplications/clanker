@@ -6,8 +6,17 @@ import { buildAgent, assembleSystemInstruction } from './agentCore.js'
 const mockDb = {} as unknown as DrizzleClient
 const mockEmbed = async (_text: string): Promise<number[]> => new Array(1536).fill(0)
 
+// The wiring probe drives the real generate_image execute(), whose default cs
+// would be createCreditService(mockDb) — that rejects with a TypeError out of
+// db.transaction rather than INSUFFICIENT_CREDITS, escaping execute. The stub
+// spends nothing so the probe exercises the wiring, not the ledger.
+const stubCs = {
+  spendCredit: async () => [],
+  refundCredit: async () => {},
+}
+
 test('buildAgent returns an agent with expected name and instruction', () => {
-  const agent = buildAgent(mockDb, 'user-123', 'char-456', 'Test instruction', 'UTC', mockEmbed)
+  const { agent } = buildAgent(mockDb, 'user-123', 'char-456', 'Test instruction', 'UTC', mockEmbed)
   assert.equal(agent.name, 'clanker-cloud-agent')
   assert.equal(agent.instruction, 'Test instruction')
 })
@@ -42,4 +51,48 @@ test('assembleSystemInstruction includes recent chat history when provided', () 
   )
   assert.ok(instruction.includes('Recent chat history'))
   assert.ok(instruction.includes('major storm is approaching'))
+})
+
+test('buildAgent wires generate_image and returns a fresh run-scoped collector', () => {
+  const first = buildAgent(
+    mockDb,
+    'user-123',
+    'char-456',
+    'Test instruction',
+    'UTC',
+    mockEmbed,
+    undefined,
+    undefined,
+    { creditService: stubCs },
+  )
+  const second = buildAgent(
+    mockDb,
+    'user-123',
+    'char-456',
+    'Test instruction',
+    'UTC',
+    mockEmbed,
+    undefined,
+    undefined,
+    { creditService: stubCs },
+  )
+
+  const names = first.agent.tools.map((t) => (t as { name: string }).name)
+  assert.ok(names.includes('generate_image'))
+
+  assert.deepEqual(first.imageCollector, [])
+  assert.notEqual(first.imageCollector, second.imageCollector, 'collector must be per-run')
+
+  // The tool closes over THIS run's collector: driving it pushes there, not elsewhere.
+  const execute = (
+    first.agent.tools.find((t) => (t as { name: string }).name === 'generate_image') as unknown as {
+      execute: (args: unknown) => Promise<string>
+    }
+  ).execute
+  return execute({ prompt: 'probe' }).then(() => {
+    // The push itself is asserted end-to-end in tools/generateImage.test.ts
+    // with a fake cs. Here we only pin that the wired tool resolves rather
+    // than throws on wiring.
+    assert.ok(true)
+  })
 })

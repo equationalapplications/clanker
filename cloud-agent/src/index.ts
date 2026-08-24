@@ -50,6 +50,7 @@ import { agentRunSchema } from '../../shared/cloudAgentProtocol.js'
 import { MAX_AGENT_RUN_BODY_BYTES } from '../../shared/cloudAgentAttachments.js'
 import type { AgentAttachment } from '../../shared/cloudAgentProtocol.js'
 import { buildNewMessage } from './agentMessage.js'
+import type { GeneratedImage } from './tools/generateImage.js'
 
 export { INSTANCE_ID } from './services/instanceId.js'
 
@@ -73,9 +74,13 @@ export interface RunAgentParams {
 export interface AppOptions {
   verifyToken: (token: string) => Promise<{ uid: string }>
   db: DrizzleClient
-  runAgentFn: (
-    params: RunAgentParams,
-  ) => Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }>
+  runAgentFn: (params: RunAgentParams) => Promise<{
+    reply: string
+    toolCalls: string[]
+    groundingMetadata?: GroundingMetadata
+    /** Present when the agent called generate_image this run (§6.3 HTTP parity). */
+    generatedImage?: GeneratedImage | null
+  }>
   creditService?: CreditService
   wsHandlerOptions?: Partial<WsHandlerOptions>
   wsLiveHandlerOptions?: Partial<WsLiveHandlerOptions>
@@ -87,9 +92,13 @@ export interface AppOptions {
 
 // ── Real agent runner (production) ────────────────────────────────────────────
 
-export async function runAgentReal(
-  params: RunAgentParams,
-): Promise<{ reply: string; toolCalls: string[]; groundingMetadata?: GroundingMetadata }> {
+export async function runAgentReal(params: RunAgentParams): Promise<{
+  reply: string
+  toolCalls: string[]
+  groundingMetadata?: GroundingMetadata
+  /** Present when the agent called generate_image this run (§6.3 HTTP parity). */
+  generatedImage?: GeneratedImage | null
+}> {
   const {
     db,
     userId,
@@ -120,7 +129,7 @@ export async function runAgentReal(
         desktopBridge,
       })
     : undefined
-  const agent = buildAgent(
+  const { agent, imageCollector } = buildAgent(
     db,
     userId,
     characterId,
@@ -129,6 +138,7 @@ export async function runAgentReal(
     embed,
     bridge,
     vault,
+    { creditService },
   )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
@@ -159,7 +169,12 @@ export async function runAgentReal(
     newMessage: buildNewMessage(message, attachments),
   })
 
-  return consumeAgentEvents(events, userId, creditService)
+  const consumed = await consumeAgentEvents(events, userId, creditService)
+  return {
+    ...consumed,
+    // Post-loop delivery point (§6.3): at most one image per run.
+    generatedImage: imageCollector.length > 0 ? imageCollector[0] : null,
+  }
 }
 
 // ── App factory ───────────────────────────────────────────────────────────────

@@ -8,13 +8,13 @@ const timezone = 'UTC'
 
 const { buildAgent } = await import('./agent.js')
 
-test('buildAgent: returns LlmAgent with 13 tools', () => {
-  const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
-  assert.equal(agent.tools.length, 13)
+test('buildAgent: returns LlmAgent with 14 tools (13 base + generate_image)', () => {
+  const { agent } = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
+  assert.equal(agent.tools.length, 14)
 })
 
 test('buildAgent: registers all required tool names', () => {
-  const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
+  const { agent } = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
   const names = agent.tools.map((t) => (t as { name: string }).name)
   assert.ok(names.includes('create_task'), 'missing create_task')
   assert.ok(names.includes('list_tasks'), 'missing list_tasks')
@@ -32,11 +32,18 @@ test('buildAgent: registers all required tool names', () => {
 })
 
 test('buildAgent: sets instruction from parameter', () => {
-  const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Bob, a chef.', timezone, mockEmbed)
+  const { agent } = buildAgent(
+    mockDb,
+    'user-1',
+    'char-1',
+    'You are Bob, a chef.',
+    timezone,
+    mockEmbed,
+  )
   assert.equal(agent.instruction, 'You are Bob, a chef.')
 })
 
 test('buildAgent: model is gemini-3.5-flash', () => {
-  const agent = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
+  const { agent } = buildAgent(mockDb, 'user-1', 'char-1', 'You are Alice.', timezone, mockEmbed)
   assert.equal(agent.model, 'gemini-3.5-flash')
 })

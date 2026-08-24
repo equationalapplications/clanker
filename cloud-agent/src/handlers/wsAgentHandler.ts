@@ -171,7 +171,20 @@ export async function handleWsUpgrade(
       }
 
       try {
-        const agent = buildAgent(db, userId, characterId, systemInstruction, timezone, embedText)
+        // Pass the handler's injected cs so the tool spends/refunds hit the same
+        // credit service the loop bills with.
+        const { agent, imageCollector } = buildAgent(
+          db,
+          userId,
+          characterId,
+          systemInstruction,
+          timezone,
+          embedText,
+          undefined,
+          undefined,
+          { creditService: cs },
+        )
+        void imageCollector
         const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
         const sessionId = crypto.randomUUID()
 

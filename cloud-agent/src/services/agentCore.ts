@@ -17,6 +17,15 @@ import { llmWikiEntries } from '../db/schema.js'
 
 import { browserActionTool, type BrowserActionDeps } from '../tools/browserAction.js'
 import { buildVaultTools, type VaultToolDeps } from '../tools/vaultTools.js'
+import type { CreditService } from './creditService.js'
+import { createCreditService } from './creditService.js'
+import { generateImage, type GeneratedImage } from '../tools/generateImage.js'
+
+export interface BuildAgentResult {
+  agent: LlmAgent
+  /** Run-scoped: images generate_image produced during THIS agent_run. Empty otherwise. */
+  imageCollector: GeneratedImage[]
+}
 
 export function buildAgent(
   db: DrizzleClient,
@@ -27,7 +36,10 @@ export function buildAgent(
   embed: (text: string) => Promise<number[]>,
   bridge?: BrowserActionDeps,
   vault?: VaultToolDeps,
-): LlmAgent {
+  opts?: { creditService?: Pick<CreditService, 'spendCredit' | 'refundCredit'> },
+): BuildAgentResult {
+  const cs = opts?.creditService ?? createCreditService(db)
+  const imageCollector: GeneratedImage[] = []
   const tools = [
     getCurrentTimeTool(timezone),
     wikiReadTool(db, userId, characterId, embed),
@@ -45,12 +57,18 @@ export function buildAgent(
   ]
   if (bridge) tools.push(browserActionTool(bridge, { trigger: 'text', preBilled: true }))
   if (vault) tools.push(...buildVaultTools(vault))
-  return new LlmAgent({
-    name: 'clanker-cloud-agent',
-    model: 'gemini-3.5-flash',
-    instruction: systemInstruction,
-    tools,
-  })
+  // Unconditional (§6.2): credit spending works on both transports; the tool's
+  // own rules + cap gate usage.
+  tools.push(generateImage(userId, cs, imageCollector))
+  return {
+    agent: new LlmAgent({
+      name: 'clanker-cloud-agent',
+      model: 'gemini-3.5-flash',
+      instruction: systemInstruction,
+      tools,
+    }),
+    imageCollector,
+  }
 }
 
 export function assembleSystemInstruction(
