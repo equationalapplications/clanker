@@ -21,7 +21,11 @@ import {
 import { sendMessage as persistUserMessage } from '~/services/messageService'
 import { useEdgeAgent, EscalationState } from '~/hooks/useEdgeAgent'
 import { toSyncMessage } from '~/services/syncMessage'
-import { callCloudAgent, type CloudAgentAttachment } from '~/services/cloudAgentService'
+import {
+  callCloudAgent,
+  type AgentImagePayload,
+  type CloudAgentAttachment,
+} from '~/services/cloudAgentService'
 import { listTasks } from '~/database/taskDatabase'
 import { buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
@@ -29,6 +33,7 @@ import { DEV_CLOUD_CHARACTER_ID } from '../../shared/dev-sandbox'
 import type { PendingChatPhoto } from '~/hooks/useChatPhotoUpload'
 import { saveCharacterImage } from '~/services/characterImageService'
 import { findCharacterImageByMessageId } from '~/database/characterImageDatabase'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 
 interface UseAIChatProps {
   characterId: string
@@ -136,6 +141,18 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         },
       })
 
+      // Agent-generated image for this turn. The callback fires during the stream
+      // (post-loop, just before usage_snapshot); persistence waits for settle so
+      // imageId rides the SAME saveAIMessage write that persists the reply — that is
+      // what keeps the render hint alive through #621's clear-after-refetch ordering.
+      // Held in one object rather than bare `let`s: the only writes happen inside
+      // the callback below, so TS's flow analysis would pin plain `let`s to their
+      // `null` initializer and narrow the guarded reads to `never`.
+      const agentImage: { payload: AgentImagePayload | null; id: string | null } = {
+        payload: null,
+        id: null,
+      }
+
       const agentResult = await callCloudAgent(
         {
           message: message.text,
@@ -152,6 +169,10 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
               prev ? { ...prev, text: `${prev.text ?? ''}${text}` } : prev,
             )
           },
+          onAgentImage: (img) => {
+            agentImage.payload = img
+            agentImage.id = generateSecureUuid()
+          },
         },
       )
 
@@ -164,6 +185,32 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
       if (agentResult.groundingMetadata) {
         aiMessageData.groundingMetadata = agentResult.groundingMetadata
+      }
+      if (agentImage.payload && agentImage.id) {
+        try {
+          // Same dedupe rule sendPhoto uses: a retried turn finds the row it already
+          // wrote instead of spending another FIFO slot on one image.
+          const existing = await findCharacterImageByMessageId(aiMsgId, character.id, userId)
+          if (!existing) {
+            await saveCharacterImage({
+              characterId: character.id,
+              userId,
+              uri: `data:${agentImage.payload.mimeType};base64,${agentImage.payload.imageBase64}`,
+              width: 1024,
+              height: 1024,
+              source: 'chat',
+              imageId: agentImage.id,
+              messageId: aiMsgId,
+            })
+            aiMessageData.imageId = agentImage.id
+          } else {
+            aiMessageData.imageId = existing.id
+          }
+        } catch (imgErr) {
+          // Error-matrix row 4: the text reply stands; the image is lost locally;
+          // saveCharacterImage's own rollback cleaned up partial writes.
+          reportError(imgErr, `chat:${character.id}:agentImage`)
+        }
       }
       const savedAMessage = await saveAIMessage(
         character.id,
