@@ -76,7 +76,7 @@ npm run migrate:dev`. `firebase.json` has no emulators block; Stripe CLI appears
    `functions/src/integration/**` to `lib-integration/`; new scripts `build:int` and
    `test:integration`. Default `npm test` stays byte-identical. `test:integration` requires
    `DATABASE_URL` and fails fast with the exact compose command and URL to copy.
-7. **Lease expiry tested by backdating in SQL** (`UPDATE … SET lease_expires_at = now() - interval
+7. **Lease expiry tested by backdating in SQL** (`UPDATE … SET processed_stripe_events.created_at = now() - interval
 '1 second'`) — zero production changes; exercises the real expiry comparison as shipped.
 8. **RC Firebase Auth lookup injected via `RevenueCatDeps`** (synthetic user / not-found), not
    mock-admin-sdk.
@@ -88,7 +88,7 @@ npm run migrate:dev`. `firebase.json` has no emulators block; Stripe CLI appears
 
 ### File layout
 
-```
+```text
 functions/
   tsconfig.int.json              → lib-integration/
   package.json                   + build:int, test:integration scripts
@@ -102,7 +102,7 @@ functions/
     revenueCatWebhook.int.test.ts
 ```
 
-Each `.int.test.ts` runs standalone (`node --test lib-integration/src/integration/<file>.js`).
+Each `.int.test.ts` runs standalone (`node --test lib-integration/integration/<file>.js`).
 
 ### Component responsibilities
 
@@ -173,14 +173,19 @@ event names.
   nothing).
 - **Hung runs** → per-test timeout (~10s); `afterAll` closes servers and drains the shared pool so
   the process exits cleanly.
-- **Wrong-target protection** → `db.ts` refuses to operate on any database named `clanker`.
+- **Wrong-target protection** → `db.ts` resolves the URL before any connection or destructive
+  statement and throws unless the host is loopback (localhost / 127.x / ::1) AND the database is
+  `clanker_test`. A remote-host or wrong-database `DATABASE_URL` can never be touched.
 
 ## Self-verification & acceptance criteria
 
 - Every auth mechanism carries a red-provable negative (S3, S4, R2): if the signer or harness were
   silently wrong, those rows fail — the suite cannot pass vacuously.
 - Truncate honesty is asserted implicitly by the no-writes rows.
-- **Acceptance:** `npm run test:integration` green end-to-end; default functions suite still
+- **Baseline (2026-08-23):** 13 pass / 7 fail — all 7 failures are one known, out-of-scope
+  production defect (`creditService.syncSubscriptionCache` against the test DB), expected to stay
+  red until that defect is fixed. Any failure outside those 7 is a regression.
+- **Acceptance:** `npm run test:integration` matches the documented 13/7 baseline; default functions suite still
   470/470; `tsc` clean under both tsconfigs; formatting gates (`:check` variants) pass.
 
 ## Delivery

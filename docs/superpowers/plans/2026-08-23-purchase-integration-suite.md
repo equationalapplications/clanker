@@ -376,32 +376,43 @@ const thisDir = path.dirname(fileURLToPath(import.meta.url))
 // helpers → integration → lib-integration → functions/
 const FUNCTIONS_ROOT = path.resolve(thisDir, '..', '..', '..')
 
+const GUARD_GUIDANCE = [
+  'test:integration requires DATABASE_URL pointing at a LOCAL Postgres.',
+  '',
+  'Start the database:',
+  '  docker compose -f docker-compose.local.yml up -d postgres_db',
+  '',
+  'Then point at the sibling TEST database (never the dev "clanker" db):',
+  "  export DATABASE_URL='postgres://clanker_dev:***@localhost:5432/clanker_test'",
+  '',
+  'Then re-run:  npm --prefix functions run test:integration',
+].join('\n')
+
 const requiredTestUrl = (): string => {
   const raw = process.env.DATABASE_URL?.trim()
   if (!raw || !raw.startsWith('postgres')) {
-    console.error(
-      [
-        'test:integration requires DATABASE_URL pointing at a LOCAL Postgres.',
-        '',
-        'Start the database:',
-        '  docker compose -f docker-compose.local.yml up -d postgres_db',
-        '',
-        'Then point at the sibling TEST database (never the dev "clanker" db):',
-        "  export DATABASE_URL='postgres://clanker_dev:local_pass@localhost:5432/clanker_test'",
-        '',
-        'Then re-run:  npm --prefix functions run test:integration',
-      ].join('\n'),
-    )
-    process.exit(1)
+    // Throw (not console.error + process.exit) so node:test stays in control.
+    throw new Error(GUARD_GUIDANCE)
   }
   return raw
 }
 
+const isLoopbackHost = (host: string): boolean =>
+  host === 'localhost' || host === '::1' || host === '[::1]' || /^127(\.\d{1,3}){3}$/.test(host)
+
 export const resolveTestUrl = (): string => {
   const url = new URL(requiredTestUrl())
-  if (url.pathname.replace(/^\//, '') === 'clanker') {
+  const host = url.hostname
+  const dbName = url.pathname.replace(/^\//, '')
+  // Hard guards BEFORE any connection or destructive statement.
+  if (!isLoopbackHost(host)) {
     throw new Error(
-      `Hard guard: refusing to operate on the dev database "${url.pathname}". Point DATABASE_URL at ${TEST_DB_NAME}.`,
+      `Hard guard: refusing non-loopback host "${host}". test:integration may only run against a LOCAL Postgres.\n${GUARD_GUIDANCE}`,
+    )
+  }
+  if (dbName !== TEST_DB_NAME) {
+    throw new Error(
+      `Hard guard: refusing database "${dbName}". Point DATABASE_URL at ${TEST_DB_NAME} (never the dev "clanker" db).`,
     )
   }
   return url.toString()
@@ -1500,7 +1511,9 @@ test('R8: unknown user with no bootstrap dep resolves 503 and creates no orphan 
 - [ ] **Step 5: Run the whole suite**
 
 Run: `npm --prefix functions run test:integration`
-Expected: ALL rows green — Stripe file (Task 3) + RC file, executed sequentially.
+Expected baseline: 13 pass / 7 fail — the 7 failures are the known out-of-scope
+`creditService.syncSubscriptionCache` production defect; any OTHER failure is a regression.
+Stripe file (Task 3) + RC file, executed sequentially.
 
 - [ ] **Step 6: Prettier + commit (suite commit)**
 
@@ -1529,7 +1542,7 @@ export DATABASE_URL='postgres://clanker_dev:local_pass@localhost:5432/clanker_te
 npm --prefix functions run test:integration
 ```
 
-Expected: every test green; clean process exit (pool drained in `after`).
+Expected: matches the documented 13/7 baseline (only the known syncSubscriptionCache failures); clean process exit (pool drained in `after`).
 
 - [ ] **Step 2: Default suite unchanged**
 
@@ -1560,7 +1573,7 @@ Summarize: commits landed, test counts (integration N/N, default baseline), any 
 | Neutralize exactly two outbound surfaces (Dec 3)               | `makeFakeStripe` (factory seam), recording GA4 no-ops (both suites)          |
 | node:http shim fallback (Deferral 1)                           | Task 2 Step 5 (Express confirmed ABSENT from functions deps — shim applies)  |
 | clanker_test sibling DB + migrate-once + truncation (Dec 5)    | Task 2 Step 6; `beforeEach(truncateAll)`                                     |
-| clanker-name hard guard                                        | `resolveTestUrl()` throws on `/clanker`                                      |
+| loopback + db-name hard guard                                  | `resolveTestUrl()` throws on non-loopback host or non-`clanker_test` db                                      |
 | Separate tsconfig/scripts; default suite untouched (Dec 6)     | Task 2 Steps 1–3; Task 5 Step 2                                              |
 | DATABASE_URL fail-fast with copyable commands                  | `requiredTestUrl()`                                                          |
 | Lease expiry via SQL backdate (Dec 7)                          | Task 3 Step 7 D3                                                             |

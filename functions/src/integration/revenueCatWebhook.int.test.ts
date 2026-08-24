@@ -18,6 +18,7 @@ import {
   testGetDb,
   seedUser,
   truncateAll,
+  expectNoPaymentWrites,
   closeIntegrationPool,
   getPool,
 } from './helpers/db.js'
@@ -141,17 +142,6 @@ const mountAndPostRc = async (
   }
 }
 
-const expectNoPaymentWrites = async () => {
-  for (const table of [
-    'subscriptions',
-    'processed_stripe_events',
-    'credit_transactions',
-    'credit_spend_events',
-  ]) {
-    const { rowCount } = await getPool().query(`SELECT 1 FROM ${table}`)
-    assert.equal(rowCount, 0, `expected ${table} to be empty`)
-  }
-}
 
 test(
   'R1: bearer-authenticated INITIAL_PURCHASE upserts revenuecat sub + grants renewal credits',

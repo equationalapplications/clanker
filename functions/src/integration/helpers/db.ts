@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import assert from 'node:assert/strict'
 import pg from 'pg'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import * as schema from '../../db/schema.js'
@@ -11,32 +12,45 @@ const thisDir = path.dirname(fileURLToPath(import.meta.url))
 // helpers → integration → lib-integration → functions/
 const FUNCTIONS_ROOT = path.resolve(thisDir, '..', '..', '..')
 
+const GUARD_GUIDANCE = [
+  'test:integration requires DATABASE_URL pointing at a LOCAL Postgres.',
+  '',
+  'Start the database:',
+  '  docker compose -f docker-compose.local.yml up -d postgres_db',
+  '',
+  'Then point at the sibling TEST database (never the dev "clanker" db):',
+  "  export DATABASE_URL='postgres://clanker_dev:***@localhost:5432/clanker_test'",
+  '',
+  'Then re-run:  npm --prefix functions run test:integration',
+].join('\n')
+
 const requiredTestUrl = (): string => {
   const raw = process.env.DATABASE_URL?.trim()
   if (!raw || !raw.startsWith('postgres')) {
-    console.error(
-      [
-        'test:integration requires DATABASE_URL pointing at a LOCAL Postgres.',
-        '',
-        'Start the database:',
-        '  docker compose -f docker-compose.local.yml up -d postgres_db',
-        '',
-        'Then point at the sibling TEST database (never the dev "clanker" db):',
-        "  export DATABASE_URL='postgres://clanker_dev:local_pass@localhost:5432/clanker_test'",
-        '',
-        'Then re-run:  npm --prefix functions run test:integration',
-      ].join('\n'),
-    )
-    process.exit(1)
+    // Throw (not console.error + process.exit) so node:test stays in control.
+    throw new Error(GUARD_GUIDANCE)
   }
   return raw
 }
 
+const isLoopbackHost = (host: string): boolean =>
+  host === 'localhost' || host === '::1' || host === '[::1]' || /^127(\.\d{1,3}){3}$/.test(host)
+
 export const resolveTestUrl = (): string => {
   const url = new URL(requiredTestUrl())
-  if (url.pathname.replace(/^\//, '') === 'clanker') {
+  const host = url.hostname
+  const dbName = url.pathname.replace(/^\//, '')
+  // Hard guards BEFORE any connection or destructive statement: this module runs
+  // CREATE DATABASE / TRUNCATE, so it must never aim at anything but the local
+  // test database.
+  if (!isLoopbackHost(host)) {
     throw new Error(
-      `Hard guard: refusing to operate on the dev database "${url.pathname}". Point DATABASE_URL at ${TEST_DB_NAME}.`,
+      `Hard guard: refusing non-loopback host "${host}". test:integration may only run against a LOCAL Postgres.\n${GUARD_GUIDANCE}`,
+    )
+  }
+  if (dbName !== TEST_DB_NAME) {
+    throw new Error(
+      `Hard guard: refusing database "${dbName}". Point DATABASE_URL at ${TEST_DB_NAME} (never the dev "clanker" db).`,
     )
   }
   return url.toString()
@@ -110,11 +124,27 @@ export const seedUser = async (firebaseUid: string, email: string): Promise<User
   return row
 }
 
-/** TRUNCATE the five payment tables; CASCADE handles FK children, RESTART IDENTITY resets sequences. */
+/** Payment tables truncated between tests — the single source of truth for both truncateAll and expectNoPaymentWrites. */
+const PAYMENT_TABLES = [
+  'subscriptions',
+  'processed_stripe_events',
+  'credit_transactions',
+  'credit_spend_events',
+] as const
+
+/** TRUNCATE users plus the payment tables; CASCADE handles FK children, RESTART IDENTITY resets sequences. */
 export const truncateAll = async (): Promise<void> => {
   await getPool().query(
-    'TRUNCATE users, subscriptions, processed_stripe_events, credit_transactions, credit_spend_events RESTART IDENTITY CASCADE',
+    `TRUNCATE users, ${PAYMENT_TABLES.join(', ')} RESTART IDENTITY CASCADE`,
   )
+}
+
+/** Assert zero rows in every payment table — proves a handler path performed no writes. */
+export const expectNoPaymentWrites = async (): Promise<void> => {
+  for (const table of PAYMENT_TABLES) {
+    const { rowCount } = await getPool().query(`SELECT 1 FROM ${table}`)
+    assert.equal(rowCount, 0, `expected ${table} to be empty`)
+  }
 }
 
 export const closeIntegrationPool = async (): Promise<void> => {
