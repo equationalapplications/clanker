@@ -60,14 +60,22 @@ export async function handleWsUpgrade(
   let abortController: AbortController | null = null
   let hasRun = false
 
-  /** Send that can't throw — a disconnected/closing socket must never be mistaken for an ADK processing error. */
-  const safeSend = (payload: unknown) => {
+  /**
+   * Send that can't throw — a disconnected/closing socket must never be
+   * mistaken for an ADK processing error. Returns whether the frame actually
+   * went out, so callers carrying irrevocable spend (agent_image) can refund
+   * when delivery fails (spec §7: a failed turn never keeps image credits).
+   */
+  const safeSend = (payload: unknown): boolean => {
     try {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(payload))
+        return true
       }
+      return false
     } catch (err) {
       console.error('ws.send failed:', err)
+      return false
     }
   }
 
@@ -257,8 +265,21 @@ export async function handleWsUpgrade(
         if (imageCollector.length > 0) {
           // Post-loop delivery (§6.3): text streamed first; the image lands with
           // completion, before usage_snapshot/close. One frame max per run.
+          // A dropped frame (socket closed mid-run, send throw) means the user
+          // never sees the bytes — refund the spend rather than charging for an
+          // undelivered image (§7). The collector is drained so a later failure
+          // path can't double-refund the same allocation.
           const img = imageCollector[0]
-          safeSend({ type: 'agent_image', imageBase64: img.imageBase64, mimeType: img.mimeType })
+          const delivered = safeSend({
+            type: 'agent_image',
+            imageBase64: img.imageBase64,
+            mimeType: img.mimeType,
+          })
+          if (!delivered) {
+            imageCollector = []
+            await refundGeneratedImages(userId, cs, [img], imageSpendAllocations)
+            imageSpendAllocations = []
+          }
         }
 
         if (result.groundingMetadata) {
