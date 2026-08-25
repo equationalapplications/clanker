@@ -13,14 +13,24 @@
 import { useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
 import type { Message } from '~/types/chat'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
+// Not `expo-media-library` directly: its main entry requires a native module at
+// import time with no web implementation, which crashed the app on web load.
+// This seam keeps that import out of the web module graph.
+import { saveToPhotos, type PhotoSaveResult } from '~/services/photoLibrarySaver'
 
 type PhotoMessage = Message & { imageId?: string }
 
 const THUMB_SIZE = 200
+
+const SAVE_NOTICE: Record<PhotoSaveResult, string> = {
+  saved: 'Saved to Photos',
+  denied: 'Photo library permission denied',
+  unavailable: 'Saving to Photos is not available here',
+  failed: "Couldn't save to Photos",
+}
 
 export default function ChatImageBubble({ currentMessage }: { currentMessage?: PhotoMessage }) {
   const imageId = currentMessage?.imageId ?? null
@@ -49,20 +59,11 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
     return false
   }
 
-  const saveToPhotos = async (): Promise<void> => {
+  const handleSaveToPhotos = async (): Promise<void> => {
     if (!guardMasterReady() || !masterUri) return
-    try {
-      // writeOnly → the add-only prompt backed by NSPhotoLibraryAddUsageDescription.
-      const perm = await MediaLibrary.requestPermissionsAsync(true)
-      if (!perm.granted) {
-        setNotice('Photo library permission denied')
-        return
-      }
-      await MediaLibrary.saveToLibraryAsync(masterUri)
-      setNotice('Saved to Photos')
-    } catch {
-      setNotice("Couldn't save to Photos")
-    }
+    // The seam maps every outcome (grant, refusal, unavailability, bridge
+    // failure) to a result instead of rejecting, so no try/catch here.
+    setNotice(SAVE_NOTICE[await saveToPhotos(masterUri)])
   }
 
   const shareImage = async (): Promise<void> => {
@@ -132,7 +133,7 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
           <View style={styles.actionBar}>
             <Pressable
               style={styles.actionButton}
-              onPress={saveToPhotos}
+              onPress={handleSaveToPhotos}
               accessibilityRole="button"
               accessibilityLabel="Save to Photos"
             >
