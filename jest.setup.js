@@ -127,11 +127,14 @@ jest.mock('react-native-webview', () => {
   }
 })
 
-// Mock expo-media-library to prevent native module initialization errors in
-// Jest: ChatImageBubble imports it at module scope, so every suite that
-// renders a message list fails to load without this. Suites that exercise the
-// save/share actions override it with their own jest.mock factories.
-jest.mock('expo-media-library', () => ({
+// Mock expo-media-library/legacy to prevent native module initialization
+// errors in Jest: the photo-save seam's native twin
+// (~/services/photoLibrarySaver.ts) imports it at module scope, and every
+// suite that renders a message list transitively loads that twin. (Jest
+// resolves the bare `~/services/photoLibrarySaver` specifier to the native .ts
+// twin — never the .web.ts one.) Suites that exercise the save action override
+// it with their own jest.mock factories.
+jest.mock('expo-media-library/legacy', () => ({
   __esModule: true,
   requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: false }),
   saveToLibraryAsync: jest.fn().mockResolvedValue(undefined),

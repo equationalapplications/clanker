@@ -10,22 +10,35 @@
  * notice and leaves gallery rows and viewer state untouched.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
 import type { Message } from '~/types/chat'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
+// Never import `expo-media-library` in shared components: it crashes the web
+// bundle at import time. This seam keeps the import native-only — see the
+// photoLibrarySaver header for the full story (enforced by eslint).
+import { saveToPhotos, type PhotoSaveResult } from '~/services/photoLibrarySaver'
 
 type PhotoMessage = Message & { imageId?: string }
 
 const THUMB_SIZE = 200
 
+const SAVE_NOTICE: Record<PhotoSaveResult, string> = {
+  saved: 'Saved to Photos',
+  denied: 'Photo library permission denied',
+  unavailable: 'Saving to Photos is not available here',
+  failed: "Couldn't save to Photos",
+}
+
 export default function ChatImageBubble({ currentMessage }: { currentMessage?: PhotoMessage }) {
   const imageId = currentMessage?.imageId ?? null
   const [viewerOpen, setViewerOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  // Save is a fire-once action: a double-tap must not write the photo into
+  // the OS library twice.
+  const saveInFlightRef = useRef(false)
 
   // `useResolvedImage` returns null both while the lookup is in flight and
   // after a completed lookup that found no row (see `useResolvedImage.ts`).
@@ -49,19 +62,16 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
     return false
   }
 
-  const saveToPhotos = async (): Promise<void> => {
+  const handleSaveToPhotos = async (): Promise<void> => {
     if (!guardMasterReady() || !masterUri) return
+    if (saveInFlightRef.current) return
+    saveInFlightRef.current = true
     try {
-      // writeOnly → the add-only prompt backed by NSPhotoLibraryAddUsageDescription.
-      const perm = await MediaLibrary.requestPermissionsAsync(true)
-      if (!perm.granted) {
-        setNotice('Photo library permission denied')
-        return
-      }
-      await MediaLibrary.saveToLibraryAsync(masterUri)
-      setNotice('Saved to Photos')
-    } catch {
-      setNotice("Couldn't save to Photos")
+      // The seam maps every outcome (grant, refusal, unavailability, bridge
+      // failure) to a result instead of rejecting, so no catch needed here.
+      setNotice(SAVE_NOTICE[await saveToPhotos(masterUri)])
+    } finally {
+      saveInFlightRef.current = false
     }
   }
 
@@ -132,7 +142,7 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
           <View style={styles.actionBar}>
             <Pressable
               style={styles.actionButton}
-              onPress={saveToPhotos}
+              onPress={handleSaveToPhotos}
               accessibilityRole="button"
               accessibilityLabel="Save to Photos"
             >

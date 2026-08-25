@@ -55,9 +55,9 @@ export const JSONLD = {
 
 export const HERO = {
   announcement: {
-    text: '✨ New: Live, Real-Time Voice Calls →',
-    href: '/real-time-voice',
-    accessibilityLabel: 'New: Live, real-time voice calls. Learn more.',
+    text: '✨ New: Images in Chat →',
+    href: '/image-generation',
+    accessibilityLabel: 'New: Images in chat with your AI character. Learn more.',
   },
   headline: 'Clanker AI',
   tagline: 'A personal AI assistant you design — chat, call, and share your own AI characters',
@@ -66,7 +66,7 @@ export const HERO = {
   ctaLabelSignedOut: 'Try the App!',
   ctaLabelSignedIn: 'Open App',
   staticPrimaryCtaLabel: 'Try the App',
-  staticSecondaryCtaLabel: 'Explore Live Voice',
+  staticSecondaryCtaLabel: 'Explore Images in Chat',
   staticBottomCtaHeading: 'Ready to meet your character?',
   staticBottomCtaLabel: 'Get started free',
   signInHref: '/sign-in?redirect=/chat',
@@ -93,6 +93,13 @@ export const FEATURES: LandingFeature[] = [
     title: 'Live, Real-Time Voice Calls',
     body: 'Talk to your AI characters in real time with natural, uninterrupted voice that feels exactly like a human phone call. Speak hands-free on speakerphone, interrupt seamlessly whenever you change your mind, and hear your character search the web or check its memory mid-conversation.',
     learnMoreHref: '/real-time-voice',
+  },
+  {
+    icon: 'image-outline',
+    emoji: '🖼️',
+    title: 'Images in Chat',
+    body: 'Ask your character for a chart, a diagram, a mockup, or a selfie — and it generates the image right inside the chat. Share any image, or save it to Photos from the native app, with every image also saved to that character’s gallery.',
+    learnMoreHref: '/image-generation',
     isNew: true,
   },
   {
@@ -152,6 +159,7 @@ export type FooterLink = {
 
 export const FOOTER_LINKS: FooterLink[] = [
   { label: 'Real-Time Voice', href: '/real-time-voice' },
+  { label: 'Image Generation', href: '/image-generation' },
   { label: 'OKF Memory', href: '/memory-export-with-okf' },
   { label: 'Advanced Memory', href: '/advanced-memory' },
   { label: 'Privacy Mode', href: '/privacy-mode' },
