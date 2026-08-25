@@ -98,7 +98,7 @@ export const FEATURES: LandingFeature[] = [
     icon: 'image-outline',
     emoji: '🖼️',
     title: 'Images in Chat',
-    body: 'Ask your character for a chart, a diagram, a mockup, or a selfie — and it generates the image right inside the chat. Save to Photos or share out, with every image also saved to that character’s gallery.',
+    body: 'Ask your character for a chart, a diagram, a mockup, or a selfie — and it generates the image right inside the chat. Share any image, or save it to Photos from the native app, with every image also saved to that character’s gallery.',
     learnMoreHref: '/image-generation',
     isNew: true,
   },
