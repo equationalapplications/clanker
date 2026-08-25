@@ -10,15 +10,15 @@
  * notice and leaves gallery rows and viewer state untouched.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import * as Sharing from 'expo-sharing'
 import type { Message } from '~/types/chat'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
-// Not `expo-media-library` directly: its main entry requires a native module at
-// import time with no web implementation, which crashed the app on web load.
-// This seam keeps that import out of the web module graph.
+// Never import `expo-media-library` in shared components: it crashes the web
+// bundle at import time. This seam keeps the import native-only — see the
+// photoLibrarySaver header for the full story (enforced by eslint).
 import { saveToPhotos, type PhotoSaveResult } from '~/services/photoLibrarySaver'
 
 type PhotoMessage = Message & { imageId?: string }
@@ -36,6 +36,9 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   const imageId = currentMessage?.imageId ?? null
   const [viewerOpen, setViewerOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  // Save is a fire-once action: a double-tap must not write the photo into
+  // the OS library twice.
+  const saveInFlightRef = useRef(false)
 
   // `useResolvedImage` returns null both while the lookup is in flight and
   // after a completed lookup that found no row (see `useResolvedImage.ts`).
@@ -61,9 +64,15 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
 
   const handleSaveToPhotos = async (): Promise<void> => {
     if (!guardMasterReady() || !masterUri) return
-    // The seam maps every outcome (grant, refusal, unavailability, bridge
-    // failure) to a result instead of rejecting, so no try/catch here.
-    setNotice(SAVE_NOTICE[await saveToPhotos(masterUri)])
+    if (saveInFlightRef.current) return
+    saveInFlightRef.current = true
+    try {
+      // The seam maps every outcome (grant, refusal, unavailability, bridge
+      // failure) to a result instead of rejecting, so no catch needed here.
+      setNotice(SAVE_NOTICE[await saveToPhotos(masterUri)])
+    } finally {
+      saveInFlightRef.current = false
+    }
   }
 
   const shareImage = async (): Promise<void> => {
