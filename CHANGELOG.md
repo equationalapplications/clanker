@@ -1,3 +1,21 @@
+# [31.4.0](https://github.com/equationalapplications/clanker/compare/v31.3.0...v31.4.0) (2026-08-25)
+
+
+### Bug Fixes
+
+* **client:** make photo-save actually work and guard the web seam ([d0f6577](https://github.com/equationalapplications/clanker/commit/d0f657754ec234e08602a3d64c00b87c5491cf1d)), closes [#635](https://github.com/equationalapplications/clanker/issues/635)
+* **client:** seam expo-media-library behind a web twin to unbreak web load ([#635](https://github.com/equationalapplications/clanker/issues/635)) ([8c1ec12](https://github.com/equationalapplications/clanker/commit/8c1ec12610ea54d1a782724c159ce3456d55cbba))
+* **client:** seam expo-media-library out of the web module graph ([16f4988](https://github.com/equationalapplications/clanker/commit/16f49887de268c64cb46caadd866d48f16372e41)), closes [#root](https://github.com/equationalapplications/clanker/issues/root) [#root](https://github.com/equationalapplications/clanker/issues/root)
+* **lint:** allow ChatImageBubble test to mock expo-media-library ([dee9537](https://github.com/equationalapplications/clanker/commit/dee9537c8528856474755fd02b618498fde22151))
+* **seo:** add image-generation link to generated privacy/terms footers ([749b845](https://github.com/equationalapplications/clanker/commit/749b84515072979564a75ee01c4cd2c41767c47a))
+* **seo:** also qualify 'Save to Photos' in the human-readable FAQ ([c336c08](https://github.com/equationalapplications/clanker/commit/c336c08675d929e1bb0fbabb52c7cbb078e49de6))
+* **seo:** qualify 'Save to Photos' as native-only on web marketing pages ([3424652](https://github.com/equationalapplications/clanker/commit/34246527199e4f01402b77d547a4a0d8cd17272f)), closes [#635](https://github.com/equationalapplications/clanker/issues/635)
+
+
+### Features
+
+* **seo:** add /image-generation page ([c0d757b](https://github.com/equationalapplications/clanker/commit/c0d757b094acbb3a59e906c1e518a0289ff8ed29))
+
 # [31.3.0](https://github.com/equationalapplications/clanker/compare/v31.2.1...v31.3.0) (2026-08-24)
 
 
