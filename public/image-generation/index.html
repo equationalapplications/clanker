@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Images in Chat — Charts, Diagrams &amp; Selfies — Clanker AI</title>
+    <meta
+      name="description"
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+    />
+    <meta
+      name="keywords"
+      content="AI image generation in chat, AI characters that send pictures, AI companion selfies, AI chart generator, create diagrams in an AI chat, Clanker AI image generation, Clanker AI, Clanker"
+    />
+    <link rel="canonical" href="https://clanker-ai.com/image-generation" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Clanker AI" />
+    <meta property="og:url" content="https://clanker-ai.com/image-generation" />
+    <meta property="og:title" content="AI Images in Chat — Charts, Diagrams & Selfies — Clanker AI" />
+    <meta
+      property="og:description"
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+    />
+    <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="500" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AI Images in Chat — Charts, Diagrams & Selfies — Clanker AI" />
+    <meta
+      name="twitter:description"
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+    />
+    <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "name": "Clanker AI — Image Generation in Chat",
+            "description": "Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits.",
+            "url": "https://clanker-ai.com/image-generation",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Clanker AI",
+              "url": "https://clanker-ai.com/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "name": "Clanker AI — Image Generation FAQ",
+            "description": "Frequently asked questions about in-chat image generation: cost, triggers, limits, save and share, and chat-mode availability.",
+            "url": "https://clanker-ai.com/image-generation",
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "Clanker AI",
+              "url": "https://clanker-ai.com/"
+            },
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How much does an image cost?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Each image costs 200 credits."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "When does my character make an image?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "When you ask in chat — or when you accept its offer to draw something. Your character can offer an image unprompted, but only generates one when you ask or explicitly accept."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How many images per reply?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Up to one image per reply."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I save or share what it makes?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes — Save to Photos and Share are built into the image viewer. Every generated image is also saved to that character's image gallery."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it work in every chat?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Cloud-powered conversations only. The lightweight, text-only basic chat mode does not generate images."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <style>
+      :root {
+        --primary: #835400;
+        --primary-light: #ffb957;
+        --on-primary: #ffffff;
+        --background: #fffbff;
+        --on-background: #1f1b16;
+        --surface-variant: #f0e0d0;
+        --on-surface-variant: #4f4539;
+        --outline: #817568;
+        --max-width: 760px;
+        --card-max: 320px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--background);
+        color: var(--on-background);
+        line-height: 1.6;
+      }
+
+      a {
+        color: var(--primary);
+      }
+
+      .skip-link {
+        position: absolute;
+        top: -9999px;
+        left: 0;
+        padding: 8px 16px;
+        background: #fff;
+        color: #000;
+        font-weight: bold;
+        text-decoration: none;
+        border-radius: 4px;
+        z-index: 9999;
+      }
+
+      .skip-link:focus {
+        top: 8px;
+        left: 8px;
+      }
+
+      .hero {
+        max-width: var(--max-width);
+        margin: 0 auto;
+        padding: 24px 24px 48px;
+        text-align: center;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 16px;
+        font-size: 14px;
+        text-decoration: none;
+        align-self: flex-start;
+      }
+
+      h1 {
+        color: var(--primary);
+        font-size: clamp(2rem, 5vw, 2.75rem);
+        line-height: 1.15;
+        margin: 0 0 16px;
+        font-weight: 700;
+      }
+
+      .lead {
+        font-size: 1.125rem;
+        margin: 0;
+        opacity: 0.9;
+      }
+
+      .cta-row {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 24px;
+        border-radius: 999px;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 2px solid transparent;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+
+      .btn-primary:hover,
+      .btn-primary:focus {
+        background: #6a4300;
+      }
+
+      .btn-outline {
+        background: transparent;
+        color: var(--primary);
+        border-color: var(--primary);
+      }
+
+      .btn-outline:hover,
+      .btn-outline:focus {
+        background: rgba(131, 84, 0, 0.08);
+      }
+
+      .prose {
+        max-width: var(--max-width);
+        margin: 0 auto;
+        padding: 0 24px 48px;
+      }
+
+      .prose h2 {
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        margin: 2rem 0 16px;
+        font-weight: 700;
+      }
+
+      .prose h3 {
+        font-size: 1.15rem;
+        margin: 1.5rem 0 0.5rem;
+      }
+
+      .prose p {
+        color: var(--on-surface-variant);
+      }
+
+      .prose ol.steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+        margin: 16px 0 0;
+      }
+
+      .prose ol.steps li {
+        counter-increment: step;
+        position: relative;
+        padding: 0 0 20px 56px;
+        color: var(--on-surface-variant);
+      }
+
+      .prose ol.steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: var(--on-primary);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+      }
+
+      .prose ol.steps li strong {
+        display: block;
+        color: var(--on-background);
+        margin-bottom: 4px;
+        font-size: 1.05rem;
+      }
+
+      .highlights,
+      .bottom-cta {
+        padding: 0 24px 48px;
+        max-width: 900px;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .highlights {
+        background: var(--surface-variant);
+        padding-top: 64px;
+        padding-bottom: 64px;
+        max-width: none;
+      }
+
+      .highlights-inner {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      h2 {
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        margin: 0 0 32px;
+        font-weight: 700;
+      }
+
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .card {
+        background: var(--background);
+        border-radius: 16px;
+        padding: 28px 20px;
+        width: 280px;
+        max-width: 100%;
+        flex: 1 1 280px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+
+      .card h3 {
+        margin: 12px 0 8px;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--on-surface-variant);
+        font-size: 0.95rem;
+      }
+
+      .card-icon {
+        font-size: 2rem;
+        line-height: 1;
+      }
+
+      footer {
+        padding: 24px 16px;
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--outline);
+        border-top: 1px solid var(--surface-variant);
+      }
+
+      footer a {
+        color: var(--outline);
+      }
+
+      footer span {
+        margin: 0 4px;
+      }
+
+      .bottom-cta h2 {
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <main id="main-content">
+      <section class="hero" aria-labelledby="page-title">
+        <a class="back-link" href="/welcome">← Back to Clanker AI</a>
+        <h1 id="page-title">Images On Demand, Straight from Your Character</h1>
+        <p class="lead">
+          Working on something? Ask your character for a chart, a diagram, or a quick mockup
+          without ever leaving the conversation. Not working? Ask for a selfie. If you can describe
+          it, your character can draw it — right inside your chat.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/sign-in?redirect=/chat">Try the App</a>
+        </div>
+      </section>
+
+      <section class="prose" aria-labelledby="how-it-works-heading">
+        <h2 id="how-it-works-heading">How it works</h2>
+        <ol class="steps">
+          <li>
+            <strong>Ask — or accept the offer.</strong>
+            Request an image in chat, or accept when your character says "want me to draw that?".
+            Both triggers generate. An offer alone never spends credits.
+          </li>
+          <li>
+            <strong>The image arrives in the thread.</strong>
+            Up to one image per reply, rendered inline in the chat bubble alongside the text.
+          </li>
+          <li>
+            <strong>Save or share from the viewer.</strong>
+            Tap the image to open the viewer, then save it to Photos or share it out. The image
+            also lands in that character's gallery.
+          </li>
+        </ol>
+      </section>
+
+      <section class="highlights" aria-labelledby="work-heading">
+        <div class="highlights-inner">
+          <h2 id="work-heading">Visuals while you work</h2>
+          <div class="grid">
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">📊</div>
+              <h3>Charts &amp; timelines</h3>
+              <p>
+                "Make a chart of our Q3 timeline." Skip the spreadsheet — your character sketches
+                the chart in the chat you're already in.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🗺️</div>
+              <h3>Architecture &amp; flow diagrams</h3>
+              <p>
+                "Diagram this architecture." Turn a discussion into a picture so the rest of the
+                team can see what you mean.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">✏️</div>
+              <h3>Visual plans &amp; mockups</h3>
+              <p>
+                Sketch an idea mid-project — a layout, a mood board, a quick wireframe — without
+                switching apps.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="highlights" aria-labelledby="fun-heading">
+        <div class="highlights-inner">
+          <h2 id="fun-heading">Selfies just for fun</h2>
+          <div class="grid">
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🤳</div>
+              <h3>Selfies of your character</h3>
+              <p>
+                Ask for a selfie and your character pictures itself — wherever the conversation
+                has taken it so far.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🖼️</div>
+              <h3>Scenes with you in them</h3>
+              <p>
+                Picture yourself and your character together — places you've talked about,
+                moments you've imagined.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🎈</div>
+              <h3>Just-because pictures</h3>
+              <p>
+                Whenever the mood strikes, your character can draw — a small surprise to keep the
+                chat lively.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="prose" aria-labelledby="credits-heading">
+        <h2 id="credits-heading">Credits &amp; availability</h2>
+        <p>
+          Image generation consumes credits — <strong>each image costs 200 credits</strong>.
+          Available on <strong>cloud-powered conversations</strong>: the lightweight, text-only
+          basic chat mode does not generate images. See
+          <a href="/support">how credits and subscriptions work</a>.
+        </p>
+      </section>
+
+      <section class="prose" aria-labelledby="save-share-heading">
+        <h2 id="save-share-heading">Save it, share it, keep it</h2>
+        <p>
+          Save to Photos and Share are built into the image viewer, so anything your character
+          draws is one tap away from your camera roll or your group chat. Every generated image
+          is also saved to <strong>that character's image gallery</strong>, so nothing gets lost in
+          scrollback. Whatever your character builds stays with it —
+          <a href="/advanced-memory">see how memory works</a>.
+        </p>
+      </section>
+
+      <section class="prose" aria-labelledby="faq-heading">
+        <h2 id="faq-heading">Frequently Asked Questions</h2>
+
+        <h3>How much does an image cost?</h3>
+        <p>Each image costs 200 credits.</p>
+
+        <h3>When does my character make an image?</h3>
+        <p>
+          When you ask in chat — or when you accept its offer to draw something. Your character
+          can offer an image unprompted, but only generates one when you ask or explicitly accept.
+        </p>
+
+        <h3>How many images per reply?</h3>
+        <p>Up to one image per reply.</p>
+
+        <h3>Can I save or share what it makes?</h3>
+        <p>
+          Yes — Save to Photos and Share are built into the image viewer. Every generated image is
+          also saved to that character's image gallery.
+        </p>
+
+        <h3>Does it work in every chat?</h3>
+        <p>
+          Cloud-powered conversations only. The lightweight, text-only basic chat mode does not
+          generate images.
+        </p>
+      </section>
+
+      <section class="highlights" aria-labelledby="explore-heading">
+        <div class="highlights-inner">
+          <h2 id="explore-heading">Explore more</h2>
+          <div class="grid">
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">🧠</div>
+              <h3><a href="/advanced-memory">Advanced Memory That Learns</a></h3>
+              <p>
+                Memory that grows from conversation, uploaded documents, and live web search —
+                kept consistent in a local-first knowledge wiki.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">📞</div>
+              <h3><a href="/real-time-voice">Live, Real-Time Voice Calls</a></h3>
+              <p>
+                Talk to your AI characters in real time with natural, uninterrupted voice that
+                feels exactly like a human phone call.
+              </p>
+            </article>
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">📖</div>
+              <h3><a href="/open-source">Completely Open Source</a></h3>
+              <p>
+                Clanker AI's code is public on GitHub. Verify privacy claims, suggest features, or
+                contribute to the project.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="bottom-cta" aria-labelledby="bottom-cta-heading">
+        <h2 id="bottom-cta-heading">Ready to see what your character draws?</h2>
+        <a class="btn btn-primary" href="/sign-in?redirect=/chat">Get started free</a>
+      </section>
+    </main>
+
+    <footer>
+      <a href="/welcome">About Clanker AI</a>
+      <span>·</span>
+      <a href="/real-time-voice">Real-Time Voice</a>
+      <span>·</span>
+      <a href="/image-generation">Image Generation</a>
+      <span>·</span>
+      <a href="/memory-export-with-okf">OKF Memory</a>
+      <span>·</span>
+      <a href="/advanced-memory">Advanced Memory</a>
+      <span>·</span>
+      <a href="/privacy-mode">Privacy Mode</a>
+      <span>·</span>
+      <a href="/open-source">Open Source</a>
+      <span>·</span>
+      <a href="/support">Support</a>
+      <span>·</span>
+      <a href="/terms">Terms and Conditions</a>
+      <span>·</span>
+      <a href="/privacy">Privacy Policy</a>
+      <span>·</span>
+      <a href="https://equationalapplications.com/" rel="noopener noreferrer"
+        >Equational Applications LLC</a
+      >
+    </footer>
+  </body>
+</html>

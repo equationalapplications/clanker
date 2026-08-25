@@ -616,6 +616,12 @@ function generateSitemap({ privacy, terms }) {
       lastmodFile: path.join(PUBLIC_DIR, 'real-time-voice/index.html'),
     },
     {
+      loc: '/image-generation',
+      changefreq: 'monthly',
+      priority: '0.9',
+      lastmodFile: path.join(PUBLIC_DIR, 'image-generation/index.html'),
+    },
+    {
       loc: '/memory-export-with-okf',
       changefreq: 'monthly',
       priority: '0.8',
