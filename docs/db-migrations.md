@@ -90,7 +90,7 @@ load-bearing, and was demonstrably unreliable while it was (see the incident not
 | 22      | `0022_character_images.sql`                        | `character_images` table + `characters.active_image_id` for the image pipeline refactor (PR #580)                                                     |
 | 23      | `0023_character_images_chat.sql`                   | `character_images.message_id` for chat photo uploads (Phase 2 vision/chat-uploads)                                                                    |
 | 24      | `0024_credit_spend_events.sql`                     | Append-only `credit_spend_events` attribution ledger (issue #375; PR #623). Applied to prod 2026-08-22 with pre-backup                                |
-| 25      | `0025_drop_characters_avatar.sql`                  | Drop legacy `characters.avatar` rollback-net column (Phase 1 OTA cycle elapsed; readers migrated in the same PR). Rides OTA with the app-side removal |
+| 25      | `0025_drop_characters_avatar.sql`                  | Drop `characters.avatar` rollback-net column (Phase 1 OTA cycle elapsed; readers migrated in the same PR). Applied to prod 2026-08-25 with pre-backup |
 
 `0014_pgvector_wiki_embeddings.sql` **is** applied to `clanker-prod` (a 2026-08-01 schema audit
 confirmed the `vector` extension, `llm_wiki_entries.embedding`, and the HNSW index
