@@ -1,7 +1,10 @@
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import ChatImageBubble from '../ChatImageBubble'
-import * as MediaLibrary from 'expo-media-library'
+// The photo-save seam imports the package's `legacy` subpath (the main entry's
+// saveToLibraryAsync is a throw-on-call deprecation shim), so the mock and the
+// assertion handle must target that specifier.
+import * as MediaLibrary from 'expo-media-library/legacy'
 import * as Sharing from 'expo-sharing'
 
 jest.mock('~/hooks/useResolvedImage', () => ({
@@ -15,7 +18,7 @@ const mockUseResolvedImage = jest.fn((imageId: string | null, variant: 'thumb' |
   isResolved: !!imageId,
 }))
 
-jest.mock('expo-media-library', () => ({
+jest.mock('expo-media-library/legacy', () => ({
   requestPermissionsAsync: jest.fn(),
   saveToLibraryAsync: jest.fn(),
 }))
