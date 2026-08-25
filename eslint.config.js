@@ -16,7 +16,22 @@ module.exports = defineConfig([
     // specifiers to the native twin and tsc never sees Metro's resolution, so
     // no test gate would catch a reintroduction — this rule is the guard.
     files: ['src/**/*.ts', 'src/**/*.tsx'],
-    ignores: ['src/services/photoLibrarySaver.ts', 'src/services/__tests__/**'],
+    // `src/services/__tests__/**` covers the seam's own suites (they import
+    // the package under its real subpath to verify the native twin's behavior).
+    // `src/components/__tests__/ChatImageBubble.test.tsx` is a second carve-out
+    // on purpose: it has to mock + spy on `expo-media-library/legacy` because
+    // Jest always resolves the bare `~/services/photoLibrarySaver` specifier
+    // to the native .ts twin (jest-expo has no platform-suffix mapping), so the
+    // test cannot reach the seam's behavior without touching the underlying
+    // native module the seam depends on. Narrower-than-`src/**/__tests__/**`
+    // is intentional: any OTHER test importing the package would mean a
+    // production-code path was missed, which is exactly the regression this
+    // rule exists to catch.
+    ignores: [
+      'src/services/photoLibrarySaver.ts',
+      'src/services/__tests__/**',
+      'src/components/__tests__/ChatImageBubble.test.tsx',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
