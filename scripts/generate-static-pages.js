@@ -215,6 +215,8 @@ const FOOTER = `
       <span>·</span>
       <a href="/real-time-voice">Real-Time Voice</a>
       <span>·</span>
+      <a href="/image-generation">Image Generation</a>
+      <span>·</span>
       <a href="/memory-export-with-okf">OKF Memory</a>
       <span>·</span>
       <a href="/advanced-memory">Advanced Memory</a>
@@ -614,6 +616,12 @@ function generateSitemap({ privacy, terms }) {
       changefreq: 'monthly',
       priority: '0.9',
       lastmodFile: path.join(PUBLIC_DIR, 'real-time-voice/index.html'),
+    },
+    {
+      loc: '/image-generation',
+      changefreq: 'monthly',
+      priority: '0.9',
+      lastmodFile: path.join(PUBLIC_DIR, 'image-generation/index.html'),
     },
     {
       loc: '/memory-export-with-okf',
