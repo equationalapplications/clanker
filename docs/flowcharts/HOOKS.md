@@ -5,20 +5,6 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 ```mermaid
 graph LR
   useAgeVerification.test --> useAgeVerification
-  useAIChat --> useMachines
-  useAIChat --> useMessages
-  useAIChat --> useCharacterWiki
-  useAIChat --> devSandboxFlag
-  useAIChat --> useEdgeAgent
-  useAIChat --> aiChatService
-  useAIChat --> CharacterPromptBuilder
-  useAIChat --> taskDatabase
-  useAIChat --> cloudAgentService
-  useAIChat --> messageDatabase
-  useAIChat --> syncMessage
-  useAIChat --> usageSnapshot
-  useAIChat --> characterImageDatabase
-  useAIChat --> characterImageService
   useAdminDashboard --> adminService
   useAuthSnapshot --> useMachines
   useAvatarUpload --> useMachines
@@ -29,7 +15,6 @@ graph LR
   useCharacterWiki --> characterWikiQueue
   useCharacterWiki --> wikiOrchestrator
   useCharacterWiki --> wikiSourceType
-  useCharacterWiki --> apiClient
   useCharacters --> useMachines
   useChatPhotoUpload --> imageVariants
   useCurrentPlan --> useMachines
@@ -75,4 +60,18 @@ graph LR
   useUserCredits --> useAuthSnapshot
   useUserCredits --> useBootstrapRefresh
   useWebCheckoutSync.web --> googleSignin
+  useAIChat --> useMachines
+  useAIChat --> useMessages
+  useAIChat --> useCharacterWiki
+  useAIChat --> devSandboxFlag
+  useAIChat --> useEdgeAgent
+  useAIChat --> aiChatService
+  useAIChat --> CharacterPromptBuilder
+  useAIChat --> taskDatabase
+  useAIChat --> cloudAgentService
+  useAIChat --> characterImageDatabase
+  useAIChat --> characterImageService
+  useAIChat --> messageDatabase
+  useAIChat --> syncMessage
+  useAIChat --> usageSnapshot
 ```
