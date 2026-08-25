@@ -215,6 +215,8 @@ const FOOTER = `
       <span>·</span>
       <a href="/real-time-voice">Real-Time Voice</a>
       <span>·</span>
+      <a href="/image-generation">Image Generation</a>
+      <span>·</span>
       <a href="/memory-export-with-okf">OKF Memory</a>
       <span>·</span>
       <a href="/advanced-memory">Advanced Memory</a>
