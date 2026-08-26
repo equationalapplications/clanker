@@ -49,6 +49,13 @@ describe.each(PAGES)('marketing page $relativePath', ({ file }) => {
       }
     })
   })
+
+  // Every checked-in marketing page ships JSON-LD; if the extractor stops
+  // matching (e.g. the <script> tag gains an attribute), the parse check above
+  // would silently pass over zero blocks instead of failing.
+  it('yields at least one JSON-LD block so the parse check cannot silently skip', () => {
+    expect(extractJsonLdBlocks(html).length).toBeGreaterThan(0)
+  })
 })
 
 describe('marketing page JSON-LD discovery', () => {
