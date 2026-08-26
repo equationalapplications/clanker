@@ -10,8 +10,12 @@
 
 version: 2
 updates:
+  # Dependabot opens PRs against the default branch unless told otherwise. This
+  # repo's flow is feature → `staging` → `main` (AGENTS.md / project_git_workflow),
+  # so every update entry targets `staging` to keep dependency PRs in that flow.
   - package-ecosystem: npm
     directory: '/'
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday
@@ -39,6 +43,7 @@ updates:
 
   - package-ecosystem: npm
     directory: '/functions'
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday
@@ -50,6 +55,7 @@ updates:
 
   - package-ecosystem: npm
     directory: '/cloud-agent'
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday
@@ -61,6 +67,7 @@ updates:
 
   - package-ecosystem: npm
     directory: '/extension'
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday
