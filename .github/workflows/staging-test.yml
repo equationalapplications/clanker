@@ -40,6 +40,13 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      # Gate (read-only): checks the installed tree against the GitHub advisory
+      # database. `--omit=dev` ignores tooling that never ships in the app;
+      # `--audit-level=high` keeps moderate ReDoS-style noise from blocking
+      # staging (tighten later if wanted). Verified passing 2026-08-26.
+      - name: 🚨 Audit dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: 🎨 Check formatting
         run: npm run format:check
 
