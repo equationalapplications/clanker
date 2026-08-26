@@ -15,6 +15,15 @@ graph LR
   ChatComposer --> useChatPhotoUpload
   ChatComposer --> useCharacterWiki
   ChatComposer --> documentMimeTypes
+  ChatComposer --> apiClient
+  ChatImageBubble --> useResolvedImage
+  ChatImageBubble --> photoLibrarySaver
+  ChatView --> usePowerBalance
+  ChatView --> useAIChat
+  ChatView --> useResolvedImage
+  ChatView --> useMachines
+  ChatView --> useCharacters
+  ChatView --> useActiveCharacterId
   CombinedSubscriptionButton --> useCurrentPlan
   CookieConsentBanner --> CookieConsentContext
   CookieConsentContext --> crashlyticsService
@@ -40,11 +49,4 @@ graph LR
   ThemeProvider --> SettingsContext
   ConfirmationModal --> confirmationValidation
   UserActionPanel --> renewalDateValidation
-  ChatView --> usePowerBalance
-  ChatView --> useResolvedImage
-  ChatView --> useMachines
-  ChatView --> useCharacters
-  ChatView --> useActiveCharacterId
-  ChatImageBubble --> useResolvedImage
-  ChatImageBubble --> photoLibrarySaver
 ```
