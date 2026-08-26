@@ -42,6 +42,19 @@ describe('queryFileEdges', () => {
     queryFileEdges(mockDb, 'hooks')
     expect(capturedSql).toContain("nt.file_path LIKE 'src/%'")
   })
+
+  it('excludes test files from both ends of the edge', () => {
+    let capturedSql
+    const mockDb = {
+      prepare: (sql) => {
+        capturedSql = sql
+        return { all: () => [] }
+      },
+    }
+    queryFileEdges(mockDb, 'hooks')
+    expect(capturedSql).toContain("ns.file_path NOT LIKE '%.test.%'")
+    expect(capturedSql).toContain("nt.file_path NOT LIKE '%.test.%'")
+  })
 })
 
 describe('renderFileChart', () => {

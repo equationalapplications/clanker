@@ -17,6 +17,7 @@ graph LR
   ChatComposer --> documentMimeTypes
   ChatComposer --> apiClient
   ChatImageBubble --> useResolvedImage
+  ChatImageBubble --> photoLibrarySaver
   ChatView --> usePowerBalance
   ChatView --> useAIChat
   ChatView --> useResolvedImage

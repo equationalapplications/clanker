@@ -14,7 +14,10 @@ function toDocFilename(directory) {
 
 /**
  * Query file-to-file dependency edges within a single src/ directory.
- * Excludes utilities, types, config, and self-referential edges.
+ * Excludes utilities, types, config, test files, and self-referential edges.
+ * Test files are development artifacts, not production dependencies, and the
+ * indexer also misresolves generic names (e.g. an XState `send()`) onto
+ * methods defined in test files — both would pollute production charts.
  * Returns deduplicated {sourceFile, targetFile} pairs (no extensions).
  *
  * @param {import('better-sqlite3').Database} db
@@ -32,9 +35,11 @@ function queryFileEdges(db, directory) {
       AND ns.file_path NOT LIKE '%/utilities/%'
       AND ns.file_path NOT LIKE '%/types/%'
       AND ns.file_path NOT LIKE '%/config/%'
+      AND ns.file_path NOT LIKE '%.test.%'
       AND nt.file_path NOT LIKE '%/utilities/%'
       AND nt.file_path NOT LIKE '%/types/%'
       AND nt.file_path NOT LIKE '%/config/%'
+      AND nt.file_path NOT LIKE '%.test.%'
       AND nt.file_path LIKE 'src/%'
   `
   const rows = db.prepare(sql).all(`src/${directory}/%`)
@@ -87,7 +92,7 @@ function renderFileChart(directory, edges) {
 /**
  * Import-based fallback for directories where calls edges don't exist (e.g. XState machines).
  * Queries ~/... import paths contained in each file, maps them to {sourceFile, targetFile} pairs.
- * Excludes utilities, types, config, constants, and self-referential edges.
+ * Excludes utilities, types, config, constants, test files, and self-referential edges.
  *
  * @param {import('better-sqlite3').Database} db
  * @param {string} directory - one of DIRECTORIES
@@ -108,6 +113,7 @@ function queryImportEdges(db, directory) {
       AND nf.file_path NOT LIKE '%/types/%'
       AND nf.file_path NOT LIKE '%/config/%'
       AND nf.file_path NOT LIKE '%/constants/%'
+      AND nf.file_path NOT LIKE '%.test.%'
       AND e.kind  = 'contains'
       AND ni.kind = 'import'
       AND ni.name LIKE '~/%'
@@ -123,6 +129,7 @@ function queryImportEdges(db, directory) {
     const rawTarget = segments[segments.length - 1] ?? ''
     const targetFile = rawTarget.replace(/\.[^.]+$/, '')
     if (segments.some((seg) => EXCLUDED.has(seg))) continue
+    if (rawTarget.includes('.test.')) continue
     if (sourceFile === targetFile) continue
 
     const key = `${sourceFile}|${targetFile}`
