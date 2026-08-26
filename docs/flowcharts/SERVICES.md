@@ -23,10 +23,24 @@ graph LR
   characterImageSyncService --> storageService
   characterImageSyncService --> characterDatabase
   characterImageSyncService --> characterImageService
+  characterImageSyncService --> apiClient
   characterService --> googleSignin
   characterService --> characterDatabase
   characterService --> analyticsService
+  characterSyncService --> characterDatabase
+  characterSyncService --> wikiService
+  characterSyncService --> wikiSourceType
+  characterSyncService --> apiClient
+  characterSyncService --> wikiOrchestrator
+  characterSyncService --> devSandboxFlag
+  characterSyncService --> googleSignin
+  characterSyncService --> characterImageSyncService
+  characterSyncService --> voiceDefaults
+  characterSyncService --> characterImageService
+  characterSyncService --> characterImageDatabase
   chatReplyService --> groundingMetadata
+  cloudAgentService --> googleSignin
+  cloudAgentService --> groundingMetadata
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
   imageModelBytes --> characterImageDatabase
@@ -39,20 +53,9 @@ graph LR
   messageService --> messageDatabase
   messageService --> analyticsService
   userService --> bootstrapSession
+  userService --> apiClient
   wikiLlmProvider --> devSandboxFlag
+  wikiLlmProvider --> apiClient
   wikiOrchestrator --> wikiService
   wikiService --> wikiLlmProvider
-  characterSyncService --> characterDatabase
-  characterSyncService --> wikiService
-  characterSyncService --> wikiSourceType
-  characterSyncService --> apiClient
-  characterSyncService --> wikiOrchestrator
-  characterSyncService --> devSandboxFlag
-  characterSyncService --> googleSignin
-  characterSyncService --> characterImageSyncService
-  characterSyncService --> voiceDefaults
-  characterSyncService --> characterImageService
-  characterSyncService --> characterImageDatabase
-  cloudAgentService --> googleSignin
-  cloudAgentService --> groundingMetadata
 ```
