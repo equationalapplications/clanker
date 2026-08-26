@@ -33,9 +33,9 @@ function extractJsonLdBlocks(html: string): string[] {
 }
 
 /**
- * PR #639 shipped a trailing comma that made the /image-generation JSON-LD block
- * unparsable, silently dropping every rich result on the page. Every ld+json
- * block on every checked-in marketing page must be valid JSON.
+ * A trailing comma in /image-generation (fixed in PR #640, commit 255036c1) made
+ * the JSON-LD block unparsable, silently dropping every rich result on the page.
+ * Every ld+json block on every checked-in marketing page must be valid JSON.
  */
 describe.each(PAGES)('marketing page $relativePath', ({ file }) => {
   const html = fs.readFileSync(file, 'utf8')
