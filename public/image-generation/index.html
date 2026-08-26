@@ -221,6 +221,12 @@
         font-weight: 700;
       }
 
+      /* The FAQ prose section follows another prose section whose bottom
+         padding already provides the gap; drop the h2's own top margin. */
+      .prose h2.tight-top {
+        margin-top: 0;
+      }
+
       .prose h3 {
         font-size: 1.15rem;
         margin: 1.5rem 0 0.5rem;
@@ -464,7 +470,7 @@
       </section>
 
       <section class="prose" aria-labelledby="faq-heading">
-        <h2 id="faq-heading" style="margin-top: 0;">Frequently Asked Questions</h2>
+        <h2 id="faq-heading" class="tight-top">Frequently Asked Questions</h2>
 
         <h3>When does my character make an image?</h3>
         <p>
