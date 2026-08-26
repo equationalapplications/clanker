@@ -1,0 +1,74 @@
+# Dependabot version updates.
+#
+# The Expo SDK family (`expo`, `expo-*`, `@expo/*`) and the React trio it must
+# match (`react`, `react-dom`, `react-native`, plus `react-test-renderer`) are
+# ignored on purpose: they move in lockstep and are upgraded together in a
+# single manual SDK PR (`npx expo install` / `expo upgrade`). Individual bumps
+# by a bot break the SDK, and version-range churn there is how PR #641's
+# tilde-to-caret drift happened. A security advisory on one of them is handled
+# by the SDK upgrade, not by a bot PR.
+
+version: 2
+updates:
+  # Dependabot opens PRs against the default branch unless told otherwise. This
+  # repo's flow is feature → `staging` → `main` (AGENTS.md / project_git_workflow),
+  # so every update entry targets `staging` to keep dependency PRs in that flow.
+  - package-ecosystem: npm
+    directory: '/'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    groups:
+      # Families that must move together — bumping one member alone produces
+      # version skew (the @react-native-firebase/app drift fixed after #641).
+      react-native-firebase:
+        patterns:
+          - '@react-native-firebase/*'
+      tanstack:
+        patterns:
+          - '@tanstack/*'
+      equationalapplications:
+        patterns:
+          - '@equationalapplications/*'
+    ignore:
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: '@expo/*'
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-test-renderer'
+
+  - package-ecosystem: npm
+    directory: '/functions'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    groups:
+      equationalapplications:
+        patterns:
+          - '@equationalapplications/*'
+
+  - package-ecosystem: npm
+    directory: '/cloud-agent'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    groups:
+      equationalapplications:
+        patterns:
+          - '@equationalapplications/*'
+
+  - package-ecosystem: npm
+    directory: '/extension'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
