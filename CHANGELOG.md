@@ -1,3 +1,26 @@
+# [32.0.0](https://github.com/equationalapplications/clanker/compare/v31.4.0...v32.0.0) (2026-08-26)
+
+
+* chore(deps)!: upgrade Expo and dependencies ([3ce3029](https://github.com/equationalapplications/clanker/commit/3ce3029806c1d1e77c88cf963516ebb5c85d872e))
+
+
+### Bug Fixes
+
+* correct PR attribution in JSON-LD test comment ([140d530](https://github.com/equationalapplications/clanker/commit/140d5303959745f2c1db3e4ad10127413c31c740)), closes [#639](https://github.com/equationalapplications/clanker/issues/639)
+* **image-generation:** restore missing </section> closing tag in FAQ section ([020743d](https://github.com/equationalapplications/clanker/commit/020743d824b201bb9a2dccc61273188fde9ad431))
+* **seo:** drop credit cost claims from image generation metadata ([50c6696](https://github.com/equationalapplications/clanker/commit/50c66965bd31e463d56a519322bcf96c8351ff39)), closes [#638](https://github.com/equationalapplications/clanker/issues/638)
+* **seo:** remove 'Credits & availability' section from image generation page ([1df3a31](https://github.com/equationalapplications/clanker/commit/1df3a3132646f52ce271902616011779a8344c8d))
+* **seo:** remove 'Does it work in every chat?' FAQ entry ([8459bde](https://github.com/equationalapplications/clanker/commit/8459bdedbce573de4566cdedd4bccc6c7adea2ed))
+* **seo:** remove 'How much does an image cost?' FAQ entry ([ca76668](https://github.com/equationalapplications/clanker/commit/ca76668ade91603215b0ab6f72304d3766678891))
+* **seo:** repair invalid JSON-LD in image generation page ([1f438f9](https://github.com/equationalapplications/clanker/commit/1f438f984fb328cc5842d291c51fb022569e2d87))
+
+
+### BREAKING CHANGES
+
+* react-native-firebase 26.3.x and react-native-purchases
+10.8.x ship updated native binaries, so a new native build is required;
+OTA-only updates are not compatible until the next store/dev build.
+
 # [31.4.0](https://github.com/equationalapplications/clanker/compare/v31.3.0...v31.4.0) (2026-08-25)
 
 
