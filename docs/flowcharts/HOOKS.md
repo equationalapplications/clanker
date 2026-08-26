@@ -4,7 +4,6 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 
 ```mermaid
 graph LR
-  useAgeVerification.test --> useAgeVerification
   useAIChat --> useMachines
   useAIChat --> useMessages
   useAIChat --> useCharacterWiki
@@ -54,7 +53,6 @@ graph LR
   useLiveVoiceChat --> useLiveAudioIO
   useLiveVoiceChat --> liveVoiceMachine
   useLiveVoiceChat --> twoWayAudioAdapter
-  useLiveVoiceChat --> cloudAgentService.agentImage.test
   useMessages --> useMachines
   useMessages --> messageService
   usePowerBalance --> useUserCredits

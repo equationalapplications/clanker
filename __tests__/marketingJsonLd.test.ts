@@ -59,13 +59,22 @@ describe.each(PAGES)('marketing page $relativePath', ({ file }) => {
 })
 
 describe('marketing page JSON-LD discovery', () => {
-  it('finds the checked-in pages so the parse checks cannot silently skip', () => {
-    const relativePaths = PAGES.map(({ relativePath }) => relativePath)
+  // Exact set (not arrayContaining): adding or removing a checked-in page
+  // must force a conscious edit here, so a renamed or deleted page fails
+  // loudly instead of silently dropping out of the parse checks above.
+  it('finds exactly the checked-in pages so the parse checks cannot silently skip', () => {
+    const relativePaths = PAGES.map(({ relativePath }) => relativePath).sort()
     expect(relativePaths).toEqual(
-      expect.arrayContaining([
-        path.join('welcome', 'index.html'),
-        path.join('image-generation', 'index.html'),
-      ]),
+      [
+        'advanced-memory',
+        'image-generation',
+        'memory-export-with-okf',
+        'open-source',
+        'privacy-mode',
+        'real-time-voice',
+        'support',
+        'welcome',
+      ].map((slug) => path.join(slug, 'index.html')),
     )
   })
 })
