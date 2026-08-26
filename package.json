@@ -100,7 +100,7 @@
     "react-native-keyboard-controller": "1.21.9",
     "react-native-paper": "^5.15.3",
     "react-native-purchases": "^10.8.0",
-    "react-native-reanimated": "4.5.1",
+    "react-native-reanimated": "4.6.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "^0.21.2",
