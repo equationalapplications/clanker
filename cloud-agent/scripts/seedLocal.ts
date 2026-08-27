@@ -11,6 +11,13 @@ import {
 const USER_ID = DEV_CLOUD_USER_ID
 const CHARACTER_ID = DEV_CLOUD_CHARACTER_ID
 
+// Dev-only credit grant. 100,000 covers ~200 images or ~200 single-iter chat
+// turns — generous enough that nobody thinks about it during local dev, low
+// enough to keep accidental spend visible in logs.
+const DEV_CREDIT_GRANT = 100_000
+// Re-seed adds another grant when the net unexpired balance drops below this.
+const DEV_CREDIT_REFILL_THRESHOLD = 5_000
+
 /** Generate a deterministic 768‑dimensional mock embedding vector as a pgvector‑compatible SQL literal string. */
 function mockEmbedding(seed: number): string {
   const dims: string[] = []
@@ -214,18 +221,28 @@ async function seed() {
 
   await db.execute(sql`
     INSERT INTO subscriptions (user_id, plan_tier, plan_status, current_credits)
-    VALUES (${USER_ID}, 'free', 'active', 100)
-    ON CONFLICT (user_id) DO NOTHING
+    VALUES (${USER_ID}, 'free', 'active', ${DEV_CREDIT_GRANT})
+    ON CONFLICT (user_id) DO UPDATE SET current_credits = EXCLUDED.current_credits
   `)
 
-  // Only insert credit grant if this user has no transactions yet
+  // Dev-only top-up: keep the local-test user well-stocked so a single image
+  // (200 cr) or a chat loop (100 cr × up to 5 iters) doesn't drain them.
+  // 2026-06-03 spec seeded 100 credits when each chat turn was free; that no
+  // longer covers even one turn. Re-running the seed must add credits, not be
+  // a no-op on an already-drained balance — INSERT-gated-by-current-balance
+  // (rather than NOT EXISTS) is the only idempotent way: spend/refund events
+  // create many rows, so a NOT EXISTS check would lock out subsequent top-ups.
   await db.execute(sql`
     INSERT INTO credit_transactions
       (user_id, delta, reason, initial_amount, remaining_balance, transaction_type, expires_at)
-    SELECT ${USER_ID}, 100, 'local_dev_grant', 100, 100, 'legacy', NULL
-    WHERE NOT EXISTS (
-      SELECT 1 FROM credit_transactions WHERE user_id = ${USER_ID}
-    )
+    SELECT ${USER_ID}, ${DEV_CREDIT_GRANT}, 'local_dev_grant',
+           ${DEV_CREDIT_GRANT}, ${DEV_CREDIT_GRANT}, 'legacy', NULL
+    WHERE (
+      SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+      FROM credit_transactions
+      WHERE user_id = ${USER_ID}
+        AND (expires_at IS NULL OR expires_at > NOW())
+    ) < ${DEV_CREDIT_REFILL_THRESHOLD}
   `)
 
   console.log('Seed complete!')
