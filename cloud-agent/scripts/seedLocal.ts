@@ -232,18 +232,28 @@ async function seed() {
   // a no-op on an already-drained balance — INSERT-gated-by-current-balance
   // (rather than NOT EXISTS) is the only idempotent way: spend/refund events
   // create many rows, so a NOT EXISTS check would lock out subsequent top-ups.
-  await db.execute(sql`
-    INSERT INTO credit_transactions
-      (user_id, delta, reason, initial_amount, remaining_balance, transaction_type, expires_at)
-    SELECT ${USER_ID}, ${DEV_CREDIT_GRANT}, 'local_dev_grant',
-           ${DEV_CREDIT_GRANT}, ${DEV_CREDIT_GRANT}, 'legacy', NULL
-    WHERE (
-      SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
-      FROM credit_transactions
-      WHERE user_id = ${USER_ID}
-        AND (expires_at IS NULL OR expires_at > NOW())
-    ) < ${DEV_CREDIT_REFILL_THRESHOLD}
-  `)
+  // The whole check + insert runs inside a transaction that locks the user's
+  // subscriptions row with SELECT ... FOR UPDATE, so two simultaneous
+  // seedLocal invocations cannot both observe a below-threshold balance and
+  // each insert a fresh DEV_CREDIT_GRANT (a serialized second run re-reads
+  // the just-bumped balance and the WHERE clause evaluates to false).
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      SELECT user_id FROM subscriptions WHERE user_id = ${USER_ID} FOR UPDATE
+    `)
+    await tx.execute(sql`
+      INSERT INTO credit_transactions
+        (user_id, delta, reason, initial_amount, remaining_balance, transaction_type, expires_at)
+      SELECT ${USER_ID}, ${DEV_CREDIT_GRANT}, 'local_dev_grant',
+             ${DEV_CREDIT_GRANT}, ${DEV_CREDIT_GRANT}, 'legacy', NULL
+      WHERE (
+        SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+        FROM credit_transactions
+        WHERE user_id = ${USER_ID}
+          AND (expires_at IS NULL OR expires_at > NOW())
+      ) < ${DEV_CREDIT_REFILL_THRESHOLD}
+    `)
+  })
 
   console.log('Seed complete!')
   console.log(`  User ID:      ${USER_ID}`)
