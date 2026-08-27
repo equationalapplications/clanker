@@ -25,15 +25,20 @@ let vertexClient: GoogleGenAI | undefined
  * Mirrors cloud-agent/src/db/embeddings.ts:14-23 — accepts all three project
  * env names so the same Vertex caller works under docker-compose.local.yml
  * (which sets GOOGLE_CLOUD_PROJECT) and on Cloud Run (which also sets
- * GOOGLE_CLOUD_PROJECT in this project). Trims whitespace defensively.
+ * GOOGLE_CLOUD_PROJECT in this project). Trims and skips whitespace-only
+ * candidates so a stray "  " in a higher-priority variable falls through
+ * rather than silently short-circuiting the chain to an empty string.
  */
 export function lookupProjectId(): string {
-  return (
-    process.env.GCLOUD_PROJECT ??
-    process.env.GCP_PROJECT ??
-    process.env.GOOGLE_CLOUD_PROJECT ??
-    ''
-  ).trim()
+  for (const value of [
+    process.env.GCLOUD_PROJECT,
+    process.env.GCP_PROJECT,
+    process.env.GOOGLE_CLOUD_PROJECT,
+  ]) {
+    const project = value?.trim()
+    if (project) return project
+  }
+  return ''
 }
 
 function getVertexClient(): GoogleGenAI {

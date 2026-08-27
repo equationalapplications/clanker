@@ -254,6 +254,32 @@ test('lookupProjectId trims surrounding whitespace', () => {
   }
 })
 
+test('lookupProjectId falls through whitespace-only higher-priority vars', () => {
+  // A stray "  " in GCLOUD_PROJECT (e.g. from an unset CI variable that
+  // exports as empty space) must not short-circuit the chain — the next
+  // valid candidate wins. Pre-fix, ?? returned the whitespace and the
+  // trailing .trim() produced "", which made getVertexClient throw
+  // MISSING_GCP_PROJECT even though GCP_PROJECT was usable.
+  const snap = snapshotProjectEnv()
+  try {
+    process.env.GCLOUD_PROJECT = '   '
+    delete process.env.GCP_PROJECT
+    process.env.GOOGLE_CLOUD_PROJECT = 'clanker-prod'
+    assert.equal(lookupProjectId(), 'clanker-prod')
+
+    process.env.GCLOUD_PROJECT = ''
+    process.env.GCP_PROJECT = '\t\n'
+    assert.equal(lookupProjectId(), 'clanker-prod')
+
+    process.env.GCLOUD_PROJECT = '   '
+    process.env.GCP_PROJECT = '  '
+    delete process.env.GOOGLE_CLOUD_PROJECT
+    assert.equal(lookupProjectId(), '')
+  } finally {
+    restoreProjectEnv(snap)
+  }
+})
+
 test('a failing refund does not throw out of execute', async () => {
   const { cs } = makeFakeCs({ refundRejects: true })
   const vertex = makeFakeVertex({ error: new Error('VERTEX_500') })
