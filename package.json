@@ -129,7 +129,7 @@
     "better-sqlite3": "^13.0.3",
     "commitizen": "^4.3.2",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.9.1",
     "eslint-config-expo": "~57.0.1",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "husky": "^9.1.7",
