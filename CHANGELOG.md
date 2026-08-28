@@ -1,3 +1,26 @@
+# [33.0.0](https://github.com/equationalapplications/clanker/compare/v32.0.0...v33.0.0) (2026-08-28)
+
+
+* chore(deps)!: bump Expo SDK 57 packages to latest 57.0.x patches ([6f6e706](https://github.com/equationalapplications/clanker/commit/6f6e706afd8dda1026553b1e3170b746a6045688))
+
+
+### Bug Fixes
+
+* **cloud-agent:** accept GOOGLE_CLOUD_PROJECT in generate_image tool env lookup ([6dbfa0c](https://github.com/equationalapplications/clanker/commit/6dbfa0c55551fa4390f114c1eb934a79057dce09)), closes [#631](https://github.com/equationalapplications/clanker/issues/631)
+* **cloud-agent:** serialize dev sandbox credit refill in seedLocal ([4d246aa](https://github.com/equationalapplications/clanker/commit/4d246aabf8fed20b85e47cea30c101d0211f04c1))
+* **cloud-agent:** skip whitespace-only values in generate_image env lookup ([fd576bb](https://github.com/equationalapplications/clanker/commit/fd576bbcddfe83e4f404f493c21434931dbc8efc))
+* **cloud-agent:** sync subscriptions.current_credits after seedLocal refill ([83fbe05](https://github.com/equationalapplications/clanker/commit/83fbe05a4ac16128d50edbb24290fb0d1f64af73)), closes [#667](https://github.com/equationalapplications/clanker/issues/667)
+* **cloud-agent:** top up dev sandbox credit grant and make seed idempotent ([7faba3b](https://github.com/equationalapplications/clanker/commit/7faba3b356e0b3d0d6efef9ae61d8e5a211ac814))
+
+
+### BREAKING CHANGES
+
+* this commit is intentionally marked breaking so
+semantic-release triggers a MAJOR version bump (32 → 33). That bumps
+runtimeVersion and cuts existing OTA-receiving installs off from
+over-the-air updates; a fresh app-store build is required to restore
+OTA coverage for those installs.
+
 # [32.0.0](https://github.com/equationalapplications/clanker/compare/v31.4.0...v32.0.0) (2026-08-26)
 
 
