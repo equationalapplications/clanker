@@ -253,6 +253,21 @@ async function seed() {
           AND (expires_at IS NULL OR expires_at > NOW())
       ) < ${DEV_CREDIT_REFILL_THRESHOLD}
     `)
+    // Keep the subscriptions.current_credits cache in sync with the actual
+    // unexpired remaining_balance sum — the earlier upsert seeds 100,000, but
+    // if no refill was needed (balance already >= threshold) the cache would
+    // otherwise understate the real balance; if a refill fired the cache would
+    // miss the new row. Mirrors the cache-sync shape in creditService.ts.
+    await tx.execute(sql`
+      UPDATE subscriptions
+      SET current_credits = (
+        SELECT GREATEST(COALESCE(SUM(remaining_balance), 0), 0)
+        FROM credit_transactions
+        WHERE user_id = ${USER_ID}
+          AND (expires_at IS NULL OR expires_at > NOW())
+      )
+      WHERE user_id = ${USER_ID}
+    `)
   })
 
   console.log('Seed complete!')
