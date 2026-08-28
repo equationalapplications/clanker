@@ -24,6 +24,7 @@ import { hasGroundingData } from '../groundingMetadata.js'
 import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
 import { defaultFirestoreSession } from '../services/firestoreSession.js'
 import { INSTANCE_ID } from '../services/instanceId.js'
+import { resolveProjectId } from '../utils/projectId.js'
 import { getExpoPushToken as dbGetExpoPushToken } from './expoPushToken.js'
 
 export interface BillingControllerOpts {
@@ -137,13 +138,7 @@ const isGeminiLiveDebug =
   (!process.env.K_SERVICE && process.env.NODE_ENV !== 'production')
 
 async function defaultLiveConnect(cfg: LiveConnectCfg): Promise<GeminiSession> {
-  const project = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v))
+  const project = resolveProjectId()
   if (!project) throw new Error('Missing GCP project env for Gemini Live')
   // Gemini Live is only available in us-central1; ignore GOOGLE_CLOUD_LOCATION (may be 'global')
   const location = 'us-central1'

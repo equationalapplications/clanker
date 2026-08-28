@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
-import { generateImage, lookupProjectId, type GeneratedImage } from './generateImage.js'
+import { generateImage, type GeneratedImage } from './generateImage.js'
 
 type Execute = (args: unknown) => Promise<string>
 
@@ -180,104 +180,6 @@ test('truncates prompts over 2000 chars before the model call', async () => {
     prompt: 'x'.repeat(2500),
   })
   assert.equal(vertex.receivedPrompts[0]?.length, 2000)
-})
-
-// Project env resolution — regression for the local-dcontainer bug where only
-// GOOGLE_CLOUD_PROJECT is set (the convention docker-compose.local.yml AND
-// prod's clanker-cloud-agent both use). Pre-fix the tool threw
-// MISSING_GCP_PROJECT before talking to Vertex, surfacing as the "camera
-// glitched" character apology (tested via defaultVertexImageGenerator, which
-// is the only path that actually exercises getVertexClient).
-
-const PROJECT_ENV_KEYS = ['GCLOUD_PROJECT', 'GCP_PROJECT', 'GOOGLE_CLOUD_PROJECT'] as const
-
-type SavedEnv = Record<(typeof PROJECT_ENV_KEYS)[number], string | undefined>
-
-function snapshotProjectEnv(): SavedEnv {
-  return Object.fromEntries(PROJECT_ENV_KEYS.map((k) => [k, process.env[k]])) as SavedEnv
-}
-
-function restoreProjectEnv(snap: SavedEnv): void {
-  for (const k of PROJECT_ENV_KEYS) {
-    if (snap[k] === undefined) delete process.env[k]
-    else process.env[k] = snap[k]
-  }
-}
-
-test('lookupProjectId returns the project when only GOOGLE_CLOUD_PROJECT is set', () => {
-  const snap = snapshotProjectEnv()
-  try {
-    delete process.env.GCLOUD_PROJECT
-    delete process.env.GCP_PROJECT
-    process.env.GOOGLE_CLOUD_PROJECT = 'clanker-prod'
-    assert.equal(lookupProjectId(), 'clanker-prod')
-  } finally {
-    restoreProjectEnv(snap)
-  }
-})
-
-test('lookupProjectId falls back to GCLOUD_PROJECT, then GCP_PROJECT', () => {
-  const snap = snapshotProjectEnv()
-  try {
-    delete process.env.GOOGLE_CLOUD_PROJECT
-    process.env.GCLOUD_PROJECT = 'from-gcloud'
-    delete process.env.GCP_PROJECT
-    assert.equal(lookupProjectId(), 'from-gcloud')
-
-    delete process.env.GCLOUD_PROJECT
-    process.env.GCP_PROJECT = 'from-gcp'
-    assert.equal(lookupProjectId(), 'from-gcp')
-  } finally {
-    restoreProjectEnv(snap)
-  }
-})
-
-test('lookupProjectId returns empty string when no project env is set', () => {
-  const snap = snapshotProjectEnv()
-  try {
-    for (const k of PROJECT_ENV_KEYS) delete process.env[k]
-    assert.equal(lookupProjectId(), '')
-  } finally {
-    restoreProjectEnv(snap)
-  }
-})
-
-test('lookupProjectId trims surrounding whitespace', () => {
-  const snap = snapshotProjectEnv()
-  try {
-    delete process.env.GCLOUD_PROJECT
-    delete process.env.GCP_PROJECT
-    process.env.GOOGLE_CLOUD_PROJECT = '  clanker-prod  '
-    assert.equal(lookupProjectId(), 'clanker-prod')
-  } finally {
-    restoreProjectEnv(snap)
-  }
-})
-
-test('lookupProjectId falls through whitespace-only higher-priority vars', () => {
-  // A stray "  " in GCLOUD_PROJECT (e.g. from an unset CI variable that
-  // exports as empty space) must not short-circuit the chain — the next
-  // valid candidate wins. Pre-fix, ?? returned the whitespace and the
-  // trailing .trim() produced "", which made getVertexClient throw
-  // MISSING_GCP_PROJECT even though GCP_PROJECT was usable.
-  const snap = snapshotProjectEnv()
-  try {
-    process.env.GCLOUD_PROJECT = '   '
-    delete process.env.GCP_PROJECT
-    process.env.GOOGLE_CLOUD_PROJECT = 'clanker-prod'
-    assert.equal(lookupProjectId(), 'clanker-prod')
-
-    process.env.GCLOUD_PROJECT = ''
-    process.env.GCP_PROJECT = '\t\n'
-    assert.equal(lookupProjectId(), 'clanker-prod')
-
-    process.env.GCLOUD_PROJECT = '   '
-    process.env.GCP_PROJECT = '  '
-    delete process.env.GOOGLE_CLOUD_PROJECT
-    assert.equal(lookupProjectId(), '')
-  } finally {
-    restoreProjectEnv(snap)
-  }
 })
 
 test('a failing refund does not throw out of execute', async () => {

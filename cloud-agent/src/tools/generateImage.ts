@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai'
 import { IMAGE_GENERATION_COST } from '../constants/credits.js'
 import { CHAT_IMAGE_MODEL_ID, CHAT_IMAGE_REGION } from '../constants/images.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
+import { resolveProjectId } from '../utils/projectId.js'
 
 /** One generated image riding this agent_run's turn response to the client. */
 export interface GeneratedImage {
@@ -21,29 +22,9 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp
 
 let vertexClient: GoogleGenAI | undefined
 
-/**
- * Mirrors cloud-agent/src/db/embeddings.ts:14-23 — accepts all three project
- * env names so the same Vertex caller works under docker-compose.local.yml
- * (which sets GOOGLE_CLOUD_PROJECT) and on Cloud Run (which also sets
- * GOOGLE_CLOUD_PROJECT in this project). Trims and skips whitespace-only
- * candidates so a stray "  " in a higher-priority variable falls through
- * rather than silently short-circuiting the chain to an empty string.
- */
-export function lookupProjectId(): string {
-  for (const value of [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]) {
-    const project = value?.trim()
-    if (project) return project
-  }
-  return ''
-}
-
 function getVertexClient(): GoogleGenAI {
   if (!vertexClient) {
-    const project = lookupProjectId()
+    const project = resolveProjectId()
     if (!project) {
       throw new Error('MISSING_GCP_PROJECT')
     }
