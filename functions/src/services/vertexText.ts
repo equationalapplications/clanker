@@ -3,6 +3,8 @@ import * as logger from 'firebase-functions/logger'
 import { GoogleGenAI } from '@google/genai'
 import type { Candidate, Content, GenerateContentConfig } from '@google/genai'
 
+import { resolveProjectId } from './projectId.js'
+
 // Gemini 3 family is global-only on Vertex AI.
 const GEMINI_LOCATION = 'global'
 
@@ -17,13 +19,7 @@ export function getGenAIClient(): GoogleGenAI {
   if (genAIClient) {
     return genAIClient
   }
-  const project = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v))
+  const project = resolveProjectId()
   if (!project) {
     throw new HttpsError(
       'failed-precondition',
