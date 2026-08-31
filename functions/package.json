@@ -26,7 +26,7 @@
   "main": "lib/index.js",
   "type": "module",
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^5.2.1",
+    "@equationalapplications/core-llm-tools": "^6.0.1",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
     "@google/adk": "^1.6.0",
     "@google/genai": "^2.16.0",
