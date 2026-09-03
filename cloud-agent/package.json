@@ -18,7 +18,7 @@
     "@equationalapplications/core-llm-tools": "^5.2.1",
     "@equationalapplications/core-llm-wiki": "^5.2.1",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
-    "@google/adk": "^1.6.0",
+    "@google/adk": "^2.0.0",
     "@google/genai": "^2.16.0",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
