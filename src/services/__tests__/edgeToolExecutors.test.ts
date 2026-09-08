@@ -388,6 +388,10 @@ describe('generate_image billing safety', () => {
     const executors = createEdgeToolExecutors('char-1', null, imageDeps())
 
     const first = executors.generate_image({ prompt: 'doomed' })
+    // A second call overlapping the in-flight reservation gets the cap message
+    // without reaching the callable, so rejectGen still targets the first call.
+    const concurrent = executors.generate_image({ prompt: 'concurrent' })
+    await expect(concurrent).resolves.toContain('one image per reply')
     rejectGen(new Error('vertex boom'))
     await first
 
