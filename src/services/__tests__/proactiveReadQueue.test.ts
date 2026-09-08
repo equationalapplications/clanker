@@ -9,6 +9,8 @@
  * real SQLite handle so the queue logic is testable without a database.
  */
 
+import { enqueueMarkRead, flushMarkReadQueue } from '../proactiveReadQueue'
+
 let mockStore: Record<string, string> = {}
 
 jest.mock('~/database/syncState', () => ({
@@ -20,8 +22,6 @@ jest.mock('~/database/syncState', () => ({
     mockStore[key] = JSON.stringify(value)
   }),
 }))
-
-import { enqueueMarkRead, flushMarkReadQueue } from '../proactiveReadQueue'
 
 beforeEach(() => {
   mockStore = {}

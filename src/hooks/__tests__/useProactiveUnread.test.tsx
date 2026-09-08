@@ -2,7 +2,6 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react-native'
 import { useProactiveUnread } from '../useProactiveUnread'
-import { countUnreadProactive } from '~/database/messageDatabase'
 
 const mockCountUnreadProactive = jest.fn()
 jest.mock('~/database/messageDatabase', () => ({

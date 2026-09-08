@@ -7,6 +7,11 @@
  * database, not by a mock that can't fail the same way.
  */
 
+import { createExpoSqliteBetterSqlite3Mock } from '../../../__tests__/helpers/expoSqliteBetterSqlite3Mock'
+import { UNREAD_STALENESS_ESCAPE_MS } from '../../constants/proactive'
+import { applyProactiveMessages, countUnreadProactive, type LocalMessage } from '../messageDatabase'
+import { CREATE_TABLES } from '../schema'
+
 type BetterSqliteDb = ReturnType<
   ReturnType<typeof createExpoSqliteBetterSqlite3Mock>['openDatabaseSync']
 >
@@ -21,11 +26,6 @@ const mockDb = {
 jest.mock('../index', () => ({
   getDatabase: jest.fn(async () => mockDbOverride ?? mockDb),
 }))
-
-import { createExpoSqliteBetterSqlite3Mock } from '../../../__tests__/helpers/expoSqliteBetterSqlite3Mock'
-import { CREATE_TABLES } from '../schema'
-import { UNREAD_STALENESS_ESCAPE_MS } from '../../constants/proactive'
-import { applyProactiveMessages, countUnreadProactive, type LocalMessage } from '../messageDatabase'
 
 interface ProactiveMessagePayload {
   messageId: string
