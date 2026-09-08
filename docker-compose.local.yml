@@ -22,6 +22,8 @@ services:
       - GOOGLE_CLOUD_LOCATION=global
       - DATABASE_URL=postgres://clanker_dev:local_pass@postgres_db:5432/clanker
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
+      - CLOUD_AGENT_URL=http://localhost:8080
+      - SCHEDULER_SECRET=${SCHEDULER_SECRET:-}
     # shared/node_modules is an anonymous volume (not the host dir) so this symlink only
     # affects the container; shared/*.ts imports (e.g. dsl-schema → zod) resolve via it.
     command: sh -c "ln -sfn /app/cloud-agent/node_modules /app/shared/node_modules && npm run dev"
