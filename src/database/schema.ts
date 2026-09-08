@@ -5,7 +5,7 @@
 
 import { DEFAULT_VOICE } from '~/constants/voiceDefaults'
 
-export const SCHEMA_VERSION = 24
+export const SCHEMA_VERSION = 26
 
 /**
  * Columns that must exist for a database to be treated as already matching
@@ -122,7 +122,8 @@ export const CREATE_TABLES = `
     sent INTEGER DEFAULT 1,
     error INTEGER DEFAULT 0,
     edited INTEGER DEFAULT 0,
-    synced_at INTEGER
+    synced_at INTEGER,
+    read_at INTEGER
   );
 
   -- Indexes for messages
@@ -165,6 +166,14 @@ export const CREATE_TABLES = `
   CREATE INDEX IF NOT EXISTS idx_character_images_sync
     ON character_images(sync_state)
     WHERE sync_state IN ('pending_upload', 'pending_delete');
+
+  -- Sync cursor storage (key/value of last synced position per resource)
+  CREATE TABLE IF NOT EXISTS sync_state (
+    key TEXT PRIMARY KEY NOT NULL,
+    cursor_created_at TEXT,
+    cursor_message_id TEXT,
+    updated_at INTEGER NOT NULL
+  );
 
   -- Schema version tracking
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -248,4 +257,18 @@ CREATE INDEX IF NOT EXISTS idx_character_images_sync ON character_images(sync_st
   // at read time; a foreign key would reject the write and strand the image.
   24: `ALTER TABLE character_images ADD COLUMN message_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_character_images_message ON character_images(message_id) WHERE message_id IS NOT NULL`,
+  // Per-message read timestamp (Unix ms) so the client can suppress the unread
+  // dot on stale messages without consulting the server on every render. The
+  // server's UNREAD_STALENESS_ESCAPE_MS guardrail determines when a message is
+  // considered stale; this column just records that the user has seen it.
+  25: `ALTER TABLE messages ADD COLUMN read_at INTEGER;`,
+  // Generic key/cursor storage for incremental syncs. Task 10 uses
+  // PROACTIVE_SYNC_CURSOR_KEY to track the last proactive message it has
+  // pulled; future incremental syncs can register their own keys.
+  26: `CREATE TABLE IF NOT EXISTS sync_state (
+    key TEXT PRIMARY KEY NOT NULL,
+    cursor_created_at TEXT,
+    cursor_message_id TEXT,
+    updated_at INTEGER NOT NULL
+  );`,
 }
