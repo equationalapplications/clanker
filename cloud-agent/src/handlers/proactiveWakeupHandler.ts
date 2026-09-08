@@ -109,6 +109,21 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         res.status(402).json({ error: 'Insufficient credits' })
         return
       }
+      // Non-INSUFFICIENT_CREDITS failure (DB blip, network, etc.): the row is
+      // currently in 'claimed' status because claimRunKey ran first. Without an
+      // explicit resolve the row stays 'claimed' and the sweeper, which only
+      // selects 'pending', would never retry it. Mark 'skipped' (not 'pending')
+      // to avoid retry-loop storms from a persistent failure mode. spentAmount=0
+      // because we can't tell whether spendCredit committed before the throw;
+      // worst case is one wake-up goes unmetered — within the documented
+      // one-turn overshoot bound.
+      await deps
+        .resolveWakeup(wakeupId, {
+          status: 'skipped',
+          spentAmount: 0,
+          outcome: 'spend_failed',
+        })
+        .catch(() => {})
       console.error('[proactive-wakeup] spendCredit error:', err)
       res.status(500).json({ error: 'Internal server error' })
       return

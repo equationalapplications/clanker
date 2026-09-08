@@ -73,7 +73,9 @@ export function setReminderTool(
       'Schedule your own future wake-up so you can follow up with the user later, even when they are not talking to you. Use this when you want to check back on something.',
     parameters: z.object({
       reason: z.string().describe('A note to your future self about what to follow up on and why.'),
-      remind_at: z.string().describe('ISO 8601 datetime, in the future.'),
+      remind_at: z.iso
+        .datetime({ offset: true })
+        .describe('ISO 8601 datetime with timezone offset (Z or ±HH:MM), in the future.'),
       priority: z
         .number()
         .int()

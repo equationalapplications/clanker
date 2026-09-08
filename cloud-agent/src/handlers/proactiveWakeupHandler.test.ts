@@ -101,6 +101,37 @@ test('returns 402 and does not run the turn when credits are exhausted', async (
   assert.equal(ran, false)
 })
 
+test('releases the claimed row when spendCredit fails with a non-IC error', async () => {
+  let ran = false
+  const { app, calls } = buildApp({
+    creditService: {
+      spendCredit: async () => {
+        throw new Error('connection refused')
+      },
+      refundCredit: async () => {
+        calls.refund++
+      },
+      getBalance: async () => 1000,
+    } as never,
+    runAgent: (async () => {
+      ran = true
+      return { reply: '', toolCalls: [], deliveryMode: 'silent' as const }
+    }) as never,
+  })
+  const res = await request(app).post('/agent/proactive-wakeup').send(body)
+  assert.equal(res.status, 500)
+  assert.equal(ran, false)
+  // No allocations were returned, so there is nothing to refund. The crucial
+  // invariant: the row leaves 'claimed' status, otherwise the sweeper would
+  // never retry / skip it on a later pass.
+  assert.equal(calls.refund, 0)
+  assert.equal(calls.resolved.length, 1)
+  const resolved = calls.resolved[0] as { status: string; spentAmount: number; outcome: string }
+  assert.equal(resolved.status, 'skipped')
+  assert.equal(resolved.spentAmount, 0)
+  assert.equal(resolved.outcome, 'spend_failed')
+})
+
 test('refunds and records zero spend when the turn throws', async () => {
   const { app, calls } = buildApp({
     runAgent: (async () => {

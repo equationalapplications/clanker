@@ -4,7 +4,7 @@ import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { services } from './firebaseAdmin.js'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
 import { WebSocketServer } from 'ws'
@@ -679,11 +679,21 @@ export function createApp(options: AppOptions) {
             }
           },
           claimRunKey: async (runKey) => {
+            // The sweeper transitions pending → claimed before POSTing; the endpoint
+            // reservation still has to succeed for the wake-up turn to actually run.
+            // We accept both statuses: 'pending' for the rare direct-POST path, and
+            // 'claimed' for the normal sweep-driven path. Rows already terminal
+            // ('done'/'skipped') match no predicate and return 'duplicate', which
+            // is the documented idempotency guarantee for a retried POST.
             const updated = await db
               .update(scheduledWakeups)
               .set({ status: 'claimed', claimedAt: new Date() })
               .where(
-                and(eq(scheduledWakeups.runKey, runKey), eq(scheduledWakeups.status, 'pending')),
+                and(
+                  eq(scheduledWakeups.runKey, runKey),
+                  // sql helper for the IN list keeps the predicate portable.
+                  sql`${scheduledWakeups.status} in ('pending','claimed')`,
+                ),
               )
               .returning({ id: scheduledWakeups.id })
             return updated.length > 0 ? 'reserved' : 'duplicate'
@@ -726,8 +736,12 @@ export function createApp(options: AppOptions) {
           creditService: cs,
         })
       }
+      // Terminal route. An explicit next() here would invoke Express's final
+      // 404 handler before proactiveWakeupHandler finishes its async work,
+      // so the handler would write its 200/500 after the socket has already
+      // committed the 404. The route above (/agent/browser/scheduler-trigger)
+      // is the same pattern: voidHandler, no next.
       void proactiveWakeupHandler(req, res)
-      next()
     },
   )
 
