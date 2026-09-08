@@ -53,3 +53,5 @@ export { convertDocumentText } from './convertDocumentText.js'
 export { generateEmbedding } from './generateEmbedding.js'
 
 export { registerExpoPushToken } from './registerExpoPushToken.js'
+
+export { fetchProactiveMessages } from './proactiveMessages.js'
