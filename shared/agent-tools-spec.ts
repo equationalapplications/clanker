@@ -156,6 +156,19 @@ export const agentToolSpec: ToolManifest[] = [
     },
   },
   {
+    name: 'generate_image',
+    tier: 'cloud-only',
+    description:
+      'Create an image and send it to the user in your reply — suited to charts, diagrams, visual plans, or a selfie of yourself. ' +
+      'Call it ONLY when the user asks you to create/draw/generate an image, or explicitly says yes right after you offered to draw something. ' +
+      'Offering in plain text ("want me to draw that?") is always allowed and costs nothing.',
+    parameters: {
+      type: 'object',
+      properties: { prompt: { type: 'string', description: 'What to draw.' } },
+      required: ['prompt'],
+    },
+  },
+  {
     name: 'set_reminder',
     tier: 'cloud-only',
     description: 'Schedule a reminder for the user at a specific future time.',
@@ -172,16 +185,52 @@ export const agentToolSpec: ToolManifest[] = [
     ...(escalateToCloudManifest.schema as any),
     tier: 'edge-only',
     description:
-      'Escalate complex workflows, writing tasks, or timed task creation (reminders/scheduling) to the cloud agent. Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
+      'Escalate complex workflows, writing tasks, timed task creation (reminders/scheduling), or any request to create/draw/generate an image (including a selfie of yourself, a chart, or a diagram) to the cloud agent. ' +
+      'Image generation exists ONLY in the cloud agent, so escalate such a request instead of saying you cannot make images. ' +
+      'Do NOT use for casual chat, time checks, memory reads/writes, or basic untimed task creation.',
   },
 ]
 
+/**
+ * Cloud-only tools the edge agent may CALL but never executes: `useEdgeAgent`
+ * intercepts the call and escalates the turn instead. Offering them as stubs is
+ * what makes a capability gap structurally impossible to answer with a refusal —
+ * the model no longer has to infer from prose that a capability lives elsewhere.
+ */
+export function isCloudOnlyToolName(name: string): boolean {
+  return agentToolSpec.some((t) => t.name === name && t.tier === 'cloud-only')
+}
+
+/**
+ * Cloud-only tools the edge agent can execute itself when there is nothing to
+ * escalate to. `generate_image` qualifies because the image callable
+ * (functions/src/generateImage.ts) needs only a prompt — no server-side
+ * character row — so a local-only character keeps image parity without its
+ * identity or memory ever reaching Postgres. `set_reminder` does NOT: reminders
+ * are scheduled and delivered server-side against a synced character.
+ */
+const LOCALLY_EXECUTABLE_CLOUD_TOOLS = new Set(['generate_image'])
+
+export function isLocallyExecutableCloudTool(name: string): boolean {
+  return LOCALLY_EXECUTABLE_CLOUD_TOOLS.has(name)
+}
+
 export function getSchemasForEdge(hasWiki: boolean, isCloudSynced: boolean) {
-  return agentToolSpec
-    .filter((t) => t.tier === 'both' || t.tier === 'edge-only')
-    .filter((t) => hasWiki || !['wiki_read', 'wiki_write'].includes(t.name))
-    .filter((t) => isCloudSynced || t.name !== 'escalate_to_cloud_agent')
-    .map(({ name, description, parameters }) => ({ name, description, parameters }))
+  return (
+    agentToolSpec
+      .filter((t) => t.tier === 'both' || t.tier === 'edge-only' || t.tier === 'cloud-only')
+      .filter((t) => hasWiki || !['wiki_read', 'wiki_write'].includes(t.name))
+      // Without cloud sync there is nothing to escalate TO, so neither the
+      // escalation tool nor the cloud-only stubs that trigger it are offered —
+      // except the ones the edge agent can execute on its own.
+      .filter(
+        (t) =>
+          isCloudSynced ||
+          (t.name !== 'escalate_to_cloud_agent' &&
+            (t.tier !== 'cloud-only' || isLocallyExecutableCloudTool(t.name))),
+      )
+      .map(({ name, description, parameters }) => ({ name, description, parameters }))
+  )
 }
 
 export function getSchemasForCloud() {

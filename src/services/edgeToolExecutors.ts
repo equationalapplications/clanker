@@ -9,8 +9,26 @@ import {
 } from '~/database/taskDatabase'
 import type { LocalTask } from '~/database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
+import { generateImageViaCallable } from './imageGenerationService'
+import { saveCharacterImage } from './characterImageService'
+import { generateSecureUuid } from '~/utilities/generateSecureUuid'
+import { MASTER_DIMENSION } from './imageVariants'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
+
+/**
+ * Deps for the local `generate_image` executor, supplied only for characters
+ * that cannot escalate (see isLocallyExecutableCloudTool). Cloud-synced
+ * characters route the same tool call to cloud-agent instead, which owns its
+ * own spend/refund ledger.
+ */
+export interface EdgeImageToolDeps {
+  userId: string
+  /** Pre-minted id of the assistant message this turn will write. */
+  messageId: string
+  /** Reports the saved row id so the turn can persist it as the render hint. */
+  onImageSaved: (imageId: string) => void
+}
 
 export const edgeToolExecutors: Record<string, ToolExecutor> = {
   get_current_time: () =>
@@ -28,9 +46,55 @@ export const edgeToolExecutors: Record<string, ToolExecutor> = {
 export function createEdgeToolExecutors(
   characterId: string,
   wiki: Wiki | null,
+  image?: EdgeImageToolDeps,
 ): Record<string, ToolExecutor> {
+  // Run-scoped cap, mirroring cloud-agent's generate_image tool: the model gets
+  // up to MAX_ITERATIONS turns of the loop, and without this a second call would
+  // silently spend another 200 credits on the same reply.
+  let generatedThisTurn = false
+
   return {
     ...edgeToolExecutors,
+    ...(image
+      ? {
+          generate_image: async (args: Record<string, unknown>) => {
+            if (generatedThisTurn) {
+              return 'I can only create one image per reply, and I already made one for this message.'
+            }
+            const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : ''
+            if (!prompt) {
+              return "I couldn't read that image request — could you describe it again?"
+            }
+            try {
+              // The callable owns the credit spend and its own refund-on-failure,
+              // so a throw here means nothing was charged.
+              const generated = await generateImageViaCallable(prompt)
+              const imageId = generateSecureUuid()
+              await saveCharacterImage({
+                characterId,
+                userId: image.userId,
+                uri: `data:${generated.mimeType};base64,${generated.imageBase64}`,
+                // The callable returns bytes only; MASTER_DIMENSION re-encodes
+                // without resizing, exactly as useImageGeneration does.
+                width: MASTER_DIMENSION,
+                height: MASTER_DIMENSION,
+                source: 'chat',
+                imageId,
+                messageId: image.messageId,
+              })
+              // Only now: a failed attempt must leave the cap unspent so the
+              // model can retry within the same turn.
+              generatedThisTurn = true
+              image.onImageSaved(imageId)
+              // Never the base64 — tool results are tokenized into model context.
+              return JSON.stringify({ status: 'ok' })
+            } catch (error) {
+              console.error('[EdgeAgent] generate_image failed:', error)
+              return "I wasn't able to create that image just now — want me to try again?"
+            }
+          },
+        }
+      : {}),
     wiki_read: async (args) => {
       try {
         const query = typeof args.query === 'string' ? args.query.trim() : ''
