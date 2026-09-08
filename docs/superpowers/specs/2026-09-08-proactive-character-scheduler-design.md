@@ -67,6 +67,21 @@ recoverable from it. The amount actually spent is therefore recorded on the
 wake-up row itself, and the daily figure is a sum over those rows.
 `credit_spend_events` remains the global attribution ledger, unchanged.
 
+**The budget day is UTC.** There is no stored timezone to use: neither `users`
+nor `subscriptions` carries one, and the only timezone in the system is the
+per-request `x-timezone` header (`cloud-agent/src/index.ts:360`), which a
+sweeper running with no user present cannot read. "Local midnight" is therefore
+not implementable without new schema. UTC is also defensible on its own terms —
+the budget is invisible to the user, so the rollover hour has no perceptible
+effect, and storing a timezone would be real work in service of a boundary
+nobody can see.
+
+**Rows are retained for 30 days, then hard-deleted.** The instance was
+deliberately downsized to `db-g1-small` against a 320 MB footprint growing at
+~1-2 MB/month; a table that accumulates every skipped and completed row
+indefinitely erodes that. Resolved rows are debugging material with a short
+useful life.
+
 **Available to everyone; skipped when power is low.** No subscriber gate, no
 opt-in. A due wake-up whose cost exceeds the user's balance is marked `skipped`
 and dropped. Free users can spend their signup grant on background turns; that is
@@ -122,10 +137,10 @@ matching Drizzle definitions in both `functions/src/db/schema.ts` and
 | `created_at` | timestamptz NOT NULL default now() | |
 
 Indexes: `(status, due_at)` for the sweep; `(character_id, status)` for the cap
-check; unique on `run_key`.
+check; `(resolved_at)` for the retention delete; unique on `run_key`.
 
 No new budget table. Today's background spend for a character is `SUM(spent_amount)`
-over `scheduled_wakeups` for that `character_id` with `resolved_at` since local
+over `scheduled_wakeups` for that `character_id` with `resolved_at` since UTC
 midnight, served by the `(character_id, status)` index. The handler writes
 `spent_amount` back on completion, and a refunded turn writes zero — so a wake-up
 that failed and was refunded does not consume the day's allowance.
@@ -145,7 +160,7 @@ Per run:
 2. For each row, evaluate the guardrails — pure functions over
    `(lastUserMessageAt, todaysProactiveSpend, unreadProactiveCount, balance)`:
    - **Balance**: skip if `balance < AGENT_TURN_CREDIT_COST`.
-   - **Daily cap**: skip if `SUM(spent_amount)` for this character since local
+   - **Daily cap**: skip if `SUM(spent_amount)` for this character since UTC
      midnight is at or over the ceiling. Because a turn's true cost is known
      only after it runs, the check is "is there ceiling left", not "does this
      turn fit" — a final wake-up may cross the line, and the next is refused.
@@ -161,10 +176,22 @@ Per run:
 4. POST each claimed row to cloud-agent with the `SCHEDULER_SECRET` bearer.
 5. Record the outcome on the row.
 
+**Retention.** Each sweep ends with `DELETE FROM scheduled_wakeups WHERE
+resolved_at < now() - INTERVAL '30 days'`, served by the `resolved_at` index.
+Running an indexed delete over a small table 288 times a day is negligible and
+keeps the policy in the same file as the thing it cleans up — preferable to
+piggybacking on `imageRetentionSweep`, whose name and secrets are about
+something else.
+
 Skipped rows are terminal, not retried: `status='skipped'` with the reason in
 `outcome`. A wake-up that was worth doing at 09:00 is usually not worth doing at
 17:00, and retrying is how a low-balance user's queue turns into a thundering
 herd the moment they top up.
+
+**Local dev.** The new server-side variables must be added to `.env.example` and
+`docker-compose.local.yml` so a fresh checkout still runs. Note that the existing
+`EXPO_PUBLIC_CLOUD_AGENT_URL` is the *client's* address for cloud-agent and is
+not reusable here; the sweeper needs its own server-side value.
 
 **New seam.** `functions` has never called `cloud-agent` — there is no
 `CLOUD_AGENT_URL` anywhere in the codebase. This introduces a config value plus
@@ -218,7 +245,8 @@ has no push, still works on next open.
 
 - **Sweeper** (`functions`, Jest): guardrail functions table-driven across
   balance, cap and cooldown boundaries, including the single-turn overshoot and
-  the refunded-turn-does-not-consume-allowance case; the claim race, asserting the second
+  the refunded-turn-does-not-consume-allowance case, and the UTC day boundary;
+  the retention delete removing only rows resolved beyond the window; the claim race, asserting the second
   claimant gets zero rows; batch ordering by priority; skip-is-terminal.
 - **Endpoint** (`cloud-agent`, `node:test` — Jest syntax does not run in that
   package): secret rejection, `run_key` idempotency including the duplicate-run
