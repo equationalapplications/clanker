@@ -156,3 +156,12 @@ describe('photo turns in history', () => {
     expect(JSON.stringify(history)).not.toContain('inlineData')
   })
 })
+
+describe('buildSystemInstruction image-request routing', () => {
+  it('instructs the edge model to escalate image/drawing requests instead of refusing', () => {
+    const ctx: CharacterPromptContext = { character: baseCharacter, userId: 'u1' }
+    const result = buildSystemInstruction(ctx)
+    expect(result).toMatch(/draw|image|selfie/i)
+    expect(result).toMatch(/escalate_to_cloud_agent/)
+  })
+})
