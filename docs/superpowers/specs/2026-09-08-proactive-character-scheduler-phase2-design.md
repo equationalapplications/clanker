@@ -1,6 +1,6 @@
 # Proactive Character Scheduler — Phase 2 Design
 
-**Status:** Draft
+**Status:** Implemented
 **Date:** 2026-09-08
 **Phase 1 spec:** `docs/superpowers/specs/2026-09-08-proactive-character-scheduler-design.md`
 **Phase 1 plan:** `docs/superpowers/plans/2026-09-08-proactive-character-scheduler-phase1.md`
