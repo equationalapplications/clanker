@@ -120,21 +120,21 @@ matching Drizzle definitions in both `functions/src/db/schema.ts` and
 
 `scheduled_wakeups`:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | text PK | |
-| `character_id` | uuid NOT NULL | FK `characters.id`, cascade |
-| `user_id` | uuid NOT NULL | FK `users.id`, cascade |
-| `reason` | text NOT NULL | the character's note to itself |
-| `due_at` | timestamptz NOT NULL | |
-| `priority` | integer NOT NULL default 0 | tie-break when over budget; mirrors `agent_tasks` |
-| `status` | text NOT NULL default `'pending'` | check: `pending, claimed, done, skipped, cancelled` |
-| `run_key` | text NOT NULL | unique; idempotency across sweeps and retries |
-| `claimed_at` | timestamptz | |
-| `resolved_at` | timestamptz | |
-| `spent_amount` | integer NOT NULL default 0 | power actually consumed; the per-character daily budget sums this |
-| `outcome` | text | short note: delivery mode used, or skip reason |
-| `created_at` | timestamptz NOT NULL default now() | |
+| Column         | Type                               | Notes                                                             |
+| -------------- | ---------------------------------- | ----------------------------------------------------------------- |
+| `id`           | text PK                            |                                                                   |
+| `character_id` | uuid NOT NULL                      | FK `characters.id`, cascade                                       |
+| `user_id`      | uuid NOT NULL                      | FK `users.id`, cascade                                            |
+| `reason`       | text NOT NULL                      | the character's note to itself                                    |
+| `due_at`       | timestamptz NOT NULL               |                                                                   |
+| `priority`     | integer NOT NULL default 0         | tie-break when over budget; mirrors `agent_tasks`                 |
+| `status`       | text NOT NULL default `'pending'`  | check: `pending, claimed, done, skipped, cancelled`               |
+| `run_key`      | text NOT NULL                      | unique; idempotency across sweeps and retries                     |
+| `claimed_at`   | timestamptz                        |                                                                   |
+| `resolved_at`  | timestamptz                        |                                                                   |
+| `spent_amount` | integer NOT NULL default 0         | power actually consumed; the per-character daily budget sums this |
+| `outcome`      | text                               | short note: delivery mode used, or skip reason                    |
+| `created_at`   | timestamptz NOT NULL default now() |                                                                   |
 
 Indexes: `(status, due_at)` for the sweep; `(character_id, status)` for the cap
 check; `(resolved_at)` for the retention delete; unique on `run_key`.
@@ -156,7 +156,7 @@ without the scheduler.
 Per run:
 
 1. Select `pending` rows with `due_at <= now()`, ordered by `priority DESC,
-   due_at ASC`, bounded by a batch limit.
+due_at ASC`, bounded by a batch limit.
 2. For each row, evaluate the guardrails — pure functions over
    `(lastUserMessageAt, todaysProactiveSpend, unreadProactiveCount, balance)`:
    - **Balance**: skip if `balance < AGENT_TURN_CREDIT_COST`.
@@ -171,7 +171,7 @@ Per run:
      (In Phase 1 every wake-up is silent, so the cooldown is computed, recorded,
      and asserted in tests, but has no user-visible effect yet.)
 3. Claim survivors with a conditional update — `UPDATE ... SET status='claimed'
-   WHERE id = $1 AND status = 'pending'` — so two overlapping sweeps cannot
+WHERE id = $1 AND status = 'pending'` — so two overlapping sweeps cannot
    double-fire the same row. A zero-row result means another sweep won; skip.
 4. POST each claimed row to cloud-agent with the `SCHEDULER_SECRET` bearer.
 5. Record the outcome on the row.
@@ -190,12 +190,12 @@ herd the moment they top up.
 
 **Local dev.** The new server-side variables must be added to `.env.example` and
 `docker-compose.local.yml` so a fresh checkout still runs. Note that the existing
-`EXPO_PUBLIC_CLOUD_AGENT_URL` is the *client's* address for cloud-agent and is
+`EXPO_PUBLIC_CLOUD_AGENT_URL` is the _client's_ address for cloud-agent and is
 not reusable here; the sweeper needs its own server-side value.
 
 **New seam.** `functions` has never called `cloud-agent` — there is no
 `CLOUD_AGENT_URL` anywhere in the codebase. This introduces a config value plus
-the shared secret. `SCHEDULER_SECRET` must have a Secret Manager *version*
+the shared secret. `SCHEDULER_SECRET` must have a Secret Manager _version_
 before the first deploy that references it, or the deploy fails.
 
 ### §3 The cloud-agent endpoint
@@ -217,7 +217,7 @@ A new `deliver_wakeup` tool ends the turn, taking `mode: notify | quiet |
 silent` and the message text. This is where "the character decides" is
 expressed and where the code's veto is applied. In Phase 1 the handler accepts
 the tool call, records the mode the model chose in `outcome`, and delivers
-nothing — which yields real production data on how often characters *would*
+nothing — which yields real production data on how often characters _would_
 have notified, before any user can be interrupted by one.
 
 `set_reminder` stops being a stub: it inserts a `pending` row and returns either
@@ -237,7 +237,7 @@ sync down, messages never do.
 Phase 2 therefore adds: a `messages` row written by the handler (its unique
 `message_id` gives idempotency for free); a `fetchProactiveMessages(characterId,
 since)` callable; client-side insertion into local SQLite with unread state; and
-`fcm.sendProactive` — already built — as a *hint to sync* only, never the
+`fcm.sendProactive` — already built — as a _hint to sync_ only, never the
 carrier. A dropped push then costs timeliness, not the message, and web, which
 has no push, still works on next open.
 
@@ -270,6 +270,6 @@ has no push, still works on next open.
 
 ## Open questions
 
-None blocking. The cap and cooldown *values* are configuration, to be chosen
+None blocking. The cap and cooldown _values_ are configuration, to be chosen
 during implementation and tuned against Phase 1's observed data before Phase 2
 makes any of it visible.

@@ -25,25 +25,27 @@
 
 Chosen here so the executor does not have to decide. Defined in `cloud-agent/src/constants/credits.ts` and mirrored where noted.
 
-| Constant | Value | Meaning |
-|---|---|---|
-| `DAILY_PROACTIVE_POWER_CEILING` | `500` | Per character per UTC day. Five wake-ups at `AGENT_TURN_CREDIT_COST` (100). |
-| `PROACTIVE_NOTIFY_COOLDOWN_MS` | `43_200_000` | 12 hours since the user's last message before a `notify` is permitted. |
-| `MAX_PROACTIVE_PUSHES_PER_DAY` | `2` | Counted ceiling on `notify` outcomes per character per UTC day. |
-| `SWEEP_BATCH_LIMIT` | `50` | Max rows one sweep processes. |
-| `WAKEUP_RETENTION_DAYS` | `30` | Resolved rows older than this are hard-deleted. |
+| Constant                        | Value        | Meaning                                                                     |
+| ------------------------------- | ------------ | --------------------------------------------------------------------------- |
+| `DAILY_PROACTIVE_POWER_CEILING` | `500`        | Per character per UTC day. Five wake-ups at `AGENT_TURN_CREDIT_COST` (100). |
+| `PROACTIVE_NOTIFY_COOLDOWN_MS`  | `43_200_000` | 12 hours since the user's last message before a `notify` is permitted.      |
+| `MAX_PROACTIVE_PUSHES_PER_DAY`  | `2`          | Counted ceiling on `notify` outcomes per character per UTC day.             |
+| `SWEEP_BATCH_LIMIT`             | `50`         | Max rows one sweep processes.                                               |
+| `WAKEUP_RETENTION_DAYS`         | `30`         | Resolved rows older than this are hard-deleted.                             |
 
 ---
 
 ### Task 1: `scheduled_wakeups` table and schema definitions
 
 **Files:**
+
 - Create: `functions/drizzle/0026_scheduled_wakeups.sql`
 - Create: `functions/src/db/scheduledWakeupsMigration.test.ts`
 - Modify: `functions/src/db/schema.ts` (append after `agentTasks`, around line 282)
 - Modify: `cloud-agent/src/db/schema.ts` (append at end)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: table `scheduled_wakeups`; Drizzle export `scheduledWakeups` in both packages with columns `id, characterId, userId, reason, dueAt, priority, status, runKey, claimedAt, resolvedAt, spentAmount, outcome, createdAt`.
 
@@ -226,10 +228,12 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 Pure decision logic, no database and no I/O, so it is exhaustively testable. This is the file a buyer reads to understand the spend ceiling.
 
 **Files:**
+
 - Create: `functions/src/services/proactiveWakeupGuardrails.ts`
 - Create: `functions/src/services/proactiveWakeupGuardrails.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `export const DAILY_PROACTIVE_POWER_CEILING = 500`
@@ -324,8 +328,14 @@ test('permits notify when the user has never sent a message', () => {
 
 test('utcDayStart truncates to UTC midnight regardless of host timezone', () => {
   assert.equal(utcDayStart(NOW).toISOString(), '2026-09-08T00:00:00.000Z')
-  assert.equal(utcDayStart(new Date('2026-09-08T00:00:00.000Z')).toISOString(), '2026-09-08T00:00:00.000Z')
-  assert.equal(utcDayStart(new Date('2026-09-08T23:59:59.999Z')).toISOString(), '2026-09-08T00:00:00.000Z')
+  assert.equal(
+    utcDayStart(new Date('2026-09-08T00:00:00.000Z')).toISOString(),
+    '2026-09-08T00:00:00.000Z',
+  )
+  assert.equal(
+    utcDayStart(new Date('2026-09-08T23:59:59.999Z')).toISOString(),
+    '2026-09-08T00:00:00.000Z',
+  )
 })
 ```
 
@@ -377,8 +387,7 @@ export interface WakeupGuardrailInput {
 }
 
 export type WakeupDecision =
-  | { run: true; notifyAllowed: boolean }
-  | { run: false; skipReason: string }
+  { run: true; notifyAllowed: boolean } | { run: false; skipReason: string }
 
 /**
  * UTC, not local. Nothing in the schema stores a user timezone — the only one
@@ -438,10 +447,12 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 Replaces the stub at `cloud-agent/src/tools/reminders.ts:20`, which currently logs and returns a false confirmation.
 
 **Files:**
+
 - Modify: `cloud-agent/src/tools/reminders.ts` (whole file)
 - Create: `cloud-agent/src/tools/reminders.test.ts`
 
 **Interfaces:**
+
 - Consumes: `scheduledWakeups` from Task 1; `DAILY_PROACTIVE_POWER_CEILING` value (redeclared locally in cloud-agent — the two packages do not share a module).
 - Produces: `setReminderTool(db, userId, characterId)` returning a `FunctionTool` named `set_reminder` that inserts a `pending` row, or refuses at the ceiling.
 
@@ -565,7 +576,10 @@ async function todaysProactiveSpend(
     .select({ total: sql<number>`COALESCE(SUM(${scheduledWakeups.spentAmount}), 0)::int` })
     .from(scheduledWakeups)
     .where(
-      and(eq(scheduledWakeups.characterId, characterId), gte(scheduledWakeups.resolvedAt, dayStart)),
+      and(
+        eq(scheduledWakeups.characterId, characterId),
+        gte(scheduledWakeups.resolvedAt, dayStart),
+      ),
     )
   return row?.total ?? 0
 }
@@ -580,9 +594,7 @@ export function setReminderTool(
     description:
       'Schedule your own future wake-up so you can follow up with the user later, even when they are not talking to you. Use this when you want to check back on something.',
     parameters: z.object({
-      reason: z
-        .string()
-        .describe('A note to your future self about what to follow up on and why.'),
+      reason: z.string().describe('A note to your future self about what to follow up on and why.'),
       remind_at: z.string().describe('ISO 8601 datetime, in the future.'),
       priority: z
         .number()
@@ -671,11 +683,13 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 Structural sibling of `schedulerTriggerHandler.ts`, reusing its auth and its spend/refund discipline, but running an ADK turn instead of driving a browser extension.
 
 **Files:**
+
 - Create: `cloud-agent/src/handlers/proactiveWakeupHandler.ts`
 - Create: `cloud-agent/src/handlers/proactiveWakeupHandler.test.ts`
 - Modify: `cloud-agent/src/index.ts` (add route after the `scheduler-trigger` route, ~line 599)
 
 **Interfaces:**
+
 - Consumes: `createRequireSchedulerSecret` from `./schedulerTriggerHandler.js`; `scheduledWakeups` (Task 1); `RunAgentParams`, `runAgentReal` from `../index.js`; `AGENT_TURN_CREDIT_COST` from `../constants/credits.js`; `CreditService`.
 - Produces: `createProactiveWakeupHandler(deps)` returning an Express handler; request body `{ wakeupId, characterId, uid, runKey, reason, notifyAllowed }`; response `{ ok: true, mode, spentAmount }`.
 
@@ -699,9 +713,7 @@ const body = {
   notifyAllowed: true,
 }
 
-function buildApp(
-  overrides: Partial<Parameters<typeof createProactiveWakeupHandler>[0]> = {},
-) {
+function buildApp(overrides: Partial<Parameters<typeof createProactiveWakeupHandler>[0]> = {}) {
   const calls = { spend: 0, refund: 0, resolved: [] as unknown[] }
   const deps = {
     resolveUserId: async () => 'user-db-id',
@@ -713,7 +725,11 @@ function buildApp(
       emotions: null,
       context: null,
     }),
-    runAgent: async () => ({ reply: 'Hi', toolCalls: ['deliver_wakeup'], deliveryMode: 'notify' as const }),
+    runAgent: async () => ({
+      reply: 'Hi',
+      toolCalls: ['deliver_wakeup'],
+      deliveryMode: 'notify' as const,
+    }),
     creditService: {
       spendCredit: async () => {
         calls.spend++
@@ -1015,11 +1031,13 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 ### Task 5: The `deliver_wakeup` tool
 
 **Files:**
+
 - Create: `cloud-agent/src/tools/deliverWakeup.ts`
 - Create: `cloud-agent/src/tools/deliverWakeup.test.ts`
 - Modify: `cloud-agent/src/services/agentCore.ts` (register the tool in `buildAgent` alongside the existing tools)
 
 **Interfaces:**
+
 - Consumes: `DeliveryMode` from `../handlers/proactiveWakeupHandler.js`.
 - Produces: `createDeliverWakeupTool(sink)` where `sink: { mode: DeliveryMode | null; message: string | null }` is mutated in place, so the handler reads the model's choice after the run.
 
@@ -1142,6 +1160,7 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 ### Task 6: The sweeper
 
 **Files:**
+
 - Create: `functions/src/proactiveWakeupSweep.ts`
 - Create: `functions/src/proactiveWakeupSweep.test.ts`
 - Modify: `functions/src/index.ts` (export the scheduled function)
@@ -1149,6 +1168,7 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 - Modify: `docker-compose.local.yml`
 
 **Interfaces:**
+
 - Consumes: `decideWakeup`, `utcDayStart`, `SWEEP_BATCH_LIMIT`, `WAKEUP_RETENTION_DAYS` (Task 2); the `/agent/proactive-wakeup` endpoint (Task 4).
 - Produces: `proactiveWakeupSweepHandler(deps)` and the `proactiveWakeupSweep` scheduled export.
 
@@ -1442,7 +1462,7 @@ Follow the existing export style used for `imageRetentionSweep`.
 
 - [ ] **Step 6: Add the new environment variables**
 
-In `.env.example`, below the existing `EXPO_PUBLIC_CLOUD_AGENT_URL` comment block at line 43, add — noting explicitly that this is a *different* variable from the client's:
+In `.env.example`, below the existing `EXPO_PUBLIC_CLOUD_AGENT_URL` comment block at line 43, add — noting explicitly that this is a _different_ variable from the client's:
 
 ```bash
 # Server-side address for cloud-agent, used by the proactive wake-up sweeper in
@@ -1478,6 +1498,7 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 ### Task 7: Documentation and deploy preflight
 
 **Files:**
+
 - Modify: `docs/billing-and-credits.md`
 - Modify: `docs/superpowers/specs/2026-09-08-proactive-character-scheduler-design.md` (status line)
 
@@ -1511,7 +1532,7 @@ Claude-Session: https://claude.ai/code/session_019GVjMm9nq1SvwZvS3fsDTS"
 
 Do not deploy without explicit approval. When approved, in order:
 
-1. **`SCHEDULER_SECRET` must have a Secret Manager *version*** before any deploy references it, or the deploy fails. Verify: `gcloud secrets versions list SCHEDULER_SECRET --project clanker-prod`.
+1. **`SCHEDULER_SECRET` must have a Secret Manager _version_** before any deploy references it, or the deploy fails. Verify: `gcloud secrets versions list SCHEDULER_SECRET --project clanker-prod`.
 2. **Apply migration 0026** to the prod database.
 3. **Deploy cloud-agent, then verify the new revision actually took traffic** — `gcloud run services describe clanker-cloud-agent --region us-central1 --format='value(status.traffic)'`. A healthy revision serving 0% has happened here before and went unnoticed for eleven days.
 4. **Deploy functions**, which creates the Cloud Scheduler job.
