@@ -380,6 +380,26 @@ describe('generate_image billing safety', () => {
     expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
   })
 
+  it('releases the in-flight reservation when a concurrent generation rejects, so later calls are not blocked', async () => {
+    let rejectGen: (e: Error) => void = () => {}
+    mockGenerateImageViaCallable.mockImplementation(
+      () => new Promise((_, rej) => (rejectGen = rej)),
+    )
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    const first = executors.generate_image({ prompt: 'doomed' })
+    rejectGen(new Error('vertex boom'))
+    await first
+
+    // The failed call never billed, so the reservation must be gone: a fresh
+    // call reaches the callable instead of getting the cap message forever.
+    mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    await executors.generate_image({ prompt: 'retry' })
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(2)
+  })
+
   it('consumes the cap when the image was billed but persistence failed', async () => {
     mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
     mockSaveCharacterImage.mockRejectedValue(new Error('disk full'))
