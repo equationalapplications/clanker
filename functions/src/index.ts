@@ -24,6 +24,8 @@ export {
 
 export { imageRetentionSweep } from './imageRetention.js'
 
+export { proactiveWakeupSweep } from './proactiveWakeupSweep.js'
+
 export {
   memoryRead,
   memoryWrite,

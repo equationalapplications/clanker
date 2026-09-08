@@ -4,7 +4,7 @@ import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { getApps, initializeApp } from 'firebase-admin/app'
 import { services } from './firebaseAdmin.js'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { InMemoryRunner, createEvent, createEventActions } from '@google/adk'
 import type { Content, GroundingMetadata } from '@google/genai'
 import { WebSocketServer } from 'ws'
@@ -12,7 +12,7 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
-import { users, characters } from './db/schema.js'
+import { users, characters, scheduledWakeups } from './db/schema.js'
 import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
@@ -44,6 +44,8 @@ import {
   createSchedulerTriggerHandler,
   createRequireSchedulerSecret,
 } from './handlers/schedulerTriggerHandler.js'
+import { createProactiveWakeupHandler } from './handlers/proactiveWakeupHandler.js'
+import type { WakeupSink } from './tools/deliverWakeup.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
@@ -76,6 +78,8 @@ export interface RunAgentParams {
   imageGenerator?: VertexImageGenerator
   /** At most one in Phase 2; delivered as a leading inlineData part. */
   attachments?: AgentAttachment[]
+  /** Phase 1 proactive wake-ups: when present, registers deliver_wakeup. */
+  wakeupSink?: WakeupSink
 }
 
 export interface AppOptions {
@@ -119,6 +123,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     creditService,
     imageGenerator,
     attachments = [],
+    wakeupSink,
   } = params
   const bridge = getApps().length
     ? {
@@ -146,7 +151,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     embed,
     bridge,
     vault,
-    { creditService, imageGenerator },
+    { creditService, imageGenerator, wakeupSink },
   )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
@@ -329,6 +334,19 @@ export function createApp(options: AppOptions) {
   })
 
   const schedulerTriggerLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+  })
+
+  // Deliberately a separate bucket from schedulerTriggerLimiter. Sharing one
+  // meant a burst on /agent/browser/scheduler-trigger could exhaust the window
+  // and 429 the five-minute proactive sweeper, whose POST failure path leaves
+  // the row claimed and unretried — a user-visible wake-up lost to unrelated
+  // traffic.
+  const proactiveWakeupLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 10,
     standardHeaders: 'draft-8',
@@ -632,6 +650,116 @@ export function createApp(options: AppOptions) {
         )
       }
       void schedulerHandler(req, res)
+    },
+  )
+
+  let proactiveWakeupHandler: ReturnType<typeof createProactiveWakeupHandler> | undefined
+
+  app.post(
+    '/agent/proactive-wakeup',
+    proactiveWakeupLimiter,
+    (req: Request, res: Response, next: NextFunction): void => {
+      const secret = process.env.SCHEDULER_SECRET
+      if (!secret) {
+        res.status(503).json({ error: 'Proactive wake-up not configured' })
+        return
+      }
+      createRequireSchedulerSecret(secret)(req, res, next)
+    },
+    (req: Request, res: Response, next: NextFunction): void => {
+      if (!proactiveWakeupHandler) {
+        proactiveWakeupHandler = createProactiveWakeupHandler({
+          resolveUserId: async (firebaseUid: string) => {
+            const [u] = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.firebaseUid, firebaseUid))
+            return u?.id ?? null
+          },
+          loadCharacter: async (characterId, userId) => {
+            const [c] = await db
+              .select()
+              .from(characters)
+              .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+            if (!c) return null
+            return {
+              id: c.id,
+              name: c.name,
+              appearance: c.appearance,
+              traits: c.traits,
+              emotions: c.emotions,
+              context: c.context,
+            }
+          },
+          claimRunKey: async (runKey) => {
+            // The sweeper transitions pending → claimed before POSTing, so the
+            // endpoint must accept 'claimed' for the normal sweep-driven path
+            // and 'pending' for the rare direct POST. It must NOT leave the row
+            // in a status it will accept again: writing 'claimed' back over
+            // 'claimed' made this UPDATE re-enterable, so a re-POST of a row
+            // whose first attempt died before resolving matched a second time,
+            // returned 'reserved', and spent AGENT_TURN_CREDIT_COST again.
+            // 'running' is terminal for this predicate — a second POST matches
+            // nothing and gets the documented 'duplicate'.
+            const updated = await db
+              .update(scheduledWakeups)
+              .set({ status: 'running', claimedAt: new Date() })
+              .where(
+                and(
+                  eq(scheduledWakeups.runKey, runKey),
+                  // sql helper for the IN list keeps the predicate portable.
+                  sql`${scheduledWakeups.status} in ('pending','claimed')`,
+                ),
+              )
+              .returning({ id: scheduledWakeups.id })
+            // Hand back the row we actually locked. run_key is UNIQUE, so this
+            // is at most one row, and the handler compares it to the wakeupId
+            // the caller supplied before committing any credit.
+            return {
+              status: updated.length > 0 ? 'reserved' : 'duplicate',
+              id: updated[0]?.id ?? null,
+            }
+          },
+          resolveWakeup: async (wakeupId, patch) => {
+            await db
+              .update(scheduledWakeups)
+              .set({ ...patch, resolvedAt: new Date() })
+              .where(eq(scheduledWakeups.id, wakeupId))
+          },
+          runAgent: async ({ userId, firebaseUid, characterId, character, reason }) => {
+            // The handler already loaded and ownership-checked this row; it
+            // carries every field assembleSystemInstruction reads, so there is
+            // nothing left to re-fetch.
+            const wikiContext = await queryWikiContext(db, reason, userId, characterId, embedText)
+            const systemInstruction = assembleSystemInstruction(character, wikiContext)
+            const wakeupSink: WakeupSink = { mode: null, message: null }
+            const result = await runAgentReal({
+              db,
+              userId,
+              firebaseUid,
+              characterId,
+              systemInstruction,
+              message: reason,
+              history: [],
+              timezone: 'UTC',
+              embed: embedText,
+              creditService: cs,
+              wakeupSink,
+            })
+            // Defensive default: if the model never called deliver_wakeup, fall
+            // back to silent rather than reporting null.
+            const deliveryMode = wakeupSink.mode ?? 'silent'
+            return { ...result, deliveryMode }
+          },
+          creditService: cs,
+        })
+      }
+      // Terminal route. An explicit next() here would invoke Express's final
+      // 404 handler before proactiveWakeupHandler finishes its async work,
+      // so the handler would write its 200/500 after the socket has already
+      // committed the 404. The route above (/agent/browser/scheduler-trigger)
+      // is the same pattern: voidHandler, no next.
+      void proactiveWakeupHandler(req, res)
     },
   )
 
