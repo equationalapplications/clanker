@@ -4,6 +4,7 @@ import { Card, Text, Icon, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
+import { useProactiveUnread } from '~/hooks/useProactiveUnread'
 
 interface CharacterCardProps {
   id: string
@@ -25,6 +26,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const theme = useTheme()
   // Thumb, not master: this renders at 48px, and the list can hold many cards.
   const { uri: avatarUri } = useResolvedImage(activeImageId, 'thumb')
+  // Boolean badge — `countUnreadProactive` already enforces the staleness
+  // escape, so the dot matches the server's push-decision contract. Deliberately
+  // a boolean, not a count: AI chats are not an inbox.
+  const { hasUnread: hasUnreadProactive } = useProactiveUnread(id)
 
   const handlePress = () => {
     if (onPress) {
@@ -56,6 +61,16 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
                 <CharacterAvatar size={48} imageUrl={avatarUri} characterName={name} />
+                {hasUnreadProactive ? (
+                  <View
+                    style={[
+                      styles.unreadDot,
+                      { backgroundColor: theme.colors.error, borderColor: theme.colors.surface },
+                    ]}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                  />
+                ) : null}
               </View>
               <View style={styles.info}>
                 <Text variant="titleMedium" style={styles.name}>
@@ -109,6 +124,15 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginRight: 12,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
   },
   info: {
     flex: 1,
