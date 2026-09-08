@@ -243,13 +243,14 @@ has no push, still works on next open.
 
 ## Testing
 
-- **Sweeper** (`functions`, Jest): guardrail functions table-driven across
+- **Sweeper** (`functions`, `node:test`): guardrail functions table-driven across
   balance, cap and cooldown boundaries, including the single-turn overshoot and
   the refunded-turn-does-not-consume-allowance case, and the UTC day boundary;
-  the retention delete removing only rows resolved beyond the window; the claim race, asserting the second
+  the retention delete removing only rows resolved beyond the window. Note that
+  `functions` runs `node:test` over built `lib/` (`functions/package.json:11`),
+  not Jest — Jest belongs to the root app package only; the claim race, asserting the second
   claimant gets zero rows; batch ordering by priority; skip-is-terminal.
-- **Endpoint** (`cloud-agent`, `node:test` — Jest syntax does not run in that
-  package): secret rejection, `run_key` idempotency including the duplicate-run
+- **Endpoint** (`cloud-agent`, `node:test`): secret rejection, `run_key` idempotency including the duplicate-run
   path, spend-then-refund on setup failure, `deliver_wakeup` mode
   recording, and `spent_amount` write-back (zero on refund).
 - **Tool**: `set_reminder` inserts a row; returns refusal at the ceiling.
