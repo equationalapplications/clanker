@@ -1,5 +1,5 @@
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https'
-import { and, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import { getDb } from './db/cloudSql.js'
 import { characters, messages } from './db/schema.js'
 import { userRepository } from './services/userRepository.js'
@@ -37,11 +37,13 @@ export type SelectProactiveMessagesArgs = {
 type ProactiveMessageDeps = {
   userRepository: Pick<typeof userRepository, 'findUserByFirebaseUid'>
   selectProactiveMessages: (args: SelectProactiveMessagesArgs) => Promise<ProactiveMessageRow[]>
+  markRead: (args: { userId: string; messageIds: string[] }) => Promise<number>
 }
 
 const defaultDeps: ProactiveMessageDeps = {
   userRepository,
   selectProactiveMessages,
+  markRead,
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,6 +92,34 @@ async function selectProactiveMessages({
   // existing row at INSERT, so any row that returned has a createdAt; the
   // cast just removes the over-cautious union from the type.
   return rows as unknown as ProactiveMessageRow[]
+}
+
+async function markRead({
+  userId,
+  messageIds,
+}: {
+  userId: string
+  messageIds: string[]
+}): Promise<number> {
+  const db = await getDb()
+  // Only ever NULL -> timestamp. The isNull guard makes the write
+  // one-directional: a repeat call returns 0 rows affected instead of
+  // overwriting the original read_at, so out-of-order retries can't
+  // resurrect a cleared badge.
+  const updated = await db
+    .update(messages)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        inArray(messages.messageId, messageIds),
+        isNull(messages.readAt),
+        // Scope to characters the caller owns so a user can never mark
+        // someone else's messages read.
+        sql`EXISTS (SELECT 1 FROM ${characters} WHERE ${characters.id} = ${messages.characterId} AND ${characters.userId} = ${userId})`,
+      ),
+    )
+    .returning({ messageId: messages.messageId })
+  return updated.length
 }
 
 export const fetchProactiveMessagesHandler = async (
@@ -162,4 +192,50 @@ export const fetchProactiveMessages = onCall(
     secrets: [...CLOUD_SQL_SECRETS],
   },
   (request) => fetchProactiveMessagesHandler(request),
+)
+
+export const markProactiveReadHandler = async (
+  request: CallableRequest,
+  deps: ProactiveMessageDeps = defaultDeps,
+): Promise<{ updated: number }> => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.')
+  }
+
+  const data = isRecord(request.data) ? request.data : {}
+  const { messageIds } = data as { messageIds?: unknown }
+
+  if (!Array.isArray(messageIds) || messageIds.some((id) => typeof id !== 'string')) {
+    throw new HttpsError('invalid-argument', 'messageIds must be an array of strings.')
+  }
+  if (messageIds.length === 0) {
+    return { updated: 0 }
+  }
+  if (messageIds.length > PROACTIVE_SYNC_PAGE_LIMIT) {
+    throw new HttpsError(
+      'invalid-argument',
+      `messageIds may contain at most ${PROACTIVE_SYNC_PAGE_LIMIT} entries.`,
+    )
+  }
+
+  const user = await deps.userRepository.findUserByFirebaseUid(request.auth.uid)
+  if (!user) {
+    throw new HttpsError('not-found', 'User not found.')
+  }
+
+  const updated = await deps.markRead({
+    userId: user.id,
+    messageIds: messageIds as string[],
+  })
+  return { updated }
+}
+
+export const markProactiveRead = onCall(
+  {
+    region: 'us-central1',
+    enforceAppCheck: true,
+    invoker: 'public',
+    secrets: [...CLOUD_SQL_SECRETS],
+  },
+  (request) => markProactiveReadHandler(request),
 )

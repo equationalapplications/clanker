@@ -54,4 +54,4 @@ export { generateEmbedding } from './generateEmbedding.js'
 
 export { registerExpoPushToken } from './registerExpoPushToken.js'
 
-export { fetchProactiveMessages } from './proactiveMessages.js'
+export { fetchProactiveMessages, markProactiveRead } from './proactiveMessages.js'

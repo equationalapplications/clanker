@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { HttpsError } from 'firebase-functions/v2/https'
-import { fetchProactiveMessagesHandler } from './proactiveMessages.js'
+import { fetchProactiveMessagesHandler, markProactiveReadHandler } from './proactiveMessages.js'
 
 const FIREBASE_UID = 'firebase-uid-1'
 const USER_ID = 'user-1'
@@ -23,6 +23,7 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
       findUserByFirebaseUid: async () => ({ id: USER_ID, firebaseUid: FIREBASE_UID }),
     },
     selectProactiveMessages: async () => [],
+    markRead: async () => 0,
     ...overrides,
   }
 }
@@ -84,4 +85,37 @@ test('caps the page size', async () => {
     },
   })
   await fetchProactiveMessagesHandler(authedRequest({ limit: 5000 }), deps as never)
+})
+
+test('markProactiveRead sets read_at only for the caller messages', async () => {
+  const deps = buildDeps({
+    markRead: async ({ userId, messageIds }: { userId: string; messageIds: string[] }) => {
+      assert.equal(userId, USER_ID)
+      assert.deepEqual(messageIds, ['m1', 'm2'])
+      return 2
+    },
+  })
+  const result = await markProactiveReadHandler(
+    authedRequest({ messageIds: ['m1', 'm2'] }),
+    deps as never,
+  )
+  assert.equal(result.updated, 2)
+})
+
+test('markProactiveRead is idempotent', async () => {
+  // Only ever NULL -> timestamp. A second call updates nothing and must not
+  // error: the client retries, so a repeat is the expected case.
+  const deps = buildDeps({ markRead: async () => 0 })
+  const result = await markProactiveReadHandler(
+    authedRequest({ messageIds: ['m1'] }),
+    deps as never,
+  )
+  assert.equal(result.updated, 0)
+})
+
+test('markProactiveRead rejects unauthenticated calls', async () => {
+  await assert.rejects(
+    () => markProactiveReadHandler({ data: { messageIds: ['m1'] } } as never, buildDeps() as never),
+    (e: unknown) => e instanceof HttpsError && e.code === 'unauthenticated',
+  )
 })
