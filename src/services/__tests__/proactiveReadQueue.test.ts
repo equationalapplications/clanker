@@ -9,6 +9,7 @@
  * real SQLite handle so the queue logic is testable without a database.
  */
 
+import { PROACTIVE_READ_QUEUE_KEY } from '~/constants/proactive'
 import { enqueueMarkRead, flushMarkReadQueue } from '../proactiveReadQueue'
 
 let mockStore: Record<string, string> = {}
@@ -52,5 +53,35 @@ describe('proactive read queue', () => {
     await flushMarkReadQueue(call)
 
     expect(call).toHaveBeenCalledTimes(1)
+  })
+
+  it('concurrent enqueues do not overwrite each other', async () => {
+    // Without the queue lock, both enqueues would read an empty queue and the
+    // second write would overwrite the first — losing 'a'. The lock makes the
+    // second enqueue wait for the first to commit before reading, so both
+    // appends survive.
+    await Promise.all([enqueueMarkRead(['a']), enqueueMarkRead(['b'])])
+    const stored = (JSON.parse(mockStore[PROACTIVE_READ_QUEUE_KEY]!) as string[]).sort()
+    expect(stored).toEqual(['a', 'b'])
+  })
+
+  it('flush removes only its snapshot, preserving ids enqueued during the call', async () => {
+    // The queue lock prevents an interleaved enqueue from writing through the
+    // mock during the call, so emulate it by mutating the store directly. The
+    // contract under test is: the flush's snapshot subtraction must not delete
+    // ids it never sent.
+    mockStore[PROACTIVE_READ_QUEUE_KEY] = JSON.stringify(['m1'])
+
+    const call = jest.fn(async (req: { messageIds: string[] }) => {
+      // Simulate a concurrent enqueue that landed mid-call: the queue now
+      // carries m1 (the snapshot) plus m2 (the new enqueue).
+      mockStore[PROACTIVE_READ_QUEUE_KEY] = JSON.stringify(['m1', 'm2'])
+      return { updated: 1 }
+    })
+
+    await flushMarkReadQueue(call)
+
+    const remaining = JSON.parse(mockStore[PROACTIVE_READ_QUEUE_KEY]!) as string[]
+    expect(remaining).toEqual(['m2'])
   })
 })

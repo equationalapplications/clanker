@@ -260,3 +260,57 @@ test('a silent wake-up persists nothing', async () => {
   assert.equal(res.status, 200)
   assert.equal(calls.insertedMessages.length, 0)
 })
+
+test('fires a push when notify is allowed and the character carries an expoPushToken', async () => {
+  // Defends the production loadCharacter path: the token lives on users, not
+  // characters, so a plain characters select would leave it undefined and
+  // every push in production would silently no-op.
+  let pushed: { token: string; charId: string; name: string; body: string } | undefined
+  const { app } = buildApp({
+    loadCharacter: (async () => ({
+      id: 'char-1',
+      name: 'Ada',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      expoPushToken: 'ExponentPushToken[abc]',
+    })) as never,
+    fcmDispatcher: {
+      sendCharacterProactive: async (
+        token: string,
+        charId: string,
+        _msgId: string,
+        name: string,
+        body: string,
+      ): Promise<void> => {
+        pushed = { token, charId, name, body }
+      },
+    } as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.ok(pushed, 'expected sendCharacterProactive to be called')
+  assert.equal(pushed.token, 'ExponentPushToken[abc]')
+  assert.equal(pushed.charId, body.characterId)
+  assert.equal(pushed.name, 'Ada')
+  assert.equal(pushed.body, 'Hi')
+})
+
+test('skips the push when the character has no expoPushToken', async () => {
+  let pushed = false
+  const { app } = buildApp({
+    fcmDispatcher: {
+      sendCharacterProactive: async (): Promise<void> => {
+        pushed = true
+      },
+    } as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.equal(pushed, false, 'push must not fire when expoPushToken is undefined')
+})

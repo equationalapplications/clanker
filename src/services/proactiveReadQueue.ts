@@ -10,6 +10,15 @@
  *
  * Flush wiring (calling this on app foreground and after each successful sync)
  * is intentionally left to a future task — T11 only exposes the two functions.
+ *
+ * Concurrency: getSyncJson and setSyncJson are separate awaits, so two
+ * enqueues can interleave (enqueue A reads, enqueue B reads, A writes, B
+ * writes — B's later write overwrites A's earlier append), and a flush can
+ * drop ids enqueued during its in-flight call (flush reads ['m1'], the call
+ * succeeds for m1, an enqueue persists ['m1', 'm2'], the flush then writes
+ * [] — m2 is lost). A single promise-chain mutex serializes the read-modify-
+ * write; the flush removes only its snapshot on success so a concurrent
+ * enqueue survives.
  */
 
 import { PROACTIVE_READ_QUEUE_KEY } from '~/constants/proactive'
@@ -24,6 +33,30 @@ import { getSyncJson, setSyncJson } from '~/database/syncState'
 export type MarkReadCall = (request: { messageIds: string[] }) => Promise<{ updated: number }>
 
 const MAX_FLUSH_ATTEMPTS = 3
+
+// Promise-chain mutex. Each call chains onto the previous, so the critical
+// read-modify-write sections of enqueue and flush run one at a time even
+// though their awaits can interleave at the event loop.
+let queueLock: Promise<unknown> = Promise.resolve()
+
+async function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = queueLock
+  let release: () => void = () => {}
+  let abort: (err: unknown) => void = () => {}
+  queueLock = new Promise<void>((res, rej) => {
+    release = res
+    abort = rej
+  })
+  try {
+    await prev
+    return await fn()
+  } finally {
+    release()
+    // Swallow late rejections from previous holders so the chain stays healthy
+    // even if a thrown error reaches here after the holder already caught it.
+    queueLock.catch(abort)
+  }
+}
 
 async function readQueue(): Promise<string[]> {
   return (await getSyncJson<string[]>(PROACTIVE_READ_QUEUE_KEY)) ?? []
@@ -40,20 +73,22 @@ async function readQueue(): Promise<string[]> {
  * unused.
  */
 export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall): Promise<void> {
-  const current = await readQueue()
-  const seen = new Set(current)
-  const merged = current.slice()
-  let appended = false
-  for (const id of messageIds) {
-    if (!seen.has(id)) {
-      seen.add(id)
-      merged.push(id)
-      appended = true
+  await withQueueLock(async () => {
+    const current = await readQueue()
+    const seen = new Set(current)
+    const merged = current.slice()
+    let appended = false
+    for (const id of messageIds) {
+      if (!seen.has(id)) {
+        seen.add(id)
+        merged.push(id)
+        appended = true
+      }
     }
-  }
-  if (appended) {
-    await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged)
-  }
+    if (appended) {
+      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged)
+    }
+  })
 }
 
 /**
@@ -61,27 +96,47 @@ export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall
  * a single flush, then leaves the queue intact for the next flush (the app
  * foreground hook / after-sync trigger) if every attempt failed.
  *
- * On success the entire queue is cleared — the server returned `{ updated: n }`
- * for the whole batch, so the client has nothing left to prove.
+ * On success the snapshot — the ids sent in this flush — is removed, but ids
+ * enqueued while the call was in flight are preserved. Only that snapshot's
+ * set is subtracted from the queue, not the whole queue, so a concurrent
+ * enqueue survives. The whole read-modify-write is wrapped in the queue
+ * lock so the snapshot subtraction cannot interleave with another enqueue.
  *
  * Errors are swallowed; a flush is best-effort and the queue survives until a
  * later flush succeeds. A `await flushMarkReadQueue(call)` from the foreground
  * hook is exactly the recovery path.
  */
 export async function flushMarkReadQueue(call: MarkReadCall): Promise<void> {
-  let queue = await readQueue()
-  if (queue.length === 0) {
-    return
-  }
-
-  for (let attempt = 0; attempt < MAX_FLUSH_ATTEMPTS; attempt++) {
-    try {
-      await call({ messageIds: queue })
-      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, [])
+  await withQueueLock(async () => {
+    const queue = await readQueue()
+    if (queue.length === 0) {
       return
-    } catch {
-      // Queue is unchanged — these ids are still pending and will be retried
-      // either by the next internal attempt or by the next external flush.
     }
-  }
+    const snapshot = queue.slice()
+
+    for (let attempt = 0; attempt < MAX_FLUSH_ATTEMPTS; attempt++) {
+      try {
+        await call({ messageIds: snapshot })
+        // Success — drop only the snapshot, not anything enqueued during the
+        // in-flight call. Re-read inside the same lock so a concurrent
+        // enqueue's write is visible.
+        const current = await readQueue()
+        if (current.length === 0) {
+          return
+        }
+        const snapshotSet = new Set(snapshot)
+        const remaining = current.filter((id) => !snapshotSet.has(id))
+        if (remaining.length === current.length) {
+          // Nothing matched the snapshot — every id was already removed by
+          // an earlier successful flush. Leave the queue untouched.
+          return
+        }
+        await setSyncJson(PROACTIVE_READ_QUEUE_KEY, remaining)
+        return
+      } catch {
+        // Queue is unchanged — these ids are still pending and will be retried
+        // either by the next internal attempt or by the next external flush.
+      }
+    }
+  })
 }

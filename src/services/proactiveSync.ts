@@ -82,7 +82,16 @@ export async function syncProactiveMessages(): Promise<void> {
       await applyProactiveMessages(messages, db)
       // Cursor advance inside the same transaction as the inserts. A crash
       // mid-page rolls both back — no message is skipped, no cursor drift.
-      await setSyncCursor(PROACTIVE_SYNC_CURSOR_KEY, nextCursor ?? cursor!, db)
+      // On a final page the server omits nextCursor, so advance to the last
+      // applied message instead of rewriting the previous cursor. cursor!
+      // would also hide a first-sync null from the type system; both ends of
+      // the coalesce now carry real SyncCursor data.
+      const last = messages[messages.length - 1]
+      const advanced: SyncCursor = nextCursor ?? {
+        createdAt: last.createdAt,
+        messageId: last.messageId,
+      }
+      await setSyncCursor(PROACTIVE_SYNC_CURSOR_KEY, advanced, db)
     })
 
     if (!nextCursor) {

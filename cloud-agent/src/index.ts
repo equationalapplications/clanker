@@ -677,19 +677,27 @@ export function createApp(options: AppOptions) {
             return u?.id ?? null
           },
           loadCharacter: async (characterId, userId) => {
-            const [c] = await db
-              .select()
+            // The handler's notify branch reads character.expoPushToken to
+            // route the push. The token lives on users (not characters), so a
+            // plain select on characters would leave it undefined and silently
+            // skip every push in production. Join users on userId and carry
+            // the token through — the ProactiveCharacter interface already
+            // declares expoPushToken as optional.
+            const [row] = await db
+              .select({
+                id: characters.id,
+                name: characters.name,
+                appearance: characters.appearance,
+                traits: characters.traits,
+                emotions: characters.emotions,
+                context: characters.context,
+                expoPushToken: users.expoPushToken,
+              })
               .from(characters)
+              .innerJoin(users, eq(characters.userId, users.id))
               .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
-            if (!c) return null
-            return {
-              id: c.id,
-              name: c.name,
-              appearance: c.appearance,
-              traits: c.traits,
-              emotions: c.emotions,
-              context: c.context,
-            }
+            if (!row) return null
+            return row
           },
           claimRunKey: async (runKey) => {
             // The sweeper transitions pending → claimed before POSTing, so the

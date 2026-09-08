@@ -69,9 +69,17 @@ async function selectProactiveMessages({
     // to timestamptz consistently. The (created_at, message_id) tuple is the
     // tiebreak that stops a page boundary dropping a row that shares the
     // last row's created_at with the first row of the next page.
+    //
+    // Postgres stores timestamp with time zone at microsecond precision but
+    // node-postgres hands back a JavaScript Date, which is millisecond.
+    // Without date_trunc here, a row at 12:00:00.123456 becomes a JS Date
+    // rounded DOWN to 12:00:00.123, the cursor goes out as 12:00:00.123, and
+    // Postgres sees 12:00:00.123456 > 12:00:00.123 — selecting the same row
+    // again. Truncating the column to ms matches the cursor's native
+    // precision and makes the round-trip exact.
     const createdAtIso = cursor.createdAt.toISOString()
     conditions.push(
-      sql`(${messages.createdAt} > ${createdAtIso} OR (${messages.createdAt} = ${createdAtIso} AND ${messages.messageId} > ${cursor.messageId}))`,
+      sql`(date_trunc('milliseconds', ${messages.createdAt}) > ${createdAtIso}::timestamptz OR (date_trunc('milliseconds', ${messages.createdAt}) = ${createdAtIso}::timestamptz AND ${messages.messageId} > ${cursor.messageId}))`,
     )
   }
   const rows = await db
