@@ -12,7 +12,7 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
-import { users, characters } from './db/schema.js'
+import { users, characters, scheduledWakeups } from './db/schema.js'
 import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
@@ -44,6 +44,7 @@ import {
   createSchedulerTriggerHandler,
   createRequireSchedulerSecret,
 } from './handlers/schedulerTriggerHandler.js'
+import { createProactiveWakeupHandler } from './handlers/proactiveWakeupHandler.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
@@ -632,6 +633,94 @@ export function createApp(options: AppOptions) {
         )
       }
       void schedulerHandler(req, res)
+    },
+  )
+
+  let proactiveWakeupHandler: ReturnType<typeof createProactiveWakeupHandler> | undefined
+
+  app.post(
+    '/agent/proactive-wakeup',
+    schedulerTriggerLimiter,
+    (req: Request, res: Response, next: NextFunction): void => {
+      const secret = process.env.SCHEDULER_SECRET
+      if (!secret) {
+        res.status(503).json({ error: 'Proactive wake-up not configured' })
+        return
+      }
+      createRequireSchedulerSecret(secret)(req, res, next)
+    },
+    (req: Request, res: Response, next: NextFunction): void => {
+      if (!proactiveWakeupHandler) {
+        proactiveWakeupHandler = createProactiveWakeupHandler({
+          resolveUserId: async (firebaseUid: string) => {
+            const [u] = await db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.firebaseUid, firebaseUid))
+            return u?.id ?? null
+          },
+          loadCharacter: async (characterId, userId) => {
+            const [c] = await db
+              .select()
+              .from(characters)
+              .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+            if (!c) return null
+            return {
+              id: c.id,
+              name: c.name,
+              appearance: c.appearance,
+              traits: c.traits,
+              emotions: c.emotions,
+              context: c.context,
+            }
+          },
+          claimRunKey: async (runKey) => {
+            const updated = await db
+              .update(scheduledWakeups)
+              .set({ status: 'claimed', claimedAt: new Date() })
+              .where(
+                and(eq(scheduledWakeups.runKey, runKey), eq(scheduledWakeups.status, 'pending')),
+              )
+              .returning({ id: scheduledWakeups.id })
+            return updated.length > 0 ? 'reserved' : 'duplicate'
+          },
+          resolveWakeup: async (wakeupId, patch) => {
+            await db
+              .update(scheduledWakeups)
+              .set({ ...patch, resolvedAt: new Date() })
+              .where(eq(scheduledWakeups.id, wakeupId))
+          },
+          // Task 5 will thread the wakeupSink through buildAgent and update
+          // this wrapper to read deliveryMode from the sink.
+          runAgent: async ({ userId, firebaseUid, characterId, reason }) => {
+            const [character] = await db
+              .select()
+              .from(characters)
+              .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
+            if (!character) {
+              throw new Error('CHARACTER_MISSING_DURING_RUN')
+            }
+            const wikiContext = await queryWikiContext(db, reason, userId, characterId, embedText)
+            const systemInstruction = assembleSystemInstruction(character, wikiContext)
+            const result = await runAgentReal({
+              db,
+              userId,
+              firebaseUid,
+              characterId,
+              systemInstruction,
+              message: reason,
+              history: [],
+              timezone: 'UTC',
+              embed: embedText,
+              creditService: cs,
+            })
+            return { ...result, deliveryMode: 'silent' as const }
+          },
+          creditService: cs,
+        })
+      }
+      void proactiveWakeupHandler(req, res)
+      next()
     },
   )
 
