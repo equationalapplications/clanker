@@ -9,6 +9,8 @@ import {
 } from '../../database/taskDatabase'
 import type { LocalTask } from '../../database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
+import { generateImageViaCallable } from '../imageGenerationService'
+import { saveCharacterImage } from '../characterImageService'
 
 jest.mock('../wikiService', () => ({
   readFromWiki: jest.fn(),
@@ -277,9 +279,6 @@ describe('createEdgeToolExecutors — wiki_traverse_graph', () => {
     expect(result).toBe('Failed to traverse graph due to an internal error.')
   })
 })
-
-import { generateImageViaCallable } from '../imageGenerationService'
-import { saveCharacterImage } from '../characterImageService'
 
 const mockGenerateImageViaCallable = generateImageViaCallable as jest.Mock
 const mockSaveCharacterImage = saveCharacterImage as jest.Mock
