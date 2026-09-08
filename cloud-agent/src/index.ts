@@ -45,6 +45,7 @@ import {
   createRequireSchedulerSecret,
 } from './handlers/schedulerTriggerHandler.js'
 import { createProactiveWakeupHandler } from './handlers/proactiveWakeupHandler.js'
+import type { WakeupSink } from './tools/deliverWakeup.js'
 import { INSTANCE_ID } from './services/instanceId.js'
 import { mapAgentExecutionError } from './utils/agentExecutionError.js'
 import { z } from 'zod'
@@ -77,6 +78,8 @@ export interface RunAgentParams {
   imageGenerator?: VertexImageGenerator
   /** At most one in Phase 2; delivered as a leading inlineData part. */
   attachments?: AgentAttachment[]
+  /** Phase 1 proactive wake-ups: when present, registers deliver_wakeup. */
+  wakeupSink?: WakeupSink
 }
 
 export interface AppOptions {
@@ -120,6 +123,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     creditService,
     imageGenerator,
     attachments = [],
+    wakeupSink,
   } = params
   const bridge = getApps().length
     ? {
@@ -147,7 +151,7 @@ export async function runAgentReal(params: RunAgentParams): Promise<{
     embed,
     bridge,
     vault,
-    { creditService, imageGenerator },
+    { creditService, imageGenerator, wakeupSink },
   )
   const runner = new InMemoryRunner({ agent, appName: 'clanker-cloud-agent' })
   const sessionId = crypto.randomUUID()
@@ -690,8 +694,6 @@ export function createApp(options: AppOptions) {
               .set({ ...patch, resolvedAt: new Date() })
               .where(eq(scheduledWakeups.id, wakeupId))
           },
-          // Task 5 will thread the wakeupSink through buildAgent and update
-          // this wrapper to read deliveryMode from the sink.
           runAgent: async ({ userId, firebaseUid, characterId, reason }) => {
             const [character] = await db
               .select()
@@ -702,6 +704,7 @@ export function createApp(options: AppOptions) {
             }
             const wikiContext = await queryWikiContext(db, reason, userId, characterId, embedText)
             const systemInstruction = assembleSystemInstruction(character, wikiContext)
+            const wakeupSink: WakeupSink = { mode: null, message: null }
             const result = await runAgentReal({
               db,
               userId,
@@ -713,8 +716,12 @@ export function createApp(options: AppOptions) {
               timezone: 'UTC',
               embed: embedText,
               creditService: cs,
+              wakeupSink,
             })
-            return { ...result, deliveryMode: 'silent' as const }
+            // Defensive default: if the model never called deliver_wakeup, fall
+            // back to silent rather than reporting null.
+            const deliveryMode = wakeupSink.mode ?? 'silent'
+            return { ...result, deliveryMode }
           },
           creditService: cs,
         })
