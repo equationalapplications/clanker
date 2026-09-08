@@ -357,3 +357,39 @@ describe('generate_image local executor (non-cloud-synced characters)', () => {
     expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('generate_image billing safety', () => {
+  const imageDeps = () => ({ userId: 'u1', messageId: 'ai_1', onImageSaved: jest.fn() })
+
+  it('bills once when the model fires two calls concurrently in one response', async () => {
+    let resolveGen: (v: unknown) => void = () => {}
+    mockGenerateImageViaCallable.mockImplementation(
+      () => new Promise((res) => (resolveGen = res as (v: unknown) => void)),
+    )
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    // Promise.all in useEdgeAgent dispatches both before either awaits.
+    const both = Promise.all([
+      executors.generate_image({ prompt: 'one' }),
+      executors.generate_image({ prompt: 'two' }),
+    ])
+    resolveGen({ imageBase64: 'A', mimeType: 'image/png' })
+    await both
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
+  })
+
+  it('consumes the cap when the image was billed but persistence failed', async () => {
+    mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
+    mockSaveCharacterImage.mockRejectedValue(new Error('disk full'))
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    await executors.generate_image({ prompt: 'first' })
+    await executors.generate_image({ prompt: 'retry' })
+
+    // The credits are already spent and cannot be refunded from the client, so a
+    // retry must not bill a second time.
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
+  })
+})
