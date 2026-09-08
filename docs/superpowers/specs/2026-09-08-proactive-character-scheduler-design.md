@@ -1,7 +1,7 @@
 # Proactive Character Scheduler — Design
 
 **Date:** 2026-09-08
-**Status:** Draft — awaiting review
+**Status:** Phase 1 implemented 2026-09-08 — Phase 2 (client delivery) not started
 **Scope:** Phase 1 (server-side, silent) is this spec's deliverable. Phase 2 (client delivery) is specified at a lower resolution and gets its own spec before implementation.
 
 ## Problem
