@@ -115,6 +115,44 @@ test('sendProactive POSTs PROACTIVE_TASK Expo Push payload', async () => {
   assert.equal(data.deepLink, '/talk')
 })
 
+test('sendCharacterProactive deeplinks to the character, not /talk', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+  await dispatcher.sendCharacterProactive('tok', 'char-1', 'msg-1', 'Ada', 'How did it go?')
+
+  const push = fetched[0].body as Record<string, unknown>
+  assert.equal(push.title, 'Ada')
+  assert.equal(push.body, 'How did it go?')
+  assert.equal((push.data as Record<string, string>).type, 'PROACTIVE_CHARACTER_MESSAGE')
+  assert.equal((push.data as Record<string, string>).deepLink, '/chat/char-1')
+  assert.equal(push.categoryIdentifier, undefined)
+})
+
+test('sendCharacterProactive truncates a long body', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+  await dispatcher.sendCharacterProactive('tok', 'c', 'm', 'Ada', 'x'.repeat(400))
+
+  const body = (fetched[0].body as Record<string, unknown>).body as string
+  assert.equal(body.length, 140)
+  assert.ok(body.endsWith('…'))
+})
 test('expoPush rejects ticket-level errors in a 200 response', async () => {
   const fakeFetch = async () => ({
     ok: true,

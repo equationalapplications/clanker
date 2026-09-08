@@ -5,6 +5,7 @@ export interface MessagingLike {
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+const PUSH_BODY_MAX_LENGTH = 140
 
 export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof fetch = fetch) {
   async function expoPush(payload: Record<string, unknown>): Promise<void> {
@@ -96,6 +97,30 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
         body,
         data: { type: 'PROACTIVE_TASK', sessionId, taskId, deepLink: '/talk' },
         categoryIdentifier: 'BROWSER_ACTION_APPROVAL',
+        priority: 'high',
+      })
+    },
+
+    async sendCharacterProactive(
+      expoPushToken: string,
+      characterId: string,
+      messageId: string,
+      characterName: string,
+      body: string,
+    ): Promise<void> {
+      const preview =
+        body.length > PUSH_BODY_MAX_LENGTH ? `${body.slice(0, PUSH_BODY_MAX_LENGTH - 1)}…` : body
+
+      await expoPush({
+        to: expoPushToken,
+        title: characterName,
+        body: preview,
+        data: {
+          type: 'PROACTIVE_CHARACTER_MESSAGE',
+          characterId,
+          messageId,
+          deepLink: `/chat/${characterId}`,
+        },
         priority: 'high',
       })
     },

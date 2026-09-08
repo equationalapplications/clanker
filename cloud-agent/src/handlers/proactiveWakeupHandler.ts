@@ -2,7 +2,9 @@ import { z } from 'zod'
 import type { Request, Response } from 'express'
 import { randomUUID } from 'node:crypto'
 import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
+import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
+import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 
 export type DeliveryMode = 'notify' | 'quiet' | 'silent'
 
@@ -18,6 +20,7 @@ const bodySchema = z.object({
 export interface ProactiveCharacter {
   id: string
   name: string
+  expoPushToken?: string | null
   appearance: string | null
   traits: string | null
   emotions: string | null
@@ -65,6 +68,7 @@ export interface ProactiveWakeupDeps {
     text: string
     createdAt: Date
   }) => Promise<void>
+  fcmDispatcher?: Pick<FcmDispatcher, 'sendCharacterProactive'>
 }
 
 /**
@@ -210,9 +214,11 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
 
       // 'silent' means the character decided there was nothing worth saying.
       // Persisting an empty row would badge the user for nothing.
+      let messageId: string | undefined
       if (mode !== 'silent' && result.reply.trim().length > 0) {
+        messageId = randomUUID()
         await deps.insertProactiveMessage({
-          messageId: randomUUID(),
+          messageId,
           characterId,
           senderUserId: userId,
           text: result.reply,
@@ -220,7 +226,21 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         })
       }
 
-      // Phase 1 delivers nothing. Recording the mode the model chose is the
+      if (mode === 'notify' && character.expoPushToken && messageId) {
+        // Never let a push failure fail the wake-up: the message is already
+        // persisted and will arrive on next sync regardless.
+        await (deps.fcmDispatcher ?? defaultFcmDispatcher())
+          .sendCharacterProactive(
+            character.expoPushToken,
+            characterId,
+            messageId,
+            character.name,
+            result.reply,
+          )
+          .catch((err: unknown) => {
+            console.warn('[proactive-wakeup] push failed:', err)
+          })
+      }
       // point: it yields production data on how often characters WOULD have
       // interrupted, before any user can be interrupted.
       await deps.resolveWakeup(wakeupId, {
