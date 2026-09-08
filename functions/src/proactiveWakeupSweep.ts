@@ -65,6 +65,16 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
 
   for (const row of due) {
     try {
+      // Claim BEFORE deciding, not after. An overlapping sweep that started
+      // a few seconds earlier can read this row in pending, resolve it as
+      // 'claimed' or terminal in between our selectDue and our resolveWakeup.
+      // resolveWakeup updates by id only, so without this reorder a
+      // concurrent sweep's POST could land just as we decided to skip and
+      // our write would overwrite its 'claimed'/'done' with 'skipped'.
+      // Acquiring ownership atomically first pins the row to this sweep.
+      const won = await deps.claim(row.id, now)
+      if (!won) continue
+
       const context = await deps.loadContext(row, dayStart)
       const decision = decideWakeup({
         now,
@@ -84,9 +94,6 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
         skipped++
         continue
       }
-
-      const won = await deps.claim(row.id, now)
-      if (!won) continue
 
       await deps.postWakeup({
         wakeupId: row.id,
