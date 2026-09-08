@@ -35,6 +35,7 @@ export const MIGRATION_ORDER = [
   '0025_drop_characters_avatar.sql',
   '0026_scheduled_wakeups.sql',
   '0027_scheduled_wakeups_running_status.sql',
+  '0028_scheduled_wakeups_delivery_mode.sql',
 ];
 
 /** Index of a migration in the canonical order, or -1 if untracked. */
