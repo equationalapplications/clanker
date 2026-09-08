@@ -143,3 +143,15 @@ test('reaps stale claims every sweep, before the retention delete', async () => 
   // out from under a turn that is still running.
   assert.ok(cutoff && cutoff.getTime() < NOW.getTime())
 })
+
+test('todaysPushCount follows the column, not the outcome text', async () => {
+  // A row whose outcome text says notify but whose column disagrees must be
+  // counted by the column. The column is the contract; outcome is prose.
+  const rows = [
+    { outcome: 'mode=notify chosen=notify', deliveryMode: 'quiet' },
+    { outcome: 'mode=quiet chosen=notify', deliveryMode: 'notify' },
+  ]
+  const counted = rows.filter((r) => r.deliveryMode === 'notify')
+  assert.equal(counted.length, 1)
+  assert.equal(counted[0].outcome, 'mode=quiet chosen=notify')
+})

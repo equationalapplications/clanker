@@ -1,6 +1,6 @@
 import { onSchedule, type ScheduledEvent } from 'firebase-functions/v2/scheduler'
 import * as logger from 'firebase-functions/logger'
-import { and, desc, eq, gte, like, lt, ne, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, lt, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { getDb } from './db/cloudSql.js'
 import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js'
@@ -192,7 +192,7 @@ export function buildSweepDeps(): SweepDeps {
           and(
             eq(scheduledWakeups.characterId, row.characterId),
             gte(scheduledWakeups.resolvedAt, dayStart),
-            like(scheduledWakeups.outcome, 'mode=notify%'),
+            eq(scheduledWakeups.deliveryMode, 'notify'),
           ),
         )
 
