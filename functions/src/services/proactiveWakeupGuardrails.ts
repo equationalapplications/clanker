@@ -33,8 +33,7 @@ export interface WakeupGuardrailInput {
 }
 
 export type WakeupDecision =
-  | { run: true; notifyAllowed: boolean }
-  | { run: false; skipReason: string }
+  { run: true; notifyAllowed: boolean } | { run: false; skipReason: string }
 
 /**
  * UTC, not local. Nothing in the schema stores a user timezone — the only one
