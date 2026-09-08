@@ -22,6 +22,13 @@ export const WAKEUP_RETENTION_DAYS = 30
 /** Max rows one sweep processes. */
 export const SWEEP_BATCH_LIMIT = 50
 
+/**
+ * A row claimed longer ago than this is presumed abandoned — its POST died
+ * before cloud-agent could resolve it. Generously above the 90s scheduler
+ * timeout so a slow-but-live turn is never reaped out from under itself.
+ */
+export const STALE_CLAIM_TIMEOUT_MS = 3_600_000
+
 export interface WakeupGuardrailInput {
   now: Date
   balance: number

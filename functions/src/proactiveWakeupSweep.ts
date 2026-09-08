@@ -8,6 +8,7 @@ import {
   decideWakeup,
   utcDayStart,
   SWEEP_BATCH_LIMIT,
+  STALE_CLAIM_TIMEOUT_MS,
   WAKEUP_RETENTION_DAYS,
 } from './services/proactiveWakeupGuardrails.js'
 
@@ -43,6 +44,7 @@ export interface SweepDeps {
     notifyAllowed: boolean
   }) => Promise<void>
   resolveWakeup: (id: string, patch: { status: string; outcome: string }) => Promise<void>
+  reapStaleClaims: (claimedBefore: Date) => Promise<number>
   deleteExpired: (olderThan: Date) => Promise<number>
 }
 
@@ -110,6 +112,15 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
     }
   }
 
+  // Reap before deleting. A row whose claim succeeded but whose POST failed
+  // (timeout, 429, cloud-agent restart) stays 'claimed'/'running' with a NULL
+  // resolved_at: selectDue only reads 'pending', so it is never retried, and
+  // deleteExpired filters on resolved_at, which no NULL row can satisfy. Left
+  // alone these accumulate forever. Resolving them terminally first gives them
+  // a resolved_at, so ordinary retention can collect them on a later pass.
+  const staleClaimCutoff = new Date(now.getTime() - STALE_CLAIM_TIMEOUT_MS)
+  const reaped = await deps.reapStaleClaims(staleClaimCutoff)
+
   const cutoff = new Date(now.getTime() - WAKEUP_RETENTION_DAYS * 24 * 60 * 60 * 1000)
   const deleted = await deps.deleteExpired(cutoff)
 
@@ -117,6 +128,7 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
     due: due.length,
     posted,
     skipped,
+    reaped,
     deleted,
   })
 }
@@ -165,6 +177,11 @@ export function buildSweepDeps(): SweepDeps {
             gte(scheduledWakeups.resolvedAt, dayStart),
             ne(scheduledWakeups.status, 'pending'),
             ne(scheduledWakeups.status, 'claimed'),
+            // 'running' rows have not written spent_amount back yet; counting
+            // them would read 0 and understate the day, and they are excluded
+            // by the resolved_at filter anyway. Named explicitly so the set of
+            // non-terminal statuses stays obvious at the call site.
+            ne(scheduledWakeups.status, 'running'),
           ),
         )
 
@@ -229,6 +246,25 @@ export function buildSweepDeps(): SweepDeps {
         .update(scheduledWakeups)
         .set({ status: patch.status, outcome: patch.outcome, resolvedAt: new Date() })
         .where(eq(scheduledWakeups.id, id))
+    },
+    async reapStaleClaims(claimedBefore: Date): Promise<number> {
+      const db = await getDb()
+      // spent_amount is left as-is rather than zeroed: if the turn did commit a
+      // spend before dying, that money was really taken and the day's ceiling
+      // should keep counting it. The status becomes terminal so the row stops
+      // being invisible to both selectDue and deleteExpired.
+      const reaped = await db
+        .update(scheduledWakeups)
+        .set({ status: 'skipped', outcome: 'stale_claim', resolvedAt: new Date() })
+        .where(
+          and(
+            sql`${scheduledWakeups.status} in ('claimed','running')`,
+            sql`${scheduledWakeups.resolvedAt} is null`,
+            lt(scheduledWakeups.claimedAt, claimedBefore),
+          ),
+        )
+        .returning({ id: scheduledWakeups.id })
+      return reaped.length
     },
     async deleteExpired(cutoff: Date): Promise<number> {
       const db = await getDb()

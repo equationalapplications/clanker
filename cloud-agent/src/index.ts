@@ -341,6 +341,19 @@ export function createApp(options: AppOptions) {
     handler: rateLimitHandler,
   })
 
+  // Deliberately a separate bucket from schedulerTriggerLimiter. Sharing one
+  // meant a burst on /agent/browser/scheduler-trigger could exhaust the window
+  // and 429 the five-minute proactive sweeper, whose POST failure path leaves
+  // the row claimed and unretried — a user-visible wake-up lost to unrelated
+  // traffic.
+  const proactiveWakeupLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+  })
+
   app.post(
     '/agent/run',
     agentRunLimiter,
@@ -644,7 +657,7 @@ export function createApp(options: AppOptions) {
 
   app.post(
     '/agent/proactive-wakeup',
-    schedulerTriggerLimiter,
+    proactiveWakeupLimiter,
     (req: Request, res: Response, next: NextFunction): void => {
       const secret = process.env.SCHEDULER_SECRET
       if (!secret) {
@@ -679,15 +692,18 @@ export function createApp(options: AppOptions) {
             }
           },
           claimRunKey: async (runKey) => {
-            // The sweeper transitions pending → claimed before POSTing; the endpoint
-            // reservation still has to succeed for the wake-up turn to actually run.
-            // We accept both statuses: 'pending' for the rare direct-POST path, and
-            // 'claimed' for the normal sweep-driven path. Rows already terminal
-            // ('done'/'skipped') match no predicate and return 'duplicate', which
-            // is the documented idempotency guarantee for a retried POST.
+            // The sweeper transitions pending → claimed before POSTing, so the
+            // endpoint must accept 'claimed' for the normal sweep-driven path
+            // and 'pending' for the rare direct POST. It must NOT leave the row
+            // in a status it will accept again: writing 'claimed' back over
+            // 'claimed' made this UPDATE re-enterable, so a re-POST of a row
+            // whose first attempt died before resolving matched a second time,
+            // returned 'reserved', and spent AGENT_TURN_CREDIT_COST again.
+            // 'running' is terminal for this predicate — a second POST matches
+            // nothing and gets the documented 'duplicate'.
             const updated = await db
               .update(scheduledWakeups)
-              .set({ status: 'claimed', claimedAt: new Date() })
+              .set({ status: 'running', claimedAt: new Date() })
               .where(
                 and(
                   eq(scheduledWakeups.runKey, runKey),
@@ -696,7 +712,13 @@ export function createApp(options: AppOptions) {
                 ),
               )
               .returning({ id: scheduledWakeups.id })
-            return updated.length > 0 ? 'reserved' : 'duplicate'
+            // Hand back the row we actually locked. run_key is UNIQUE, so this
+            // is at most one row, and the handler compares it to the wakeupId
+            // the caller supplied before committing any credit.
+            return {
+              status: updated.length > 0 ? 'reserved' : 'duplicate',
+              id: updated[0]?.id ?? null,
+            }
           },
           resolveWakeup: async (wakeupId, patch) => {
             await db
@@ -704,14 +726,10 @@ export function createApp(options: AppOptions) {
               .set({ ...patch, resolvedAt: new Date() })
               .where(eq(scheduledWakeups.id, wakeupId))
           },
-          runAgent: async ({ userId, firebaseUid, characterId, reason }) => {
-            const [character] = await db
-              .select()
-              .from(characters)
-              .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
-            if (!character) {
-              throw new Error('CHARACTER_MISSING_DURING_RUN')
-            }
+          runAgent: async ({ userId, firebaseUid, characterId, character, reason }) => {
+            // The handler already loaded and ownership-checked this row; it
+            // carries every field assembleSystemInstruction reads, so there is
+            // nothing left to re-fetch.
             const wikiContext = await queryWikiContext(db, reason, userId, characterId, embedText)
             const systemInstruction = assembleSystemInstruction(character, wikiContext)
             const wakeupSink: WakeupSink = { mode: null, message: null }

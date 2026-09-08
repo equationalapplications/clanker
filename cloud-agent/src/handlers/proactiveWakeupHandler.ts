@@ -14,23 +14,35 @@ const bodySchema = z.object({
   notifyAllowed: z.boolean(),
 })
 
+export interface ProactiveCharacter {
+  id: string
+  name: string
+  appearance: string | null
+  traits: string | null
+  emotions: string | null
+  context: string | null
+}
+
+/**
+ * The row identity `claimRunKey` actually locked. `run_key` carries a UNIQUE
+ * index, so at most one row can ever match — but the caller supplies `wakeupId`
+ * and `runKey` as independent fields, so the row we locked is not necessarily
+ * the row the caller named. Returning the id lets the handler prove they agree
+ * before any credit is committed.
+ */
+export interface RunKeyClaim {
+  status: 'reserved' | 'duplicate'
+  id: string | null
+}
+
 export interface ProactiveWakeupDeps {
   resolveUserId: (firebaseUid: string) => Promise<string | null>
-  loadCharacter: (
-    characterId: string,
-    userId: string,
-  ) => Promise<{
-    id: string
-    name: string
-    appearance: string | null
-    traits: string | null
-    emotions: string | null
-    context: string | null
-  } | null>
+  loadCharacter: (characterId: string, userId: string) => Promise<ProactiveCharacter | null>
   runAgent: (args: {
     userId: string
     firebaseUid: string
     characterId: string
+    character: ProactiveCharacter
     reason: string
   }) => Promise<{ reply: string; toolCalls: string[]; deliveryMode: DeliveryMode }>
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
@@ -38,7 +50,7 @@ export interface ProactiveWakeupDeps {
     wakeupId: string,
     patch: { status: string; spentAmount: number; outcome: string },
   ) => Promise<void>
-  claimRunKey: (runKey: string) => Promise<'reserved' | 'duplicate'>
+  claimRunKey: (runKey: string) => Promise<RunKeyClaim>
 }
 
 /**
@@ -76,16 +88,40 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
     }
 
     // Idempotency: a retried sweep must not spend twice.
-    let reservation: 'reserved' | 'duplicate'
+    let claim: RunKeyClaim
     try {
-      reservation = await deps.claimRunKey(runKey)
+      claim = await deps.claimRunKey(runKey)
     } catch (err) {
       console.error('[proactive-wakeup] claimRunKey error:', err)
       res.status(500).json({ error: 'Internal server error' })
       return
     }
-    if (reservation === 'duplicate') {
+    if (claim.status === 'duplicate') {
       res.json({ ok: true, mode: 'silent', spentAmount: 0, duplicate: true })
+      return
+    }
+
+    // wakeupId and runKey arrive as independent body fields, so a malformed or
+    // mis-assembled caller can name row A while runKey locks row B. Every
+    // terminal path below resolves by wakeupId, so without this check we would
+    // run and bill a turn against A's payload while B stays locked forever.
+    // Release the row we actually claimed — resolving by claim.id, not
+    // wakeupId — so the mismatch costs one skipped wake-up, not a leaked row.
+    if (claim.id !== wakeupId) {
+      console.error('[proactive-wakeup] identifier mismatch: runKey claimed a different row', {
+        wakeupId,
+        claimedId: claim.id,
+      })
+      if (claim.id) {
+        await deps
+          .resolveWakeup(claim.id, {
+            status: 'skipped',
+            spentAmount: 0,
+            outcome: 'identifier_mismatch',
+          })
+          .catch(() => {})
+      }
+      res.status(400).json({ error: 'wakeupId does not match runKey' })
       return
     }
 
@@ -146,7 +182,16 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         return
       }
 
-      const result = await deps.runAgent({ userId, firebaseUid: uid, characterId, reason })
+      // Hand the row we just validated straight to runAgent. It carries every
+      // field assembleSystemInstruction needs, so re-selecting it there would
+      // be a second identical SELECT per wake-up for no added safety.
+      const result = await deps.runAgent({
+        userId,
+        firebaseUid: uid,
+        characterId,
+        character,
+        reason,
+      })
       const mode = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
 
       // Phase 1 delivers nothing. Recording the mode the model chose is the

@@ -40,6 +40,7 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
       resolveWakeup: async (id: string, patch: unknown) => {
         resolved.push({ id, patch })
       },
+      reapStaleClaims: async () => 0,
       deleteExpired: async () => 0,
       ...overrides,
     },
@@ -118,4 +119,27 @@ test('runs the retention delete every sweep', async () => {
   })
   await proactiveWakeupSweepHandler(deps as never)
   assert.equal(deleted, 1)
+})
+
+test('reaps stale claims every sweep, before the retention delete', async () => {
+  const order: string[] = []
+  let cutoff: Date | undefined
+  const { deps } = buildDeps({
+    reapStaleClaims: async (claimedBefore: Date) => {
+      order.push('reap')
+      cutoff = claimedBefore
+      return 2
+    },
+    deleteExpired: async () => {
+      order.push('delete')
+      return 0
+    },
+  })
+  await proactiveWakeupSweepHandler(deps as never)
+  // Reaping first gives abandoned rows a resolved_at, so the retention delete
+  // in a later sweep can actually collect them.
+  assert.deepEqual(order, ['reap', 'delete'])
+  // The cutoff is in the past — a row claimed a moment ago must not be reaped
+  // out from under a turn that is still running.
+  assert.ok(cutoff && cutoff.getTime() < NOW.getTime())
 })

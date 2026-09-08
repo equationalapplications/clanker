@@ -44,7 +44,7 @@ function buildApp(overrides: Partial<Parameters<typeof createProactiveWakeupHand
     resolveWakeup: async (id: string, patch: Record<string, unknown>) => {
       calls.resolved.push({ id, ...patch })
     },
-    claimRunKey: async () => 'reserved' as const,
+    claimRunKey: async () => ({ status: 'reserved' as const, id: body.wakeupId }),
     ...overrides,
   }
   const app = express()
@@ -73,10 +73,42 @@ test('runs the turn, spends once and records the outcome', async () => {
 })
 
 test('is idempotent on a duplicate run key: no second spend', async () => {
-  const { app, calls } = buildApp({ claimRunKey: async () => 'duplicate' as const })
+  const { app, calls } = buildApp({
+    claimRunKey: async () => ({ status: 'duplicate' as const, id: null }),
+  })
   const res = await request(app).post('/agent/proactive-wakeup').send(body)
   assert.equal(res.status, 200)
   assert.equal(calls.spend, 0)
+})
+
+test('rejects and releases the row when runKey claims a different wakeup', async () => {
+  const { app, calls } = buildApp({
+    claimRunKey: async () => ({ status: 'reserved' as const, id: 'some-other-row' }),
+  })
+  const res = await request(app).post('/agent/proactive-wakeup').send(body)
+  assert.equal(res.status, 400)
+  // The crucial invariant: no credit is committed against a row we did not lock.
+  assert.equal(calls.spend, 0)
+  // ...and the row we DID lock is released, not left claimed forever.
+  assert.equal(calls.resolved.length, 1)
+  const resolved = calls.resolved[0] as { id: string; status: string; outcome: string }
+  assert.equal(resolved.id, 'some-other-row')
+  assert.equal(resolved.status, 'skipped')
+  assert.equal(resolved.outcome, 'identifier_mismatch')
+})
+
+test('passes the validated character to runAgent instead of re-fetching it', async () => {
+  let seen: { id: string; name: string } | undefined
+  const { app } = buildApp({
+    runAgent: (async (args: { character: { id: string; name: string } }) => {
+      seen = args.character
+      return { reply: 'Hi', toolCalls: [], deliveryMode: 'silent' as const }
+    }) as never,
+  })
+  const res = await request(app).post('/agent/proactive-wakeup').send(body)
+  assert.equal(res.status, 200)
+  assert.equal(seen?.id, 'char-1')
+  assert.equal(seen?.name, 'Ada')
 })
 
 test('returns 402 and does not run the turn when credits are exhausted', async () => {
