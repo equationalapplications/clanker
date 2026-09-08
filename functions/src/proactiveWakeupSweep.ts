@@ -3,12 +3,7 @@ import * as logger from 'firebase-functions/logger'
 import { and, desc, eq, gte, like, lt, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { getDb } from './db/cloudSql.js'
-import {
-  messages,
-  scheduledWakeups,
-  subscriptions,
-  users,
-} from './db/schema.js'
+import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js'
 import {
   decideWakeup,
   utcDayStart,
@@ -140,12 +135,7 @@ export function buildSweepDeps(): SweepDeps {
         })
         .from(scheduledWakeups)
         .innerJoin(users, eq(scheduledWakeups.userId, users.id))
-        .where(
-          and(
-            eq(scheduledWakeups.status, 'pending'),
-            sql`${scheduledWakeups.dueAt} <= now()`,
-          ),
-        )
+        .where(and(eq(scheduledWakeups.status, 'pending'), sql`${scheduledWakeups.dueAt} <= now()`))
         .orderBy(desc(scheduledWakeups.priority), scheduledWakeups.dueAt)
         .limit(limit)
       return rows
