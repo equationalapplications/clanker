@@ -29,6 +29,12 @@ export const SWEEP_BATCH_LIMIT = 50
  */
 export const STALE_CLAIM_TIMEOUT_MS = 3_600_000
 
+// A dropped markProactiveRead would otherwise leave the server believing the
+// user is ignoring this character and suppress every future push from it —
+// permanently, silently, with no user-visible symptom. After this long an
+// unread message stops blocking. Mirrored in src/constants/proactive.ts.
+export const UNREAD_STALENESS_ESCAPE_MS = 604_800_000
+
 export interface WakeupGuardrailInput {
   now: Date
   balance: number

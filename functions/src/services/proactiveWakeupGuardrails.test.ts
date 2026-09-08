@@ -5,6 +5,7 @@ import {
   utcDayStart,
   DAILY_PROACTIVE_POWER_CEILING,
   PROACTIVE_NOTIFY_COOLDOWN_MS,
+  UNREAD_STALENESS_ESCAPE_MS,
 } from './proactiveWakeupGuardrails.js'
 
 const NOW = new Date('2026-09-08T14:00:00.000Z')
@@ -96,4 +97,41 @@ test('utcDayStart truncates to UTC midnight regardless of host timezone', () => 
     utcDayStart(new Date('2026-09-08T23:59:59.999Z')).toISOString(),
     '2026-09-08T00:00:00.000Z',
   )
+})
+
+test('UNREAD_STALENESS_ESCAPE_MS is pinned to 7 days', () => {
+  // Mirrored on the client in src/constants/proactive.ts. Both sides assert the
+  // literal so drift fails a suite instead of silently disagreeing about who is
+  // badged. Change one, change the other.
+  assert.equal(UNREAD_STALENESS_ESCAPE_MS, 604_800_000)
+})
+
+test('an unread proactive message blocks notify', () => {
+  const decision = decideWakeup({
+    now: new Date('2026-09-08T12:00:00.000Z'),
+    balance: 1000,
+    turnCost: 100,
+    todaysProactiveSpend: 0,
+    todaysPushCount: 0,
+    lastUserMessageAt: null,
+    unreadProactiveCount: 1,
+  })
+  assert.equal(decision.run, true)
+  if (!decision.run) throw new Error('expected run=true')
+  assert.equal(decision.notifyAllowed, false)
+})
+
+test('notify is allowed again once nothing is unread', () => {
+  const decision = decideWakeup({
+    now: new Date('2026-09-08T12:00:00.000Z'),
+    balance: 1000,
+    turnCost: 100,
+    todaysProactiveSpend: 0,
+    todaysPushCount: 0,
+    lastUserMessageAt: null,
+    unreadProactiveCount: 0,
+  })
+  assert.equal(decision.run, true)
+  if (!decision.run) throw new Error('expected run=true')
+  assert.equal(decision.notifyAllowed, true)
 })

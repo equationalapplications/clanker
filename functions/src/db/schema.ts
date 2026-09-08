@@ -218,6 +218,7 @@ export const messages = pgTable(
     senderName: text('sender_name'),
     senderAvatar: text('sender_avatar'),
     messageData: jsonb('message_data').notNull().default({}),
+    readAt: timestamp('read_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({

@@ -1,6 +1,6 @@
 import { onSchedule, type ScheduledEvent } from 'firebase-functions/v2/scheduler'
 import * as logger from 'firebase-functions/logger'
-import { and, desc, eq, gte, lt, ne, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { getDb } from './db/cloudSql.js'
 import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js'
@@ -9,6 +9,7 @@ import {
   utcDayStart,
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
+  UNREAD_STALENESS_ESCAPE_MS,
   WAKEUP_RETENTION_DAYS,
 } from './services/proactiveWakeupGuardrails.js'
 
@@ -33,7 +34,7 @@ export interface WakeupContext {
 export interface SweepDeps {
   now: () => Date
   selectDue: (limit: number) => Promise<DueWakeup[]>
-  loadContext: (row: DueWakeup, dayStart: Date) => Promise<WakeupContext>
+  loadContext: (row: DueWakeup, now: Date, dayStart: Date) => Promise<WakeupContext>
   claim: (id: string, now: Date) => Promise<boolean>
   postWakeup: (payload: {
     wakeupId: string
@@ -77,7 +78,7 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
       const won = await deps.claim(row.id, now)
       if (!won) continue
 
-      const context = await deps.loadContext(row, dayStart)
+      const context = await deps.loadContext(row, now, dayStart)
       const decision = decideWakeup({
         now,
         balance: context.balance,
@@ -159,7 +160,7 @@ export function buildSweepDeps(): SweepDeps {
         .limit(limit)
       return rows
     },
-    async loadContext(row: DueWakeup, dayStart: Date): Promise<WakeupContext> {
+    async loadContext(row: DueWakeup, now: Date, dayStart: Date): Promise<WakeupContext> {
       const db = await getDb()
 
       const [subRow] = await db
@@ -196,20 +197,32 @@ export function buildSweepDeps(): SweepDeps {
           ),
         )
 
+      const staleCutoff = new Date(now.getTime() - UNREAD_STALENESS_ESCAPE_MS)
+      const [unreadRow] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.characterId, row.characterId),
+            isNull(messages.readAt),
+            // The staleness escape. Without it one lost mark-read mutes this
+            // character forever.
+            gte(messages.createdAt, staleCutoff),
+            sql`${messages.messageData}->>'proactive' = 'true'`,
+          ),
+        )
+
       const [lastMsgRow] = await db
         .select({ lastAt: sql<Date | null>`MAX(${messages.createdAt})` })
         .from(messages)
         .where(eq(messages.characterId, row.characterId))
 
-      // Phase 1 delivers nothing, so there is no delivered-then-unread queue to
-      // count. Returning 0 lets the guardrail correctly treat every wake-up as
-      // eligible to notify until the push-count or cooldown check fires.
       return {
         balance: subRow?.currentCredits ?? 0,
         todaysProactiveSpend: Number(spendRow?.total ?? 0),
         todaysPushCount: Number(pushRow?.count ?? 0),
         lastUserMessageAt: lastMsgRow?.lastAt ?? null,
-        unreadProactiveCount: 0,
+        unreadProactiveCount: Number(unreadRow?.count ?? 0),
       }
     },
     async claim(id: string, claimedAt: Date): Promise<boolean> {
