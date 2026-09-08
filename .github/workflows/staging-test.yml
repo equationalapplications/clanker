@@ -47,6 +47,16 @@ jobs:
       - name: 🚨 Audit root dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      # Gate (read-only): the Expo SDK chooses the versions of the native
+      # packages pinned exactly/by tilde in package.json (react-native-*,
+      # @react-native-community/netinfo). Nothing else here can see a drift off
+      # that matrix — gesture-handler 3.2.1 passes npm ci, lint, typecheck and
+      # all 163 Jest suites while being wrong for SDK 57 (#661). `--check` only
+      # reads package.json and exits non-zero on a mismatch; `--fix` would
+      # rewrite the tree and must never be used in CI.
+      - name: 📐 Check Expo SDK dependency matrix
+        run: npx expo install --check
+
       - name: 🎨 Check formatting
         run: npm run format:check
 
@@ -101,6 +111,13 @@ jobs:
 
       - name: 🧪 Test Desktop Bridge extension
         run: cd extension && npm ci && npm test
+
+      # The extension's suite runs through tsx, which strips types without
+      # checking them, so a types-only change (a @types/* bump) passes the
+      # tests while never being typechecked at all — the gap that left
+      # @types/chrome 0.0.268 -> 0.2.7 (#649) ungated.
+      - name: 🧠 Typecheck Desktop Bridge extension
+        run: cd extension && npm run typecheck
 
       # Same gate as root — the Chrome extension ships from its own lockfile;
       # a vuln there would publish via the Chrome Web Store pipeline.
