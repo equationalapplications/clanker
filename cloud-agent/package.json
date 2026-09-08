@@ -27,7 +27,7 @@
     "firebase-admin": "^14.2.0",
     "pg": "^8.20.0",
     "ws": "^8.21.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
