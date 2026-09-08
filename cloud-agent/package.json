@@ -17,7 +17,7 @@
   "dependencies": {
     "@equationalapplications/core-llm-tools": "^7.1.0",
     "@equationalapplications/core-llm-wiki": "^7.1.0",
-    "@google-cloud/cloud-sql-connector": "^1.10.0",
+    "@google-cloud/cloud-sql-connector": "^1.12.0",
     "@google/adk": "^2.0.0",
     "@google/genai": "^2.21.0",
     "cors": "^2.8.6",
