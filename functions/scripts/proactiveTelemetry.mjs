@@ -33,8 +33,34 @@ const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
   ['by status', 'SELECT status, count(*) FROM scheduled_wakeups GROUP BY status ORDER BY 2 DESC'],
   [
-    'delivery mode distribution (THE Phase 1 deliverable)',
+    'raw outcome distribution',
     "SELECT outcome, count(*) FROM scheduled_wakeups WHERE outcome LIKE 'mode=%' GROUP BY outcome ORDER BY 2 DESC",
+  ],
+  [
+    'chosen vs effective (THE Phase 1 deliverable) — chosen is what the character WANTED',
+    `SELECT split_part(outcome, 'chosen=', 2) AS chosen,
+            split_part(split_part(outcome, 'mode=', 2), ' ', 1) AS effective,
+            count(*)
+       FROM scheduled_wakeups
+      WHERE outcome LIKE 'mode=%'
+      GROUP BY 1, 2
+      ORDER BY 3 DESC`,
+  ],
+  [
+    'CLAMP RATE — how often notify was downgraded by the guardrails',
+    `SELECT count(*) FILTER (WHERE outcome LIKE '% chosen=notify') AS wanted_notify,
+            count(*) FILTER (WHERE outcome LIKE 'mode=notify %') AS actually_notified,
+            count(*) FILTER (
+              WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
+            ) AS clamped,
+            round(
+              100.0 * count(*) FILTER (
+                WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
+              ) / nullif(count(*) FILTER (WHERE outcome LIKE '% chosen=notify'), 0),
+              1
+            ) AS clamped_pct
+       FROM scheduled_wakeups
+      WHERE outcome LIKE 'mode=%'`,
   ],
   [
     'skip reasons — are the guardrails too tight?',
