@@ -14,10 +14,23 @@ const body = {
   notifyAllowed: true,
 }
 
+type InsertedMessage = {
+  messageId: string
+  characterId: string
+  senderUserId: string
+  text: string
+  createdAt: Date
+}
+
 function buildApp(overrides: Partial<Parameters<typeof createProactiveWakeupHandler>[0]> = {}) {
-  const calls = { spend: 0, refund: 0, resolved: [] as unknown[] }
+  const calls = {
+    spend: 0,
+    refund: 0,
+    resolved: [] as unknown[],
+    insertedMessages: [] as InsertedMessage[],
+  }
   const deps = {
-    resolveUserId: async () => 'user-db-id',
+    resolveUserId: async () => 'user-1',
     loadCharacter: async () => ({
       id: 'char-1',
       name: 'Ada',
@@ -45,6 +58,9 @@ function buildApp(overrides: Partial<Parameters<typeof createProactiveWakeupHand
       calls.resolved.push({ id, ...patch })
     },
     claimRunKey: async () => ({ status: 'reserved' as const, id: body.wakeupId }),
+    insertProactiveMessage: async (input: InsertedMessage) => {
+      calls.insertedMessages.push(input)
+    },
     ...overrides,
   }
   const app = express()
@@ -207,4 +223,40 @@ test('resolve records effective and chosen delivery modes as columns', async () 
   assert.equal(resolved.deliveryMode, 'quiet')
   assert.equal(resolved.chosenDeliveryMode, 'notify')
   assert.equal(resolved.outcome, 'mode=quiet chosen=notify')
+})
+
+test('a non-silent wake-up persists a proactive message row', async () => {
+  const { app, calls } = buildApp({
+    runAgent: (async () => ({
+      reply: 'How did the interview go?',
+      toolCalls: [],
+      deliveryMode: 'notify' as const,
+    })) as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.equal(calls.insertedMessages.length, 1)
+  const row = calls.insertedMessages[0]
+  assert.equal(row.text, 'How did the interview go?')
+  // sender_user_id means "whose conversation", not "who authored" — matching
+  // generateReply. Account deletion sweeps by this column.
+  assert.equal(row.senderUserId, 'user-1')
+  assert.ok(row.messageId.length > 0)
+})
+
+test('a silent wake-up persists nothing', async () => {
+  const { app, calls } = buildApp({
+    runAgent: (async () => ({
+      reply: '',
+      toolCalls: [],
+      deliveryMode: 'silent' as const,
+    })) as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.equal(calls.insertedMessages.length, 0)
 })

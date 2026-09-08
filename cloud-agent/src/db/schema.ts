@@ -1,6 +1,9 @@
 // Minimal schema mirror — cloud agent bounded context only.
 // Source of truth: functions/src/db/schema.ts
-// Tables omitted: subscriptions, credit_transactions, messages, legacy wiki tables, stripe tables.
+// Tables omitted: subscriptions, credit_transactions, legacy wiki tables, stripe tables.
+// messages: mirrored narrowly for proactive wake-up inserts (Phase 2). Columns
+// not written by the cloud agent (id, recipient_user_id, pending, sent, error,
+// edited, synced_at) are intentionally absent — see proactiveWakeupHandler.ts.
 import {
   pgTable,
   uuid,
@@ -210,3 +213,17 @@ export const scheduledWakeups = pgTable(
     ),
   }),
 )
+
+export const messages = pgTable('messages', {
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  senderUserId: uuid('sender_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  messageId: text('message_id').notNull(),
+  text: text('text').notNull(),
+  messageData: jsonb('message_data').notNull().default({}),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})

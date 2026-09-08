@@ -12,7 +12,7 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
-import { users, characters, scheduledWakeups } from './db/schema.js'
+import { users, characters, scheduledWakeups, messages } from './db/schema.js'
 import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
@@ -725,6 +725,19 @@ export function createApp(options: AppOptions) {
               .update(scheduledWakeups)
               .set({ ...patch, resolvedAt: new Date() })
               .where(eq(scheduledWakeups.id, wakeupId))
+          },
+          insertProactiveMessage: async (input) => {
+            // Phase 2 turns shadow-mode wake-ups into real conversations. The
+            // messageData marker is what the unread badge query (Task 4) reads
+            // to count proactive unread rows per character.
+            await db.insert(messages).values({
+              messageId: input.messageId,
+              characterId: input.characterId,
+              senderUserId: input.senderUserId,
+              text: input.text,
+              messageData: { proactive: true },
+              createdAt: input.createdAt,
+            })
           },
           runAgent: async ({ userId, firebaseUid, characterId, character, reason }) => {
             // The handler already loaded and ownership-checked this row; it

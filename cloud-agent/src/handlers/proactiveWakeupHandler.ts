@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Request, Response } from 'express'
+import { randomUUID } from 'node:crypto'
 import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
 
@@ -57,6 +58,13 @@ export interface ProactiveWakeupDeps {
     },
   ) => Promise<void>
   claimRunKey: (runKey: string) => Promise<RunKeyClaim>
+  insertProactiveMessage: (input: {
+    messageId: string
+    characterId: string
+    senderUserId: string
+    text: string
+    createdAt: Date
+  }) => Promise<void>
 }
 
 /**
@@ -199,6 +207,18 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         reason,
       })
       const mode = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
+
+      // 'silent' means the character decided there was nothing worth saying.
+      // Persisting an empty row would badge the user for nothing.
+      if (mode !== 'silent' && result.reply.trim().length > 0) {
+        await deps.insertProactiveMessage({
+          messageId: randomUUID(),
+          characterId,
+          senderUserId: userId,
+          text: result.reply,
+          createdAt: new Date(),
+        })
+      }
 
       // Phase 1 delivers nothing. Recording the mode the model chose is the
       // point: it yields production data on how often characters WOULD have
