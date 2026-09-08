@@ -5,6 +5,12 @@
  * these helpers; Task 10 will read/write a `proactive_messages` cursor inside
  * the same transaction that persists fetched messages, so setSyncCursor must
  * accept an optional database handle to join a caller's transaction.
+ *
+ * Task 11 extends this with a JSON-blob helper pair (`getSyncJson`/`setSyncJson`)
+ * so the mark-read queue can reuse the same table without a schema change.
+ * The payload lives in the existing `cursor_created_at` TEXT column — the
+ * other two columns stay NULL. This is cheaper than adding a dedicated
+ * payload column for a single consumer and keeps the table generic.
  */
 
 import type { SQLiteDatabase } from 'expo-sqlite'
@@ -51,5 +57,30 @@ export async function setSyncCursor(
     `INSERT OR REPLACE INTO sync_state (key, cursor_created_at, cursor_message_id, updated_at)
      VALUES (?, ?, ?, ?)`,
     [key, cursor.createdAt, cursor.messageId, Date.now()],
+  )
+}
+
+export async function getSyncJson<T>(key: string, db?: SQLiteDatabase): Promise<T | null> {
+  const database = await resolveDatabase(db)
+  const row = await database.getFirstAsync<SyncCursorRow>(
+    'SELECT cursor_created_at, cursor_message_id FROM sync_state WHERE key = ?',
+    [key],
+  )
+
+  if (!row || row.cursor_created_at === null) {
+    return null
+  }
+
+  // The other two columns are unused for JSON-blob keys; a non-null message_id
+  // is just a stale artifact of cursor reuse and is harmless.
+  return JSON.parse(row.cursor_created_at) as T
+}
+
+export async function setSyncJson<T>(key: string, value: T, db?: SQLiteDatabase): Promise<void> {
+  const database = await resolveDatabase(db)
+  await database.runAsync(
+    `INSERT OR REPLACE INTO sync_state (key, cursor_created_at, cursor_message_id, updated_at)
+     VALUES (?, ?, NULL, ?)`,
+    [key, JSON.stringify(value), Date.now()],
   )
 }
