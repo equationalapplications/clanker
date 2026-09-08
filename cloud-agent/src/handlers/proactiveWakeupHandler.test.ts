@@ -184,3 +184,27 @@ test('downgrades notify to quiet when the sweeper forbade notifying', () => {
   assert.equal(resolveDeliveryMode('quiet', true), 'quiet')
   assert.equal(resolveDeliveryMode('silent', true), 'silent')
 })
+
+test('resolve records effective and chosen delivery modes as columns', async () => {
+  const { app, calls } = buildApp({
+    runAgent: (async () => ({
+      reply: 'hi',
+      toolCalls: [],
+      deliveryMode: 'notify' as const,
+    })) as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: false })
+  assert.equal(res.status, 200)
+  const resolved = calls.resolved[0] as {
+    deliveryMode: string
+    chosenDeliveryMode: string
+    outcome: string
+  }
+  // notifyAllowed false clamps the effective mode down, but what the character
+  // wanted must survive — it is the signal the rollout gate tunes against.
+  assert.equal(resolved.deliveryMode, 'quiet')
+  assert.equal(resolved.chosenDeliveryMode, 'notify')
+  assert.equal(resolved.outcome, 'mode=quiet chosen=notify')
+})

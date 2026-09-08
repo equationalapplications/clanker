@@ -48,7 +48,13 @@ export interface ProactiveWakeupDeps {
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
   resolveWakeup: (
     wakeupId: string,
-    patch: { status: string; spentAmount: number; outcome: string },
+    patch: {
+      status: string
+      spentAmount: number
+      outcome: string
+      deliveryMode?: string
+      chosenDeliveryMode?: string
+    },
   ) => Promise<void>
   claimRunKey: (runKey: string) => Promise<RunKeyClaim>
 }
@@ -200,7 +206,11 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
       await deps.resolveWakeup(wakeupId, {
         status: 'done',
         spentAmount,
+        // outcome is kept as-is: it is the human-readable audit trail and the
+        // source the 0028 backfill parses. The columns are what code reads.
         outcome: `mode=${mode} chosen=${result.deliveryMode}`,
+        deliveryMode: mode,
+        chosenDeliveryMode: result.deliveryMode,
       })
 
       res.json({ ok: true, mode, spentAmount })
