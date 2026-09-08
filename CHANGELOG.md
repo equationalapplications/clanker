@@ -1,3 +1,14 @@
+## [33.0.1](https://github.com/equationalapplications/clanker/compare/v33.0.0...v33.0.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **agent:** make the edge image cap atomic and unblock the audit gate ([16f59bf](https://github.com/equationalapplications/clanker/commit/16f59bfca708e8cde682c9f73c98e27899ff7ead))
+* **agent:** route cloud-only tool calls from the edge agent instead of refusing ([1ec7f8c](https://github.com/equationalapplications/clanker/commit/1ec7f8c78397f41cecae1b68f6db54b0b522b756))
+* **deps:** apply the same audit overrides to functions ([9473a66](https://github.com/equationalapplications/clanker/commit/9473a66aee2ab595d08d29a6f4b7acbd8fdd7575))
+* **deps:** bump fast-uri to 3.1.7 for six high-severity advisories ([1dc5556](https://github.com/equationalapplications/clanker/commit/1dc55568b5e93c21680f04950a02490f8e1d3fcd)), closes [hi#severity](https://github.com/hi/issues/severity) [#668](https://github.com/equationalapplications/clanker/issues/668) [hi#severity](https://github.com/hi/issues/severity) [#672](https://github.com/equationalapplications/clanker/issues/672)
+* **test:** move edge image-tool imports to the top of the module ([315bebb](https://github.com/equationalapplications/clanker/commit/315bebbe6acd4b0932052221279ea6f83b9a4ae9))
+
 # [33.0.0](https://github.com/equationalapplications/clanker/compare/v32.0.0...v33.0.0) (2026-08-28)
 
 
