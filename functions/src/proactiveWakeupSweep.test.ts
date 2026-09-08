@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { proactiveWakeupSweepHandler } from './proactiveWakeupSweep.js'
+import { proactiveWakeupSweep, proactiveWakeupSweepHandler } from './proactiveWakeupSweep.js'
 
 const NOW = new Date('2026-09-08T14:00:00.000Z')
 
@@ -154,4 +154,16 @@ test('todaysPushCount follows the column, not the outcome text', async () => {
   const counted = rows.filter((r) => r.deliveryMode === 'notify')
   assert.equal(counted.length, 1)
   assert.equal(counted[0].outcome, 'mode=quiet chosen=notify')
+})
+
+// The sweep has no lock: what stops two sweeps overlapping — and leaking
+// DAILY_PROACTIVE_POWER_CEILING past a character's daily allowance — is only
+// that this timeout is far shorter than the five-minute schedule. Asserting it
+// here so raising it has to be a deliberate edit to a failing test rather than
+// an unnoticed config tweak. See the comment on the onSchedule options.
+test('sweep timeout stays far below the five-minute schedule', () => {
+  const endpoint = (proactiveWakeupSweep as unknown as { __endpoint: { timeoutSeconds: number } })
+    .__endpoint
+  assert.equal(endpoint.timeoutSeconds, 60)
+  assert.ok(endpoint.timeoutSeconds < 300, 'a sweep must not survive to overlap the next tick')
 })

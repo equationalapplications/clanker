@@ -294,6 +294,25 @@ export const proactiveWakeupSweep = onSchedule(
   {
     schedule: 'every 5 minutes',
     region: 'us-central1',
+    // LOAD-BEARING, not a performance knob. Nothing in this function serialises
+    // sweeps against each other: the per-row claim stops two sweeps double-firing
+    // the same row, but it cannot stop them working different rows of the SAME
+    // character concurrently. Two such sweeps each read `todaysProactiveSpend`
+    // before either has written its spend back (cloud-agent commits spentAmount
+    // just before it answers the POST), so both see the same total and
+    // DAILY_PROACTIVE_POWER_CEILING leaks by roughly one turn per overlapping
+    // sweep. What prevents that today is arithmetic, not a lock: this timeout is
+    // far below the five-minute schedule, so a sweep is always dead before the
+    // next one starts.
+    //
+    // Therefore: keep this well under 300. Raising it toward the 540 used by
+    // convertDocumentText/wikiLlm silently authorises overlapping sweeps and
+    // un-caps proactive spend. If a sweep needs more time, give the loop a time
+    // budget so it stops claiming rows near the deadline — do not buy time here.
+    //
+    // Pinned rather than left to the platform default so a firebase-tools or
+    // Cloud Run default change cannot move it without this line changing.
+    timeoutSeconds: 60,
     secrets: [...CLOUD_SQL_SECRETS, 'SCHEDULER_SECRET'],
   },
   async (event: ScheduledEvent) => {
