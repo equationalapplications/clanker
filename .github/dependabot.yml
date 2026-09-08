@@ -7,6 +7,19 @@
 # by a bot break the SDK, and version-range churn there is how PR #641's
 # tilde-to-caret drift happened. A security advisory on one of them is handled
 # by the SDK upgrade, not by a bot PR.
+#
+# The same reasoning covers the community `react-native-*` packages the Expo
+# SDK also pins. They do not match the `expo*` patterns above, but the SDK
+# chooses them just the same, which is why their entries in package.json carry
+# exact or tilde pins while genuinely free packages (react-native-paper,
+# react-native-purchases, react-native-web, ...) carry carets. Bumping one puts
+# the app off the SDK matrix: `npx expo install --check` reports the pinned
+# version as the expected one and exits non-zero. Verified 2026-09-07 on
+# reanimated 4.5.1 -> 4.6.0 (#663) and gesture-handler 2.32.0 -> 3.2.1 (#661);
+# gesture-handler had already been deferred once for this reason under #606,
+# which recorded that it needs SDK 58. reanimated and worklets are additionally
+# a matched pair -- reanimated 4.5.x peers worklets 0.10.x, 4.6.x peers 0.12.x
+# -- so neither can move alone even in principle.
 
 version: 2
 updates:
@@ -40,6 +53,23 @@ updates:
       - dependency-name: 'react-dom'
       - dependency-name: 'react-native'
       - dependency-name: 'react-test-renderer'
+      # Community packages pinned by the Expo SDK (see the note at the top).
+      # These move with the SDK upgrade, never on their own.
+      - dependency-name: '@react-native-community/netinfo'
+      - dependency-name: 'react-native-gesture-handler'
+      - dependency-name: 'react-native-keyboard-controller'
+      - dependency-name: 'react-native-reanimated'
+      - dependency-name: 'react-native-safe-area-context'
+      - dependency-name: 'react-native-screens'
+      - dependency-name: 'react-native-webview'
+      - dependency-name: 'react-native-worklets'
+      # TypeScript 7 is the native Go port and typescript-eslint has no support
+      # for it yet, so the platform baseline stays on 6.x. @types/node tracks
+      # the Node 24 runtime the workflows and deployed services pin.
+      - dependency-name: 'typescript'
+        versions: ['>=7']
+      - dependency-name: '@types/node'
+        versions: ['>=25']
 
   - package-ecosystem: npm
     directory: '/functions'
@@ -52,6 +82,14 @@ updates:
       equationalapplications:
         patterns:
           - '@equationalapplications/*'
+    # TypeScript 7 is the native Go port and typescript-eslint has no support
+    # for it yet; @types/node tracks the Node 24 runtime pinned by the
+    # cloud-agent Dockerfile, firebase.json and functions/engines.node.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7']
+      - dependency-name: '@types/node'
+        versions: ['>=25']
 
   - package-ecosystem: npm
     directory: '/cloud-agent'
@@ -64,6 +102,14 @@ updates:
       equationalapplications:
         patterns:
           - '@equationalapplications/*'
+    # TypeScript 7 is the native Go port and typescript-eslint has no support
+    # for it yet; @types/node tracks the Node 24 runtime pinned by the
+    # cloud-agent Dockerfile, firebase.json and functions/engines.node.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7']
+      - dependency-name: '@types/node'
+        versions: ['>=25']
 
   - package-ecosystem: npm
     directory: '/extension'
@@ -72,3 +118,8 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    # TypeScript 7 is the native Go port and typescript-eslint has no support
+    # for it yet.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7']

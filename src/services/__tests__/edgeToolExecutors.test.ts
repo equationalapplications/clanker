@@ -9,6 +9,8 @@ import {
 } from '../../database/taskDatabase'
 import type { LocalTask } from '../../database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
+import { generateImageViaCallable } from '../imageGenerationService'
+import { saveCharacterImage } from '../characterImageService'
 
 jest.mock('../wikiService', () => ({
   readFromWiki: jest.fn(),
@@ -25,6 +27,14 @@ jest.mock('../../database/taskDatabase', () => ({
 
 jest.mock('@equationalapplications/core-llm-wiki', () => ({
   formatGraphContext: jest.fn(() => 'formatted graph context'),
+}))
+
+jest.mock('../imageGenerationService', () => ({
+  generateImageViaCallable: jest.fn(),
+}))
+
+jest.mock('../characterImageService', () => ({
+  saveCharacterImage: jest.fn(),
 }))
 
 const mockReadFromWiki = readFromWiki as jest.Mock
@@ -267,5 +277,143 @@ describe('createEdgeToolExecutors — wiki_traverse_graph', () => {
     const execs = createEdgeToolExecutors('char-1', wiki)
     const result = await execs['wiki_traverse_graph']({ sourceId: 'fact-1' })
     expect(result).toBe('Failed to traverse graph due to an internal error.')
+  })
+})
+
+const mockGenerateImageViaCallable = generateImageViaCallable as jest.Mock
+const mockSaveCharacterImage = saveCharacterImage as jest.Mock
+
+describe('generate_image local executor (non-cloud-synced characters)', () => {
+  const imageDeps = () => ({
+    userId: 'u1',
+    messageId: 'ai_1',
+    onImageSaved: jest.fn(),
+  })
+
+  it('is absent unless image deps are supplied', () => {
+    expect(createEdgeToolExecutors('char-1', null).generate_image).toBeUndefined()
+  })
+
+  it('generates, persists with the pre-minted message id, and reports the image id', async () => {
+    mockGenerateImageViaCallable.mockResolvedValue({
+      imageBase64: 'AAAA',
+      mimeType: 'image/png',
+    })
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    const deps = imageDeps()
+
+    const executors = createEdgeToolExecutors('char-1', null, deps)
+    const result = await executors.generate_image({ prompt: 'a red bicycle' })
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledWith('a red bicycle')
+    const saved = mockSaveCharacterImage.mock.calls[0][0]
+    expect(saved).toMatchObject({
+      characterId: 'char-1',
+      userId: 'u1',
+      source: 'chat',
+      messageId: 'ai_1',
+      uri: 'data:image/png;base64,AAAA',
+    })
+    expect(deps.onImageSaved).toHaveBeenCalledWith(saved.imageId)
+    // The model gets a status, never the bytes — they would be tokenized into context.
+    expect(String(result)).not.toContain('AAAA')
+  })
+
+  it('caps generation at one image per turn instead of spending twice', async () => {
+    mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    await executors.generate_image({ prompt: 'one' })
+    const second = await executors.generate_image({ prompt: 'two' })
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
+    expect(String(second)).toMatch(/one image/i)
+  })
+
+  it('returns a sentence the model can apologize with when generation fails', async () => {
+    mockGenerateImageViaCallable.mockRejectedValue(new Error('vertex boom'))
+    const deps = imageDeps()
+    const executors = createEdgeToolExecutors('char-1', null, deps)
+
+    const result = await executors.generate_image({ prompt: 'a cat' })
+
+    expect(mockSaveCharacterImage).not.toHaveBeenCalled()
+    expect(deps.onImageSaved).not.toHaveBeenCalled()
+    expect(typeof result).toBe('string')
+  })
+
+  it('does not consume the one-image cap on a failed attempt', async () => {
+    mockGenerateImageViaCallable.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({
+      imageBase64: 'A',
+      mimeType: 'image/png',
+    })
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    await executors.generate_image({ prompt: 'first' })
+    await executors.generate_image({ prompt: 'retry' })
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('generate_image billing safety', () => {
+  const imageDeps = () => ({ userId: 'u1', messageId: 'ai_1', onImageSaved: jest.fn() })
+
+  it('bills once when the model fires two calls concurrently in one response', async () => {
+    let resolveGen: (v: unknown) => void = () => {}
+    mockGenerateImageViaCallable.mockImplementation(
+      () => new Promise((res) => (resolveGen = res as (v: unknown) => void)),
+    )
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    // Promise.all in useEdgeAgent dispatches both before either awaits.
+    const both = Promise.all([
+      executors.generate_image({ prompt: 'one' }),
+      executors.generate_image({ prompt: 'two' }),
+    ])
+    resolveGen({ imageBase64: 'A', mimeType: 'image/png' })
+    await both
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases the in-flight reservation when a concurrent generation rejects, so later calls are not blocked', async () => {
+    let rejectGen: (e: Error) => void = () => {}
+    mockGenerateImageViaCallable.mockImplementation(
+      () => new Promise((_, rej) => (rejectGen = rej)),
+    )
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    const first = executors.generate_image({ prompt: 'doomed' })
+    // A second call overlapping the in-flight reservation gets the cap message
+    // without reaching the callable, so rejectGen still targets the first call.
+    const concurrent = executors.generate_image({ prompt: 'concurrent' })
+    await expect(concurrent).resolves.toContain('one image per reply')
+    rejectGen(new Error('vertex boom'))
+    await first
+
+    // The failed call never billed, so the reservation must be gone: a fresh
+    // call reaches the callable instead of getting the cap message forever.
+    mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
+    mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' })
+    await executors.generate_image({ prompt: 'retry' })
+
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(2)
+  })
+
+  it('consumes the cap when the image was billed but persistence failed', async () => {
+    mockGenerateImageViaCallable.mockResolvedValue({ imageBase64: 'A', mimeType: 'image/png' })
+    mockSaveCharacterImage.mockRejectedValue(new Error('disk full'))
+    const executors = createEdgeToolExecutors('char-1', null, imageDeps())
+
+    await executors.generate_image({ prompt: 'first' })
+    await executors.generate_image({ prompt: 'retry' })
+
+    // The credits are already spent and cannot be refunded from the client, so a
+    // retry must not bill a second time.
+    expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
   })
 })

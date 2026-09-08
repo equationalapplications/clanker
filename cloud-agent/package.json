@@ -15,11 +15,11 @@
     "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^5.2.1",
-    "@equationalapplications/core-llm-wiki": "^5.2.1",
+    "@equationalapplications/core-llm-tools": "^7.1.0",
+    "@equationalapplications/core-llm-wiki": "^7.1.0",
     "@google-cloud/cloud-sql-connector": "^1.10.0",
-    "@google/adk": "^1.6.0",
-    "@google/genai": "^2.16.0",
+    "@google/adk": "^2.0.0",
+    "@google/genai": "^2.21.0",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
@@ -47,6 +47,9 @@
     "@tootallnate/once": "^2.0.1",
     "sqlite3": {
       "tar": "7.5.22"
-    }
+    },
+    "mysql2": "^3.24.3",
+    "mariadb": "^3.5.4",
+    "fast-uri": "^3.1.7"
   }
 }

@@ -301,21 +301,28 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       }
 
       // Try edge agent first
+      // Minted BEFORE the turn, not after: a local generate_image executor runs
+      // during sendMessage and stamps this id onto the character_images row, so
+      // the row and the message that renders it agree without a second write.
+      const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       const {
         escalated,
         text: edgeText,
         usageSnapshot: edgeUsageSnapshot,
-      } = await edgeAgent.sendMessage(message.text, memoryBlock)
+        imageId: edgeImageId,
+      } = await edgeAgent.sendMessage(message.text, memoryBlock, aiMsgId)
 
       if (!escalated && edgeText !== undefined) {
         // Edge resolved — save AI reply locally (user message already persisted above).
-        const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         const savedAMessage = await saveAIMessage(character.id, userId, edgeText, aiMsgId, {
           user: {
             _id: character.id,
             name: character.name,
             avatar: character.appearance || undefined,
           },
+          // Same single write as the reply text, so the bubble and its image
+          // appear together rather than the image popping in on a later refetch.
+          ...(edgeImageId ? { imageId: edgeImageId } : {}),
         })
 
         void triggerConversationSummary(character, userId)
