@@ -54,7 +54,7 @@
     "@react-native-firebase/crashlytics": "^26.3.2",
     "@react-native-firebase/functions": "^26.3.2",
     "@react-native-firebase/storage": "^26.3.2",
-    "@react-native-google-signin/google-signin": "^16.1.4",
+    "@react-native-google-signin/google-signin": "^16.1.5",
     "@speechmatics/expo-two-way-audio": "0.1.2",
     "@tanstack/react-query": "^5.102.4",
     "@tanstack/react-query-persist-client": "^5.102.4",
