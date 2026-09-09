@@ -130,15 +130,18 @@ const QUERIES = [
     // clamp=<reason> suffix the handler appends to outcome. It parses exactly
     // that one deliberately-written field — not a reintroduction of the
     // outcome-LIKE parsing 0028 removed, which guessed delivery semantics
-    // from prose. 'guardrail' is the signal the rollout gate tunes
+    // from prose. The pattern is space-delimited and enumerates the only two
+    // reasons the handler can write (a loose 'clamp=' match would bucket
+    // hypothetical text like 'unclamp=able' as a reason instead of leaving it
+    // unlabelled). 'guardrail' is the signal the rollout gate tunes
     // PROACTIVE_NOTIFY_COOLDOWN_MS / MAX_PROACTIVE_PUSHES_PER_DAY against:
     // the guardrails blocked a notify the push gate would have allowed.
     // 'gate' means the guardrails WOULD have permitted the push. 'unlabelled'
-    // covers rows written before the suffix existed or during a
-    // rollback/lag window — those are permanently ambiguous, which is why
-    // this landed before the gate opens.
+    // covers rows written before the suffix existed, a future third reason
+    // this query predates, or a rollback/lag window — those are ambiguous,
+    // which is why this landed before the gate opens.
     `SELECT coalesce(
-              substring(outcome from 'clamp=([a-z]+)'),
+              substring(outcome from ' clamp=(gate|guardrail)'),
               'unlabelled'
             ) AS clamp_reason,
             count(*)
