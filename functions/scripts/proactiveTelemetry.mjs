@@ -38,20 +38,30 @@ const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
   ['by status', 'SELECT status, count(*) FROM scheduled_wakeups GROUP BY status ORDER BY 2 DESC'],
   [
-    'raw outcome distribution (rows with no delivery mode: skips and failures)',
+    'raw outcome distribution (resolved rows with no delivery mode: skips and failures)',
+    // `outcome IS NOT NULL` is load-bearing, not tidiness. outcome is written
+    // only when a row is resolved, so `delivery_mode IS NULL` on its own also
+    // matches the entire un-resolved backlog (pending/claimed/running). In
+    // production that backlog is larger than the resolved skips, so the report
+    // led with a single `outcome=NULL | count=<backlog>` row and buried the
+    // actual skip reasons this query exists to show.
     `SELECT outcome, count(*)
        FROM scheduled_wakeups
-      WHERE delivery_mode IS NULL
+      WHERE delivery_mode IS NULL AND outcome IS NOT NULL
       GROUP BY outcome
       ORDER BY 2 DESC`,
   ],
   [
     'chosen vs effective (THE Phase 1 deliverable) — chosen is what the character WANTED',
-    // chosen_delivery_mode IS NOT NULL (not delivery_mode IS NOT NULL) so rows
-    // where a mode was chosen but the effective mode is NULL are still counted:
-    // a clamp is exactly that shape — chosen=notify, delivery_mode=NULL — and
-    // removing it here would make this report disagree with the clamp-rate one
-    // a few lines down, which already filters on chosen_delivery_mode.
+    // Filtered on chosen_delivery_mode, not delivery_mode, so a row that
+    // recorded a choice but no effective mode still appears — as its own
+    // `effective=NULL` row in the GROUP BY, where it is visible rather than
+    // silently dropped. No writer produces that shape today (the success path
+    // in proactiveWakeupHandler writes both columns in one resolveWakeup, and
+    // the 0028 backfill derives both from the same `mode=X chosen=Y` string),
+    // so a non-empty effective=NULL row means something new is writing a
+    // partial pair and the clamp rate below needs re-reading before it is
+    // trusted.
     `SELECT chosen_delivery_mode AS chosen,
             delivery_mode AS effective,
             count(*)
@@ -62,20 +72,34 @@ const QUERIES = [
   ],
   [
     'CLAMP RATE — how often notify was downgraded by the guardrails',
-    // IS DISTINCT FROM rather than <>, so a row whose chosen mode is 'notify'
-    // but whose effective mode is NULL still counts as clamped instead of
-    // vanishing into SQL three-valued logic.
+    // clamped counts only rows with a KNOWN effective mode that differs from
+    // the chosen one — `delivery_mode IS NOT NULL AND <> 'notify'`, not
+    // `IS DISTINCT FROM 'notify'`. clamped_pct is the number the Phase 2
+    // rollout gate reads to tune PROACTIVE_NOTIFY_COOLDOWN_MS and
+    // MAX_PROACTIVE_PUSHES_PER_DAY, so it must mean "the guardrails downgraded
+    // this notify" and nothing else. Folding NULL-effective rows in would let
+    // any future writer that records a choice on a failed turn inflate the
+    // guardrail clamp rate with failures. Those rows are not discarded — they
+    // are counted separately below, where an above-zero value is a signal that
+    // a writer is producing partial pairs, not a clamp.
     `SELECT count(*) FILTER (WHERE chosen_delivery_mode = 'notify') AS wanted_notify,
             count(*) FILTER (WHERE delivery_mode = 'notify') AS actually_notified,
             count(*) FILTER (
-              WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS DISTINCT FROM 'notify'
+              WHERE chosen_delivery_mode = 'notify'
+                AND delivery_mode IS NOT NULL
+                AND delivery_mode <> 'notify'
             ) AS clamped,
             round(
               100.0 * count(*) FILTER (
-                WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS DISTINCT FROM 'notify'
+                WHERE chosen_delivery_mode = 'notify'
+                  AND delivery_mode IS NOT NULL
+                  AND delivery_mode <> 'notify'
               ) / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
               1
-            ) AS clamped_pct
+            ) AS clamped_pct,
+            count(*) FILTER (
+              WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS NULL
+            ) AS chosen_notify_unresolved
        FROM scheduled_wakeups
       WHERE chosen_delivery_mode IS NOT NULL`,
   ],
