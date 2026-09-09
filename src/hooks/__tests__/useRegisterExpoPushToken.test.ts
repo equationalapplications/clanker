@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react-native'
 import { Platform } from 'react-native'
+import * as Notifications from 'expo-notifications'
 import { useRegisterExpoPushToken } from '../useRegisterExpoPushToken'
 
 jest.mock('expo-notifications', () => ({
@@ -29,8 +30,6 @@ jest.mock('~/config/firebaseConfig', () => ({
 jest.mock('~/auth/devSandboxFlag', () => ({
   isDevSandboxEnabled: () => false,
 }))
-
-import * as Notifications from 'expo-notifications'
 
 const mockGetPermissions = Notifications.getPermissionsAsync as jest.Mock
 const mockRequestPermissions = Notifications.requestPermissionsAsync as jest.Mock

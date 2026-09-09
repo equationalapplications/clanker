@@ -32,7 +32,7 @@ jest.mock('~/hooks/useMessages', () => ({
   },
 }))
 
-const appStateListeners: Array<(state: string) => void> = []
+const appStateListeners: ((state: string) => void)[] = []
 jest.mock('react-native', () => ({
   AppState: {
     addEventListener: (_event: string, cb: (state: string) => void) => {

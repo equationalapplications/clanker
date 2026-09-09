@@ -10,7 +10,6 @@ import {
 import type { LocalTask } from '~/database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 import { generateImageViaCallable } from './imageGenerationService'
-import { scheduleWakeupViaCallable } from './proactiveWakeupService'
 import type { ScheduleWakeupRequest, ScheduleWakeupResponse } from './proactiveWakeupService'
 import { saveCharacterImage } from './characterImageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
