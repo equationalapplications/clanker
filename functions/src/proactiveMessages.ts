@@ -93,7 +93,14 @@ async function selectProactiveMessages({
     .from(messages)
     .innerJoin(characters, eq(messages.characterId, characters.id))
     .where(and(...conditions))
-    .orderBy(messages.createdAt, messages.messageId)
+    // ORDER BY must match the cursor predicate's total order exactly. Postgres
+    // stores created_at at microsecond precision; the cursor predicate truncates
+    // it to milliseconds (see comment on the date_trunc block above). Ordering
+    // by the raw column could disagree with the predicate — a row at
+    // .123999 with a smaller message_id could land after a .123456 row, then
+    // get skipped on the next page. Truncate here too so page boundary == cursor
+    // tuple boundary.
+    .orderBy(sql`date_trunc('milliseconds', ${messages.createdAt})`, messages.messageId)
     .limit(limit)
   // isNotNull in the WHERE clause is enforced by the SQL engine but Drizzle
   // still infers the column as nullable. defaultNow() backfills every

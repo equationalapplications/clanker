@@ -453,7 +453,7 @@ test('UNREAD_STALENESS_ESCAPE_MS is pinned to 7 days', () => {
 })
 
 test('an unread proactive message blocks notify', () => {
-  const decision = evaluateWakeup({
+  const decision = decideWakeup({
     balance: 1000,
     todaysProactiveSpend: 0,
     todaysPushCount: 0,
@@ -465,7 +465,7 @@ test('an unread proactive message blocks notify', () => {
 })
 
 test('notify is allowed again once nothing is unread', () => {
-  const decision = evaluateWakeup({
+  const decision = decideWakeup({
     balance: 1000,
     todaysProactiveSpend: 0,
     todaysPushCount: 0,

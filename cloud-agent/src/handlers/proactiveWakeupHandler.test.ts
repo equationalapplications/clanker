@@ -194,6 +194,39 @@ test('refunds and records zero spend when the turn throws', async () => {
   assert.equal(resolved.spentAmount, 0)
 })
 
+test('character_missing refund failure does not double-refund', async () => {
+  // refundCredit is not idempotent — each call increases remaining_balance or
+  // inserts another refund_compensation row. If the initial refund in the
+  // character_missing branch threw and propagated to the outer catch, the
+  // outer catch would call refundCredit again — a real money bug, masked by
+  // the response still being 422. The fix catches the refund failure locally
+  // so the outer catch can never retry it.
+  const { app, calls } = buildApp({
+    loadCharacter: (async () => null) as never,
+    creditService: {
+      spendCredit: async () => [{ transactionId: 'tx1', amount: 100 }],
+      refundCredit: async () => {
+        calls.refund++
+        throw new Error('refund blew up')
+      },
+      getBalance: async () => 1000,
+    } as never,
+  })
+  const res = await request(app).post('/agent/proactive-wakeup').send(body)
+  // 422 because the row was claimed, the character turned out to be missing,
+  // the spend was attempted to be refunded (and failed), and we returned the
+  // user-visible error.
+  assert.equal(res.status, 422)
+  // Crucial invariant: refundCredit must have been called exactly once, even
+  // though it threw. The outer catch would call it again if the inner catch
+  // had not absorbed the throw.
+  assert.equal(calls.refund, 1)
+  const resolved = calls.resolved[0] as { status: string; spentAmount: number; outcome: string }
+  assert.equal(resolved.status, 'skipped')
+  assert.equal(resolved.spentAmount, 0)
+  assert.equal(resolved.outcome, 'character_missing')
+})
+
 test('downgrades notify to quiet when the sweeper forbade notifying', () => {
   assert.equal(resolveDeliveryMode('notify', false), 'quiet')
   assert.equal(resolveDeliveryMode('quiet', true), 'quiet')

@@ -10,6 +10,7 @@ import {
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
   UNREAD_STALENESS_ESCAPE_MS,
+  WAKEUP_POST_TIMEOUT_MS,
   WAKEUP_RETENTION_DAYS,
 } from './services/proactiveWakeupGuardrails.js'
 
@@ -261,6 +262,10 @@ export function buildSweepDeps(): SweepDeps {
           Authorization: `Bearer ${secret}`,
         },
         body: JSON.stringify(payload),
+        // Per-row timeout. Without it a hung connection would consume the
+        // whole sweep budget (60s schedule timeout) and abandon every other
+        // claimed row in the batch.
+        signal: AbortSignal.timeout(WAKEUP_POST_TIMEOUT_MS),
       })
       if (!res.ok) {
         throw new Error(`proactive-wakeup POST failed: ${res.status}`)

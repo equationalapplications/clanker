@@ -210,7 +210,18 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
     try {
       const character = await deps.loadCharacter(characterId, userId)
       if (!character) {
-        await deps.creditService.refundCredit(userId, allocations)
+        // Catch the refund locally: if it throws, the outer catch (line ~291)
+        // would call refundCredit a second time. refundCredit is not idempotent
+        // — each call increases remaining_balance or inserts another
+        // refund_compensation row — so a double refund is a real money bug.
+        try {
+          await deps.creditService.refundCredit(userId, allocations)
+        } catch (refundErr) {
+          console.warn(
+            '[proactive-wakeup] refundCredit failed (character_missing):',
+            refundErr,
+          )
+        }
         await deps
           .resolveWakeup(wakeupId, {
             status: 'skipped',

@@ -23,6 +23,16 @@ export const WAKEUP_RETENTION_DAYS = 30
 export const SWEEP_BATCH_LIMIT = 50
 
 /**
+ * Per-row POST budget when claiming a wake-up. The schedule has 60s total and
+ * rows are processed sequentially inside the loop; one hung cloud-agent
+ * connection would otherwise consume the whole sweep budget and abandon every
+ * other claimed row until reapStaleClaims marked them skipped (and skipped
+ * rows are terminal — selectDue only reads 'pending'). 10s is well below the
+ * 60s schedule timeout but generous enough for normal turn latency.
+ */
+export const WAKEUP_POST_TIMEOUT_MS = 10_000
+
+/**
  * A row claimed longer ago than this is presumed abandoned — its POST died
  * before cloud-agent could resolve it. Generously above the sweep's 60s
  * timeoutSeconds (pinned in proactiveWakeupSweep.ts) so a slow-but-live turn is

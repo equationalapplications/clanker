@@ -345,10 +345,12 @@ export function createApp(options: AppOptions) {
   // meant a burst on /agent/browser/scheduler-trigger could exhaust the window
   // and 429 the five-minute proactive sweeper, whose POST failure path leaves
   // the row claimed and unretried — a user-visible wake-up lost to unrelated
-  // traffic.
+  // traffic. Limit must be ≥ SWEEP_BATCH_LIMIT (50) so a full sweep batch is
+  // never throttled mid-pass; overshoot is harmless — the bucket is only
+  // reachable from the functions scheduler with a shared secret.
   const proactiveWakeupLimiter = rateLimit({
     windowMs: 60 * 1000,
-    limit: 10,
+    limit: 50,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     handler: rateLimitHandler,

@@ -70,6 +70,12 @@ export const MIGRATION_SKIP_GUARDS: Record<number, MigrationSkipGuard[]> = {
   22: [{ table: 'character_images', column: 'id' }],
   23: [{ table: 'characters', column: 'active_image_id' }],
   24: [{ table: 'character_images', column: 'message_id' }],
+  // applyMigrations updates schema_version only after every migration runs. If
+  // 25 succeeds but the version update is lost (crash, kill -9, SQLite write
+  // race), the next launch retries the ALTER TABLE and SQLite rejects the
+  // duplicate column, failing initialization. Guard so a partially-applied 25
+  // is detected and skipped instead of erroring.
+  25: [{ table: 'messages', column: 'read_at' }],
 }
 
 /**
