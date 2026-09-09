@@ -1,3 +1,19 @@
+## [33.1.1](https://github.com/equationalapplications/clanker/compare/v33.1.0...v33.1.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **db:** bound every Cloud SQL statement with a pool-wide statement_timeout ([6cc3bda](https://github.com/equationalapplications/clanker/commit/6cc3bda7311447571a354ac80dfb326fbf40a822))
+* **scheduler:** decode lastUserMessageAt via drizzle max() and fail loud on Invalid Date ([fcd1cab](https://github.com/equationalapplications/clanker/commit/fcd1cab4976f00d86938993067b0fe9b99a54a3a))
+* **scheduler:** read telemetry from the 0028 columns, not the outcome string ([f3b6157](https://github.com/equationalapplications/clanker/commit/f3b61579620b3cbac338659dacde3870722f7f80))
+* **scheduler:** report the batch position the sweep actually reached ([5cbf7a4](https://github.com/equationalapplications/clanker/commit/5cbf7a49ac0cb814604862c2c196f717f300b571))
+* **scheduler:** reserve DB time so claim+loadContext do not strand a row at POST ([b99f368](https://github.com/equationalapplications/clanker/commit/b99f36854a77b0aedad6c6d3f1116c179d2c3b8c))
+* **scheduler:** stop the sweep claiming rows it cannot finish ([cd60f0b](https://github.com/equationalapplications/clanker/commit/cd60f0b046c30876ee0a0388a4bd0c8554836291))
+* **telemetry:** exclude unresolved notify wishes from the clamp-rate denominator ([fbbb31f](https://github.com/equationalapplications/clanker/commit/fbbb31f12b6f768e844968fa27e75ded6b447ece))
+* **telemetry:** hoist the clamp predicate; document gate contamination and rollback gap ([8b311bc](https://github.com/equationalapplications/clanker/commit/8b311bc84bfb969eee1fb29511f27ddecb781643))
+* **telemetry:** include clamp rows in the chosen-vs-effective report ([02bd968](https://github.com/equationalapplications/clanker/commit/02bd968a00f8529914d8a99859d6288657d75ccf))
+* **telemetry:** stop the backlog swamping the raw-outcome report ([ffe4bd4](https://github.com/equationalapplications/clanker/commit/ffe4bd47f91d926b4139c7d90c335ad4e5574e94))
+
 # [33.1.0](https://github.com/equationalapplications/clanker/compare/v33.0.1...v33.1.0) (2026-09-09)
 
 
