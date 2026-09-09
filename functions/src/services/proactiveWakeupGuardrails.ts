@@ -33,6 +33,25 @@ export const SWEEP_BATCH_LIMIT = 50
 export const WAKEUP_POST_TIMEOUT_MS = 10_000
 
 /**
+ * Wall-clock budget for the sweep's row loop, leaving the rest of the 60s
+ * timeoutSeconds for the reap/delete tail that runs after it.
+ *
+ * SWEEP_BATCH_LIMIT rows at WAKEUP_POST_TIMEOUT_MS each is a 500s worst case
+ * against a 60s function timeout, so without a budget the platform can kill the
+ * loop mid-row. A row killed after its claim stays 'claimed' with a NULL
+ * resolved_at: selectDue reads only 'pending', so it is never retried, and it
+ * sits invisible until reapStaleClaims marks it terminally skipped. The
+ * wake-up is lost and any spend the turn already committed is still charged.
+ *
+ * The loop therefore stops claiming once it cannot fit another worst-case row,
+ * leaving the remainder 'pending' for the next tick — untouched, not skipped.
+ * This is the "give the loop a time budget" the onSchedule comment prescribes
+ * as the correct response to needing more time, instead of raising
+ * timeoutSeconds (which would authorise overlapping sweeps and un-cap spend).
+ */
+export const SWEEP_TIME_BUDGET_MS = 45_000
+
+/**
  * A row claimed longer ago than this is presumed abandoned — its POST died
  * before cloud-agent could resolve it. Generously above the sweep's 60s
  * timeoutSeconds (pinned in proactiveWakeupSweep.ts) so a slow-but-live turn is

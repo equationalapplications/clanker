@@ -9,6 +9,7 @@ import {
   utcDayStart,
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
+  SWEEP_TIME_BUDGET_MS,
   UNREAD_STALENESS_ESCAPE_MS,
   WAKEUP_POST_TIMEOUT_MS,
   WAKEUP_RETENTION_DAYS,
@@ -68,6 +69,22 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
   let skipped = 0
 
   for (const row of due) {
+    // Stop before claiming anything this sweep cannot finish. Checked at the
+    // top of the iteration, ahead of the claim, because it is the claim that
+    // does the damage: a row killed after claiming is stranded until the
+    // reaper, while a row never claimed is simply still pending on the next
+    // tick. Reserving a whole WAKEUP_POST_TIMEOUT_MS means the reservation
+    // holds even for the worst-case row that hangs until its POST aborts.
+    const elapsedMs = deps.now().getTime() - now.getTime()
+    if (elapsedMs + WAKEUP_POST_TIMEOUT_MS > SWEEP_TIME_BUDGET_MS) {
+      logger.info('Proactive sweep stopped early on time budget', {
+        elapsedMs,
+        claimed: posted + skipped,
+        remaining: due.length - (posted + skipped),
+      })
+      break
+    }
+
     try {
       // Claim BEFORE deciding, not after. An overlapping sweep that started
       // a few seconds earlier can read this row in pending, resolve it as
