@@ -1,6 +1,7 @@
 # Proactive Lifecycle-Sync + Push Un-gate Design
 
-**Status:** Draft
+**Status:** Implemented
+**Branch:** `feat/proactive-lifecycle-sync`
 **Date:** 2026-09-09
 **Phase 2 spec:** `docs/superpowers/specs/2026-09-08-proactive-character-scheduler-phase2-design.md`
 **Predecessors:** PR #707 (review-fix wave), PR #708 (clamp-reason telemetry)
@@ -447,3 +448,36 @@ None. The four carried from Phase 2 are resolved by shipped code (Locked
 decisions); the rollout mechanism is resolved by Decision 1; the producer
 placement by Decision 0. The stage-2 telemetry reading (Rollout gate) is an
 open *measurement*, not an open design question.
+
+---
+
+## Implementation notes (added 2026-09-09, on merge)
+
+Three points worth recording against the shipped code, so the next reader
+doesn't re-litigate the resolved questions:
+
+1. **Flip-test discrepancy (Testing § "cloud-agent gating") resolves to
+   Decision 6, not Decision 1's literal text.** The Testing bullet reads
+   "the flip test now expects `notify`"; Decision 6 + Non-goals pin
+   `PROACTIVE_PUSH_ENABLED` to `false` in this branch and the flip tests stay
+   as they were on staging. Decision 6 is the amended, later intent (per
+   commit `9078342b`) and wins. The flip tests are intentionally unchanged
+   here; the `notify`-expectation text is informational and will be re-evaluated
+   when Rollout-gate stage 3 flips the const.
+
+2. **`set_reminder` schema is locked at `{reason, remind_at, priority?}`**
+   (Locked decisions). The previously-shipped edge schema was the stale
+   `{message, remind_at}` shape. Task 5 brought
+   `shared/agent-tools-spec.ts` into line with the locked decision; the
+   `{message, remind_at}` shape was an artifact, not the canonical contract.
+
+3. **Rollout-gate stages 2 and 3 remain open by design.** Stage 1 (the
+   2026-09-09 all-zeros telemetry run that motivated Decision 0 — three
+   `/agent/run` requests in ~27 hours) is the only completed stage. Stage 2
+   (re-run `functions/scripts/proactiveTelemetry.mjs` after a few days of real
+   edge-producer traffic; first true CLAMP RATE + CLAMP REASONS reading) and
+   stage 3 (the one-line `PROACTIVE_PUSH_ENABLED = true` flip, gated on
+   stage 2's numbers, updating the two flip tests and removing the `'gate'`
+   clamp branch) are post-merge work, scoped out of this branch. Decision 1's
+   capability flag bounds the blast radius of stage 3 to clients that have
+   registered `capabilities.proactivePush: true`.
