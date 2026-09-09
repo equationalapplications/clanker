@@ -97,11 +97,34 @@ const PROACTIVE_PUSH_ENABLED = false
  * from counting a push that never went out and suppressing later real ones. The
  * agent's intent is not lost — `chosen_delivery_mode` still records notify, so
  * the "how often would a character have interrupted" telemetry is unaffected.
+ *
+ * The clamp REASON is recorded because the two clamps mean opposite things to
+ * the Phase 2 rollout gate: a guardrail clamp (cooldown/cap/unread said no) is
+ * the signal PROACTIVE_NOTIFY_COOLDOWN_MS and MAX_PROACTIVE_PUSHES_PER_DAY are
+ * tuned against, while a gate clamp means the guardrails WOULD have permitted
+ * the push and only the closed PROACTIVE_PUSH_ENABLED gate stopped it. Without
+ * the reason the columns cannot tell them apart, and during the shadow phase
+ * every chosen=notify is clamped — leaving clamped_pct permanently ambiguous.
+ * The guardrail is checked FIRST so the tunable signal survives the shadow
+ * phase: while the gate is closed, a notify the guardrails would have blocked
+ * is labelled 'guardrail', and only guardrail-permitted notifies are labelled
+ * 'gate'. The reason rides in the outcome string (`clamp=guardrail`/
+ * `clamp=gate`); the 0028 backfill only parses rows with NULL columns, which
+ * post-0028 writers never produce, so the suffix cannot confuse it.
  */
-export function resolveDeliveryMode(chosen: DeliveryMode, notifyAllowed: boolean): DeliveryMode {
-  if (chosen === 'notify' && !PROACTIVE_PUSH_ENABLED) return 'quiet'
-  if (chosen === 'notify' && !notifyAllowed) return 'quiet'
-  return chosen
+export interface DeliveryModeResolution {
+  mode: DeliveryMode
+  clampReason: 'guardrail' | 'gate' | null
+}
+
+export function resolveDeliveryMode(
+  chosen: DeliveryMode,
+  notifyAllowed: boolean,
+): DeliveryModeResolution {
+  if (chosen !== 'notify') return { mode: chosen, clampReason: null }
+  if (!notifyAllowed) return { mode: 'quiet', clampReason: 'guardrail' }
+  if (!PROACTIVE_PUSH_ENABLED) return { mode: 'quiet', clampReason: 'gate' }
+  return { mode: 'notify', clampReason: null }
 }
 
 export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
@@ -252,7 +275,7 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         character,
         reason,
       })
-      const mode = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
+      const { mode, clampReason } = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
 
       // 'silent' means the character decided there was nothing worth saying.
       // Persisting an empty row would badge the user for nothing.
@@ -290,7 +313,12 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         spentAmount,
         // outcome is kept as-is: it is the human-readable audit trail and the
         // source the 0028 backfill parses. The columns are what code reads.
-        outcome: `mode=${mode} chosen=${result.deliveryMode}`,
+        // The clamp reason suffix is the one deliberate exception: it is the
+        // only place the gate/guardrail split exists, and the telemetry
+        // script's clamp-reason query parses exactly this field.
+        outcome: `mode=${mode} chosen=${result.deliveryMode}${
+          clampReason ? ` clamp=${clampReason}` : ''
+        }`,
         deliveryMode: mode,
         chosenDeliveryMode: result.deliveryMode,
       })
