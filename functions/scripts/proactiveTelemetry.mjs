@@ -34,13 +34,15 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
-// The definition of "a clamped notify": the model chose notify, and a KNOWN
-// effective mode downgraded it. Hoisted so the `clamped` count and
-// `clamped_pct`'s numerator cannot drift apart — clamped_pct is the number the
-// Phase 2 rollout gate tunes caps against, and two hand-maintained copies of a
-// predicate in one query are how the percentage silently stops matching the
-// count printed beside it.
-const CLAMPED_NOTIFY = `chosen_delivery_mode = 'notify' AND delivery_mode IS NOT NULL AND delivery_mode <> 'notify'`
+// The clamp-rate building blocks, composed so the predicates cannot drift:
+// a "resolved notify wish" is a chosen notify with a KNOWN effective mode,
+// and a "clamped notify" is exactly that plus a downgrade. clamped_pct is the
+// number the Phase 2 rollout gate tunes caps against, so its numerator and
+// denominator must stay in this relationship — hand-maintained copies of the
+// predicate are how the percentage silently stops matching the count printed
+// beside it.
+const RESOLVED_NOTIFY = `chosen_delivery_mode = 'notify' AND delivery_mode IS NOT NULL`
+const CLAMPED_NOTIFY = `${RESOLVED_NOTIFY} AND delivery_mode <> 'notify'`
 
 const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
@@ -99,22 +101,22 @@ const QUERIES = [
     // distinguishing gate-clamps from guardrail-clamps in the data needs
     // writer support and is a recorded follow-up.
     //
-    // clamped counts only rows with a KNOWN effective mode that differs from
-    // the chosen one — `delivery_mode IS NOT NULL AND <> 'notify'`, not
-    // `IS DISTINCT FROM 'notify'`. clamped_pct is the number the Phase 2
-    // rollout gate reads to tune PROACTIVE_NOTIFY_COOLDOWN_MS and
-    // MAX_PROACTIVE_PUSHES_PER_DAY, so it must mean "a clamp downgraded this
-    // notify" and nothing else. Folding NULL-effective rows in would let any
-    // future writer that records a choice on a failed turn inflate the clamp
-    // rate with failures. Those rows are not discarded — they are counted
-    // separately below, where an above-zero value is a signal that a writer
-    // is producing partial pairs, not a clamp.
+    // clamped_pct = clamped / resolved notify wishes: rows whose chosen mode
+    // was notify but whose turn never resolved to an effective mode (failures,
+    // partial pairs) are excluded from BOTH the numerator and the denominator.
+    // Including them in the denominator would dilute the percentage with rows
+    // that say nothing about clamping, understating the clamp rate — the
+    // direction that wrongly loosens PROACTIVE_NOTIFY_COOLDOWN_MS /
+    // MAX_PROACTIVE_PUSHES_PER_DAY. Those rows are not discarded: they are
+    // counted as chosen_notify_unresolved below, and a high value there means
+    // clamped_pct is computed on a shrinking sample and must be read with that
+    // column beside it.
     `SELECT count(*) FILTER (WHERE chosen_delivery_mode = 'notify') AS wanted_notify,
             count(*) FILTER (WHERE delivery_mode = 'notify') AS actually_notified,
             count(*) FILTER (WHERE ${CLAMPED_NOTIFY}) AS clamped,
             round(
               100.0 * count(*) FILTER (WHERE ${CLAMPED_NOTIFY})
-                / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
+                / nullif(count(*) FILTER (WHERE ${RESOLVED_NOTIFY}), 0),
               1
             ) AS clamped_pct,
             count(*) FILTER (
