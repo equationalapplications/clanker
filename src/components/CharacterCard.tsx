@@ -4,6 +4,7 @@ import { Card, Text, Icon, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
+import { useProactiveUnread } from '~/hooks/useProactiveUnread'
 
 interface CharacterCardProps {
   id: string
@@ -25,13 +26,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const theme = useTheme()
   // Thumb, not master: this renders at 48px, and the list can hold many cards.
   const { uri: avatarUri } = useResolvedImage(activeImageId, 'thumb')
-  // No unread dot here yet. It was severed along with push in 86de54b5 — while
-  // PROACTIVE_PUSH_ENABLED is false a message can land with nothing to deeplink
-  // into, so badging it would point at an empty chat. When the fast-follow wires
-  // the lifecycle sync and un-gates push, the dot comes back as a boolean driven
-  // by `countUnreadProactive` (which already enforces the staleness escape, so it
-  // matches the server's push-decision contract) — deliberately a boolean and not
-  // a count, because AI chats are not an inbox.
+  // Boolean badge — `countUnreadProactive` already enforces the staleness
+  // escape, so the dot matches the server's push-decision contract. Deliberately
+  // a boolean, not a count: AI chats are not an inbox.
+  const { hasUnread: hasUnreadProactive } = useProactiveUnread(id)
 
   const handlePress = () => {
     if (onPress) {
@@ -63,6 +61,17 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
                 <CharacterAvatar size={48} imageUrl={avatarUri} characterName={name} />
+                {hasUnreadProactive ? (
+                  <View
+                    testID="proactive-unread-dot"
+                    style={[
+                      styles.unreadDot,
+                      { backgroundColor: theme.colors.error, borderColor: theme.colors.surface },
+                    ]}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no"
+                  />
+                ) : null}
               </View>
               <View style={styles.info}>
                 <Text variant="titleMedium" style={styles.name}>
@@ -116,6 +125,15 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginRight: 12,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
   },
   info: {
     flex: 1,
