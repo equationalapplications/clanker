@@ -137,6 +137,13 @@ async function markRead({
   return updated.length
 }
 
+/**
+ * ISO 8601 date-time with a mandatory timezone designator (Z or ±HH:MM).
+ * Deliberately stricter than Date.parse, which resolves an offset-less
+ * date-time against the server's local zone.
+ */
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+
 export const fetchProactiveMessagesHandler = async (
   request: CallableRequest,
   deps: ProactiveMessageDeps = defaultDeps,
@@ -167,8 +174,22 @@ export const fetchProactiveMessagesHandler = async (
       ? { createdAt: new Date(sinceCreatedAt), messageId: sinceMessageId }
       : null
 
-  if (cursor && Number.isNaN(cursor.createdAt.getTime())) {
-    throw new HttpsError('invalid-argument', 'sinceCreatedAt must be an ISO timestamp.')
+  // A NaN check alone is too weak: Date.parse accepts '2026-09-08T12:00:00'
+  // (no offset) and resolves it against the runtime's local zone, and accepts
+  // loose forms like '2026' or 'Sep 8 2026' outright. Any of those round-trips
+  // through toISOString() into PG as a different absolute instant than the
+  // caller meant, so the cursor silently walks past rows. This callable is
+  // public, so the value need not come from our own client — which always
+  // sends toISOString() output. Require an explicit Z or ±HH:MM designator so
+  // the instant is unambiguous.
+  if (
+    cursor &&
+    (!ISO_INSTANT.test(sinceCreatedAt as string) || Number.isNaN(cursor.createdAt.getTime()))
+  ) {
+    throw new HttpsError(
+      'invalid-argument',
+      'sinceCreatedAt must be an ISO timestamp with a timezone designator.',
+    )
   }
 
   const pageSize =

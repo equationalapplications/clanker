@@ -119,3 +119,61 @@ test('markProactiveRead rejects unauthenticated calls', async () => {
     (e: unknown) => e instanceof HttpsError && e.code === 'unauthenticated',
   )
 })
+
+test('rejects a cursor timestamp that carries no timezone', async () => {
+  // Date.parse accepts a date-time with no offset and resolves it against the
+  // runtime's local zone, so the NaN guard alone lets it through. The value
+  // then round-trips through toISOString() into PG as a different absolute
+  // instant than the caller meant, and the cursor silently walks past rows.
+  // The callable is public, so the malformed value need not come from our own
+  // client. Requiring an explicit Z or ±HH:MM makes the instant unambiguous.
+  const deps = buildDeps({
+    selectProactiveMessages: async () => {
+      assert.fail('must not query with an ambiguous cursor')
+    },
+  })
+  await assert.rejects(
+    () =>
+      fetchProactiveMessagesHandler(
+        authedRequest({ sinceCreatedAt: '2026-09-08T12:00:00', sinceMessageId: 'a' }),
+        deps as never,
+      ),
+    /ISO timestamp/,
+  )
+})
+
+test('rejects a cursor timestamp that is a loose date string', async () => {
+  const deps = buildDeps({
+    selectProactiveMessages: async () => {
+      assert.fail('must not query with an ambiguous cursor')
+    },
+  })
+  for (const bad of ['2026', 'Sep 8 2026', '2026-09-08']) {
+    await assert.rejects(
+      () =>
+        fetchProactiveMessagesHandler(
+          authedRequest({ sinceCreatedAt: bad, sinceMessageId: 'a' }),
+          deps as never,
+        ),
+      /ISO timestamp/,
+      `expected ${bad} to be rejected`,
+    )
+  }
+})
+
+test('accepts a cursor timestamp with an explicit offset', async () => {
+  // The client always sends toISOString() output (always Z), but a non-UTC
+  // offset is still unambiguous, so it must not be rejected.
+  let seen: { createdAt: Date; messageId: string } | null = null
+  const deps = buildDeps({
+    selectProactiveMessages: async ({ cursor }: { cursor: never }) => {
+      seen = cursor
+      return []
+    },
+  })
+  await fetchProactiveMessagesHandler(
+    authedRequest({ sinceCreatedAt: '2026-09-08T14:00:00+02:00', sinceMessageId: 'a' }),
+    deps as never,
+  )
+  assert.equal(seen!.createdAt.toISOString(), '2026-09-08T12:00:00.000Z')
+})

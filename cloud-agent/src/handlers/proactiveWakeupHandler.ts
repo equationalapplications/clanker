@@ -207,18 +207,30 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
 
     const spentAmount = allocations.reduce((sum, a) => sum + a.amount, 0)
 
+    // refundCredit is not idempotent — each call increases remaining_balance or
+    // inserts another refund_compensation row — so the spend must be refunded
+    // at most once no matter which path unwinds. Guarding with a flag rather
+    // than a local try/catch makes that structural: every statement after an
+    // early-branch refund (resolveWakeup, the response write) still sits inside
+    // the outer try, so a throw there lands in the outer catch, which refunds
+    // again. A client that disconnects before Express flushes the 422 is enough
+    // to trigger it. The flag is set before the await so an in-flight refund
+    // that throws is still counted as attempted and never retried.
+    let refunded = false
+    const refundOnce = async (context: string) => {
+      if (refunded) return
+      refunded = true
+      try {
+        await deps.creditService.refundCredit(userId, allocations)
+      } catch (refundErr) {
+        console.warn(`[proactive-wakeup] refundCredit failed (${context}):`, refundErr)
+      }
+    }
+
     try {
       const character = await deps.loadCharacter(characterId, userId)
       if (!character) {
-        // Catch the refund locally: if it throws, the outer catch (line ~291)
-        // would call refundCredit a second time. refundCredit is not idempotent
-        // — each call increases remaining_balance or inserts another
-        // refund_compensation row — so a double refund is a real money bug.
-        try {
-          await deps.creditService.refundCredit(userId, allocations)
-        } catch (refundErr) {
-          console.warn('[proactive-wakeup] refundCredit failed (character_missing):', refundErr)
-        }
+        await refundOnce('character_missing')
         await deps
           .resolveWakeup(wakeupId, {
             status: 'skipped',
@@ -286,11 +298,7 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
       res.json({ ok: true, mode, spentAmount })
     } catch (err) {
       console.error('[proactive-wakeup] turn failed:', err)
-      try {
-        await deps.creditService.refundCredit(userId, allocations)
-      } catch (refundErr) {
-        console.warn('[proactive-wakeup] refundCredit failed:', refundErr)
-      }
+      await refundOnce('turn_failed')
       // spentAmount 0: a refunded turn must not consume the day's allowance.
       await deps
         .resolveWakeup(wakeupId, { status: 'skipped', spentAmount: 0, outcome: 'turn_failed' })

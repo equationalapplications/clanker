@@ -366,3 +366,37 @@ test('skips the push when the character has no expoPushToken', async () => {
   assert.equal(res.status, 200)
   assert.equal(pushed, false, 'push must not fire when expoPushToken is undefined')
 })
+
+test('does not double-refund when a later statement in the character_missing branch throws', async () => {
+  // The inner try/catch only guards the refundCredit call itself. Everything
+  // after it — resolveWakeup, res.status(422).json() — still sits inside the
+  // OUTER try, so a throw there lands in the outer catch, which refunds again.
+  // refundCredit is not idempotent, so that is a real money bug. Driving the
+  // handler directly (rather than through supertest) is what lets the response
+  // write throw, which is the realistic trigger: a client that disconnects
+  // before Express can flush the 422.
+  const { deps, calls } = buildApp({ loadCharacter: (async () => null) as never })
+  const handler = createProactiveWakeupHandler(deps as never)
+
+  let jsonCalls = 0
+  const res = {
+    status() {
+      return this
+    },
+    json() {
+      jsonCalls++
+      // Throws on the 422 write, mimicking a destroyed socket. The outer
+      // catch's own 500 write then throws too, which is why the caller below
+      // has to absorb the rejection.
+      throw new Error('socket destroyed')
+    },
+  }
+  const req = { body: { ...body } }
+
+  await handler(req as never, res as never).catch(() => {})
+
+  // The spend was refunded exactly once, by the character_missing branch. The
+  // outer catch must not have issued a second refund.
+  assert.equal(calls.refund, 1)
+  assert.equal(jsonCalls, 2)
+})

@@ -206,10 +206,16 @@ export const scheduledWakeups = pgTable(
       table.status,
     ),
     resolvedAtIdx: index('scheduled_wakeups_resolved_at_idx').on(table.resolvedAt),
+    // Partial, matching migration 0027: 'claimed'/'running' rows have a NULL
+    // resolved_at, so the retention delete (which filters on resolved_at) can
+    // never reach them. The stale-claim reaper finds them by claimed_at.
+    claimedAtIdx: index('scheduled_wakeups_claimed_at_idx')
+      .on(table.claimedAt)
+      .where(sql`${table.resolvedAt} IS NULL`),
     runKeyUniqueIdx: uniqueIndex('scheduled_wakeups_run_key_unique_idx').on(table.runKey),
     statusCheck: check(
       'scheduled_wakeups_status_check',
-      sql`${table.status} IN ('pending', 'claimed', 'done', 'skipped', 'cancelled')`,
+      sql`${table.status} IN ('pending', 'claimed', 'running', 'done', 'skipped', 'cancelled')`,
     ),
   }),
 )
