@@ -1,18 +1,30 @@
 import { onSchedule, type ScheduledEvent } from 'firebase-functions/v2/scheduler'
 import * as logger from 'firebase-functions/logger'
-import { and, desc, eq, gte, isNull, lt, ne, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, max, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { getDb } from './db/cloudSql.js'
+import * as schema from './db/schema.js'
 import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js'
 import {
   decideWakeup,
   utcDayStart,
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
+  SWEEP_RESERVE_MS,
+  SWEEP_TIME_BUDGET_MS,
   UNREAD_STALENESS_ESCAPE_MS,
   WAKEUP_POST_TIMEOUT_MS,
   WAKEUP_RETENTION_DAYS,
 } from './services/proactiveWakeupGuardrails.js'
+
+/**
+ * What buildSweepDeps needs from a Drizzle client: the query builder, and
+ * nothing else. Deliberately not `Awaited<ReturnType<typeof getDb>>` — that
+ * also carries Cloud SQL's `$client: Pool`, which none of the queries below
+ * touch and which the integration suite's client does not expose.
+ */
+type DbLike = NodePgDatabase<typeof schema>
 
 export interface DueWakeup {
   id: string
@@ -67,7 +79,33 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
   let posted = 0
   let skipped = 0
 
-  for (const row of due) {
+  // Indexed rather than a bare for-of so the early-break log can report how
+  // much of the batch was actually reached. posted + skipped is NOT that
+  // number: a row that lost the claim race, or threw mid-turn, increments
+  // neither counter, so deriving `remaining` from them would count
+  // attempted-but-stranded rows as still-queued and inflate the backlog anyone
+  // sizes SWEEP_TIME_BUDGET_MS from.
+  for (const [index, row] of due.entries()) {
+    // Stop before claiming anything this sweep cannot finish. Checked at the
+    // top of the iteration, ahead of the claim, because it is the claim that
+    // does the damage: a row killed after claiming is stranded until the
+    // reaper, while a row never claimed is simply still pending on the next
+    // tick. Reservation covers WAKEUP_POST_TIMEOUT_MS (the worst case where a
+    // POST hangs until it aborts) plus SWEEP_RESERVE_MS for the DB roundtrips
+    // in claim and loadContext, so a slow loadContext cannot push the sweep
+    // into its last ten seconds of budget and then be killed during POST.
+    const elapsedMs = deps.now().getTime() - now.getTime()
+    if (elapsedMs + WAKEUP_POST_TIMEOUT_MS + SWEEP_RESERVE_MS > SWEEP_TIME_BUDGET_MS) {
+      logger.info('Proactive sweep stopped early on time budget', {
+        elapsedMs,
+        attempted: index,
+        posted,
+        skipped,
+        remaining: due.length - index,
+      })
+      break
+    }
+
     try {
       // Claim BEFORE deciding, not after. An overlapping sweep that started
       // a few seconds earlier can read this row in pending, resolve it as
@@ -137,13 +175,19 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
 
 /**
  * Real Drizzle-backed implementation. Wired here so the handler stays pure and
- * the tests stay independent of a live Postgres.
+ * the unit tests stay independent of a live Postgres.
+ *
+ * `dbFactory` is injectable purely so the integration suite can point these
+ * queries at the local `clanker_test` database: `getDb()` refuses to connect
+ * under NODE_ENV=test and otherwise reaches for the real Cloud SQL connector,
+ * so without this seam the SQL below could only ever be exercised against
+ * production. Production callers use the default.
  */
-export function buildSweepDeps(): SweepDeps {
+export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepDeps {
   return {
     now: () => new Date(),
     async selectDue(limit: number): Promise<DueWakeup[]> {
-      const db = await getDb()
+      const db = await dbFactory()
       const rows = await db
         .select({
           id: scheduledWakeups.id,
@@ -162,7 +206,7 @@ export function buildSweepDeps(): SweepDeps {
       return rows
     },
     async loadContext(row: DueWakeup, now: Date, dayStart: Date): Promise<WakeupContext> {
-      const db = await getDb()
+      const db = await dbFactory()
 
       const [subRow] = await db
         .select({ currentCredits: subscriptions.currentCredits })
@@ -221,8 +265,17 @@ export function buildSweepDeps(): SweepDeps {
       // T+5min, and suppresses notify for the next cooldown window even though
       // the user has done nothing. The spec defines this window against the
       // user's last message.
+      // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
+      // result through messages.createdAt's own decoder, so it comes back as a
+      // Date. A raw sql<> select bypasses column decoding and returns the
+      // driver's text form, which then has to be parsed by hand — the trap this
+      // comment used to document at length. The guard below keeps a malformed
+      // decode loud: an Invalid Date is not null, so decideWakeup's null check
+      // would pass and NaN would silently disable the notify cooldown.
+      // Throwing strands one row for the reaper instead of un-muting a
+      // character for a whole cooldown window.
       const [lastMsgRow] = await db
-        .select({ lastAt: sql<Date | null>`MAX(${messages.createdAt})` })
+        .select({ lastAt: max(messages.createdAt) })
         .from(messages)
         .where(
           and(
@@ -231,16 +284,23 @@ export function buildSweepDeps(): SweepDeps {
           ),
         )
 
+      const lastUserMessageAt = lastMsgRow?.lastAt ?? null
+      if (lastUserMessageAt && Number.isNaN(lastUserMessageAt.getTime())) {
+        throw new Error(
+          `loadContext: MAX(messages.created_at) decoded to Invalid Date for character ${row.characterId}`,
+        )
+      }
+
       return {
         balance: subRow?.currentCredits ?? 0,
         todaysProactiveSpend: Number(spendRow?.total ?? 0),
         todaysPushCount: Number(pushRow?.count ?? 0),
-        lastUserMessageAt: lastMsgRow?.lastAt ?? null,
+        lastUserMessageAt,
         unreadProactiveCount: Number(unreadRow?.count ?? 0),
       }
     },
     async claim(id: string, claimedAt: Date): Promise<boolean> {
-      const db = await getDb()
+      const db = await dbFactory()
       // AND status = 'pending' is the race-safety guard: two overlapping sweeps
       // both SELECT the same row, but only the first UPDATE matches a row still
       // in 'pending' status. The second returns rowCount = 0 and we skip.
@@ -272,14 +332,14 @@ export function buildSweepDeps(): SweepDeps {
       }
     },
     async resolveWakeup(id, patch): Promise<void> {
-      const db = await getDb()
+      const db = await dbFactory()
       await db
         .update(scheduledWakeups)
         .set({ status: patch.status, outcome: patch.outcome, resolvedAt: new Date() })
         .where(eq(scheduledWakeups.id, id))
     },
     async reapStaleClaims(claimedBefore: Date): Promise<number> {
-      const db = await getDb()
+      const db = await dbFactory()
       // spent_amount is left as-is rather than zeroed: if the turn did commit a
       // spend before dying, that money was really taken and the day's ceiling
       // should keep counting it. The status becomes terminal so the row stops
@@ -298,7 +358,7 @@ export function buildSweepDeps(): SweepDeps {
       return reaped.length
     },
     async deleteExpired(cutoff: Date): Promise<number> {
-      const db = await getDb()
+      const db = await dbFactory()
       const deleted = await db
         .delete(scheduledWakeups)
         .where(lt(scheduledWakeups.resolvedAt, cutoff))
