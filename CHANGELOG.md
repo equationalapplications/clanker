@@ -1,3 +1,46 @@
+# [33.1.0](https://github.com/equationalapplications/clanker/compare/v33.0.1...v33.1.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **cloud-agent:** address CodeRabbit review on proactive-wakeup ([370b839](https://github.com/equationalapplications/clanker/commit/370b839b6104c577253d976342899248ce541b82))
+* **db:** register 0026_scheduled_wakeups in MIGRATION_ORDER ([b41a326](https://github.com/equationalapplications/clanker/commit/b41a3263e057338181f314544cec3b98a4fd7d98))
+* **deps:** bump expo + expo-router patch versions for staging CI gate ([fd41773](https://github.com/equationalapplications/clanker/commit/fd41773c8ca2503f1cf1672477df045c44f2c80a))
+* **deps:** override js-yaml to ^4.3.2 in cloud-agent ([b291bac](https://github.com/equationalapplications/clanker/commit/b291bac0bf46d926bacfb8f673957469a7d67e13))
+* **deps:** override js-yaml to ^4.3.2 in functions ([102cce1](https://github.com/equationalapplications/clanker/commit/102cce1a2d81d2a3a362430cb26318b6da395c3c))
+* **proactive-scheduler:** address PR [#703](https://github.com/equationalapplications/clanker/issues/703) review findings ([95dafbc](https://github.com/equationalapplications/clanker/commit/95dafbc62dc0ce0e12c27f3962385c6c99b5d186))
+* **proactive-scheduler:** address second-round PR [#703](https://github.com/equationalapplications/clanker/issues/703) review findings ([0caca2a](https://github.com/equationalapplications/clanker/commit/0caca2a38d5caf48c948d4adc3f8f7368f12df7c)), closes [hi#intensity](https://github.com/hi/issues/intensity)
+* **scheduler:** address PR [#702](https://github.com/equationalapplications/clanker/issues/702) code review feedback ([09e05bc](https://github.com/equationalapplications/clanker/commit/09e05bcd3493921b93247dda980fbcdd2d48aa9b))
+* **scheduler:** close double-spend, split-identifier and stale-claim defects ([c4b183d](https://github.com/equationalapplications/clanker/commit/c4b183de29f41ae784f5b1e38ae324efe99615be))
+* **scheduler:** gate push off while the client sync is unwired ([b7f1987](https://github.com/equationalapplications/clanker/commit/b7f1987e61620d3ea153244a04ce11cfe7e43543))
+* **scheduler:** make proactive messages reachable, and stop the cooldown self-arming ([86de54b](https://github.com/equationalapplications/clanker/commit/86de54b565d50ab3f60e65fae960fb0c22207ec9)), closes [#702](https://github.com/equationalapplications/clanker/issues/702)
+* **scheduler:** pin the sweep timeout that prevents overlapping sweeps ([beabaa7](https://github.com/equationalapplications/clanker/commit/beabaa70b546ef86ca73977c96cc091c7c013a03))
+* **scheduler:** update pre-existing root tests for Phase 2 schema changes ([519cece](https://github.com/equationalapplications/clanker/commit/519cecec215ebe97538d8a72a5f0d3db184d6f8f))
+* **sweeper:** claim before deciding to skip ([0635c63](https://github.com/equationalapplications/clanker/commit/0635c638df76043fd5e49abfc7c66847cd23caef))
+* **tests:** reorder imports to satisfy lint:check ([5bfe723](https://github.com/equationalapplications/clanker/commit/5bfe723782eb348625280d93eaf68d615f882d25))
+
+
+### Features
+
+* **db:** add scheduled_wakeups table for proactive character scheduler ([e06b2eb](https://github.com/equationalapplications/clanker/commit/e06b2eb39c1e50b51862a28247449b95261b60fd))
+* **scheduler:** add /agent/proactive-wakeup endpoint ([15d8384](https://github.com/equationalapplications/clanker/commit/15d838429720bc55b8ff13bf52699bf9046d0f5b))
+* **scheduler:** add account-wide fetchProactiveMessages callable ([c19e624](https://github.com/equationalapplications/clanker/commit/c19e624deb2e7de76ac81726435a4e0e3dae7ad1))
+* **scheduler:** add character-specific proactive push ([01a58b6](https://github.com/equationalapplications/clanker/commit/01a58b6a2b40959e3bda80694c6d82150c4ff067))
+* **scheduler:** add deliver_wakeup tool for proactive turn outcomes ([f94588b](https://github.com/equationalapplications/clanker/commit/f94588b71c03e5071d1a760a1651748083680546))
+* **scheduler:** add delivery_mode and chosen_delivery_mode columns ([419031a](https://github.com/equationalapplications/clanker/commit/419031a742a24952045ef9b21b91f67e4cc74157))
+* **scheduler:** add five-minute proactive wake-up sweeper ([37a1198](https://github.com/equationalapplications/clanker/commit/37a1198f67814eadaba09f7a3d1a325813da8950))
+* **scheduler:** add local read_at column and sync cursor storage ([e400b6b](https://github.com/equationalapplications/clanker/commit/e400b6b03cc0fa59c5aa0b64f996ae90d01c6095))
+* **scheduler:** add markProactiveRead callable ([5c0b82e](https://github.com/equationalapplications/clanker/commit/5c0b82e9c0510c8387e380439b1342e34a51e2dd))
+* **scheduler:** add messages.read_at and a real unread proactive count ([fb1c6b9](https://github.com/equationalapplications/clanker/commit/fb1c6b9fd7f9c4010aa915773210244ee35a159c))
+* **scheduler:** add proactive wake-up guardrail decision logic ([a4a7cbb](https://github.com/equationalapplications/clanker/commit/a4a7cbb814044d5602dfc2dfec684810c66d2d84))
+* **scheduler:** apply proactive messages to local SQLite in two phases ([b09b0ad](https://github.com/equationalapplications/clanker/commit/b09b0ad067438ea0dc0bb183aba9225730e6a581))
+* **scheduler:** badge characters with unread proactive messages ([aafc42a](https://github.com/equationalapplications/clanker/commit/aafc42ac2f631b1bbbc52e3b223f9d0be5848179))
+* **scheduler:** count today's pushes from delivery_mode column ([a1f22b7](https://github.com/equationalapplications/clanker/commit/a1f22b7a77a5fe6ec46162ed4995437becf5c485))
+* **scheduler:** make set_reminder persist real wake-ups ([d55ea32](https://github.com/equationalapplications/clanker/commit/d55ea3224ea4f29948fa3e9435fdf27112efcb67))
+* **scheduler:** persist proactive messages server-side ([9da593b](https://github.com/equationalapplications/clanker/commit/9da593b170540f2d9eecdd44d3237be3530d8c83))
+* **scheduler:** record delivery modes as columns on resolve ([d295e24](https://github.com/equationalapplications/clanker/commit/d295e2480f59bf4926fa41fcf93141ac3bb3be53))
+* **scheduler:** retry markProactiveRead instead of dropping it ([e3a4e8e](https://github.com/equationalapplications/clanker/commit/e3a4e8eb84f5d993419c81beaf635d1df33898fe))
+
 ## [33.0.1](https://github.com/equationalapplications/clanker/compare/v33.0.0...v33.0.1) (2026-09-08)
 
 
