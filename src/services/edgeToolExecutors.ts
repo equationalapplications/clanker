@@ -10,6 +10,8 @@ import {
 import type { LocalTask } from '~/database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 import { generateImageViaCallable } from './imageGenerationService'
+import { scheduleWakeupViaCallable } from './proactiveWakeupService'
+import type { ScheduleWakeupRequest, ScheduleWakeupResponse } from './proactiveWakeupService'
 import { saveCharacterImage } from './characterImageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { MASTER_DIMENSION } from './imageVariants'
@@ -30,6 +32,18 @@ export interface EdgeImageToolDeps {
   onImageSaved: (imageId: string) => void
 }
 
+/**
+ * Deps for the local `set_reminder` executor, supplied for cloud-synced
+ * characters via the useEdgeAgent `cloudAgentCharacterId` option. The
+ * characterId is the CLOUD UUID (Postgres `characters.id`) — the callable
+ * verifies ownership against characters.user_id, so the edge executor must
+ * never let the model name its own target.
+ */
+export interface EdgeReminderToolDeps {
+  characterId: string
+  scheduleWakeup: (request: ScheduleWakeupRequest) => Promise<ScheduleWakeupResponse>
+}
+
 export const edgeToolExecutors: Record<string, ToolExecutor> = {
   get_current_time: () =>
     new Date().toLocaleString('en-US', {
@@ -47,6 +61,7 @@ export function createEdgeToolExecutors(
   characterId: string,
   wiki: Wiki | null,
   image?: EdgeImageToolDeps,
+  reminder?: EdgeReminderToolDeps,
 ): Record<string, ToolExecutor> {
   // Run-scoped cap, mirroring cloud-agent's generate_image tool: the model gets
   // up to MAX_ITERATIONS turns of the loop, and without this a second call would
@@ -113,6 +128,43 @@ export function createEdgeToolExecutors(
               // (the callable threw) leaves generatedThisTurn false, so the model
               // may retry within the turn.
               generationInFlight = false
+            }
+          },
+        }
+      : {}),
+    // set_reminder is offered to the edge model as a stub the local executor
+    // handles (Decision 0) — the producer used to live behind escalation that
+    // production chat almost never took. Only wired in when a cloud character
+    // row exists to schedule against; a local-only character has no Postgres
+    // row, so the tool is not offered there at all (see getSchemasForEdge).
+    ...(reminder
+      ? {
+          set_reminder: async (args: Record<string, unknown>) => {
+            const reason = typeof args.reason === 'string' ? args.reason : ''
+            const remindAt = typeof args.remind_at === 'string' ? args.remind_at : ''
+            const priority =
+              typeof args.priority === 'number' &&
+              Number.isInteger(args.priority) &&
+              args.priority >= 0 &&
+              args.priority <= 10
+                ? args.priority
+                : undefined
+            try {
+              // characterId comes from useEdgeAgent (cloud UUID), never from the
+              // model — the callable verifies ownership against characters.user_id.
+              const result = await reminder.scheduleWakeup({
+                characterId: reminder.characterId,
+                reason,
+                remindAt,
+                ...(priority !== undefined ? { priority } : {}),
+              })
+              // Surfaces both success and semantic refusal (ceiling, malformed
+              // remind_at, etc.) verbatim — the server strings are model-safe.
+              return result.message
+            } catch (error) {
+              console.error('[EdgeAgent] set_reminder failed:', error)
+              // Same catch-all string cloud-agent's set_reminder returns.
+              return 'Not scheduled: an internal error occurred.'
             }
           },
         }

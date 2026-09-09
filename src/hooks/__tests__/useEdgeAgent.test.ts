@@ -326,7 +326,14 @@ describe('useEdgeAgent', () => {
 
     // Third arg is the image-tool deps: undefined here, since this turn passes
     // no pre-minted assistant message id for the local executor to attach to.
-    expect(createEdgeToolExecutors).toHaveBeenCalledWith(character.id, mockWiki, undefined)
+    // Fourth arg is the reminder deps: undefined here because no
+    // cloudAgentCharacterId was supplied on this hook call.
+    expect(createEdgeToolExecutors).toHaveBeenCalledWith(
+      character.id,
+      mockWiki,
+      undefined,
+      undefined,
+    )
   })
 
   it('passes tools from getSchemasForEdge to generateChatReply', async () => {
@@ -453,6 +460,7 @@ describe('local image generation for non-cloud-synced characters', () => {
       'char-1',
       null,
       expect.objectContaining({ userId: 'u1', messageId: 'ai_77' }),
+      undefined,
     )
   })
 
@@ -475,6 +483,111 @@ describe('local image generation for non-cloud-synced characters', () => {
 
     expect(response?.escalated).toBe(true)
     // No image deps when escalation is available — cloud-agent owns that spend.
-    expect(createEdgeToolExecutors).toHaveBeenCalledWith('char-1', null, undefined)
+    // No reminder deps either: this hook call did not pass cloudAgentCharacterId.
+    expect(createEdgeToolExecutors).toHaveBeenCalledWith('char-1', null, undefined, undefined)
+  })
+})
+
+describe('set_reminder local execution (Decision 0)', () => {
+  it('does not escalate a set_reminder call when cloudAgentCharacterId is provided', async () => {
+    const reminderExecutors = {
+      ...mockExecutors,
+      set_reminder: jest.fn(async () => 'Scheduled.'),
+    }
+    ;(createEdgeToolExecutors as jest.Mock).mockReturnValue(reminderExecutors)
+    mockGenerateChatReply
+      .mockResolvedValueOnce({
+        reply: '',
+        functionCalls: [
+          {
+            name: 'set_reminder',
+            args: { reason: 'follow up', remind_at: '2026-09-10T10:00:00.000Z' },
+          },
+        ],
+        ...usageFields,
+      })
+      .mockResolvedValueOnce({
+        reply: 'I will follow up then.',
+        functionCalls: undefined,
+        ...usageFields,
+      })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({
+        character,
+        userId: 'u1',
+        priorMessages,
+        isCloudSynced: true,
+        wiki: null,
+        cloudAgentCharacterId: 'cloud-9',
+      }),
+    )
+
+    let response: { escalated: boolean; text?: string } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('remind me')
+    })
+
+    expect(response?.escalated).toBe(false)
+    expect(response?.text).toBe('I will follow up then.')
+    expect(reminderExecutors.set_reminder).toHaveBeenCalled()
+    expect(result.current.escalationState).toBe('idle')
+  })
+
+  it('falls through to escalation on a set_reminder call when cloudAgentCharacterId is not provided', async () => {
+    ;(createEdgeToolExecutors as jest.Mock).mockReturnValue(mockExecutors)
+    mockGenerateChatReply.mockResolvedValue({
+      reply: '',
+      functionCalls: [
+        {
+          name: 'set_reminder',
+          args: { reason: 'follow up', remind_at: '2026-09-10T10:00:00.000Z' },
+        },
+      ],
+      ...usageFields,
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
+    )
+
+    let response: { escalated: boolean } | undefined
+    await act(async () => {
+      response = await result.current.sendMessage('remind me')
+    })
+
+    expect(response?.escalated).toBe(true)
+    expect(result.current.escalationState).toBe('escalating')
+  })
+
+  it('passes the cloudAgentCharacterId to createEdgeToolExecutors as reminder deps', async () => {
+    ;(createEdgeToolExecutors as jest.Mock).mockReturnValue(mockExecutors)
+    mockGenerateChatReply.mockResolvedValue({
+      reply: 'ok',
+      functionCalls: undefined,
+      ...usageFields,
+    })
+
+    const { result } = renderHook(() =>
+      useEdgeAgent({
+        character,
+        userId: 'u1',
+        priorMessages,
+        isCloudSynced: true,
+        wiki: null,
+        cloudAgentCharacterId: 'cloud-9',
+      }),
+    )
+
+    await act(async () => {
+      await result.current.sendMessage('hi')
+    })
+
+    expect(createEdgeToolExecutors).toHaveBeenCalledWith(
+      'char-1',
+      null,
+      undefined,
+      expect.objectContaining({ characterId: 'cloud-9' }),
+    )
   })
 })

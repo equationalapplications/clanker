@@ -10,6 +10,7 @@ import {
 import type { LocalTask } from '../../database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 import { generateImageViaCallable } from '../imageGenerationService'
+import { scheduleWakeupViaCallable } from '../proactiveWakeupService'
 import { saveCharacterImage } from '../characterImageService'
 
 jest.mock('../wikiService', () => ({
@@ -31,6 +32,10 @@ jest.mock('@equationalapplications/core-llm-wiki', () => ({
 
 jest.mock('../imageGenerationService', () => ({
   generateImageViaCallable: jest.fn(),
+}))
+
+jest.mock('../proactiveWakeupService', () => ({
+  scheduleWakeupViaCallable: jest.fn(),
 }))
 
 jest.mock('../characterImageService', () => ({
@@ -415,5 +420,71 @@ describe('generate_image billing safety', () => {
     // The credits are already spent and cannot be refunded from the client, so a
     // retry must not bill a second time.
     expect(mockGenerateImageViaCallable).toHaveBeenCalledTimes(1)
+  })
+})
+
+const mockScheduleWakeupViaCallable = scheduleWakeupViaCallable as jest.Mock
+
+describe('set_reminder executor', () => {
+  it('is absent when no reminder deps are provided (non-synced character keeps existing behavior)', () => {
+    const executors = createEdgeToolExecutors('char-1', null)
+    expect(executors.set_reminder).toBeUndefined()
+  })
+
+  it('calls the callable with the session-bound cloud character id and returns its message', async () => {
+    mockScheduleWakeupViaCallable.mockResolvedValue({
+      ok: true,
+      message:
+        'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
+      dueAt: '2026-09-10T10:00:00.000Z',
+    })
+    const executors = createEdgeToolExecutors('char-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'follow up on the recipe',
+      remind_at: '2026-09-10T10:00:00.000Z',
+      priority: 2,
+    })
+    expect(mockScheduleWakeupViaCallable).toHaveBeenCalledWith({
+      characterId: 'cloud-9',
+      reason: 'follow up on the recipe',
+      remindAt: '2026-09-10T10:00:00.000Z',
+      priority: 2,
+    })
+    expect(out).toBe(
+      'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
+    )
+  })
+
+  it('surfaces a callable refusal (ceiling) to the model as the tool result', async () => {
+    mockScheduleWakeupViaCallable.mockResolvedValue({
+      ok: false,
+      message:
+        'Not scheduled: this character has reached its background activity limit for today. Do not promise the user a follow-up for today.',
+    })
+    const executors = createEdgeToolExecutors('char-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'r',
+      remind_at: '2026-09-10T10:00:00.000Z',
+    })
+    expect(out).toMatch(/background activity limit/)
+  })
+
+  it('surfaces a callable failure as a tool-error string, not a thrown crash of the turn', async () => {
+    mockScheduleWakeupViaCallable.mockRejectedValue(new Error('network down'))
+    const executors = createEdgeToolExecutors('char-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'r',
+      remind_at: '2026-09-10T10:00:00.000Z',
+    })
+    expect(out).toBe('Not scheduled: an internal error occurred.')
   })
 })
