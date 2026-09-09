@@ -13,6 +13,8 @@
  */
 import { test, before, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { setTimeout as delay } from 'node:timers/promises'
+import pg from 'pg'
 import { buildSweepDeps, type DueWakeup } from '../proactiveWakeupSweep.js'
 import { UNREAD_STALENESS_ESCAPE_MS } from '../services/proactiveWakeupGuardrails.js'
 import {
@@ -22,7 +24,27 @@ import {
   truncateAll,
   closeIntegrationPool,
   getPool,
+  resolveTestUrl,
 } from './helpers/db.js'
+
+/**
+ * Block until `expected` backends are parked on a lock, so a test can know both
+ * racers are inside the contended window before it releases them. Bounded, and
+ * fails loudly rather than hanging: never reaching the count means the race was
+ * not set up and any assertion after it would be vacuous.
+ */
+async function waitForBlockedBackends(expected: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const { rows } = await getPool().query(
+      `SELECT count(*)::int AS blocked
+         FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+    )
+    if (rows[0].blocked >= expected) return
+    await delay(50)
+  }
+  assert.fail(`timed out waiting for ${expected} lock-blocked backends; the race never formed`)
+}
 
 const deps = buildSweepDeps(testGetDb)
 
@@ -152,14 +174,57 @@ test('selectDue joins the firebase uid the POST needs', async () => {
 
 // --- claim -------------------------------------------------------------------
 
-test('claim is atomic: the second claimant loses', async () => {
+// A genuine race, forced rather than hoped for. Simply issuing two claims via
+// Promise.all does NOT test atomicity: pg.Pool creates its second connection
+// lazily, so the first claim completes during the second's TCP+auth handshake
+// and the two never overlap — verified by mutation, where a non-atomic
+// SELECT-then-UPDATE claim still passed that version of this test.
+//
+// So the interleave is constructed: a separate session takes a row lock, both
+// claims are started and observed to block on it, and only then is the lock
+// released. Both claimants are now inside the window at once.
+//   - the real guarded UPDATE: one matches a 'pending' row, the other
+//     re-evaluates the predicate under READ COMMITTED and matches nothing.
+//   - a non-atomic SELECT-then-UPDATE: both SELECTs already read 'pending'
+//     (an MVCC read takes no lock), so both would claim — and this test fails,
+//     which is the whole point of it.
+// Order between the two is not asserted, only that exactly one wins.
+test('claim is atomic: concurrent claimants produce exactly one winner', async () => {
   const id = await insertWakeup()
 
-  const first = await deps.claim(id, NOW)
-  const second = await deps.claim(id, NOW)
+  // Warm both pool connections before the race so connection setup cannot be
+  // what separates the two claims in time.
+  await Promise.all([getPool().query('SELECT 1'), getPool().query('SELECT 1')])
 
-  assert.equal(first, true, 'first claim must win')
-  assert.equal(second, false, 'a row already claimed must not be claimed twice')
+  const blocker = new pg.Client({ connectionString: resolveTestUrl() })
+  await blocker.connect()
+  let results: boolean[]
+  try {
+    await blocker.query('BEGIN')
+    await blocker.query('SELECT id FROM scheduled_wakeups WHERE id = $1 FOR UPDATE', [id])
+
+    const pending = Promise.all([deps.claim(id, NOW), deps.claim(id, NOW)])
+    await waitForBlockedBackends(2)
+
+    await blocker.query('COMMIT')
+    results = await pending
+  } finally {
+    await blocker.end()
+  }
+
+  assert.equal(
+    results.filter(Boolean).length,
+    1,
+    `exactly one concurrent claim must win, got ${JSON.stringify(results)}`,
+  )
+
+  const { rows } = await getPool().query('SELECT status FROM scheduled_wakeups WHERE id = $1', [id])
+  assert.equal(rows[0].status, 'claimed')
+})
+
+test('claim refuses a row that is no longer pending', async () => {
+  const done = await insertWakeup({ id: 'w-done', status: 'done', resolved_at: NOW })
+  assert.equal(await deps.claim(done, NOW), false)
 })
 
 // --- loadContext: todaysProactiveSpend ---------------------------------------
@@ -294,6 +359,55 @@ test('lastUserMessageAt is null when the user has never spoken', async () => {
   const id = await insertWakeup()
   const ctx = await deps.loadContext(dueRowFor(id), NOW, DAY_START)
   assert.equal(ctx.lastUserMessageAt, null)
+})
+
+// --- resolveWakeup -----------------------------------------------------------
+
+// The skip path's terminal write, and the second most powerful statement in the
+// deps after claim: it sets status, outcome and resolved_at with an id
+// predicate. The unit suite stubs it, so without this the `where(eq(id))` is
+// never executed against a real table — a dropped or wrong predicate would
+// rewrite unrelated characters' pending wake-ups to 'skipped' in production
+// with both suites still green.
+test('resolveWakeup marks exactly the named row terminal and stamps resolved_at', async () => {
+  const target = await insertWakeup({ id: 'r-target' })
+  const bystander = await insertWakeup({ id: 'r-bystander' })
+  const otherCharacter = await insertWakeup({
+    id: 'r-other-character',
+    character_id: otherCharacterId,
+  })
+
+  await deps.resolveWakeup(target, { status: 'skipped', outcome: 'insufficient_power' })
+
+  const { rows } = await getPool().query(
+    'SELECT id, status, outcome, resolved_at FROM scheduled_wakeups ORDER BY id',
+  )
+  const byId = new Map(rows.map((r) => [r.id, r]))
+
+  assert.equal(byId.get(target).status, 'skipped')
+  assert.equal(byId.get(target).outcome, 'insufficient_power')
+  assert.ok(byId.get(target).resolved_at instanceof Date, 'resolved_at must be stamped')
+
+  for (const untouched of [bystander, otherCharacter]) {
+    assert.equal(byId.get(untouched).status, 'pending', `${untouched} must be untouched`)
+    assert.equal(byId.get(untouched).outcome, null)
+    assert.equal(byId.get(untouched).resolved_at, null)
+  }
+})
+
+// resolved_at is what makes a row collectable by deleteExpired; a claimed row
+// that is resolved must stop being invisible to retention.
+test('resolveWakeup gives a claimed row the resolved_at retention needs', async () => {
+  const id = await insertWakeup({ id: 'r-claimed', status: 'claimed', claimed_at: NOW })
+
+  await deps.resolveWakeup(id, { status: 'done', outcome: 'mode=quiet chosen=notify' })
+
+  const { rows } = await getPool().query(
+    'SELECT status, resolved_at FROM scheduled_wakeups WHERE id = $1',
+    [id],
+  )
+  assert.equal(rows[0].status, 'done')
+  assert.ok(rows[0].resolved_at instanceof Date)
 })
 
 // --- reapStaleClaims / deleteExpired ----------------------------------------
