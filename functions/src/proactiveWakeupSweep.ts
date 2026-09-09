@@ -1,6 +1,6 @@
 import { onSchedule, type ScheduledEvent } from 'firebase-functions/v2/scheduler'
 import * as logger from 'firebase-functions/logger'
-import { and, desc, eq, gte, isNull, lt, ne, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, max, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { getDb } from './db/cloudSql.js'
@@ -265,16 +265,17 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
       // T+5min, and suppresses notify for the next cooldown window even though
       // the user has done nothing. The spec defines this window against the
       // user's last message.
-      // Typed as string, not Date, because that is what actually comes back: a
-      // raw sql<> select bypasses Drizzle's column decoding, so the timestamptz
-      // arrives as the driver's text form ('2026-09-09 15:44:28.204308+00')
-      // even though plain pg would hand back a Date. Declaring it Date compiled
-      // fine and then threw at runtime, where decideWakeup calls .getTime() on
-      // it — inside the per-row try/catch, so every wake-up for a character
-      // whose user had ever spoken failed as a logged 'Proactive wake-up
-      // failed' and stranded the row until the reaper. Parse it explicitly.
+      // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
+      // result through messages.createdAt's own decoder, so it comes back as a
+      // Date. A raw sql<> select bypasses column decoding and returns the
+      // driver's text form, which then has to be parsed by hand — the trap this
+      // comment used to document at length. The guard below keeps a malformed
+      // decode loud: an Invalid Date is not null, so decideWakeup's null check
+      // would pass and NaN would silently disable the notify cooldown.
+      // Throwing strands one row for the reaper instead of un-muting a
+      // character for a whole cooldown window.
       const [lastMsgRow] = await db
-        .select({ lastAt: sql<string | null>`MAX(${messages.createdAt})` })
+        .select({ lastAt: max(messages.createdAt) })
         .from(messages)
         .where(
           and(
@@ -283,11 +284,18 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
           ),
         )
 
+      const lastUserMessageAt = lastMsgRow?.lastAt ?? null
+      if (lastUserMessageAt && Number.isNaN(lastUserMessageAt.getTime())) {
+        throw new Error(
+          `loadContext: MAX(messages.created_at) decoded to Invalid Date for character ${row.characterId}`,
+        )
+      }
+
       return {
         balance: subRow?.currentCredits ?? 0,
         todaysProactiveSpend: Number(spendRow?.total ?? 0),
         todaysPushCount: Number(pushRow?.count ?? 0),
-        lastUserMessageAt: lastMsgRow?.lastAt ? new Date(lastMsgRow.lastAt) : null,
+        lastUserMessageAt,
         unreadProactiveCount: Number(unreadRow?.count ?? 0),
       }
     },
