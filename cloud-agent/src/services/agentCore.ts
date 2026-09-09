@@ -12,6 +12,7 @@ import { wikiGetOntologyManifestTool, wikiTraverseGraphTool } from '../tools/ont
 import { getCurrentTimeTool } from '../tools/time.js'
 import { documentSearchTool } from '../tools/documents.js'
 import { setReminderTool } from '../tools/reminders.js'
+import { createDeliverWakeupTool, type WakeupSink } from '../tools/deliverWakeup.js'
 import type { DrizzleClient } from '../db/client.js'
 import { llmWikiEntries } from '../db/schema.js'
 
@@ -51,6 +52,11 @@ export function buildAgent(
     creditService?: Pick<CreditService, 'spendCredit' | 'refundCredit'>
     /** Test hook: replaces defaultVertexImageGenerator so wiring probes make no network calls. */
     imageGenerator?: VertexImageGenerator
+    /**
+     * Phase 1 proactive wake-ups register deliver_wakeup only when a sink is
+     * supplied; ordinary chat turns must not see it.
+     */
+    wakeupSink?: WakeupSink
   },
 ): BuildAgentResult {
   const cs = opts?.creditService ?? createCreditService(db)
@@ -84,6 +90,7 @@ export function buildAgent(
       imageSpendAllocations,
     ),
   )
+  if (opts?.wakeupSink) tools.push(createDeliverWakeupTool(opts.wakeupSink))
   return {
     agent: new LlmAgent({
       name: 'clanker-cloud-agent',

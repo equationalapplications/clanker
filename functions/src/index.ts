@@ -24,6 +24,8 @@ export {
 
 export { imageRetentionSweep } from './imageRetention.js'
 
+export { proactiveWakeupSweep } from './proactiveWakeupSweep.js'
+
 export {
   memoryRead,
   memoryWrite,
@@ -51,3 +53,5 @@ export { convertDocumentText } from './convertDocumentText.js'
 export { generateEmbedding } from './generateEmbedding.js'
 
 export { registerExpoPushToken } from './registerExpoPushToken.js'
+
+export { fetchProactiveMessages, markProactiveRead } from './proactiveMessages.js'

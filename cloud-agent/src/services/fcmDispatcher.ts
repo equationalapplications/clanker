@@ -5,6 +5,7 @@ export interface MessagingLike {
 }
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
+const PUSH_BODY_MAX_LENGTH = 140
 
 export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof fetch = fetch) {
   async function expoPush(payload: Record<string, unknown>): Promise<void> {
@@ -96,6 +97,37 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
         body,
         data: { type: 'PROACTIVE_TASK', sessionId, taskId, deepLink: '/talk' },
         categoryIdentifier: 'BROWSER_ACTION_APPROVAL',
+        priority: 'high',
+      })
+    },
+
+    async sendCharacterProactive(
+      expoPushToken: string,
+      characterId: string,
+      messageId: string,
+      characterName: string,
+      body: string,
+    ): Promise<void> {
+      // Truncate over code points, not UTF-16 units. This is the only push fed
+      // raw model output, so non-BMP characters are routine here; slicing by
+      // unit can cut an emoji's surrogate pair in half and emit a lone
+      // surrogate, which JSON encoding turns into U+FFFD in the notification.
+      const codePoints = Array.from(body)
+      const preview =
+        codePoints.length > PUSH_BODY_MAX_LENGTH
+          ? `${codePoints.slice(0, PUSH_BODY_MAX_LENGTH - 1).join('')}…`
+          : body
+
+      await expoPush({
+        to: expoPushToken,
+        title: characterName,
+        body: preview,
+        data: {
+          type: 'PROACTIVE_CHARACTER_MESSAGE',
+          characterId,
+          messageId,
+          deepLink: `/chat/${characterId}`,
+        },
         priority: 'high',
       })
     },

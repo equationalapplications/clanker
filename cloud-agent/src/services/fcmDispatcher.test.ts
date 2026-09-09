@@ -115,6 +115,74 @@ test('sendProactive POSTs PROACTIVE_TASK Expo Push payload', async () => {
   assert.equal(data.deepLink, '/talk')
 })
 
+test('sendCharacterProactive deeplinks to the character, not /talk', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+  await dispatcher.sendCharacterProactive('tok', 'char-1', 'msg-1', 'Ada', 'How did it go?')
+
+  const push = fetched[0].body as Record<string, unknown>
+  assert.equal(push.title, 'Ada')
+  assert.equal(push.body, 'How did it go?')
+  assert.equal((push.data as Record<string, string>).type, 'PROACTIVE_CHARACTER_MESSAGE')
+  assert.equal((push.data as Record<string, string>).deepLink, '/chat/char-1')
+  assert.equal(push.categoryIdentifier, undefined)
+})
+
+test('sendCharacterProactive truncates a long body', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+  await dispatcher.sendCharacterProactive('tok', 'c', 'm', 'Ada', 'x'.repeat(400))
+
+  const body = (fetched[0].body as Record<string, unknown>).body as string
+  assert.equal(body.length, 140)
+  assert.ok(body.endsWith('…'))
+})
+
+// This dispatcher is the only push path fed raw model output, so emoji in the
+// truncation window are routine. Slicing by UTF-16 unit can cut a surrogate
+// pair in half; the lone surrogate survives as far as JSON encoding and reaches
+// the user as U+FFFD. Truncating over code points keeps the pair intact.
+test('sendCharacterProactive does not split a surrogate pair when truncating', async () => {
+  const fetched: Array<{ body: unknown }> = []
+  const fakeFetch = async (_url: string, opts: RequestInit) => {
+    fetched.push({ body: JSON.parse(opts.body as string) })
+    return { ok: true, json: async () => ({ data: [{ status: 'ok' }] }) }
+  }
+
+  const dispatcher = createFcmDispatcher(
+    { send: async () => 'msg-id' },
+    fakeFetch as unknown as typeof fetch,
+  )
+  // 138 ASCII + three non-BMP emoji = 141 code points, so truncation fires (a
+  // 140-code-point body would not). The first emoji occupies UTF-16 units
+  // 138-139, so the old `slice(0, 139)` cut exactly between its high and low
+  // surrogate.
+  const long = `${'x'.repeat(138)}\u{1F600}\u{1F601}\u{1F602}`
+  await dispatcher.sendCharacterProactive('tok', 'c', 'm', 'Ada', long)
+
+  const body = (fetched[0].body as Record<string, unknown>).body as string
+  assert.ok(!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(body), 'unpaired high surrogate in body')
+  assert.ok(!/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(body), 'unpaired low surrogate in body')
+  assert.ok(!body.includes('\uFFFD'), 'replacement character reached the payload')
+  assert.ok(body.endsWith('…'))
+  assert.equal(Array.from(body).length, 140)
+})
 test('expoPush rejects ticket-level errors in a 200 response', async () => {
   const fakeFetch = async () => ({
     ok: true,

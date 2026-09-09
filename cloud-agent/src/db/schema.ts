@@ -1,6 +1,9 @@
 // Minimal schema mirror — cloud agent bounded context only.
 // Source of truth: functions/src/db/schema.ts
-// Tables omitted: subscriptions, credit_transactions, messages, legacy wiki tables, stripe tables.
+// Tables omitted: subscriptions, credit_transactions, legacy wiki tables, stripe tables.
+// messages: mirrored narrowly for proactive wake-up inserts (Phase 2). Columns
+// not written by the cloud agent (id, recipient_user_id, pending, sent, error,
+// edited, synced_at) are intentionally absent — see proactiveWakeupHandler.ts.
 import {
   pgTable,
   uuid,
@@ -11,6 +14,7 @@ import {
   jsonb,
   index,
   check,
+  uniqueIndex,
   primaryKey,
   vector,
 } from 'drizzle-orm/pg-core'
@@ -171,3 +175,61 @@ export const llmWikiOntology = pgTable(
     ),
   }),
 )
+
+export const scheduledWakeups = pgTable(
+  'scheduled_wakeups',
+  {
+    id: text('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    priority: integer('priority').notNull().default(0),
+    status: text('status').notNull().default('pending'),
+    runKey: text('run_key').notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    spentAmount: integer('spent_amount').notNull().default(0),
+    outcome: text('outcome'),
+    deliveryMode: text('delivery_mode'),
+    chosenDeliveryMode: text('chosen_delivery_mode'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusDueIdx: index('scheduled_wakeups_status_due_idx').on(table.status, table.dueAt),
+    characterStatusIdx: index('scheduled_wakeups_character_status_idx').on(
+      table.characterId,
+      table.status,
+    ),
+    resolvedAtIdx: index('scheduled_wakeups_resolved_at_idx').on(table.resolvedAt),
+    // Partial, matching migration 0027: 'claimed'/'running' rows have a NULL
+    // resolved_at, so the retention delete (which filters on resolved_at) can
+    // never reach them. The stale-claim reaper finds them by claimed_at.
+    claimedAtIdx: index('scheduled_wakeups_claimed_at_idx')
+      .on(table.claimedAt)
+      .where(sql`${table.resolvedAt} IS NULL`),
+    runKeyUniqueIdx: uniqueIndex('scheduled_wakeups_run_key_unique_idx').on(table.runKey),
+    statusCheck: check(
+      'scheduled_wakeups_status_check',
+      sql`${table.status} IN ('pending', 'claimed', 'running', 'done', 'skipped', 'cancelled')`,
+    ),
+  }),
+)
+
+export const messages = pgTable('messages', {
+  characterId: uuid('character_id')
+    .notNull()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  senderUserId: uuid('sender_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  messageId: text('message_id').notNull(),
+  text: text('text').notNull(),
+  messageData: jsonb('message_data').notNull().default({}),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})

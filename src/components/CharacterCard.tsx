@@ -25,6 +25,13 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const theme = useTheme()
   // Thumb, not master: this renders at 48px, and the list can hold many cards.
   const { uri: avatarUri } = useResolvedImage(activeImageId, 'thumb')
+  // No unread dot here yet. It was severed along with push in 86de54b5 — while
+  // PROACTIVE_PUSH_ENABLED is false a message can land with nothing to deeplink
+  // into, so badging it would point at an empty chat. When the fast-follow wires
+  // the lifecycle sync and un-gates push, the dot comes back as a boolean driven
+  // by `countUnreadProactive` (which already enforces the staleness escape, so it
+  // matches the server's push-decision contract) — deliberately a boolean and not
+  // a count, because AI chats are not an inbox.
 
   const handlePress = () => {
     if (onPress) {

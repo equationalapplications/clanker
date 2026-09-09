@@ -14,6 +14,13 @@ jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: jest.fn(() => ({ uri: null, isResolved: true })),
 }))
 
+jest.mock('~/hooks/useProactiveUnread', () => ({
+  // The accessibility suite doesn't care about the dot state — keep it off
+  // by default so the rendering assertions stay stable. Toggling the dot
+  // visibility lives in the dedicated hook test, not here.
+  useProactiveUnread: jest.fn(() => ({ hasUnread: false })),
+}))
+
 jest.mock('react-native', () => {
   const React = require('react')
   return {
