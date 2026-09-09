@@ -65,6 +65,7 @@ describe('useRegisterExpoPushToken', () => {
       expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: 'test-proj' })
       expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({
         expoPushToken: 'ExponentPushToken[test]',
+        capabilities: { proactivePush: true },
       })
     })
   })
@@ -109,6 +110,7 @@ describe('useRegisterExpoPushToken', () => {
         projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
         applicationId: 'com.equationalapplications.clanker',
         deviceId: 'install-1',
+        capabilities: { proactivePush: true },
       })
     })
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled()
