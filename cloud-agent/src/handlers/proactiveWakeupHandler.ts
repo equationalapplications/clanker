@@ -217,10 +217,7 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         try {
           await deps.creditService.refundCredit(userId, allocations)
         } catch (refundErr) {
-          console.warn(
-            '[proactive-wakeup] refundCredit failed (character_missing):',
-            refundErr,
-          )
+          console.warn('[proactive-wakeup] refundCredit failed (character_missing):', refundErr)
         }
         await deps
           .resolveWakeup(wakeupId, {
