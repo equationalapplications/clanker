@@ -47,11 +47,16 @@ const QUERIES = [
   ],
   [
     'chosen vs effective (THE Phase 1 deliverable) — chosen is what the character WANTED',
+    // chosen_delivery_mode IS NOT NULL (not delivery_mode IS NOT NULL) so rows
+    // where a mode was chosen but the effective mode is NULL are still counted:
+    // a clamp is exactly that shape — chosen=notify, delivery_mode=NULL — and
+    // removing it here would make this report disagree with the clamp-rate one
+    // a few lines down, which already filters on chosen_delivery_mode.
     `SELECT chosen_delivery_mode AS chosen,
             delivery_mode AS effective,
             count(*)
        FROM scheduled_wakeups
-      WHERE delivery_mode IS NOT NULL
+      WHERE chosen_delivery_mode IS NOT NULL
       GROUP BY 1, 2
       ORDER BY 3 DESC`,
   ],
