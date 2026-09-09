@@ -7,6 +7,11 @@
 // enforceable if the queries are repeatable, so they live here rather than in
 // a handoff document.
 //
+// Reads the delivery mode from the `delivery_mode` / `chosen_delivery_mode`
+// columns added by migration 0028, not by string-matching `outcome`. Parsing
+// free text was the defect 0028 exists to remove; leaving it here would have
+// meant the rollout gate's own tooling still read the replaced field.
+//
 // Read-only. Runs against whichever instance the CLOUD_SQL_* env vars point at.
 // Must stay inside functions/ so it resolves @google-cloud/cloud-sql-connector
 // and pg from functions/node_modules.
@@ -33,34 +38,41 @@ const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
   ['by status', 'SELECT status, count(*) FROM scheduled_wakeups GROUP BY status ORDER BY 2 DESC'],
   [
-    'raw outcome distribution',
-    "SELECT outcome, count(*) FROM scheduled_wakeups WHERE outcome LIKE 'mode=%' GROUP BY outcome ORDER BY 2 DESC",
+    'raw outcome distribution (rows with no delivery mode: skips and failures)',
+    `SELECT outcome, count(*)
+       FROM scheduled_wakeups
+      WHERE delivery_mode IS NULL
+      GROUP BY outcome
+      ORDER BY 2 DESC`,
   ],
   [
     'chosen vs effective (THE Phase 1 deliverable) — chosen is what the character WANTED',
-    `SELECT split_part(outcome, 'chosen=', 2) AS chosen,
-            split_part(split_part(outcome, 'mode=', 2), ' ', 1) AS effective,
+    `SELECT chosen_delivery_mode AS chosen,
+            delivery_mode AS effective,
             count(*)
        FROM scheduled_wakeups
-      WHERE outcome LIKE 'mode=%'
+      WHERE delivery_mode IS NOT NULL
       GROUP BY 1, 2
       ORDER BY 3 DESC`,
   ],
   [
     'CLAMP RATE — how often notify was downgraded by the guardrails',
-    `SELECT count(*) FILTER (WHERE outcome LIKE '% chosen=notify') AS wanted_notify,
-            count(*) FILTER (WHERE outcome LIKE 'mode=notify %') AS actually_notified,
+    // IS DISTINCT FROM rather than <>, so a row whose chosen mode is 'notify'
+    // but whose effective mode is NULL still counts as clamped instead of
+    // vanishing into SQL three-valued logic.
+    `SELECT count(*) FILTER (WHERE chosen_delivery_mode = 'notify') AS wanted_notify,
+            count(*) FILTER (WHERE delivery_mode = 'notify') AS actually_notified,
             count(*) FILTER (
-              WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
+              WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS DISTINCT FROM 'notify'
             ) AS clamped,
             round(
               100.0 * count(*) FILTER (
-                WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
-              ) / nullif(count(*) FILTER (WHERE outcome LIKE '% chosen=notify'), 0),
+                WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS DISTINCT FROM 'notify'
+              ) / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
               1
             ) AS clamped_pct
        FROM scheduled_wakeups
-      WHERE outcome LIKE 'mode=%'`,
+      WHERE chosen_delivery_mode IS NOT NULL`,
   ],
   [
     'skip reasons — are the guardrails too tight?',
