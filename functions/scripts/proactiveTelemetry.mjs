@@ -7,6 +7,11 @@
 // enforceable if the queries are repeatable, so they live here rather than in
 // a handoff document.
 //
+// Reads the delivery mode from the `delivery_mode` / `chosen_delivery_mode`
+// columns added by migration 0028, not by string-matching `outcome`. Parsing
+// free text was the defect 0028 exists to remove; leaving it here would have
+// meant the rollout gate's own tooling still read the replaced field.
+//
 // Read-only. Runs against whichever instance the CLOUD_SQL_* env vars point at.
 // Must stay inside functions/ so it resolves @google-cloud/cloud-sql-connector
 // and pg from functions/node_modules.
@@ -33,34 +38,70 @@ const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
   ['by status', 'SELECT status, count(*) FROM scheduled_wakeups GROUP BY status ORDER BY 2 DESC'],
   [
-    'raw outcome distribution',
-    "SELECT outcome, count(*) FROM scheduled_wakeups WHERE outcome LIKE 'mode=%' GROUP BY outcome ORDER BY 2 DESC",
+    'raw outcome distribution (resolved rows with no delivery mode: skips and failures)',
+    // `outcome IS NOT NULL` is load-bearing, not tidiness. outcome is written
+    // only when a row is resolved, so `delivery_mode IS NULL` on its own also
+    // matches the entire un-resolved backlog (pending/claimed/running). In
+    // production that backlog is larger than the resolved skips, so the report
+    // led with a single `outcome=NULL | count=<backlog>` row and buried the
+    // actual skip reasons this query exists to show.
+    `SELECT outcome, count(*)
+       FROM scheduled_wakeups
+      WHERE delivery_mode IS NULL AND outcome IS NOT NULL
+      GROUP BY outcome
+      ORDER BY 2 DESC`,
   ],
   [
     'chosen vs effective (THE Phase 1 deliverable) — chosen is what the character WANTED',
-    `SELECT split_part(outcome, 'chosen=', 2) AS chosen,
-            split_part(split_part(outcome, 'mode=', 2), ' ', 1) AS effective,
+    // Filtered on chosen_delivery_mode, not delivery_mode, so a row that
+    // recorded a choice but no effective mode still appears — as its own
+    // `effective=NULL` row in the GROUP BY, where it is visible rather than
+    // silently dropped. No writer produces that shape today (the success path
+    // in proactiveWakeupHandler writes both columns in one resolveWakeup, and
+    // the 0028 backfill derives both from the same `mode=X chosen=Y` string),
+    // so a non-empty effective=NULL row means something new is writing a
+    // partial pair and the clamp rate below needs re-reading before it is
+    // trusted.
+    `SELECT chosen_delivery_mode AS chosen,
+            delivery_mode AS effective,
             count(*)
        FROM scheduled_wakeups
-      WHERE outcome LIKE 'mode=%'
+      WHERE chosen_delivery_mode IS NOT NULL
       GROUP BY 1, 2
       ORDER BY 3 DESC`,
   ],
   [
     'CLAMP RATE — how often notify was downgraded by the guardrails',
-    `SELECT count(*) FILTER (WHERE outcome LIKE '% chosen=notify') AS wanted_notify,
-            count(*) FILTER (WHERE outcome LIKE 'mode=notify %') AS actually_notified,
+    // clamped counts only rows with a KNOWN effective mode that differs from
+    // the chosen one — `delivery_mode IS NOT NULL AND <> 'notify'`, not
+    // `IS DISTINCT FROM 'notify'`. clamped_pct is the number the Phase 2
+    // rollout gate reads to tune PROACTIVE_NOTIFY_COOLDOWN_MS and
+    // MAX_PROACTIVE_PUSHES_PER_DAY, so it must mean "the guardrails downgraded
+    // this notify" and nothing else. Folding NULL-effective rows in would let
+    // any future writer that records a choice on a failed turn inflate the
+    // guardrail clamp rate with failures. Those rows are not discarded — they
+    // are counted separately below, where an above-zero value is a signal that
+    // a writer is producing partial pairs, not a clamp.
+    `SELECT count(*) FILTER (WHERE chosen_delivery_mode = 'notify') AS wanted_notify,
+            count(*) FILTER (WHERE delivery_mode = 'notify') AS actually_notified,
             count(*) FILTER (
-              WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
+              WHERE chosen_delivery_mode = 'notify'
+                AND delivery_mode IS NOT NULL
+                AND delivery_mode <> 'notify'
             ) AS clamped,
             round(
               100.0 * count(*) FILTER (
-                WHERE outcome LIKE '% chosen=notify' AND outcome NOT LIKE 'mode=notify %'
-              ) / nullif(count(*) FILTER (WHERE outcome LIKE '% chosen=notify'), 0),
+                WHERE chosen_delivery_mode = 'notify'
+                  AND delivery_mode IS NOT NULL
+                  AND delivery_mode <> 'notify'
+              ) / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
               1
-            ) AS clamped_pct
+            ) AS clamped_pct,
+            count(*) FILTER (
+              WHERE chosen_delivery_mode = 'notify' AND delivery_mode IS NULL
+            ) AS chosen_notify_unresolved
        FROM scheduled_wakeups
-      WHERE outcome LIKE 'mode=%'`,
+      WHERE chosen_delivery_mode IS NOT NULL`,
   ],
   [
     'skip reasons — are the guardrails too tight?',
