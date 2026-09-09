@@ -9,7 +9,12 @@
 
 import { createExpoSqliteBetterSqlite3Mock } from '../../../__tests__/helpers/expoSqliteBetterSqlite3Mock'
 import { UNREAD_STALENESS_ESCAPE_MS } from '../../constants/proactive'
-import { applyProactiveMessages, countUnreadProactive, type LocalMessage } from '../messageDatabase'
+import {
+  applyProactiveMessages,
+  countUnreadProactive,
+  markProactiveReadLocally,
+  type LocalMessage,
+} from '../messageDatabase'
 import { CREATE_TABLES } from '../schema'
 
 type BetterSqliteDb = ReturnType<
@@ -183,5 +188,36 @@ describe('countUnreadProactive', () => {
     await insertLocal({ id: 'new', read_at: null, created_at: now - 1000 })
 
     expect(await countUnreadProactive('char-1', now)).toBe(1)
+  })
+})
+
+describe('markProactiveReadLocally', () => {
+  it("writes read_at for ALL of the character's unread proactive rows and returns their ids", async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await insertLocal({ id: 'p2', character_id: 'c1' })
+    await insertLocal({
+      id: 'regular',
+      character_id: 'c1',
+      message_data: JSON.stringify({ proactive: false }),
+    }) // not proactive
+    await insertLocal({ id: 'p3', character_id: 'c2' }) // other character
+    const ids = await markProactiveReadLocally('c1')
+    expect(ids.sort()).toEqual(['p1', 'p2'])
+    const row = await getLocal('p1')
+    expect(row?.read_at).not.toBeNull()
+  })
+
+  it('is a no-op when there is nothing unread (second open)', async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await markProactiveReadLocally('c1')
+    const ids = await markProactiveReadLocally('c1')
+    expect(ids).toEqual([])
+  })
+
+  it('leaves already-read rows out of the returned ids', async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await markProactiveReadLocally('c1')
+    await markProactiveReadLocally('c1') // both calls
+    expect(await countUnreadProactive('c1', Date.now())).toBe(0)
   })
 })
