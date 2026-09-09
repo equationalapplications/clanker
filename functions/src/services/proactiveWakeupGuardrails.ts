@@ -48,6 +48,13 @@ export const WAKEUP_POST_TIMEOUT_MS = 10_000
  * This is the "give the loop a time budget" the onSchedule comment prescribes
  * as the correct response to needing more time, instead of raising
  * timeoutSeconds (which would authorise overlapping sweeps and un-cap spend).
+ *
+ * The tail is best-effort, not guaranteed: the loop can exit as late as
+ * ~45s, and a tail statement that stalls up to the pool's statement_timeout
+ * can still push the sweep past 60s. Both tail statements are idempotent and
+ * retried by the next tick, so a lost tail costs one tick of reaping/retention
+ * latency, not data — but anything alerting on the reaped/deleted counters
+ * must tolerate a silently missing tick.
  */
 export const SWEEP_TIME_BUDGET_MS = 45_000
 
@@ -58,9 +65,10 @@ export const SWEEP_TIME_BUDGET_MS = 45_000
  * complete in well under a second in normal conditions; this reserve exists
  * so that a slow loadContext cannot push the sweep into its last ten seconds
  * of budget and then be killed during POST — which would strand a freshly
- * claimed row. Reserve is generous but does NOT bound pathological hangs in
- * claim/loadContext (those need a per-query statement timeout, which is a
- * larger change and out of scope for this fast-follow).
+ * claimed row. Pathological hangs in claim/loadContext are bounded by the
+ * pool-wide statement_timeout in db/cloudSql.ts, not by this reserve: a hung
+ * statement aborts, the row throws into the per-row catch, and the sweep
+ * survives instead of being killed mid-POST.
  */
 export const SWEEP_RESERVE_MS = 2_000
 
