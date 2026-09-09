@@ -44,7 +44,9 @@ describe('useMarkProactiveReadOnOpen', () => {
     mockMarkLocally.mockResolvedValue(['p1', 'p2'])
     const { invalidateSpy, Wrapper } = createWrapper()
     renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
-    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith(['p1', 'p2'], expect.any(Function)))
+    await waitFor(() =>
+      expect(mockEnqueue).toHaveBeenCalledWith(['p1', 'p2'], expect.any(Function)),
+    )
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['proactiveUnread'] })
   })
 

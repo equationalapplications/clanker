@@ -3,11 +3,7 @@ process.env.NODE_ENV = 'test'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HttpsError } from 'firebase-functions/v2/https'
-import {
-  scheduleWakeupHandler,
-  buildWakeupInsert,
-  WAKEUP_LIMIT_REFUSAL,
-} from './scheduleWakeup.js'
+import { scheduleWakeupHandler, buildWakeupInsert, WAKEUP_LIMIT_REFUSAL } from './scheduleWakeup.js'
 import type { ScheduleWakeupDeps } from './scheduleWakeup.js'
 
 function buildDeps(overrides: Partial<ScheduleWakeupDeps> = {}): ScheduleWakeupDeps {
@@ -47,7 +43,11 @@ test('rejects an unknown user', async () => {
   await assert.rejects(
     scheduleWakeupHandler(
       authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
-      buildDeps({ userRepository: { findUserByFirebaseUid: async () => null } as unknown as ScheduleWakeupDeps['userRepository'] }),
+      buildDeps({
+        userRepository: {
+          findUserByFirebaseUid: async () => null,
+        } as unknown as ScheduleWakeupDeps['userRepository'],
+      }),
     ),
     (e: unknown) => e instanceof HttpsError && e.code === 'not-found',
   )
@@ -86,7 +86,12 @@ test('returns the vague-limit refusal at the ceiling and inserts nothing', async
   const inserted: unknown[] = []
   const result = await scheduleWakeupHandler(
     authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
-    buildDeps({ todaysProactiveSpend: async () => 500, insertWakeup: async (row) => { inserted.push(row) } }),
+    buildDeps({
+      todaysProactiveSpend: async () => 500,
+      insertWakeup: async (row) => {
+        inserted.push(row)
+      },
+    }),
   )
   assert.equal(result.ok, false)
   assert.equal(result.message, WAKEUP_LIMIT_REFUSAL)
@@ -99,8 +104,17 @@ test('success inserts a pending row with minted id/runKey and returns the due ti
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   const due = futureIso()
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: '  follow up  ', remindAt: due, priority: 3 }),
-    buildDeps({ insertWakeup: async (row) => { saved = row } }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: '  follow up  ',
+      remindAt: due,
+      priority: 3,
+    }),
+    buildDeps({
+      insertWakeup: async (row) => {
+        saved = row
+      },
+    }),
   )
   assert.equal(result.ok, true)
   assert.equal(result.dueAt, new Date(due).toISOString())
@@ -118,7 +132,11 @@ test('priority defaults to 0 when omitted', async () => {
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   await scheduleWakeupHandler(
     authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
-    buildDeps({ insertWakeup: async (row) => { saved = row } }),
+    buildDeps({
+      insertWakeup: async (row) => {
+        saved = row
+      },
+    }),
   )
   assert.equal(saved!.priority, 0)
 })

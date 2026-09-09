@@ -26,8 +26,7 @@ comment's mandate that un-gating land in the same change that wires the sync
 triggers.
 
 This fast-follow originally scoped the wiring plus the un-gate. Pre-implementation
-telemetry exposed a prior, blocking problem — the producer never fires (Decision
-0) — and reshaped the sequence: **producer, wiring, then un-gate**, with the
+telemetry exposed a prior, blocking problem — the producer never fires (Decision 0) — and reshaped the sequence: **producer, wiring, then un-gate**, with the
 un-gate deferred until real telemetry exists.
 
 ## Goals
@@ -40,7 +39,7 @@ un-gate deferred until real telemetry exists.
 - The unread dot on the character list reflects the same state the server
   guardrail reads, and clears optimistically when the chat is opened.
 - No client that cannot handle a proactive push ever receives one — including
-  clients that *used* to be able to and were replaced as the push-token target.
+  clients that _used_ to be able to and were replaced as the push-token target.
 
 ## Non-goals
 
@@ -82,7 +81,7 @@ from production evidence: `set_reminder` is executable only inside cloud-agent's
 almost never — `/agent/run` served **3 requests in ~27 hours** (1×200, 2×402
 insufficient-credits). Everything downstream (sweeper, guardrails, push,
 telemetry) is a pristine pipeline behind a producer that never fires. The tool
-code is deployed and correct; the feature is *unreachable*.
+code is deployed and correct; the feature is _unreachable_.
 
 **Decision:** add a `scheduleWakeup` **callable** to `functions` and give the
 edge agent a real executor for it, following the `generate_image` edge-executor
@@ -104,7 +103,7 @@ same row shape and validation semantics.
   future), and the daily-ceiling check returning the same deliberately-vague
   refusal string, so the edge model gets the same 429-style answer as its
   escalated sibling.
-- **Noted parity gap, accepted:** neither path caps *pending* rows (the
+- **Noted parity gap, accepted:** neither path caps _pending_ rows (the
   ceiling gates spend; pendings carry 0). A looping model could stack
   pendings; each fires through the sweep, whose own ceiling bounds the cost.
   Matched to existing semantics rather than adding a cap.
@@ -142,7 +141,7 @@ calls `sendCharacterProactive` only when
 gradual. Flipping the global gate alone would fire pushes at clients that
 cannot sync, badge, or deeplink — the notification-tap-into-nothing failure
 the gate exists to prevent, displaced onto old clients. Worse, without the
-bidirectional write, an old *replacement* device re-registering its token
+bidirectional write, an old _replacement_ device re-registering its token
 would inherit the flag of the new device it replaced. The flag converts a
 global, irreversible flip into a per-user, self-healing rollout: readiness
 arrives exactly when a capable client registers, and a downgrade undoes it.
@@ -187,10 +186,10 @@ in-flight guard so overlapping triggers share one run. On completion it
 invalidates the `proactiveUnreadKeys` and `messageKeys` React Query caches so
 badges and threads refresh immediately instead of on the 5s poll.
 
-**Reasoning:** the Phase 2 spec mandates fetch-on-receipt *and* fetch-on-
+**Reasoning:** the Phase 2 spec mandates fetch-on-receipt _and_ fetch-on-
 foreground regardless of push (Decision 5) — dropped pushes cost timeliness
 only. The in-flight guard matters because foreground + tap + receipt can fire
-within one tick; the sync's transactional cursor makes redundant runs *safe*,
+within one tick; the sync's transactional cursor makes redundant runs _safe_,
 but not free. Cache invalidation is what turns sync from a side effect into
 UI: without it the badge waits out the poll interval.
 
@@ -292,16 +291,18 @@ ChatView mount, unread > 0
                                         persist message (read_at NULL)
                                         mode=notify && user flag ►
                                           sendCharacterProactive ─► push
+
 foreground / tap / receipt
-  └─ syncProactiveMessages(uid)
-       fetchProactiveMessages ────────► cursor page (owned chars only)
-       INSERT OR IGNORE + read_at backfill   (existing two-phase apply)
-       cursor advanced, same tx
-       invalidate unread + message caches
+└─ syncProactiveMessages(uid)
+fetchProactiveMessages ────────► cursor page (owned chars only)
+INSERT OR IGNORE + read_at backfill (existing two-phase apply)
+cursor advanced, same tx
+invalidate unread + message caches
 ChatView mount, unread > 0
-  ├─ local read_at write + invalidate   (dot clears now)
-  └─ enqueue → markProactiveRead ─────► read_at = now (NULL→ts only)
-       (durable queue; flush on fg/sync)
+├─ local read_at write + invalidate (dot clears now)
+└─ enqueue → markProactiveRead ─────► read_at = now (NULL→ts only)
+(durable queue; flush on fg/sync)
+
 ```
 
 ### Components
@@ -481,3 +482,4 @@ doesn't re-litigate the resolved questions:
    clamp branch) are post-merge work, scoped out of this branch. Decision 1's
    capability flag bounds the blast radius of stage 3 to clients that have
    registered `capabilities.proactivePush: true`.
+```

@@ -434,8 +434,7 @@ describe('set_reminder executor', () => {
   it('calls the callable with the session-bound cloud character id and returns its message', async () => {
     mockScheduleWakeupViaCallable.mockResolvedValue({
       ok: true,
-      message:
-        'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
+      message: 'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
       dueAt: '2026-09-10T10:00:00.000Z',
     })
     const executors = createEdgeToolExecutors('char-1', null, undefined, {

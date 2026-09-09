@@ -64,7 +64,10 @@ async function todaysProactiveSpend(characterId: string, now: Date): Promise<num
     .select({ spent: sql<number>`COALESCE(SUM(${scheduledWakeups.spentAmount}), 0)::int` })
     .from(scheduledWakeups)
     .where(
-      and(eq(scheduledWakeups.characterId, characterId), gte(scheduledWakeups.resolvedAt, dayStart)),
+      and(
+        eq(scheduledWakeups.characterId, characterId),
+        gte(scheduledWakeups.resolvedAt, dayStart),
+      ),
     )
   return row?.spent ?? 0
 }
@@ -73,7 +76,12 @@ async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<
   await (await getDb()).insert(scheduledWakeups).values(row)
 }
 
-const defaultDeps: ScheduleWakeupDeps = { userRepository, characterOwnedBy, todaysProactiveSpend, insertWakeup }
+const defaultDeps: ScheduleWakeupDeps = {
+  userRepository,
+  characterOwnedBy,
+  todaysProactiveSpend,
+  insertWakeup,
+}
 
 type ScheduleWakeupData = {
   characterId: string
@@ -98,11 +106,19 @@ function parsePayload(data: unknown): ScheduleWakeupData {
   }
   if (
     d.priority !== undefined &&
-    (typeof d.priority !== 'number' || !Number.isInteger(d.priority) || d.priority < 0 || d.priority > 10)
+    (typeof d.priority !== 'number' ||
+      !Number.isInteger(d.priority) ||
+      d.priority < 0 ||
+      d.priority > 10)
   ) {
     throw new HttpsError('invalid-argument', 'priority must be an integer between 0 and 10.')
   }
-  return { characterId: d.characterId, reason: d.reason, remindAt: d.remindAt, priority: d.priority }
+  return {
+    characterId: d.characterId,
+    reason: d.reason,
+    remindAt: d.remindAt,
+    priority: d.priority,
+  }
 }
 
 export async function scheduleWakeupHandler(
@@ -153,7 +169,11 @@ export async function scheduleWakeupHandler(
     priority: data.priority ?? 0,
   })
   await deps.insertWakeup(row)
-  return { ok: true, message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`, dueAt: dueAt.toISOString() }
+  return {
+    ok: true,
+    message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`,
+    dueAt: dueAt.toISOString(),
+  }
 }
 
 export const scheduleWakeup = onCall(

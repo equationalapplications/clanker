@@ -78,10 +78,7 @@ export interface ProactiveWakeupDeps {
   // the real exported `resolveDeliveryMode` keeps PROACTIVE_PUSH_ENABLED =
   // false (the global gate stays closed in this branch). Defaults to the real
   // export when the host wires up the handler.
-  resolveDeliveryMode?: (
-    chosen: DeliveryMode,
-    notifyAllowed: boolean,
-  ) => DeliveryModeResolution
+  resolveDeliveryMode?: (chosen: DeliveryMode, notifyAllowed: boolean) => DeliveryModeResolution
 }
 
 /**
