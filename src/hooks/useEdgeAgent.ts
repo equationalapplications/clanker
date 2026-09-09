@@ -9,6 +9,7 @@ import type { Character } from '~/services/aiChatService'
 import type { Wiki } from '~/services/wikiService'
 import { buildSystemInstruction, buildContentHistory } from '~/services/CharacterPromptBuilder'
 import { createEdgeToolExecutors } from '~/services/edgeToolExecutors'
+import { scheduleWakeupViaCallable } from '~/services/proactiveWakeupService'
 import { generateChatReply, type GenerateChatReplyResult } from '~/services/chatReplyService'
 import type { UsageSnapshotPayload } from '~/services/usageSnapshot'
 export type EscalationState = 'idle' | 'escalating'
@@ -31,6 +32,14 @@ export interface UseEdgeAgentOptions {
   priorMessages: Message[]
   isCloudSynced: boolean
   wiki: Wiki | null
+  /**
+   * Cloud-side character UUID (Postgres `characters.id`) the chat is bound to.
+   * Supplied when the chat has a cloud row to address — wires the local
+   * `set_reminder` executor against the `scheduleWakeup` callable. When
+   * `undefined`/`null`, `set_reminder` keeps its executor-undefined state
+   * and a call escalates instead of returning a null response to the model.
+   */
+  cloudAgentCharacterId?: string | null
 }
 
 export interface UseEdgeAgentReturn {
@@ -66,6 +75,7 @@ export function useEdgeAgent({
   priorMessages,
   isCloudSynced,
   wiki,
+  cloudAgentCharacterId,
 }: UseEdgeAgentOptions): UseEdgeAgentReturn {
   const [isThinking, setIsThinking] = useState(false)
   const [escalationState, setEscalationState] = useState<EscalationState>('idle')
@@ -107,6 +117,13 @@ export function useEdgeAgent({
               },
             }
           : undefined,
+        // set_reminder only fires locally when a cloud character row exists to
+        // schedule against — without it the model never sees the tool offered
+        // (see getSchemasForEdge), so passing undefined is a safety net rather
+        // than a normal case.
+        cloudAgentCharacterId
+          ? { characterId: cloudAgentCharacterId, scheduleWakeup: scheduleWakeupViaCallable }
+          : undefined,
       )
       const tools = getSchemasForEdge(!!wiki, isCloudSynced)
 
@@ -147,10 +164,20 @@ export function useEdgeAgent({
           // A cloud-only tool the edge can run itself (generate_image on a
           // local-only character) is executed below rather than escalated —
           // there is nothing to escalate to, and that is the whole point.
+          // set_reminder only stays out of escalation when its executor is
+          // wired (i.e. `cloudAgentCharacterId` was supplied). Otherwise the
+          // call would fall through with no executor registered — the model
+          // gets a null response and burns all MAX_ITERATIONS before the
+          // post-loop fallback. Letting it escalate in that case routes
+          // through cloud-agent's set_reminder, which is the intended
+          // unreachable path for a freshly-saved-but-not-yet-synced character
+          // (Decision 0 — production chat is edge-first; with no cloud row the
+          // wakeup must not silently succeed locally).
           const escalates = functionCalls.some(
             (fc) =>
               fc.name === 'escalate_to_cloud_agent' ||
               (isCloudOnlyToolName(fc.name ?? '') &&
+                !(fc.name === 'set_reminder' && !!cloudAgentCharacterId) &&
                 !(canGenerateLocally && isLocallyExecutableCloudTool(fc.name ?? ''))),
           )
           if (escalates) {
@@ -196,7 +223,7 @@ export function useEdgeAgent({
         setIsThinking(false)
       }
     },
-    [character, userId, isCloudSynced, wiki],
+    [character, userId, isCloudSynced, wiki, cloudAgentCharacterId],
   )
 
   return { sendMessage, isThinking, escalationState }

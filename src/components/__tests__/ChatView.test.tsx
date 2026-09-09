@@ -14,6 +14,10 @@ jest.mock('~/hooks/usePowerBalance', () => ({
   usePowerBalance: () => ({ totalPower: 100, isLoading: false }),
 }))
 
+jest.mock('~/hooks/useMarkProactiveReadOnOpen', () => ({
+  useMarkProactiveReadOnOpen: jest.fn(),
+}))
+
 jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: jest.fn().mockReturnValue({ uri: null, isResolved: true }),
 }))

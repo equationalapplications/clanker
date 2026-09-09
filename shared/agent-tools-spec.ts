@@ -171,14 +171,15 @@ export const agentToolSpec: ToolManifest[] = [
   {
     name: 'set_reminder',
     tier: 'cloud-only',
-    description: 'Schedule a reminder for the user at a specific future time.',
+    description: 'Schedule a follow-up on the current conversation at a specific future time.',
     parameters: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
-        remind_at: { type: 'string', description: 'ISO 8601 datetime.' },
+        reason: { type: 'string', description: 'What to follow up on when the wakeup fires.' },
+        remind_at: { type: 'string', description: 'ISO 8601 datetime, in the future.' },
+        priority: { type: 'integer', description: 'Optional urgency, 0 (default) to 10.' },
       },
-      required: ['message', 'remind_at'],
+      required: ['reason', 'remind_at'],
     },
   },
   {
@@ -206,8 +207,15 @@ export function isCloudOnlyToolName(name: string): boolean {
  * escalate to. `generate_image` qualifies because the image callable
  * (functions/src/generateImage.ts) needs only a prompt — no server-side
  * character row — so a local-only character keeps image parity without its
- * identity or memory ever reaching Postgres. `set_reminder` does NOT: reminders
- * are scheduled and delivered server-side against a synced character.
+ * identity or memory ever reaching Postgres.
+ *
+ * `set_reminder` is NOT in this set: reminders are scheduled and delivered
+ * server-side against a synced character, and a non-synced character has no
+ * Cloud SQL row to schedule against — so a local-only character must not see
+ * this tool offered at all. For cloud-synced characters the edge agent executes
+ * it via the `scheduleWakeup` callable directly (see
+ * `useEdgeAgent.cloudAgentCharacterId`), so this set is not consulted on that
+ * path either.
  */
 const LOCALLY_EXECUTABLE_CLOUD_TOOLS = new Set(['generate_image'])
 

@@ -9,6 +9,7 @@ import { useAIChat } from '~/hooks/useAIChat'
 import { Text, useTheme, Avatar } from 'react-native-paper'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { usePowerBalance } from '~/hooks/usePowerBalance'
+import { useMarkProactiveReadOnOpen } from '~/hooks/useMarkProactiveReadOnOpen'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import type { DocumentUploadPhase } from '~/components/ChatComposer'
 import { ChatInputBar } from '~/components/ChatInputBar'
@@ -96,6 +97,10 @@ export function ChatViewContent({
   userDisplayName,
   userPhotoUrl,
 }: ChatViewContentProps) {
+  // Decision 4: reading the chat reads the thread — clear the badge now,
+  // enqueue the durable server receipt.
+  useMarkProactiveReadOnOpen(characterId)
+
   const { totalPower: credits, isLoading: creditsLoading } = usePowerBalance()
   const { colors } = useTheme()
   // KeyboardAvoidingView from react-native-keyboard-controller computes the

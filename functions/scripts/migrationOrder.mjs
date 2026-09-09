@@ -37,6 +37,7 @@ export const MIGRATION_ORDER = [
   '0027_scheduled_wakeups_running_status.sql',
   '0028_scheduled_wakeups_delivery_mode.sql',
   '0029_messages_read_at.sql',
+  '0030_users_proactive_push_ready.sql',
 ];
 
 /** Index of a migration in the canonical order, or -1 if untracked. */

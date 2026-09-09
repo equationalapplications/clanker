@@ -15,12 +15,13 @@ type WebDevicePushRegistration = {
 }
 
 type RegisterExpoPushTokenPayload =
-  | { expoPushToken: string }
+  | { expoPushToken: string; capabilities: { proactivePush: boolean } }
   | {
       webDevicePushToken: WebDevicePushRegistration
       projectId: string
       applicationId: string
       deviceId: string
+      capabilities: { proactivePush: boolean }
     }
 
 type RegisterExpoPushTokenDeps = {
@@ -32,13 +33,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function parseCapabilities(value: unknown): { proactivePush: boolean } {
+  // Absent → false. The flag is only ever written alongside a token, and the
+  // write is explicit in both directions so an old replacement device actively
+  // clears a new device's readiness (Decision 1).
+  if (value === undefined) return { proactivePush: false }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new HttpsError('invalid-argument', 'capabilities must be an object.')
+  }
+  const proactivePush = (value as { proactivePush?: unknown }).proactivePush
+  if (proactivePush !== undefined && typeof proactivePush !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'capabilities.proactivePush must be a boolean.')
+  }
+  return { proactivePush: proactivePush === true }
+}
+
 function parsePayload(data: unknown): RegisterExpoPushTokenPayload {
   if (!isRecord(data)) {
     throw new HttpsError('invalid-argument', 'Request body must be an object.')
   }
 
   if (typeof data.expoPushToken === 'string' && data.expoPushToken.trim().length > 0) {
-    return { expoPushToken: data.expoPushToken.trim() }
+    return {
+      expoPushToken: data.expoPushToken.trim(),
+      capabilities: parseCapabilities(data.capabilities),
+    }
   }
 
   const webDevicePushToken = data.webDevicePushToken
@@ -92,6 +111,7 @@ function parsePayload(data: unknown): RegisterExpoPushTokenPayload {
     projectId,
     applicationId: applicationId.trim(),
     deviceId: deviceId.trim(),
+    capabilities: parseCapabilities(data.capabilities),
   }
 }
 
@@ -130,7 +150,10 @@ export const registerExpoPushTokenHandler = async (
     }
   }
 
-  const updated = await deps.userRepository.updateUser(user.id, { expoPushToken })
+  const updated = await deps.userRepository.updateUser(user.id, {
+    expoPushToken,
+    proactivePushReady: payload.capabilities.proactivePush,
+  })
   if (!updated) {
     throw new HttpsError('not-found', 'User not found.')
   }

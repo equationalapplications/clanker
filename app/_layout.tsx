@@ -40,6 +40,8 @@ import {
 } from '~/hooks/useMachines'
 import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
 import { useBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
+import { useProactiveSync } from '~/hooks/useProactiveSync'
+import { useProactiveNotificationRouting } from '~/hooks/useProactiveNotificationRouting'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import Constants from 'expo-constants'
 
@@ -148,12 +150,17 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
   const isSignedIn = useSelector(authService, (state) => state.matches('signedIn'))
   const { settings } = useSettings()
+  const currentUserId = useSelector(authService, (state) => state.context.user?.uid ?? null)
   useRegisterExpoPushToken({
     enabled: isSignedIn && settings.notifications,
     projectId:
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
   })
   useBrowserActionApproval()
+  // Proactive lifecycle-sync wiring (spec Decisions 2+3): foreground/receipt
+  // sync with in-flight guard; notification taps reuse the same guarded run.
+  const { triggerSync } = useProactiveSync(currentUserId)
+  useProactiveNotificationRouting({ triggerSync })
 
   return <>{children}</>
 }

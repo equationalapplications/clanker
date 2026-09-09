@@ -38,6 +38,7 @@ function buildApp(overrides: Partial<Parameters<typeof createProactiveWakeupHand
       traits: null,
       emotions: null,
       context: null,
+      proactivePushReady: true,
     }),
     runAgent: async () => ({
       reply: 'Hi',
@@ -309,6 +310,108 @@ test('a silent wake-up persists nothing', async () => {
   assert.equal(calls.insertedMessages.length, 0)
 })
 
+test('suppresses push for a notify on a flag-false user while still persisting mode=notify', async () => {
+  // Decision 1: per-device readiness flag bounds the eventual un-gate to
+  // clients that can sync/badge/deeplink. The global gate stays closed in this
+  // branch, so the real resolveDeliveryMode would clamp notify → quiet. We stub
+  // it to simulate the eventual un-gate (notify passes through) and assert the
+  // per-device flag still suppresses the push.
+  let pushed = false
+  const { app, calls } = buildApp({
+    loadCharacter: (async () => ({
+      id: 'char-1',
+      name: 'Ada',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      expoPushToken: 'ExponentPushToken[abc]',
+      proactivePushReady: false,
+    })) as never,
+    resolveDeliveryMode: (() => ({ mode: 'notify' as const, clampReason: null })) as never,
+    fcmDispatcher: {
+      sendCharacterProactive: async (): Promise<void> => {
+        pushed = true
+      },
+    } as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  // Message is still persisted — the gate only suppresses the push.
+  assert.equal(calls.insertedMessages.length, 1)
+  assert.equal(pushed, false, 'flag-false user must not receive a push')
+})
+
+test('fires the push for a notify on a flag-true user (un-gate shape)', async () => {
+  // Same stub (resolveDeliveryMode passes notify through) but proactivePushReady
+  // is true — the eventual un-gate shape. The push fires, the token routes it.
+  let pushed: { token: string; charId: string; name: string; body: string } | undefined
+  const { app } = buildApp({
+    loadCharacter: (async () => ({
+      id: 'char-1',
+      name: 'Ada',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      expoPushToken: 'ExponentPushToken[abc]',
+      proactivePushReady: true,
+    })) as never,
+    resolveDeliveryMode: (() => ({ mode: 'notify' as const, clampReason: null })) as never,
+    fcmDispatcher: {
+      sendCharacterProactive: async (
+        token: string,
+        charId: string,
+        _msgId: string,
+        name: string,
+        body: string,
+      ): Promise<void> => {
+        pushed = { token, charId, name, body }
+      },
+    } as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.equal(pushed?.token, 'ExponentPushToken[abc]')
+})
+
+test('a guardrail-clamped notify stays quiet regardless of flag', async () => {
+  // Guardrail clamp (sweeper forbade notifying) lands BEFORE the per-device
+  // flag check, so a flag-true user still does not get a push when the
+  // guardrail said no. The clamp reason stays 'guardrail', not 'flag'.
+  let pushed = false
+  const { app } = buildApp({
+    loadCharacter: (async () => ({
+      id: 'char-1',
+      name: 'Ada',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      expoPushToken: 'ExponentPushToken[abc]',
+      proactivePushReady: true,
+    })) as never,
+    resolveDeliveryMode: (() => ({
+      mode: 'quiet' as const,
+      clampReason: 'guardrail' as const,
+    })) as never,
+    fcmDispatcher: {
+      sendCharacterProactive: async (): Promise<void> => {
+        pushed = true
+      },
+    } as never,
+  })
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+  assert.equal(res.status, 200)
+  assert.equal(pushed, false, 'guardrail-clamped notifies must not push regardless of flag')
+})
+
 // TEMPORARY inversion, paired with PROACTIVE_PUSH_ENABLED = false. This test
 // asserted that a push fires; while the client sync is unwired a push would
 // deeplink into an empty local chat, so the gate must suppress it even on the
@@ -336,6 +439,7 @@ test('does not push while the gate is closed, even on the happy path', async () 
       emotions: null,
       context: null,
       expoPushToken: 'ExponentPushToken[abc]',
+      proactivePushReady: true,
     })) as never,
     fcmDispatcher: {
       sendCharacterProactive: async (

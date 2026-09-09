@@ -685,6 +685,11 @@ export function createApp(options: AppOptions) {
             // skip every push in production. Join users on userId and carry
             // the token through — the ProactiveCharacter interface already
             // declares expoPushToken as optional.
+            //
+            // proactivePushReady (Decision 1) bounds the eventual push un-gate
+            // to clients that can sync/badge/deeplink. Lives on users for the
+            // same reason as expoPushToken: it's a per-device capability, not a
+            // per-character setting.
             const [row] = await db
               .select({
                 id: characters.id,
@@ -694,6 +699,7 @@ export function createApp(options: AppOptions) {
                 emotions: characters.emotions,
                 context: characters.context,
                 expoPushToken: users.expoPushToken,
+                proactivePushReady: users.proactivePushReady,
               })
               .from(characters)
               .innerJoin(users, eq(characters.userId, users.id))

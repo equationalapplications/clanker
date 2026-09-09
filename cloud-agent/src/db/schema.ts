@@ -12,6 +12,7 @@ import {
   bigint,
   integer,
   jsonb,
+  boolean,
   index,
   check,
   uniqueIndex,
@@ -26,6 +27,7 @@ export const users = pgTable('users', {
   email: text('email').unique().notNull(),
   displayName: text('display_name'),
   expoPushToken: text('expo_push_token'),
+  proactivePushReady: boolean('proactive_push_ready').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

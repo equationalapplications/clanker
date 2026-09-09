@@ -618,3 +618,42 @@ export async function countUnreadProactive(characterId: string, nowMs: number): 
   )
   return row?.count ?? 0
 }
+
+/**
+ * Decision 4 step 1: optimistic local read receipt. Marks ALL of the
+ * character's unread proactive rows — reading the chat means reading the
+ * thread; the server guardrail's 7-day escape makes the distinction invisible
+ * to the push decision. Returns the ids marked so the caller can enqueue them
+ * for the durable server retry.
+ */
+// SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999, and a character's
+// proactive backlog can outgrow that comfortably once pushes are live. A
+// single UPDATE with thousands of IN-placeholders is rejected during prepare
+// — before any row changes — so we batch the IDs well below the host-parameter
+// ceiling and run all batches in one transaction so a mid-batch failure
+// leaves the local read_at state consistent.
+const MARKDOWN_BATCH_SIZE = 100
+
+export async function markProactiveReadLocally(characterId: string): Promise<string[]> {
+  const db = await getDatabase()
+  const rows = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM messages
+      WHERE character_id = ? AND read_at IS NULL
+        AND json_extract(message_data, '$.proactive') = 1`,
+    [characterId],
+  )
+  const ids = rows.map((row) => row.id)
+  if (ids.length === 0) return []
+  const now = Date.now()
+  await db.withTransactionAsync(async () => {
+    for (let i = 0; i < ids.length; i += MARKDOWN_BATCH_SIZE) {
+      const batch = ids.slice(i, i + MARKDOWN_BATCH_SIZE)
+      const placeholders = batch.map(() => '?').join(',')
+      await db.runAsync(
+        `UPDATE messages SET read_at = ? WHERE id IN (${placeholders}) AND read_at IS NULL`,
+        [now, ...batch],
+      )
+    }
+  })
+  return ids
+}
