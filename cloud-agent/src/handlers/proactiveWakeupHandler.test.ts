@@ -228,18 +228,23 @@ test('character_missing refund failure does not double-refund', async () => {
 })
 
 test('downgrades notify to quiet when the sweeper forbade notifying', () => {
-  assert.equal(resolveDeliveryMode('notify', false), 'quiet')
-  assert.equal(resolveDeliveryMode('quiet', true), 'quiet')
-  assert.equal(resolveDeliveryMode('silent', true), 'silent')
+  assert.deepEqual(resolveDeliveryMode('notify', false), {
+    mode: 'quiet',
+    clampReason: 'guardrail',
+  })
+  assert.deepEqual(resolveDeliveryMode('quiet', true), { mode: 'quiet', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('silent', true), { mode: 'silent', clampReason: null })
 })
 
 // TEMPORARY, paired with PROACTIVE_PUSH_ENABLED = false. Until the lifecycle
 // sync is wired, a push would deeplink into an empty local chat, so notify is
 // gated off even when the sweeper permits it. When the fast-follow un-gates
 // push, this assertion flips back to 'notify' — and the line above in the
-// sweeper-forbade test stays 'quiet' either way.
+// sweeper-forbade test stays 'quiet' either way. The guardrail is checked
+// first, so while the gate is closed a guardrail-blocked notify is labelled
+// 'guardrail' (the tunable signal) and only guardrail-permitted ones 'gate'.
 test('gates notify off while the client sync is unwired', () => {
-  assert.equal(resolveDeliveryMode('notify', true), 'quiet')
+  assert.deepEqual(resolveDeliveryMode('notify', true), { mode: 'quiet', clampReason: 'gate' })
 })
 
 test('resolve records effective and chosen delivery modes as columns', async () => {
@@ -260,10 +265,12 @@ test('resolve records effective and chosen delivery modes as columns', async () 
     outcome: string
   }
   // notifyAllowed false clamps the effective mode down, but what the character
-  // wanted must survive — it is the signal the rollout gate tunes against.
+  // wanted must survive — it is the signal the rollout gate tunes against. The
+  // clamp reason names WHO clamped: 'guardrail' here, since notifyAllowed was
+  // false and the push gate never got a say.
   assert.equal(resolved.deliveryMode, 'quiet')
   assert.equal(resolved.chosenDeliveryMode, 'notify')
-  assert.equal(resolved.outcome, 'mode=quiet chosen=notify')
+  assert.equal(resolved.outcome, 'mode=quiet chosen=notify clamp=guardrail')
 })
 
 test('a non-silent wake-up persists a proactive message row', async () => {
