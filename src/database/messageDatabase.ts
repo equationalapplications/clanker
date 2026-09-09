@@ -541,10 +541,19 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
  * Phase 2: A targeted read_at update that ONLY fires when read_at IS NULL.
  * Server-issued read state has to be one-directional — an out-of-order page
  * (a stale cursor replayed after a user has cleared the badge) cannot resurrect
- * a read receipt that was cleared on another device. Proactive messages have no
- * userId on the wire, so `recipient_user_id` falls back to `characterId` to
- * satisfy the NOT NULL constraint; the user-side filter on
- * `character_id = ?` is the canonical access path either way.
+ * a read receipt that was cleared on another device.
+ *
+ * `userId` is a parameter because proactive messages carry no userId on the
+ * wire, and the columns cannot be faked. A proactive message is a character ->
+ * user message, so it takes the mirror of the user-authored shape written by
+ * insertMessage (sender = user, recipient = character): sender is the
+ * character, recipient is the user. Both halves are load-bearing. Every read
+ * path here — getMessages, getMessage, getLastMessage, getMessageCount,
+ * searchMessages — filters `(sender_user_id = ? OR recipient_user_id = ?)`
+ * against the user, so a row naming only the character is invisible to all of
+ * them; and toGiftedChatMessage decides authorship with
+ * `sender_user_id === currentUserId`, so naming the user as sender would render
+ * the character's own message as the user's.
  *
  * When `db` is omitted the function opens its own transaction. When `db` is
  * provided (Task 10 orchestrator pattern) the caller is already inside a
@@ -553,6 +562,7 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
  */
 export async function applyProactiveMessages(
   payload: ProactiveMessagePayload[],
+  userId: string,
   db?: Awaited<ReturnType<typeof getDatabase>>,
 ): Promise<void> {
   const database = db ?? (await getDatabase())
@@ -566,7 +576,7 @@ export async function applyProactiveMessages(
           msg.messageId,
           msg.characterId,
           msg.characterId,
-          msg.characterId,
+          userId,
           msg.text,
           Date.parse(msg.createdAt),
           JSON.stringify({ proactive: true }),
@@ -602,7 +612,7 @@ export async function countUnreadProactive(characterId: string, nowMs: number): 
   const db = await getDatabase()
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) AS count FROM messages
-      WHERE character_id = ? AND read_at IS NULL AND created_at > ?
+      WHERE character_id = ? AND read_at IS NULL AND created_at >= ?
         AND json_extract(message_data, '$.proactive') = 1`,
     [characterId, nowMs - UNREAD_STALENESS_ESCAPE_MS],
   )

@@ -212,10 +212,23 @@ export function buildSweepDeps(): SweepDeps {
           ),
         )
 
+      // Proactive messages are excluded: they are written with the owner's
+      // userId as sender (cloud-agent), exactly like user-authored rows, so the
+      // JSON marker is the only thing that tells them apart. Counting them here
+      // would let a wake-up re-arm the notify cooldown against itself — the
+      // sweep posts at T, reads its own row back as `lastUserMessageAt` at
+      // T+5min, and suppresses notify for the next cooldown window even though
+      // the user has done nothing. The spec defines this window against the
+      // user's last message.
       const [lastMsgRow] = await db
         .select({ lastAt: sql<Date | null>`MAX(${messages.createdAt})` })
         .from(messages)
-        .where(eq(messages.characterId, row.characterId))
+        .where(
+          and(
+            eq(messages.characterId, row.characterId),
+            sql`${messages.messageData}->>'proactive' is distinct from 'true'`,
+          ),
+        )
 
       return {
         balance: subRow?.currentCredits ?? 0,

@@ -108,8 +108,15 @@ export function createFcmDispatcher(messaging: MessagingLike, fetchImpl: typeof 
       characterName: string,
       body: string,
     ): Promise<void> {
+      // Truncate over code points, not UTF-16 units. This is the only push fed
+      // raw model output, so non-BMP characters are routine here; slicing by
+      // unit can cut an emoji's surrogate pair in half and emit a lone
+      // surrogate, which JSON encoding turns into U+FFFD in the notification.
+      const codePoints = Array.from(body)
       const preview =
-        body.length > PUSH_BODY_MAX_LENGTH ? `${body.slice(0, PUSH_BODY_MAX_LENGTH - 1)}…` : body
+        codePoints.length > PUSH_BODY_MAX_LENGTH
+          ? `${codePoints.slice(0, PUSH_BODY_MAX_LENGTH - 1).join('')}…`
+          : body
 
       await expoPush({
         to: expoPushToken,

@@ -41,12 +41,15 @@ const fetchProactiveMessages = httpsCallable<
 /**
  * Drain the proactive-message queue for the current user into local SQLite.
  *
+ * `userId` is the authenticated uid. The wire payload does not carry it, but
+ * the local rows cannot be written without it — see applyProactiveMessages.
+ *
  * Safe to call repeatedly: the server's cursor + the local INSERT OR IGNORE
  * make this idempotent. Loops while the server reports a non-null `nextCursor`
  * (page boundary); bails out on a 0-row page even if `nextCursor` is set, to
  * avoid an infinite loop if the cursor advances without producing messages.
  */
-export async function syncProactiveMessages(): Promise<void> {
+export async function syncProactiveMessages(userId: string): Promise<void> {
   let cursor: SyncCursor | null = await getSyncCursor(PROACTIVE_SYNC_CURSOR_KEY)
   const db = await getDatabase()
 
@@ -79,7 +82,7 @@ export async function syncProactiveMessages(): Promise<void> {
     }
 
     await db.withTransactionAsync(async () => {
-      await applyProactiveMessages(messages, db)
+      await applyProactiveMessages(messages, userId, db)
       // Cursor advance inside the same transaction as the inserts. A crash
       // mid-page rolls both back — no message is skipped, no cursor drift.
       // On a final page the server omits nextCursor, so advance to the last

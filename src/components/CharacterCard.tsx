@@ -4,7 +4,6 @@ import { Card, Text, Icon, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import CharacterAvatar from '~/components/CharacterAvatar'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
-import { useProactiveUnread } from '~/hooks/useProactiveUnread'
 
 interface CharacterCardProps {
   id: string
@@ -29,7 +28,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   // Boolean badge — `countUnreadProactive` already enforces the staleness
   // escape, so the dot matches the server's push-decision contract. Deliberately
   // a boolean, not a count: AI chats are not an inbox.
-  const { hasUnread: hasUnreadProactive } = useProactiveUnread(id)
 
   const handlePress = () => {
     if (onPress) {
@@ -61,16 +59,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
                 <CharacterAvatar size={48} imageUrl={avatarUri} characterName={name} />
-                {hasUnreadProactive ? (
-                  <View
-                    style={[
-                      styles.unreadDot,
-                      { backgroundColor: theme.colors.error, borderColor: theme.colors.surface },
-                    ]}
-                    accessibilityElementsHidden
-                    importantForAccessibility="no"
-                  />
-                ) : null}
               </View>
               <View style={styles.info}>
                 <Text variant="titleMedium" style={styles.name}>

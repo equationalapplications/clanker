@@ -35,6 +35,8 @@ interface ProactiveMessagePayload {
   readAt: string | null
 }
 
+const USER_ID = 'user-1'
+
 function payload(overrides: Partial<ProactiveMessagePayload> = {}): ProactiveMessagePayload {
   return {
     messageId: 'm1',
@@ -113,7 +115,7 @@ beforeEach(() => {
 describe('applyProactiveMessages', () => {
   it('does not clobber an existing local row', async () => {
     await insertLocal({ id: 'm1', text: 'local text', pending: 1 })
-    await applyProactiveMessages([payload({ messageId: 'm1', text: 'server text' })])
+    await applyProactiveMessages([payload({ messageId: 'm1', text: 'server text' })], USER_ID)
 
     const row = await getLocal('m1')
     // INSERT OR IGNORE, not OR REPLACE: OR REPLACE would silently reset
@@ -124,14 +126,17 @@ describe('applyProactiveMessages', () => {
 
   it('applies read_at to a row it already has', async () => {
     await insertLocal({ id: 'm1', read_at: null })
-    await applyProactiveMessages([payload({ messageId: 'm1', readAt: '2026-09-08T12:00:00.000Z' })])
+    await applyProactiveMessages(
+      [payload({ messageId: 'm1', readAt: '2026-09-08T12:00:00.000Z' })],
+      USER_ID,
+    )
 
     expect((await getLocal('m1'))?.read_at).toBe(Date.parse('2026-09-08T12:00:00.000Z'))
   })
 
   it('never clears a read_at that is already set', async () => {
     await insertLocal({ id: 'm1', read_at: 1_700_000_000_000 })
-    await applyProactiveMessages([payload({ messageId: 'm1', readAt: null })])
+    await applyProactiveMessages([payload({ messageId: 'm1', readAt: null })], USER_ID)
 
     // The update is one-directional (AND read_at IS NULL) so an out-of-order
     // page cannot resurrect a cleared badge.
@@ -139,8 +144,31 @@ describe('applyProactiveMessages', () => {
   })
 
   it('inserts a row it does not have', async () => {
-    await applyProactiveMessages([payload({ messageId: 'new', text: 'hello' })])
+    await applyProactiveMessages([payload({ messageId: 'new', text: 'hello' })], USER_ID)
     expect((await getLocal('new'))?.text).toBe('hello')
+  })
+
+  // The row existing is not the same as the row being reachable. Every read
+  // path filters `(sender_user_id = ? OR recipient_user_id = ?)` against the
+  // user, so writing the character into both columns hides the message from the
+  // chat while countUnreadProactive — which filters on character_id alone —
+  // still badges it: the dot lights and the thread opens empty.
+  it('writes columns the user-scoped read path can actually match', async () => {
+    await applyProactiveMessages([payload({ messageId: 'visible' })], USER_ID)
+
+    const row = await getLocal('visible')
+    expect(row?.recipient_user_id).toBe(USER_ID)
+    // Sender stays the character: toGiftedChatMessage decides authorship with
+    // `sender_user_id === currentUserId`, so naming the user here would render
+    // the character's own message as the user's.
+    expect(row?.sender_user_id).toBe('char-1')
+
+    const visible = await mockDbOverride!.getFirstAsync<LocalMessage>(
+      `SELECT * FROM messages
+        WHERE character_id = ? AND (sender_user_id = ? OR recipient_user_id = ?)`,
+      ['char-1', USER_ID, USER_ID],
+    )
+    expect(visible?.id).toBe('visible')
   })
 })
 
