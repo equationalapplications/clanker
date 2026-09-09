@@ -52,6 +52,19 @@ export const WAKEUP_POST_TIMEOUT_MS = 10_000
 export const SWEEP_TIME_BUDGET_MS = 45_000
 
 /**
+ * Reserve added to the pre-claim budget check on top of WAKEUP_POST_TIMEOUT_MS,
+ * covering the DB roundtrips in `claim` (one UPDATE) and `loadContext` (five
+ * SELECTs against indexed columns) before the POST runs. claim + loadContext
+ * complete in well under a second in normal conditions; this reserve exists
+ * so that a slow loadContext cannot push the sweep into its last ten seconds
+ * of budget and then be killed during POST — which would strand a freshly
+ * claimed row. Reserve is generous but does NOT bound pathological hangs in
+ * claim/loadContext (those need a per-query statement timeout, which is a
+ * larger change and out of scope for this fast-follow).
+ */
+export const SWEEP_RESERVE_MS = 2_000
+
+/**
  * A row claimed longer ago than this is presumed abandoned — its POST died
  * before cloud-agent could resolve it. Generously above the sweep's 60s
  * timeoutSeconds (pinned in proactiveWakeupSweep.ts) so a slow-but-live turn is

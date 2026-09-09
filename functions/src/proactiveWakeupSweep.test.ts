@@ -216,3 +216,28 @@ test('leaves rows pending — not skipped — when it runs out of budget', async
   assert.equal(posted.length, 0, 'no row may be posted once the budget is gone')
   assert.equal(resolved.length, 0, 'a budget stop is not a skip decision')
 })
+
+// SWEEP_RESERVE_MS covers the DB roundtrips in claim + loadContext that run
+// AFTER the budget check but BEFORE postWakeup. Without it, a row near the
+// budget boundary would pass the check, claim, and then be killed during POST
+// — stranding the claim. At 34s elapsed the reserve pushes the budget check
+// over (34 + 10 + 2 > 45), so the row stays pending.
+test('reserve tightens the budget so claim+loadContext do not strand a row at POST', async () => {
+  let call = 0
+  const claimed: string[] = []
+  const { posted, deps } = buildDeps({
+    // 34s per call: well past the original (POST-only) cutoff for iteration 2,
+    // and exactly at the boundary the reserve was added to handle.
+    now: () => new Date(NOW.getTime() + call++ * 34_000),
+    selectDue: async () => [dueRow({ id: 'w1' }), dueRow({ id: 'w2' })],
+    claim: async (id: string) => {
+      claimed.push(id)
+      return true
+    },
+  })
+
+  await proactiveWakeupSweepHandler(deps as never)
+
+  assert.deepEqual(claimed, [], 'the reserve must stop this row before it can claim')
+  assert.equal(posted.length, 0)
+})
