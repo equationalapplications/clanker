@@ -12,6 +12,7 @@ const mockUser = {
   email: 'a@example.com',
   displayName: null,
   expoPushToken: null,
+  proactivePushReady: false,
   avatarUrl: null,
   isProfilePublic: false,
   defaultCharacterId: null,

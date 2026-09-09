@@ -39,6 +39,7 @@ function buildUser(auth: ReturnType<typeof buildAuth>): UserRecord {
     email: auth.token.email,
     displayName: null,
     expoPushToken: null,
+    proactivePushReady: false,
     avatarUrl: null,
     isProfilePublic: false,
     defaultCharacterId: null,
