@@ -26,9 +26,20 @@ jest.mock('~/hooks/useProactiveUnread', () => ({
     detail: (id: string) => ['proactiveUnread', id],
   },
 }))
+// Mirrors the real factory in ~/hooks/useMessages. Kept in sync by
+// useMessages.messageKeys.test.ts, which asserts the real keys have this shape
+// — a stub that drifts is how an over-broad invalidation hid here before.
 jest.mock('~/hooks/useMessages', () => ({
   messageKeys: {
     all: ['messages'],
+    lists: () => ['messages', 'list'],
+    character: (characterId: string) => ['messages', 'list', characterId],
+    list: (characterId: string, recipientUserId: string) => [
+      'messages',
+      'list',
+      characterId,
+      recipientUserId,
+    ],
   },
 }))
 
@@ -70,7 +81,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   appStateListeners.length = 0
   for (const k of Object.keys(notificationListeners)) delete notificationListeners[k]
-  mockSync.mockResolvedValue(undefined)
+  mockSync.mockResolvedValue([])
   mockFlush.mockResolvedValue(undefined)
   mockMarkReadCall.mockResolvedValue({ updated: 0 })
 })
@@ -111,12 +122,32 @@ describe('useProactiveSync', () => {
     const { Wrapper } = createWrapper()
     renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
+    // The mount (cold-start) sync has already fired; the assertion is that the
+    // foreign receipt adds no FURTHER run.
+    await act(async () => {})
+    const before = mockSync.mock.calls.length
+
     await act(async () => {
       notificationListeners.received?.({
         request: { content: { data: { type: 'OTHER' } } },
       })
     })
 
+    expect(mockSync).toHaveBeenCalledTimes(before)
+  })
+
+  it('fires sync on mount (cold start, no AppState change and no tap)', async () => {
+    const { Wrapper } = createWrapper()
+    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+
+    await waitFor(() => expect(mockSync).toHaveBeenCalledWith('uid-1'))
+  })
+
+  it('does NOT fire on mount without a user id', async () => {
+    const { Wrapper } = createWrapper()
+    renderHook(() => useProactiveSync(null), { wrapper: Wrapper })
+
+    await act(async () => {})
     expect(mockSync).not.toHaveBeenCalled()
   })
 
@@ -147,6 +178,7 @@ describe('useProactiveSync', () => {
   it('invalidates the unread + message caches after a successful sync', async () => {
     const { Wrapper, queryClient } = createWrapper()
     const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
+    mockSync.mockResolvedValue(['char-1'])
 
     renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
@@ -159,8 +191,21 @@ describe('useProactiveSync', () => {
     await waitFor(() => {
       const calls = invalidateSpy.mock.calls.map((args) => JSON.stringify(args[0]?.queryKey ?? []))
       expect(calls.some((key) => key.startsWith('["proactiveUnread"'))).toBe(true)
-      expect(calls.some((key) => key.startsWith('["messages"'))).toBe(true)
+      // Scoped to the touched thread, NOT the `["messages"]` catch-all that
+      // would refetch every cached conversation.
+      expect(calls).toContain(JSON.stringify(['messages', 'list', 'char-1']))
+      expect(calls).not.toContain(JSON.stringify(['messages']))
     })
+  })
+
+  it('flushes the read queue even when the sync pull fails', async () => {
+    mockSync.mockRejectedValueOnce(new Error('boom'))
+    const { Wrapper } = createWrapper()
+    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+
+    // A stranded mark-read queue makes the server suppress every future push
+    // from that character, so the flush must not share the pull's fate.
+    await waitFor(() => expect(mockFlush).toHaveBeenCalled())
   })
 
   it('does NOT invalidate on sync failure', async () => {

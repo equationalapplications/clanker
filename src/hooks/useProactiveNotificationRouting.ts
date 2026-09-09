@@ -11,6 +11,9 @@ import { isProactivePushData } from '~/hooks/useProactiveSync'
 // resolve to `/admin` on authenticated web sessions.
 const CHAT_DEEPLINK_PATTERN = /^\/chat\/[A-Za-z0-9_-]+$/
 
+// Cap on the tap-dedupe set (see handledIdentifiersRef below).
+const HANDLED_IDENTIFIER_LIMIT = 50
+
 export function useProactiveNotificationRouting({
   triggerSync,
 }: {
@@ -20,6 +23,12 @@ export function useProactiveNotificationRouting({
   // for the same response. Deduping by request identifier keeps `router.push`
   // from adding duplicate `/chat/<id>` entries when one tap reaches both
   // paths (CodeRabbit review finding).
+  //
+  // The hook is mounted for the lifetime of the app, so the set is bounded by
+  // FIFO eviction rather than growing with every tap of the session. Only the
+  // two paths for the SAME tap need to see each other, so a small window is
+  // ample; insertion order is Set iteration order, so the oldest entry is
+  // always the first one.
   const handledIdentifiersRef = useRef<Set<string>>(new Set())
 
   const routeIfProactive = useCallback(
@@ -29,6 +38,11 @@ export function useProactiveNotificationRouting({
       if (!CHAT_DEEPLINK_PATTERN.test(deepLink)) return false
       if (handledIdentifiersRef.current.has(identifier)) return false
       handledIdentifiersRef.current.add(identifier)
+      while (handledIdentifiersRef.current.size > HANDLED_IDENTIFIER_LIMIT) {
+        const oldest = handledIdentifiersRef.current.values().next().value
+        if (oldest === undefined) break
+        handledIdentifiersRef.current.delete(oldest)
+      }
       // Push is a hint (Phase 2 Decision 5): sync fires non-blocking and
       // navigation never waits on the network — the 5s poll plus the sync's
       // cache invalidation populate the thread as the data lands.

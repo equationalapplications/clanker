@@ -26,8 +26,12 @@ import {
 export const messageKeys = {
   all: ['messages'] as const,
   lists: () => [...messageKeys.all, 'list'] as const,
+  // Prefix of every recipient's list key for one character. Lets a caller that
+  // knows only the character (proactive sync) invalidate exactly that thread
+  // instead of falling back to `all`, which matches every cached conversation.
+  character: (characterId: string) => [...messageKeys.lists(), characterId] as const,
   list: (characterId: string, recipientUserId: string) =>
-    [...messageKeys.lists(), characterId, recipientUserId] as const,
+    [...messageKeys.character(characterId), recipientUserId] as const,
 }
 
 /**

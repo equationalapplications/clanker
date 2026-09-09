@@ -19,9 +19,9 @@ export function isProactivePushData(data: unknown): data is { deepLink?: unknown
 }
 
 /**
- * Decision 3: sync on foreground and on foreground receipt, one in-flight run,
- * invalidate the badge + thread caches on completion. Task 7's routing hook
- * reuses triggerSync for notification taps.
+ * Decision 3: sync on mount, on foreground, and on foreground receipt, one
+ * in-flight run, invalidate the badge + the touched thread caches on
+ * completion. Task 7's routing hook reuses triggerSync for notification taps.
  */
 export function useProactiveSync(userId: string | null | undefined): { triggerSync: () => void } {
   const queryClient = useQueryClient()
@@ -31,20 +31,53 @@ export function useProactiveSync(userId: string | null | undefined): { triggerSy
     if (!userId || inFlightRef.current) return
     const run = (async () => {
       try {
-        await syncProactiveMessages(userId)
-        await flushMarkReadQueue(markProactiveReadViaCallable)
+        // `null` means the pull failed — distinct from `[]` (pull succeeded,
+        // nothing new). Only the failure case skips invalidation.
+        let touchedCharacterIds: string[] | null = null
+        try {
+          touchedCharacterIds = await syncProactiveMessages(userId)
+        } catch (error) {
+          // A stale badge beats a lying one: failure skips invalidation. The
+          // transactional cursor makes the next trigger's run safe.
+          console.warn('[proactiveSync] sync failed:', error)
+        }
+
+        // The durable mark-read queue is independent of the pull. A dropped
+        // receipt is severe — the server then suppresses every future push
+        // from that character — so the flush lives outside the pull's try and
+        // always gets its attempt, even when the pull just threw.
+        try {
+          await flushMarkReadQueue(markProactiveReadViaCallable)
+        } catch (error) {
+          console.warn('[proactiveSync] mark-read flush failed:', error)
+        }
+
+        if (touchedCharacterIds === null) return
         await queryClient.invalidateQueries({ queryKey: proactiveUnreadKeys.all })
-        await queryClient.invalidateQueries({ queryKey: messageKeys.all })
+        // Only the threads this run actually wrote to. `messageKeys.all` is the
+        // prefix of every list key, so invalidating it refetched every cached
+        // conversation on every sync.
+        await Promise.all(
+          touchedCharacterIds.map((characterId) =>
+            queryClient.invalidateQueries({ queryKey: messageKeys.character(characterId) }),
+          ),
+        )
       } catch (error) {
-        // A stale badge beats a lying one: failure skips invalidation. The
-        // transactional cursor makes the next trigger's run safe.
-        console.warn('[proactiveSync] sync failed:', error)
+        console.warn('[proactiveSync] sync run failed:', error)
       } finally {
         inFlightRef.current = null
       }
     })()
     inFlightRef.current = run
   }, [userId, queryClient])
+
+  // Cold start. An app that launches straight into the foreground emits no
+  // AppState 'change' and — absent a tap — no receipt, so without this the
+  // first sync would wait for a background/foreground round trip.
+  useEffect(() => {
+    if (!userId) return
+    triggerSync()
+  }, [userId, triggerSync])
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {

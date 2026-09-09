@@ -47,19 +47,19 @@ let queueLock: Promise<unknown> = Promise.resolve()
 async function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
   const prev = queueLock
   let release: () => void = () => {}
-  let abort: (err: unknown) => void = () => {}
-  queueLock = new Promise<void>((res, rej) => {
+  const current = new Promise<void>((res) => {
     release = res
-    abort = rej
   })
+  queueLock = current
   try {
-    await prev
+    // Wait for the previous holder either way: a rejected `prev` must not skip
+    // our turn, and it is already owned by whoever threw it.
+    await prev.catch(() => {})
     return await fn()
   } finally {
+    // Always resolves — the chain never carries a rejection, so the next
+    // holder's `await prev` cannot be poisoned by our caller's error.
     release()
-    // Swallow late rejections from previous holders so the chain stays healthy
-    // even if a thrown error reaches here after the holder already caught it.
-    queueLock.catch(abort)
   }
 }
 

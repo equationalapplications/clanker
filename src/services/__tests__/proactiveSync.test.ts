@@ -58,9 +58,9 @@ jest.mock('~/database', () => ({
   }),
 }))
 
-const msg = (id: string, createdAt = '2026-09-08T12:00:00.000Z') => ({
+const msg = (id: string, createdAt = '2026-09-08T12:00:00.000Z', characterId = 'c1') => ({
   messageId: id,
-  characterId: 'c1',
+  characterId,
   text: 'hi',
   createdAt,
   readAt: null,
@@ -73,6 +73,36 @@ beforeEach(() => {
 })
 
 describe('proactive sync orchestrator', () => {
+  it('reports the characters it wrote rows for, deduplicated across pages', async () => {
+    // The caller invalidates exactly these thread caches, so an over-broad or
+    // missing id is the difference between a stale thread and a refetch of
+    // every conversation the user has open.
+    const cursor = { createdAt: '2026-09-08T12:00:00.000Z', messageId: 'm1' }
+    mockCallable
+      .mockResolvedValueOnce({
+        data: {
+          messages: [
+            msg('m1', '2026-09-08T12:00:00.000Z', 'c1'),
+            msg('m2', '2026-09-08T12:00:01.000Z', 'c2'),
+          ],
+          nextCursor: cursor,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { messages: [msg('m3', '2026-09-08T12:00:02.000Z', 'c1')], nextCursor: null },
+      })
+
+    const touched = await syncProactiveMessages('uid-1')
+
+    expect(touched.slice().sort()).toEqual(['c1', 'c2'])
+  })
+
+  it('reports no characters when the server has nothing new', async () => {
+    mockCallable.mockResolvedValueOnce({ data: { messages: [], nextCursor: null } })
+
+    await expect(syncProactiveMessages('uid-1')).resolves.toEqual([])
+  })
+
   it('applies the page and advances the cursor inside one transaction', async () => {
     // A crash between the inserts and the cursor write would either skip
     // messages (cursor ahead) or re-deliver them forever (cursor behind). Both

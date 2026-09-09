@@ -49,9 +49,12 @@ const fetchProactiveMessages = httpsCallable<
  * (page boundary); bails out on a 0-row page even if `nextCursor` is set, to
  * avoid an infinite loop if the cursor advances without producing messages.
  */
-export async function syncProactiveMessages(userId: string): Promise<void> {
+export async function syncProactiveMessages(userId: string): Promise<string[]> {
   let cursor: SyncCursor | null = await getSyncCursor(PROACTIVE_SYNC_CURSOR_KEY)
   const db = await getDatabase()
+  // Characters this run actually wrote rows for, so the caller can invalidate
+  // exactly those thread caches instead of every cached conversation.
+  const touchedCharacterIds = new Set<string>()
 
   // Capped so a stuck server (returns nextCursor but never produces rows)
   // cannot loop forever. The server's PROACTIVE_SYNC_PAGE_LIMIT caps the
@@ -78,7 +81,7 @@ export async function syncProactiveMessages(userId: string): Promise<void> {
         })
         cursor = nextCursor
       }
-      return
+      return Array.from(touchedCharacterIds)
     }
 
     await db.withTransactionAsync(async () => {
@@ -97,11 +100,19 @@ export async function syncProactiveMessages(userId: string): Promise<void> {
       await setSyncCursor(PROACTIVE_SYNC_CURSOR_KEY, advanced, db)
     })
 
+    // Recorded only after the transaction commits, so a rolled-back page never
+    // reports threads it did not actually write.
+    for (const msg of messages) {
+      touchedCharacterIds.add(msg.characterId)
+    }
+
     if (!nextCursor) {
-      return
+      return Array.from(touchedCharacterIds)
     }
 
     cursor = nextCursor
     pagesProcessed++
   }
+
+  return Array.from(touchedCharacterIds)
 }
