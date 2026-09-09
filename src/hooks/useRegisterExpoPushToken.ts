@@ -68,6 +68,7 @@ async function registerWebPushToken(projectId: string, applicationId: string): P
     projectId,
     applicationId,
     deviceId: getWebPushInstallationId(),
+    capabilities: { proactivePush: true },
   })
 }
 
@@ -101,7 +102,10 @@ export function useRegisterExpoPushToken({ enabled, projectId }: Options): void 
         }
 
         const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync({ projectId })
-        await registerExpoPushTokenFn({ expoPushToken })
+        await registerExpoPushTokenFn({
+          expoPushToken,
+          capabilities: { proactivePush: true },
+        })
       } catch (error) {
         console.error('Failed to register Expo push token', error)
       }
