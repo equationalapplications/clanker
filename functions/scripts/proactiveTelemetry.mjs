@@ -34,6 +34,14 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
+// The definition of "a clamped notify": the model chose notify, and a KNOWN
+// effective mode downgraded it. Hoisted so the `clamped` count and
+// `clamped_pct`'s numerator cannot drift apart — clamped_pct is the number the
+// Phase 2 rollout gate tunes caps against, and two hand-maintained copies of a
+// predicate in one query are how the percentage silently stops matching the
+// count printed beside it.
+const CLAMPED_NOTIFY = `chosen_delivery_mode = 'notify' AND delivery_mode IS NOT NULL AND delivery_mode <> 'notify'`
+
 const QUERIES = [
   ['total wake-ups', 'SELECT count(*) AS total FROM scheduled_wakeups'],
   ['by status', 'SELECT status, count(*) FROM scheduled_wakeups GROUP BY status ORDER BY 2 DESC'],
@@ -62,6 +70,13 @@ const QUERIES = [
     // so a non-empty effective=NULL row means something new is writing a
     // partial pair and the clamp rate below needs re-reading before it is
     // trusted.
+    //
+    // Known gap: if cloud-agent rolls back to or lags at a pre-0028 revision
+    // after the backfill has run, new rows carry outcome text but NULL columns
+    // and drop out of this query's denominator entirely (they resurface in the
+    // raw outcome distribution above as mode=/chosen= rows). Re-running 0028's
+    // IS-NULL-guarded UPDATEs re-captures them; parsing outcome text here
+    // instead would reintroduce the defect 0028 exists to remove.
     `SELECT chosen_delivery_mode AS chosen,
             delivery_mode AS effective,
             count(*)
@@ -71,30 +86,35 @@ const QUERIES = [
       ORDER BY 3 DESC`,
   ],
   [
-    'CLAMP RATE — how often notify was downgraded by the guardrails',
+    'CLAMP RATE — how often a chosen notify was downgraded (see gate warning)',
+    // WARNING — while PROACTIVE_PUSH_ENABLED is false in cloud-agent's
+    // proactiveWakeupHandler, EVERY chosen=notify lands as quiet: the push
+    // gate clamps before the guardrails and is recorded byte-identically to a
+    // guardrail clamp (delivery_mode='quiet', chosen_delivery_mode='notify'),
+    // so clamped_pct reads ~100 and measures the gate, not the guardrails. A
+    // saturated clamp rate here is NOT evidence that
+    // PROACTIVE_NOTIFY_COOLDOWN_MS or MAX_PROACTIVE_PUSHES_PER_DAY are too
+    // tight — do not tune them from this number while push is gated. It only
+    // becomes the guardrail metric in a build where push can actually fire;
+    // distinguishing gate-clamps from guardrail-clamps in the data needs
+    // writer support and is a recorded follow-up.
+    //
     // clamped counts only rows with a KNOWN effective mode that differs from
     // the chosen one — `delivery_mode IS NOT NULL AND <> 'notify'`, not
     // `IS DISTINCT FROM 'notify'`. clamped_pct is the number the Phase 2
     // rollout gate reads to tune PROACTIVE_NOTIFY_COOLDOWN_MS and
-    // MAX_PROACTIVE_PUSHES_PER_DAY, so it must mean "the guardrails downgraded
-    // this notify" and nothing else. Folding NULL-effective rows in would let
-    // any future writer that records a choice on a failed turn inflate the
-    // guardrail clamp rate with failures. Those rows are not discarded — they
-    // are counted separately below, where an above-zero value is a signal that
-    // a writer is producing partial pairs, not a clamp.
+    // MAX_PROACTIVE_PUSHES_PER_DAY, so it must mean "a clamp downgraded this
+    // notify" and nothing else. Folding NULL-effective rows in would let any
+    // future writer that records a choice on a failed turn inflate the clamp
+    // rate with failures. Those rows are not discarded — they are counted
+    // separately below, where an above-zero value is a signal that a writer
+    // is producing partial pairs, not a clamp.
     `SELECT count(*) FILTER (WHERE chosen_delivery_mode = 'notify') AS wanted_notify,
             count(*) FILTER (WHERE delivery_mode = 'notify') AS actually_notified,
-            count(*) FILTER (
-              WHERE chosen_delivery_mode = 'notify'
-                AND delivery_mode IS NOT NULL
-                AND delivery_mode <> 'notify'
-            ) AS clamped,
+            count(*) FILTER (WHERE ${CLAMPED_NOTIFY}) AS clamped,
             round(
-              100.0 * count(*) FILTER (
-                WHERE chosen_delivery_mode = 'notify'
-                  AND delivery_mode IS NOT NULL
-                  AND delivery_mode <> 'notify'
-              ) / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
+              100.0 * count(*) FILTER (WHERE ${CLAMPED_NOTIFY})
+                / nullif(count(*) FILTER (WHERE chosen_delivery_mode = 'notify'), 0),
               1
             ) AS clamped_pct,
             count(*) FILTER (
