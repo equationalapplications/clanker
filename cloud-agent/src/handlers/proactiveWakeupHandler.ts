@@ -25,6 +25,11 @@ export interface ProactiveCharacter {
   traits: string | null
   emotions: string | null
   context: string | null
+  // Decision 1: per-device readiness flag. Bounds the eventual un-gate to
+  // clients that can sync/badge/deeplink; mirrors `users.proactive_push_ready`.
+  // The handler reads this on the notify branch alongside expoPushToken and
+  // messageId — the flag-true user is the only one that ever sees a push.
+  proactivePushReady: boolean
 }
 
 /**
@@ -69,6 +74,14 @@ export interface ProactiveWakeupDeps {
     createdAt: Date
   }) => Promise<void>
   fcmDispatcher?: Pick<FcmDispatcher, 'sendCharacterProactive'>
+  // Injectable so the flag-gate tests can stub it to pass notify through while
+  // the real exported `resolveDeliveryMode` keeps PROACTIVE_PUSH_ENABLED =
+  // false (the global gate stays closed in this branch). Defaults to the real
+  // export when the host wires up the handler.
+  resolveDeliveryMode?: (
+    chosen: DeliveryMode,
+    notifyAllowed: boolean,
+  ) => DeliveryModeResolution
 }
 
 /**
@@ -275,7 +288,10 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         character,
         reason,
       })
-      const { mode, clampReason } = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
+      const { mode, clampReason } = (deps.resolveDeliveryMode ?? resolveDeliveryMode)(
+        result.deliveryMode,
+        notifyAllowed,
+      )
 
       // 'silent' means the character decided there was nothing worth saying.
       // Persisting an empty row would badge the user for nothing.
@@ -291,7 +307,12 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         })
       }
 
-      if (mode === 'notify' && character.expoPushToken && messageId) {
+      if (
+        mode === 'notify' &&
+        character.proactivePushReady &&
+        character.expoPushToken &&
+        messageId
+      ) {
         // Never let a push failure fail the wake-up: the message is already
         // persisted and will arrive on next sync regardless.
         await (deps.fcmDispatcher ?? defaultFcmDispatcher())
