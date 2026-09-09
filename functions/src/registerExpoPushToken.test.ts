@@ -101,6 +101,62 @@ test('registerExpoPushTokenHandler exchanges web subscription and stores Expo to
   })
 })
 
+test('capabilities.proactivePush must be a boolean when present (non-boolean rejected)', async () => {
+  // String / number / null / array all rejected. parseCapabilities runs before
+  // any DB write, so a non-boolean never reaches updateUser.
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async () => ({ ...mockUser, proactivePushReady: true }),
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  for (const bad of ['true', 1, null, [], {}]) {
+    await assert.rejects(
+      registerExpoPushTokenHandler(
+        {
+          auth: { uid: 'firebase-uid-1' },
+          data: { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: bad } },
+        } as never,
+        deps,
+      ),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'invalid-argument')
+        return true
+      },
+      `expected non-boolean proactivePush=${JSON.stringify(bad)} to be rejected`,
+    )
+  }
+})
+
+test('capabilities must be an object when present (non-object rejected)', async () => {
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async () => ({ ...mockUser, proactivePushReady: true }),
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  for (const bad of ['proactivePush', 42, null, true]) {
+    await assert.rejects(
+      registerExpoPushTokenHandler(
+        {
+          auth: { uid: 'firebase-uid-1' },
+          data: { expoPushToken: 'ExponentPushToken[abc]', capabilities: bad },
+        } as never,
+        deps,
+      ),
+      (err: unknown) => {
+        assert.equal((err as { code?: string }).code, 'invalid-argument')
+        return true
+      },
+      `expected non-object capabilities=${JSON.stringify(bad)} to be rejected`,
+    )
+  }
+})
+
 test('capabilities.proactivePush true sets the flag alongside the token', async () => {
   let savedUpdates: Record<string, unknown> | undefined
   const deps = {
