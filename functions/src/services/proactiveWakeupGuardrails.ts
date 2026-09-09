@@ -24,10 +24,17 @@ export const SWEEP_BATCH_LIMIT = 50
 
 /**
  * A row claimed longer ago than this is presumed abandoned — its POST died
- * before cloud-agent could resolve it. Generously above the 90s scheduler
- * timeout so a slow-but-live turn is never reaped out from under itself.
+ * before cloud-agent could resolve it. Generously above the sweep's 60s
+ * timeoutSeconds (pinned in proactiveWakeupSweep.ts) so a slow-but-live turn is
+ * never reaped out from under itself.
  */
 export const STALE_CLAIM_TIMEOUT_MS = 3_600_000
+
+// A dropped markProactiveRead would otherwise leave the server believing the
+// user is ignoring this character and suppress every future push from it —
+// permanently, silently, with no user-visible symptom. After this long an
+// unread message stops blocking. Mirrored in src/constants/proactive.ts.
+export const UNREAD_STALENESS_ESCAPE_MS = 604_800_000
 
 export interface WakeupGuardrailInput {
   now: Date

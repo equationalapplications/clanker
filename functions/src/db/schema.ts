@@ -218,6 +218,7 @@ export const messages = pgTable(
     senderName: text('sender_name'),
     senderAvatar: text('sender_avatar'),
     messageData: jsonb('message_data').notNull().default({}),
+    readAt: timestamp('read_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => ({
@@ -332,6 +333,8 @@ export const scheduledWakeups = pgTable(
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     spentAmount: integer('spent_amount').notNull().default(0),
     outcome: text('outcome'),
+    deliveryMode: text('delivery_mode'),
+    chosenDeliveryMode: text('chosen_delivery_mode'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

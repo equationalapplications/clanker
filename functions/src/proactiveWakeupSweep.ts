@@ -1,6 +1,6 @@
 import { onSchedule, type ScheduledEvent } from 'firebase-functions/v2/scheduler'
 import * as logger from 'firebase-functions/logger'
-import { and, desc, eq, gte, like, lt, ne, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, ne, sql, sum } from 'drizzle-orm'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { getDb } from './db/cloudSql.js'
 import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js'
@@ -9,6 +9,7 @@ import {
   utcDayStart,
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
+  UNREAD_STALENESS_ESCAPE_MS,
   WAKEUP_RETENTION_DAYS,
 } from './services/proactiveWakeupGuardrails.js'
 
@@ -33,7 +34,7 @@ export interface WakeupContext {
 export interface SweepDeps {
   now: () => Date
   selectDue: (limit: number) => Promise<DueWakeup[]>
-  loadContext: (row: DueWakeup, dayStart: Date) => Promise<WakeupContext>
+  loadContext: (row: DueWakeup, now: Date, dayStart: Date) => Promise<WakeupContext>
   claim: (id: string, now: Date) => Promise<boolean>
   postWakeup: (payload: {
     wakeupId: string
@@ -77,7 +78,7 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
       const won = await deps.claim(row.id, now)
       if (!won) continue
 
-      const context = await deps.loadContext(row, dayStart)
+      const context = await deps.loadContext(row, now, dayStart)
       const decision = decideWakeup({
         now,
         balance: context.balance,
@@ -159,7 +160,7 @@ export function buildSweepDeps(): SweepDeps {
         .limit(limit)
       return rows
     },
-    async loadContext(row: DueWakeup, dayStart: Date): Promise<WakeupContext> {
+    async loadContext(row: DueWakeup, now: Date, dayStart: Date): Promise<WakeupContext> {
       const db = await getDb()
 
       const [subRow] = await db
@@ -192,24 +193,49 @@ export function buildSweepDeps(): SweepDeps {
           and(
             eq(scheduledWakeups.characterId, row.characterId),
             gte(scheduledWakeups.resolvedAt, dayStart),
-            like(scheduledWakeups.outcome, 'mode=notify%'),
+            eq(scheduledWakeups.deliveryMode, 'notify'),
           ),
         )
 
+      const staleCutoff = new Date(now.getTime() - UNREAD_STALENESS_ESCAPE_MS)
+      const [unreadRow] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.characterId, row.characterId),
+            isNull(messages.readAt),
+            // The staleness escape. Without it one lost mark-read mutes this
+            // character forever.
+            gte(messages.createdAt, staleCutoff),
+            sql`${messages.messageData}->>'proactive' = 'true'`,
+          ),
+        )
+
+      // Proactive messages are excluded: they are written with the owner's
+      // userId as sender (cloud-agent), exactly like user-authored rows, so the
+      // JSON marker is the only thing that tells them apart. Counting them here
+      // would let a wake-up re-arm the notify cooldown against itself — the
+      // sweep posts at T, reads its own row back as `lastUserMessageAt` at
+      // T+5min, and suppresses notify for the next cooldown window even though
+      // the user has done nothing. The spec defines this window against the
+      // user's last message.
       const [lastMsgRow] = await db
         .select({ lastAt: sql<Date | null>`MAX(${messages.createdAt})` })
         .from(messages)
-        .where(eq(messages.characterId, row.characterId))
+        .where(
+          and(
+            eq(messages.characterId, row.characterId),
+            sql`${messages.messageData}->>'proactive' is distinct from 'true'`,
+          ),
+        )
 
-      // Phase 1 delivers nothing, so there is no delivered-then-unread queue to
-      // count. Returning 0 lets the guardrail correctly treat every wake-up as
-      // eligible to notify until the push-count or cooldown check fires.
       return {
         balance: subRow?.currentCredits ?? 0,
         todaysProactiveSpend: Number(spendRow?.total ?? 0),
         todaysPushCount: Number(pushRow?.count ?? 0),
         lastUserMessageAt: lastMsgRow?.lastAt ?? null,
-        unreadProactiveCount: 0,
+        unreadProactiveCount: Number(unreadRow?.count ?? 0),
       }
     },
     async claim(id: string, claimedAt: Date): Promise<boolean> {
@@ -281,6 +307,25 @@ export const proactiveWakeupSweep = onSchedule(
   {
     schedule: 'every 5 minutes',
     region: 'us-central1',
+    // LOAD-BEARING, not a performance knob. Nothing in this function serialises
+    // sweeps against each other: the per-row claim stops two sweeps double-firing
+    // the same row, but it cannot stop them working different rows of the SAME
+    // character concurrently. Two such sweeps each read `todaysProactiveSpend`
+    // before either has written its spend back (cloud-agent commits spentAmount
+    // just before it answers the POST), so both see the same total and
+    // DAILY_PROACTIVE_POWER_CEILING leaks by roughly one turn per overlapping
+    // sweep. What prevents that today is arithmetic, not a lock: this timeout is
+    // far below the five-minute schedule, so a sweep is always dead before the
+    // next one starts.
+    //
+    // Therefore: keep this well under 300. Raising it toward the 540 used by
+    // convertDocumentText/wikiLlm silently authorises overlapping sweeps and
+    // un-caps proactive spend. If a sweep needs more time, give the loop a time
+    // budget so it stops claiming rows near the deadline — do not buy time here.
+    //
+    // Pinned rather than left to the platform default so a firebase-tools or
+    // Cloud Run default change cannot move it without this line changing.
+    timeoutSeconds: 60,
     secrets: [...CLOUD_SQL_SECRETS, 'SCHEDULER_SECRET'],
   },
   async (event: ScheduledEvent) => {

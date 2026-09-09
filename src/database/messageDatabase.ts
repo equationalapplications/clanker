@@ -5,6 +5,7 @@
 
 import type { Message } from '~/types/chat'
 import { getDatabase } from './index'
+import { UNREAD_STALENESS_ESCAPE_MS } from '~/constants/proactive'
 
 export interface LocalMessage {
   id: string
@@ -19,6 +20,19 @@ export interface LocalMessage {
   error: number // 0 or 1
   edited: number // 0 or 1
   synced_at: number | null // null = not synced to cloud
+  read_at: number | null
+}
+
+// Wire shape produced by the server-side `fetchProactiveMessages` callable (Task 7).
+// Mirrors `functions/src/proactiveMessages.ts` ProactiveMessagePayload; kept
+// local rather than imported across the functions/ boundary because the
+// functions/ tree is a separate package.
+export interface ProactiveMessagePayload {
+  messageId: string
+  characterId: string
+  text: string
+  createdAt: string
+  readAt: string | null
 }
 
 /**
@@ -514,4 +528,93 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
     now,
     ...messageIds,
   ])
+}
+
+/**
+ * Two-phase local apply for proactive messages pushed by the server.
+ *
+ * Phase 1: INSERT OR IGNORE keyed by the server's `messageId` (which is the
+ * shared primary key). The sync can never overwrite a row this device already
+ * authored or received another way — OR REPLACE would silently reset
+ * pending/sent/error and clobber locally-edited text on every re-sync.
+ *
+ * Phase 2: A targeted read_at update that ONLY fires when read_at IS NULL.
+ * Server-issued read state has to be one-directional — an out-of-order page
+ * (a stale cursor replayed after a user has cleared the badge) cannot resurrect
+ * a read receipt that was cleared on another device.
+ *
+ * `userId` is a parameter because proactive messages carry no userId on the
+ * wire, and the columns cannot be faked. A proactive message is a character ->
+ * user message, so it takes the mirror of the user-authored shape written by
+ * insertMessage (sender = user, recipient = character): sender is the
+ * character, recipient is the user. Both halves are load-bearing. Every read
+ * path here — getMessages, getMessage, getLastMessage, getMessageCount,
+ * searchMessages — filters `(sender_user_id = ? OR recipient_user_id = ?)`
+ * against the user, so a row naming only the character is invisible to all of
+ * them; and toGiftedChatMessage decides authorship with
+ * `sender_user_id === currentUserId`, so naming the user as sender would render
+ * the character's own message as the user's.
+ *
+ * When `db` is omitted the function opens its own transaction. When `db` is
+ * provided (Task 10 orchestrator pattern) the caller is already inside a
+ * transaction — the inserts join it so a cursor advance that follows can land
+ * in the same transaction and a crash mid-page rolls both back atomically.
+ */
+export async function applyProactiveMessages(
+  payload: ProactiveMessagePayload[],
+  userId: string,
+  db?: Awaited<ReturnType<typeof getDatabase>>,
+): Promise<void> {
+  const database = db ?? (await getDatabase())
+  const runApply = async () => {
+    for (const msg of payload) {
+      await database.runAsync(
+        `INSERT OR IGNORE INTO messages
+         (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at, read_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 0, ?, ?)`,
+        [
+          msg.messageId,
+          msg.characterId,
+          msg.characterId,
+          userId,
+          msg.text,
+          Date.parse(msg.createdAt),
+          JSON.stringify({ proactive: true }),
+          Date.parse(msg.createdAt),
+          msg.readAt ? Date.parse(msg.readAt) : null,
+        ],
+      )
+
+      if (msg.readAt) {
+        await database.runAsync(
+          `UPDATE messages SET read_at = ? WHERE id = ? AND read_at IS NULL`,
+          [Date.parse(msg.readAt), msg.messageId],
+        )
+      }
+    }
+  }
+
+  if (db) {
+    await runApply()
+  } else {
+    await database.withTransactionAsync(runApply)
+  }
+}
+
+/**
+ * Count proactive messages for a character that are unread and still inside
+ * the staleness escape. Mirrors the server's `UNREAD_STALENESS_ESCAPE_MS`
+ * guardrail so the client badge and the server's push-decision agree about
+ * which messages still count. `message_data` is a JSON-encoded string on the
+ * client; `json_extract` returns the integer `1` for `true`.
+ */
+export async function countUnreadProactive(characterId: string, nowMs: number): Promise<number> {
+  const db = await getDatabase()
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM messages
+      WHERE character_id = ? AND read_at IS NULL AND created_at >= ?
+        AND json_extract(message_data, '$.proactive') = 1`,
+    [characterId, nowMs - UNREAD_STALENESS_ESCAPE_MS],
+  )
+  return row?.count ?? 0
 }

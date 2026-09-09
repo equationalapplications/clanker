@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import type { Request, Response } from 'express'
+import { randomUUID } from 'node:crypto'
 import { AGENT_TURN_CREDIT_COST } from '../constants/credits.js'
+import { defaultFcmDispatcher } from '../services/fcmDispatcher.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
+import type { FcmDispatcher } from '../services/fcmDispatcher.js'
 
 export type DeliveryMode = 'notify' | 'quiet' | 'silent'
 
@@ -17,6 +20,7 @@ const bodySchema = z.object({
 export interface ProactiveCharacter {
   id: string
   name: string
+  expoPushToken?: string | null
   appearance: string | null
   traits: string | null
   emotions: string | null
@@ -48,18 +52,54 @@ export interface ProactiveWakeupDeps {
   creditService: Pick<CreditService, 'spendCredit' | 'refundCredit'>
   resolveWakeup: (
     wakeupId: string,
-    patch: { status: string; spentAmount: number; outcome: string },
+    patch: {
+      status: string
+      spentAmount: number
+      outcome: string
+      deliveryMode?: string
+      chosenDeliveryMode?: string
+    },
   ) => Promise<void>
   claimRunKey: (runKey: string) => Promise<RunKeyClaim>
+  insertProactiveMessage: (input: {
+    messageId: string
+    characterId: string
+    senderUserId: string
+    text: string
+    createdAt: Date
+  }) => Promise<void>
+  fcmDispatcher?: Pick<FcmDispatcher, 'sendCharacterProactive'>
 }
+
+/**
+ * TEMPORARY — remove with the lifecycle-sync fast-follow.
+ *
+ * A push deeplinks to `/chat/{characterId}`, and that screen reads local
+ * SQLite. Nothing currently pulls proactive messages onto the device:
+ * `syncProactiveMessages` has no callers, and there is no general message
+ * down-sync to land them incidentally. So a notify today produces a
+ * notification the user can tap into an empty thread — worse than sending
+ * nothing. The unread badge was severed from the UI for exactly this reason;
+ * push depends on the same dead path and is gated for the same reason.
+ *
+ * Un-gate in the same change that wires the sync triggers, not before.
+ */
+const PROACTIVE_PUSH_ENABLED = false
 
 /**
  * The model proposes, the code disposes. The agent picks a delivery mode via the
  * deliver_wakeup tool; the sweeper's cap and cooldown decide whether notifying
  * is permissible at all, and a forbidden notify degrades to quiet rather than
  * being dropped.
+ *
+ * The gate is applied here rather than at the push call site so the row stays
+ * self-consistent: `delivery_mode` records quiet, which keeps `todaysPushCount`
+ * from counting a push that never went out and suppressing later real ones. The
+ * agent's intent is not lost — `chosen_delivery_mode` still records notify, so
+ * the "how often would a character have interrupted" telemetry is unaffected.
  */
 export function resolveDeliveryMode(chosen: DeliveryMode, notifyAllowed: boolean): DeliveryMode {
+  if (chosen === 'notify' && !PROACTIVE_PUSH_ENABLED) return 'quiet'
   if (chosen === 'notify' && !notifyAllowed) return 'quiet'
   return chosen
 }
@@ -194,13 +234,45 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
       })
       const mode = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
 
-      // Phase 1 delivers nothing. Recording the mode the model chose is the
+      // 'silent' means the character decided there was nothing worth saying.
+      // Persisting an empty row would badge the user for nothing.
+      let messageId: string | undefined
+      if (mode !== 'silent' && result.reply.trim().length > 0) {
+        messageId = randomUUID()
+        await deps.insertProactiveMessage({
+          messageId,
+          characterId,
+          senderUserId: userId,
+          text: result.reply,
+          createdAt: new Date(),
+        })
+      }
+
+      if (mode === 'notify' && character.expoPushToken && messageId) {
+        // Never let a push failure fail the wake-up: the message is already
+        // persisted and will arrive on next sync regardless.
+        await (deps.fcmDispatcher ?? defaultFcmDispatcher())
+          .sendCharacterProactive(
+            character.expoPushToken,
+            characterId,
+            messageId,
+            character.name,
+            result.reply,
+          )
+          .catch((err: unknown) => {
+            console.warn('[proactive-wakeup] push failed:', err)
+          })
+      }
       // point: it yields production data on how often characters WOULD have
       // interrupted, before any user can be interrupted.
       await deps.resolveWakeup(wakeupId, {
         status: 'done',
         spentAmount,
+        // outcome is kept as-is: it is the human-readable audit trail and the
+        // source the 0028 backfill parses. The columns are what code reads.
         outcome: `mode=${mode} chosen=${result.deliveryMode}`,
+        deliveryMode: mode,
+        chosenDeliveryMode: result.deliveryMode,
       })
 
       res.json({ ok: true, mode, spentAmount })

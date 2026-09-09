@@ -25,6 +25,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const theme = useTheme()
   // Thumb, not master: this renders at 48px, and the list can hold many cards.
   const { uri: avatarUri } = useResolvedImage(activeImageId, 'thumb')
+  // Boolean badge — `countUnreadProactive` already enforces the staleness
+  // escape, so the dot matches the server's push-decision contract. Deliberately
+  // a boolean, not a count: AI chats are not an inbox.
 
   const handlePress = () => {
     if (onPress) {
@@ -109,6 +112,15 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginRight: 12,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
   },
   info: {
     flex: 1,

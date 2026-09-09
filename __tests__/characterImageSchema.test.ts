@@ -7,8 +7,8 @@ import {
 } from '../src/database/schema'
 
 describe('character_images schema', () => {
-  it('bumps SCHEMA_VERSION to 24', () => {
-    expect(SCHEMA_VERSION).toBe(24)
+  it('bumps SCHEMA_VERSION to 26', () => {
+    expect(SCHEMA_VERSION).toBe(26)
   })
 
   it('migration 22 creates the character_images table and its indexes', () => {

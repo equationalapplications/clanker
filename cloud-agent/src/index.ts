@@ -12,7 +12,7 @@ import { getDb } from './db/client.js'
 import { buildAgent } from './agent.js'
 import { assembleSystemInstruction, queryWikiContext } from './services/agentCore.js'
 import { bulkInsertUnsynced } from './services/unsyncedHistory.js'
-import { users, characters, scheduledWakeups } from './db/schema.js'
+import { users, characters, scheduledWakeups, messages } from './db/schema.js'
 import { embedText } from './db/embeddings.js'
 import type { DrizzleClient } from './db/client.js'
 import { createCreditService } from './services/creditService.js'
@@ -677,19 +677,27 @@ export function createApp(options: AppOptions) {
             return u?.id ?? null
           },
           loadCharacter: async (characterId, userId) => {
-            const [c] = await db
-              .select()
+            // The handler's notify branch reads character.expoPushToken to
+            // route the push. The token lives on users (not characters), so a
+            // plain select on characters would leave it undefined and silently
+            // skip every push in production. Join users on userId and carry
+            // the token through — the ProactiveCharacter interface already
+            // declares expoPushToken as optional.
+            const [row] = await db
+              .select({
+                id: characters.id,
+                name: characters.name,
+                appearance: characters.appearance,
+                traits: characters.traits,
+                emotions: characters.emotions,
+                context: characters.context,
+                expoPushToken: users.expoPushToken,
+              })
               .from(characters)
+              .innerJoin(users, eq(characters.userId, users.id))
               .where(and(eq(characters.id, characterId), eq(characters.userId, userId)))
-            if (!c) return null
-            return {
-              id: c.id,
-              name: c.name,
-              appearance: c.appearance,
-              traits: c.traits,
-              emotions: c.emotions,
-              context: c.context,
-            }
+            if (!row) return null
+            return row
           },
           claimRunKey: async (runKey) => {
             // The sweeper transitions pending → claimed before POSTing, so the
@@ -725,6 +733,19 @@ export function createApp(options: AppOptions) {
               .update(scheduledWakeups)
               .set({ ...patch, resolvedAt: new Date() })
               .where(eq(scheduledWakeups.id, wakeupId))
+          },
+          insertProactiveMessage: async (input) => {
+            // Phase 2 turns shadow-mode wake-ups into real conversations. The
+            // messageData marker is what the unread badge query (Task 4) reads
+            // to count proactive unread rows per character.
+            await db.insert(messages).values({
+              messageId: input.messageId,
+              characterId: input.characterId,
+              senderUserId: input.senderUserId,
+              text: input.text,
+              messageData: { proactive: true },
+              createdAt: input.createdAt,
+            })
           },
           runAgent: async ({ userId, firebaseUid, characterId, character, reason }) => {
             // The handler already loaded and ownership-checked this row; it
