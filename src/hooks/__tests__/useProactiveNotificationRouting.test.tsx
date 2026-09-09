@@ -21,8 +21,8 @@ jest.mock('expo-notifications', () => ({
 }))
 
 const triggerSync = jest.fn()
-function response(data: unknown) {
-  return { notification: { request: { content: { data } } } }
+function response(data: unknown, identifier = 'notif-1') {
+  return { notification: { request: { identifier, content: { data } } } }
 }
 
 beforeEach(() => {
@@ -68,6 +68,20 @@ it('ignores missing data', () => {
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
+it('ignores a dot-segment deepLink (e.g. /chat/../admin)', () => {
+  renderHook(() => useProactiveNotificationRouting({ triggerSync }))
+  responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/../admin' }))
+  expect(triggerSync).not.toHaveBeenCalled()
+  expect(mockRouterPush).not.toHaveBeenCalled()
+})
+
+it('ignores a multi-segment deepLink after /chat/', () => {
+  renderHook(() => useProactiveNotificationRouting({ triggerSync }))
+  responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc/extra' }))
+  expect(triggerSync).not.toHaveBeenCalled()
+  expect(mockRouterPush).not.toHaveBeenCalled()
+})
+
 it('routes cold start after mount and clears the response', async () => {
   mockLastResponse = response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' })
   renderHook(() => useProactiveNotificationRouting({ triggerSync }))
@@ -82,4 +96,42 @@ it('ignores a cold-start notification of the wrong shape and leaves the response
   await waitFor(() => expect(mockRouterPush).not.toHaveBeenCalled())
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockClearLast).not.toHaveBeenCalled()
+})
+
+it('does not route the same response identifier twice (listener + useLastNotificationResponse)', () => {
+  // Cold-start: useLastNotificationResponse fires first, captures the response
+  // and routes it. A duplicate tap on the same notification (same identifier)
+  // then arrives via the listener — must dedupe so the chat route isn't
+  // pushed twice.
+  mockLastResponse = response(
+    { type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' },
+    'dup-id',
+  )
+  renderHook(() => useProactiveNotificationRouting({ triggerSync }))
+  expect(mockRouterPush).toHaveBeenCalledTimes(1)
+  expect(triggerSync).toHaveBeenCalledTimes(1)
+  expect(mockClearLast).toHaveBeenCalledTimes(1)
+
+  // Same identifier via the second path (listener) — must NOT call router.push
+  // again. This is the regression CodeRabbit flagged: mounted taps can reach
+  // both addNotificationResponseReceivedListener and useLastNotificationResponse.
+  responseListener!(
+    response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'dup-id'),
+  )
+  expect(mockRouterPush).toHaveBeenCalledTimes(1)
+  expect(triggerSync).toHaveBeenCalledTimes(1)
+})
+
+it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', () => {
+  // Two distinct notifications, same target. Each must route; the dedupe set
+  // is keyed on identifier, not deepLink.
+  renderHook(() => useProactiveNotificationRouting({ triggerSync }))
+  responseListener!(
+    response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'id-1'),
+  )
+  responseListener!(
+    response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'id-2'),
+  )
+  expect(mockRouterPush).toHaveBeenCalledTimes(2)
+  expect(triggerSync).toHaveBeenCalledTimes(2)
 })

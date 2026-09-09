@@ -1,23 +1,34 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
 import { isProactivePushData } from '~/hooks/useProactiveSync'
 
 // The hook routes, it does not interpret: anything without a proactive type
-// AND a /chat/ deepLink is ignored, so a malformed or foreign payload cannot
-// send the user anywhere unexpected.
-const CHAT_DEEPLINK_PATTERN = /^\/chat\//
+// AND a /chat/<id> deepLink is ignored, so a malformed or foreign payload
+// cannot send the user anywhere unexpected. The pattern requires exactly
+// one valid character-id segment after /chat/ — Expo Router normalizes dot
+// segments, so a loose prefix (`/^\/chat\//`) would let `/chat/../admin`
+// resolve to `/admin` on authenticated web sessions.
+const CHAT_DEEPLINK_PATTERN = /^\/chat\/[A-Za-z0-9_-]+$/
 
 export function useProactiveNotificationRouting({
   triggerSync,
 }: {
   triggerSync: () => void
 }): void {
+  // The response listener and `useLastNotificationResponse` can both fire
+  // for the same response. Deduping by request identifier keeps `router.push`
+  // from adding duplicate `/chat/<id>` entries when one tap reaches both
+  // paths (CodeRabbit review finding).
+  const handledIdentifiersRef = useRef<Set<string>>(new Set())
+
   const routeIfProactive = useCallback(
-    (data: unknown): boolean => {
+    (data: unknown, identifier: string): boolean => {
       if (!isProactivePushData(data)) return false
       const deepLink = typeof data.deepLink === 'string' ? data.deepLink : ''
       if (!CHAT_DEEPLINK_PATTERN.test(deepLink)) return false
+      if (handledIdentifiersRef.current.has(identifier)) return false
+      handledIdentifiersRef.current.add(identifier)
       // Push is a hint (Phase 2 Decision 5): sync fires non-blocking and
       // navigation never waits on the network — the 5s poll plus the sync's
       // cache invalidation populate the thread as the data lands.
@@ -32,18 +43,25 @@ export function useProactiveNotificationRouting({
   // the app is mounted.
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((res) => {
-      routeIfProactive(res.notification.request.content.data)
+      routeIfProactive(res.notification.request.content.data, res.notification.request.identifier)
     })
     return () => subscription.remove()
   }, [routeIfProactive])
 
   // Cold start (and any post-mount tap on iOS): useLastNotificationResponse
   // holds the response that launched the app. Clear it after routing so the
-  // same response isn't re-routed on the next render.
+  // same response isn't re-routed on the next render. The dedupe set above
+  // covers the (rare) case where both this hook and the listener fire for
+  // the same tap.
   const lastResponse = Notifications.useLastNotificationResponse()
   useEffect(() => {
     if (!lastResponse) return
-    if (routeIfProactive(lastResponse.notification.request.content.data)) {
+    if (
+      routeIfProactive(
+        lastResponse.notification.request.content.data,
+        lastResponse.notification.request.identifier,
+      )
+    ) {
       void Notifications.clearLastNotificationResponseAsync()
     }
   }, [lastResponse, routeIfProactive])

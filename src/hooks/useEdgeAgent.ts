@@ -33,12 +33,11 @@ export interface UseEdgeAgentOptions {
   isCloudSynced: boolean
   wiki: Wiki | null
   /**
-   * Cloud-Side character UUID (Postgres `characters.id`) the chat is bound to.
+   * Cloud-side character UUID (Postgres `characters.id`) the chat is bound to.
    * Supplied when the chat has a cloud row to address — wires the local
-   * `set_reminder` executor against the `scheduleWakeup` callable. Undefined
-   * means no cloud row, so `set_reminder` stays out of the schema entirely
-   * and a call would fall through to escalation (where the escalated path
-   * either hits cloud-agent's set_reminder or escalates to it from there).
+   * `set_reminder` executor against the `scheduleWakeup` callable. When
+   * `undefined`/`null`, `set_reminder` keeps its executor-undefined state
+   * and a call escalates instead of returning a null response to the model.
    */
   cloudAgentCharacterId?: string | null
 }
@@ -165,15 +164,20 @@ export function useEdgeAgent({
           // A cloud-only tool the edge can run itself (generate_image on a
           // local-only character) is executed below rather than escalated —
           // there is nothing to escalate to, and that is the whole point.
-          // set_reminder no longer escalates at all: for a cloud-synced character
-          // the executor above schedules the wakeup via the scheduleWakeup
-          // callable directly (Decision 0 — production chat is edge-first and
-          // escalation almost never happens, which left the producer cold).
+          // set_reminder only stays out of escalation when its executor is
+          // wired (i.e. `cloudAgentCharacterId` was supplied). Otherwise the
+          // call would fall through with no executor registered — the model
+          // gets a null response and burns all MAX_ITERATIONS before the
+          // post-loop fallback. Letting it escalate in that case routes
+          // through cloud-agent's set_reminder, which is the intended
+          // unreachable path for a freshly-saved-but-not-yet-synced character
+          // (Decision 0 — production chat is edge-first; with no cloud row the
+          // wakeup must not silently succeed locally).
           const escalates = functionCalls.some(
             (fc) =>
               fc.name === 'escalate_to_cloud_agent' ||
               (isCloudOnlyToolName(fc.name ?? '') &&
-                fc.name !== 'set_reminder' &&
+                !(fc.name === 'set_reminder' && !!cloudAgentCharacterId) &&
                 !(canGenerateLocally && isLocallyExecutableCloudTool(fc.name ?? ''))),
           )
           if (escalates) {

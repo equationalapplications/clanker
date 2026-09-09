@@ -220,4 +220,29 @@ describe('markProactiveReadLocally', () => {
     await markProactiveReadLocally('c1') // both calls
     expect(await countUnreadProactive('c1', Date.now())).toBe(0)
   })
+
+  // SQLite's SQLITE_MAX_VARIABLE_NUMBER is 999 by default; an UPDATE with
+  // that many IN-placeholders is rejected during prepare, before any row
+  // changes. Seed 250 rows (forces 3 batches at the 100-batch ceiling) and
+  // verify the whole backlog still gets read_at — and that the row is updated
+  // in multiple transaction-internal UPDATE calls, not one oversize one.
+  it("batches the ID-based UPDATE so a backlog above SQLite's host-parameter ceiling still marks locally", async () => {
+    const TOTAL = 250
+    for (let i = 0; i < TOTAL; i++) {
+      await insertLocal({ id: `big-${i}`, character_id: 'c-bulk' })
+    }
+    const runSpy = jest.spyOn(mockDbOverride!, 'runAsync')
+    const ids = await markProactiveReadLocally('c-bulk')
+    expect(ids.length).toBe(TOTAL)
+    // Batched updates: 100 + 100 + 50 = 3 UPDATE calls (not the single oversize
+    // call that would fail prepare on real devices with large backlogs).
+    const updateCalls = runSpy.mock.calls.filter(([sql]) =>
+      String(sql).trimStart().toUpperCase().startsWith('UPDATE'),
+    )
+    expect(updateCalls.length).toBe(3)
+    runSpy.mockRestore()
+    // Spot-check that the very last row (must be in the partial batch) is marked.
+    const last = await getLocal(`big-${TOTAL - 1}`)
+    expect(last?.read_at).not.toBeNull()
+  })
 })

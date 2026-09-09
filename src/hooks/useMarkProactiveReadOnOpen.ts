@@ -20,9 +20,14 @@ export function useMarkProactiveReadOnOpen(characterId: string | null | undefine
       const unread = await countUnreadProactive(characterId, Date.now())
       if (unread === 0 || cancelled) return
       const ids = await markProactiveReadLocally(characterId)
-      if (cancelled || ids.length === 0) return
-      await queryClient.invalidateQueries({ queryKey: proactiveUnreadKeys.all })
+      if (ids.length === 0) return
+      // The local rows are already read; the receipt must reach the server
+      // even if this effect was cancelled meanwhile. The durable queue's
+      // retry budget covers transient failures, so we kick it before the
+      // cancellation guard that only blocks UI side-effects.
       await enqueueMarkRead(ids, markProactiveReadViaCallable)
+      if (cancelled) return
+      await queryClient.invalidateQueries({ queryKey: proactiveUnreadKeys.all })
     })().catch((error: unknown) => {
       console.warn('[proactiveRead] mark-read on open failed:', error)
     })
