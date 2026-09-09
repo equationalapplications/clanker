@@ -24,10 +24,18 @@ This fast-follow wires the system together and un-gates push, per the gate
 comment's mandate that un-gating land in the same change that wires the sync
 triggers.
 
+This fast-follow originally scoped the wiring plus the un-gate. Pre-implementation
+telemetry exposed a prior, blocking problem — the producer never fires (Decision
+0) — and reshaped the sequence: **producer, wiring, then un-gate**, with the
+un-gate deferred until real telemetry exists.
+
 ## Goals
 
-- A chosen `notify` actually notifies — and the tapped notification opens a
-  populated chat.
+- Characters can actually schedule follow-ups from ordinary chat: the producer
+  lives on the hot path, not behind escalation (Decision 0).
+- Proactive messages land on the device, and the tapped notification opens a
+  populated chat — so that when the deferred un-gate (Decision 6) fires, a
+  chosen `notify` actually notifies.
 - The unread dot on the character list reflects the same state the server
   guardrail reads, and clears optimistically when the chat is opened.
 - No client that cannot handle a proactive push ever receives one — including
@@ -42,6 +50,10 @@ triggers.
 - Two-way message sync, web push, per-character mute controls (Phase 3).
 - Changing the shadow-mode sweep, guardrail arithmetic, or delivery-mode
   recording (PR #708's clamp reasons).
+- **Flipping `PROACTIVE_PUSH_ENABLED` in this branch.** With the producer cold,
+  there is no `mode=` distribution to tune against and nothing to un-gate for.
+  The flag stays `false` until the edge producer has generated real telemetry
+  and the rollout gate has been re-run against it (see Rollout gate).
 
 ## Locked decisions (carried from Phase 2, confirmed against shipped code)
 
@@ -58,6 +70,50 @@ triggers.
 ---
 
 ## Decisions
+
+### Decision 0 — Move the producer to the hot path: `scheduleWakeup` callable + edge executor
+
+**Finding this rests on.** The rollout-gate telemetry re-run (2026-09-09) returned
+**all zeros**: `scheduled_wakeups` empty, zero `proactive_wakeup` credit spends,
+no skips, no clamps — two days after Phase 1 went live. Root cause, established
+from production evidence: `set_reminder` is executable only inside cloud-agent's
+`buildAgent`, but production chat is edge-first and escalates to cloud-agent
+almost never — `/agent/run` served **3 requests in ~27 hours** (1×200, 2×402
+insufficient-credits). Everything downstream (sweeper, guardrails, push,
+telemetry) is a pristine pipeline behind a producer that never fires. The tool
+code is deployed and correct; the feature is *unreachable*.
+
+**Decision:** add a `scheduleWakeup` **callable** to `functions` and give the
+edge agent a real executor for it, following the `generate_image` edge-executor
+pattern. Ordinary chat turns — the vast majority — can now schedule wake-ups.
+cloud-agent's `set_reminder` stays for escalated turns; both paths share the
+same row shape and validation semantics.
+
+- **Model-facing schema unchanged:** `{reason, remind_at, priority?}` —
+  `getSchemasForEdge` already exposes `set_reminder`; only its executor changes
+  from escalation-stub to a real local execution that calls the callable.
+- **Identity seams:** the callable resolves `userId` from `request.auth.uid`
+  (never model- or client-supplied) and takes `characterId` as an explicit
+  parameter bound by the executor from the chat session, verified against
+  `characters.user_id` before insert.
+- **Mirrored semantics** (duplicated in `functions`, not imported — the
+  packages cannot share code): the `buildWakeupInsert` row shape (minted
+  `id`/`run_key`, `status: 'pending'`), server-side validation against the
+  **server** clock (reason non-empty; `remind_at` parses and is in the
+  future), and the daily-ceiling check returning the same deliberately-vague
+  refusal string, so the edge model gets the same 429-style answer as its
+  escalated sibling.
+- **Noted parity gap, accepted:** neither path caps *pending* rows (the
+  ceiling gates spend; pendings carry 0). A looping model could stack
+  pendings; each fires through the sweep, whose own ceiling bounds the cost.
+  Matched to existing semantics rather than adding a cap.
+
+**Reasoning:** option B (prompt-tune the edge model to escalate more) is
+fragile and leaves the 402 credit wall in the producer path; option C
+(server-side cron fabricating wake-ups) is character-initiative scope that
+belongs to Phase 3. The sweep's value proposition — characters follow up on
+real conversations — requires scheduling to be available in the conversation,
+which on this architecture means the edge.
 
 ### Decision 1 — A per-user capability flag gates the push, not the message
 
@@ -172,32 +228,64 @@ exact un-sever condition: a message must have something to deeplink into.
 Decisions 2–4 are that condition. No design freedom remains — boolean dot,
 character list only.
 
-### Decision 6 — Un-gate
+### Decision 6 — Un-gate is deferred, not dropped
 
-**Decision:** `PROACTIVE_PUSH_ENABLED = true` in
-`cloud-agent/src/handlers/proactiveWakeupHandler.ts`; the TEMPORARY comment
-is removed; the flip test now expects `notify` for a permitted notify. The
-push gate and the capability flag compose: a chosen notify reaches a device
-only when the guardrails allow it *and* the user's registered client is
-capable.
+**Decision:** `PROACTIVE_PUSH_ENABLED` stays `false` in this branch. The gate
+comment's mandate ("un-gate in the same change that wires the sync triggers")
+was written against the assumption that the producer was warm — the same-change
+rule exists to prevent pushes into empty threads, and Decision 1's capability
+flag already guarantees no incapable client is pushed. What has changed is
+upstream: with zero historical wake-ups there is no observational basis for the
+guardrail constants, and un-gating the moment the new edge producer lands would
+point an untuned notifier at real users. Un-gating is a one-line follow-up
+deploy — the TEMPORARY comment, the flip test, and the flag write are prepared
+in this branch's wake — executed once the re-run telemetry (CLAMP RATE +
+CLAMP REASONS from PR #708, computed now on real `set_reminder`-produced rows)
+shows the guardrail-clamp distribution and the constants are confirmed or
+adjusted.
 
-**Reasoning:** the gate's own comment mandates un-gating in the same change
-that wires the sync triggers. With Decision 1 in place, "same change" no
-longer means "blast every client" — the flag carries the blast radius
-per-user.
+**Reasoning:** the dangerous direction here is not "push ships late" — it is
+"push ships untuned to every capable client at once." A deferred flip converts
+the rollout gate from a merge-blocking ceremony into the actual decision point
+it was designed to be.
 
 ---
 
 ## Architecture
 
 ```
-device (new client)                     functions                        cloud-agent
+device (edge chat turn)                 functions                        cloud-agent
 ──────────────────                      ──────────                       ───────────
+model calls set_reminder
+  └─ edge executor ───────────────────► scheduleWakeup (auth, ownership,
+       (no escalation)                   server-clock validation, ceiling)
+                                        INSERT scheduled_wakeups
+                                          (pending, minted run_key)
+                                                   …time passes…
+                                        sweeper claims due row
+                                        guardrails → notifyAllowed
+                                        POST /agent/proactive-wakeup ────►
+                                                                        persist message
+                                                                          (read_at NULL)
+                                        ◄── resolve (mode, clamp reason) ──
+                                        [un-gate deferred: no push yet]
+
+device (new client)                     functions
 registerExpoPushToken ────────────────► users.expo_push_token =
   {token, capabilities:                  token, proactive_push_ready = true
    {proactivePush: true}}
 
-…sweeper turn claims a wakeup; guardrails pass; handler runs the turn…
+foreground / tap / receipt
+  └─ syncProactiveMessages(uid)
+       fetchProactiveMessages ────────► cursor page (owned chars only)
+       INSERT OR IGNORE + read_at backfill   (existing two-phase apply)
+       cursor advanced, same tx
+       invalidate unread + message caches
+ChatView mount, unread > 0
+  ├─ local read_at write + invalidate   (dot clears now)
+  └─ enqueue → markProactiveRead ─────► read_at = now (NULL→ts only)
+       (durable queue; flush on fg/sync)
+```
 
                                         ◄── POST /agent/proactive-wakeup ──
                                         persist message (read_at NULL)
@@ -219,6 +307,10 @@ ChatView mount, unread > 0
 
 **Server (functions)**
 
+- `scheduleWakeup` callable (Decision 0): auth + App Check, ownership-verified
+  `characterId`, mirrored validation and ceiling, `buildWakeupInsert`-shaped
+  row. `onCall` wrapper plus exported handler with injectable deps, following
+  the `proactiveMessages.ts` shape.
 - Migration `0030_users_proactive_push_ready.sql` + both schema files.
 - `registerExpoPushToken`: optional `capabilities.proactivePush`; explicit
   two-directional write (Decision 1).
@@ -228,11 +320,15 @@ ChatView mount, unread > 0
 **Server (cloud-agent)**
 
 - `loadCharacter` select gains `proactivePushReady`; handler gates the send
-  on it (Decision 1).
-- `PROACTIVE_PUSH_ENABLED = true` (Decision 6).
+  on it (Decision 1) — shipped now so the eventual un-gate deploy is the
+  one-line flip Decision 6 describes.
+- `PROACTIVE_PUSH_ENABLED` stays `false` (Decision 6).
 
 **Client (root package)**
 
+- Edge executor for `set_reminder` → `scheduleWakeup` callable (Decision 0),
+  wired into `edgeToolExecutors` + the schema/executor mapping that decides
+  cloud-only escalation, so the call executes locally instead of escalating.
 - `useProactiveNotificationRouting` (Decision 2), mounted in `app/_layout.tsx`.
 - `useProactiveSync` (Decision 3), mounted in `app/_layout.tsx`.
 - `messageDatabase`: `markProactiveReadLocally(characterId)` (Decision 4).
@@ -251,20 +347,30 @@ server-side. The deeplink route is validated client-side against
 unchanged). Account deletion needs no new work: proactive rows already carry
 the owner's `sender_user_id`.
 
-## Rollout gate (workflow, blocking)
+## Rollout gate (workflow, now three stages)
 
-The Phase 2 spec's gate is explicit: before any build that can deliver a
-user-visible push ships, re-run `functions/scripts/proactiveTelemetry.mjs`
-against production and revisit the three constants against the observed
-distribution. This branch runs it **before merge**, with the new CLAMP
-REASONS query from PR #708 giving the first clean `gate` vs `guardrail`
-split. The numbers land in the PR description; caps lock or change based on
-them. No constants change silently.
+The Phase 2 gate mandated telemetry before any push-capable build ships. The
+2026-09-09 run exposed the cold producer (Decision 0) and returned no data, so
+the gate now runs at three points:
+
+1. **Before this branch's merge (done):** the all-zeros run that motivated
+   Decision 0. Recorded in the PR description.
+2. **After the edge producer has been live long enough to accumulate wake-ups**
+   (projected: a few days of real chat traffic): re-run
+   `functions/scripts/proactiveTelemetry.mjs` — now against real
+   `set_reminder`-scheduled rows — and take the first true CLAMP RATE +
+   CLAMP REASONS reading. Confirm or adjust the three constants against it.
+   This is the gate as Phase 2 designed it, finally with data.
+3. **The un-gate itself:** a one-line `PROACTIVE_PUSH_ENABLED = true` follow-up
+   deploy, gated on stage 2's numbers, at which point Decision 1's capability
+   flag bounds the blast radius to capable clients.
+
+No constants change silently at any stage; each run's output is recorded.
 
 Deploys go straight to production (`staging` is a merge target only): the
-functions + cloud-agent deploys are behavior-neutral until capable clients
-register (flag defaults `false`), and I verify the new revisions took traffic
-per the 0%-traffic-anomaly playbook.
+functions + cloud-agent deploys in this branch are behavior-neutral for push
+(the gate stays closed; the flag defaults `false`), and I verify the new
+revisions took traffic per the 0%-traffic-anomaly playbook.
 
 ---
 
@@ -277,6 +383,17 @@ react-query tests need `gcTime: 0`). Baselines to hold or beat: functions
 
 **What must be covered:**
 
+- **`scheduleWakeup` callable** — rejects unauthenticated / App-Check-less;
+  rejects a `characterId` the caller does not own; rejects `remind_at` in the
+  past *against the server clock* (a client with a skewed clock must not be
+  able to insert immediately-due rows); rejects an empty reason; returns the
+  vague-limit refusal at the ceiling; success inserts a pending row with
+  minted `id`/`run_key` and returns the due time.
+- **Edge executor** — a `set_reminder` function call on a cloud-synced
+  character now executes locally (calls the callable) instead of escalating;
+  the callable's refusal surfaces to the model as the tool result; a callable
+  failure surfaces as a tool error, not a crash of the turn; a non-synced
+  local-only character keeps existing behavior.
 - **Migration `0030`** — column exists with default `false`; additive.
 - **`registerExpoPushToken` capability write** — `true` sets ready;
   omitted sets ready `false` (the downgrade path); `false` sets `false`;
@@ -327,4 +444,6 @@ existing behavior, unchanged.
 ## Open questions
 
 None. The four carried from Phase 2 are resolved by shipped code (Locked
-decisions); the rollout-mechanism question is resolved by Decision 1.
+decisions); the rollout mechanism is resolved by Decision 1; the producer
+placement by Decision 0. The stage-2 telemetry reading (Rollout gate) is an
+open *measurement*, not an open design question.
