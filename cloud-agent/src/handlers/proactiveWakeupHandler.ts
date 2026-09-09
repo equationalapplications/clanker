@@ -72,12 +72,34 @@ export interface ProactiveWakeupDeps {
 }
 
 /**
+ * TEMPORARY — remove with the lifecycle-sync fast-follow.
+ *
+ * A push deeplinks to `/chat/{characterId}`, and that screen reads local
+ * SQLite. Nothing currently pulls proactive messages onto the device:
+ * `syncProactiveMessages` has no callers, and there is no general message
+ * down-sync to land them incidentally. So a notify today produces a
+ * notification the user can tap into an empty thread — worse than sending
+ * nothing. The unread badge was severed from the UI for exactly this reason;
+ * push depends on the same dead path and is gated for the same reason.
+ *
+ * Un-gate in the same change that wires the sync triggers, not before.
+ */
+const PROACTIVE_PUSH_ENABLED = false
+
+/**
  * The model proposes, the code disposes. The agent picks a delivery mode via the
  * deliver_wakeup tool; the sweeper's cap and cooldown decide whether notifying
  * is permissible at all, and a forbidden notify degrades to quiet rather than
  * being dropped.
+ *
+ * The gate is applied here rather than at the push call site so the row stays
+ * self-consistent: `delivery_mode` records quiet, which keeps `todaysPushCount`
+ * from counting a push that never went out and suppressing later real ones. The
+ * agent's intent is not lost — `chosen_delivery_mode` still records notify, so
+ * the "how often would a character have interrupted" telemetry is unaffected.
  */
 export function resolveDeliveryMode(chosen: DeliveryMode, notifyAllowed: boolean): DeliveryMode {
+  if (chosen === 'notify' && !PROACTIVE_PUSH_ENABLED) return 'quiet'
   if (chosen === 'notify' && !notifyAllowed) return 'quiet'
   return chosen
 }

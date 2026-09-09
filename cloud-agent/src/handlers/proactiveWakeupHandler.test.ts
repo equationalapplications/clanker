@@ -196,9 +196,17 @@ test('refunds and records zero spend when the turn throws', async () => {
 
 test('downgrades notify to quiet when the sweeper forbade notifying', () => {
   assert.equal(resolveDeliveryMode('notify', false), 'quiet')
-  assert.equal(resolveDeliveryMode('notify', true), 'notify')
   assert.equal(resolveDeliveryMode('quiet', true), 'quiet')
   assert.equal(resolveDeliveryMode('silent', true), 'silent')
+})
+
+// TEMPORARY, paired with PROACTIVE_PUSH_ENABLED = false. Until the lifecycle
+// sync is wired, a push would deeplink into an empty local chat, so notify is
+// gated off even when the sweeper permits it. When the fast-follow un-gates
+// push, this assertion flips back to 'notify' — and the line above in the
+// sweeper-forbade test stays 'quiet' either way.
+test('gates notify off while the client sync is unwired', () => {
+  assert.equal(resolveDeliveryMode('notify', true), 'quiet')
 })
 
 test('resolve records effective and chosen delivery modes as columns', async () => {
@@ -261,10 +269,23 @@ test('a silent wake-up persists nothing', async () => {
   assert.equal(calls.insertedMessages.length, 0)
 })
 
-test('fires a push when notify is allowed and the character carries an expoPushToken', async () => {
-  // Defends the production loadCharacter path: the token lives on users, not
-  // characters, so a plain characters select would leave it undefined and
-  // every push in production would silently no-op.
+// TEMPORARY inversion, paired with PROACTIVE_PUSH_ENABLED = false. This test
+// asserted that a push fires; while the client sync is unwired a push would
+// deeplink into an empty local chat, so the gate must suppress it even on the
+// happy path — notify allowed AND a real token present. The setup is left
+// intact so the production loadCharacter shape stays exercised (the token lives
+// on users, not characters; a plain characters select would leave it undefined
+// and every push would silently no-op).
+//
+// To un-gate: flip PROACTIVE_PUSH_ENABLED, restore the name to 'fires a push
+// when notify is allowed and the character carries an expoPushToken', and swap
+// the assertion block back to:
+//   assert.ok(pushed, 'expected sendCharacterProactive to be called')
+//   assert.equal(pushed.token, 'ExponentPushToken[abc]')
+//   assert.equal(pushed.charId, body.characterId)
+//   assert.equal(pushed.name, 'Ada')
+//   assert.equal(pushed.body, 'Hi')
+test('does not push while the gate is closed, even on the happy path', async () => {
   let pushed: { token: string; charId: string; name: string; body: string } | undefined
   const { app } = buildApp({
     loadCharacter: (async () => ({
@@ -292,11 +313,9 @@ test('fires a push when notify is allowed and the character carries an expoPushT
     .post('/agent/proactive-wakeup')
     .send({ ...body, notifyAllowed: true })
   assert.equal(res.status, 200)
-  assert.ok(pushed, 'expected sendCharacterProactive to be called')
-  assert.equal(pushed.token, 'ExponentPushToken[abc]')
-  assert.equal(pushed.charId, body.characterId)
-  assert.equal(pushed.name, 'Ada')
-  assert.equal(pushed.body, 'Hi')
+  assert.equal(pushed, undefined, 'gate must suppress the push while sync is unwired')
+  // The turn itself still runs and is recorded — only delivery is withheld.
+  assert.equal(res.body.mode, 'quiet')
 })
 
 test('skips the push when the character has no expoPushToken', async () => {
