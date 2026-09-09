@@ -79,6 +79,23 @@ async function insertCharacter(name: string): Promise<string> {
   return rows[0].id as string
 }
 
+/**
+ * One dynamic INSERT builder for all the local seeders, so the cols/placeholders
+ * construction lives in exactly one place (it was previously copied verbatim
+ * into each seeder, free to drift independently). Column names stay raw strings
+ * because these fixtures deliberately write pre-Drizzle SQL shapes (snake_case
+ * defaults overridden per test); the helpers/db.ts seedUser convention covers
+ * the typed path.
+ */
+async function insertRow(table: string, row: Record<string, unknown>): Promise<void> {
+  const cols = Object.keys(row)
+  const params = cols.map((_, i) => `$${i + 1}`)
+  await getPool().query(
+    `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${params.join(', ')})`,
+    Object.values(row),
+  )
+}
+
 let wakeupSeq = 0
 async function insertWakeup(fields: Record<string, unknown> = {}): Promise<string> {
   wakeupSeq += 1
@@ -93,19 +110,14 @@ async function insertWakeup(fields: Record<string, unknown> = {}): Promise<strin
     run_key: `run-${wakeupSeq}`,
     ...fields,
   }
-  const cols = Object.keys(row)
-  const params = cols.map((_, i) => `$${i + 1}`)
-  await getPool().query(
-    `INSERT INTO scheduled_wakeups (${cols.join(', ')}) VALUES (${params.join(', ')})`,
-    Object.values(row),
-  )
+  await insertRow('scheduled_wakeups', row)
   return row.id as string
 }
 
 let messageSeq = 0
 async function insertMessage(fields: Record<string, unknown> = {}): Promise<void> {
   messageSeq += 1
-  const row = {
+  await insertRow('messages', {
     character_id: characterId,
     sender_user_id: userId,
     message_id: `m-${messageSeq}`,
@@ -113,13 +125,7 @@ async function insertMessage(fields: Record<string, unknown> = {}): Promise<void
     message_data: '{}',
     created_at: NOW,
     ...fields,
-  }
-  const cols = Object.keys(row)
-  const params = cols.map((_, i) => `$${i + 1}`)
-  await getPool().query(
-    `INSERT INTO messages (${cols.join(', ')}) VALUES (${params.join(', ')})`,
-    Object.values(row),
-  )
+  })
 }
 
 function dueRowFor(id: string): DueWakeup {
