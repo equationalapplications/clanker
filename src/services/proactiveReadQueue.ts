@@ -8,8 +8,12 @@
  * in the `sync_state` table (Task 9 storage) and every flush retries until it
  * succeeds or the retry budget is exhausted.
  *
- * Flush wiring (calling this on app foreground and after each successful sync)
- * is intentionally left to a future task — T11 only exposes the two functions.
+ * Flush wiring: `enqueueMarkRead` with a `call` both persists the intent AND
+ * kicks a fire-and-forget flush, so opening a chat reaches the server promptly
+ * without waiting for the next foreground event. The hook layer (`useProactiveSync`)
+ * also flushes after each successful `syncProactiveMessages` run; foreground
+ * flushes via `AppState` cover the case where the app comes back from the
+ * background while ids are still queued.
  *
  * Concurrency: getSyncJson and setSyncJson are separate awaits, so two
  * enqueues can interleave (enqueue A reads, enqueue B reads, A writes, B
@@ -27,8 +31,9 @@ import { getSyncJson, setSyncJson } from '~/database/syncState'
 /**
  * Wire shape for the server-side callable. Matches the request/response types
  * declared in functions/src/proactiveMessages.ts. The `call` parameter is
- * injected so tests can substitute a mock — wiring the real
- * `httpsCallable('markProactiveRead')` happens in a future task.
+ * injected so tests can substitute a mock — the real binding
+ * (`markProactiveReadViaCallable`) lives in `proactiveMarkReadService.ts` and
+ * is shared by `useProactiveSync` and the chat-open enqueue (Task 8).
  */
 export type MarkReadCall = (request: { messageIds: string[] }) => Promise<{ updated: number }>
 
@@ -68,11 +73,12 @@ async function readQueue(): Promise<string[]> {
  * re-opens (each generating a mark-read intent) cannot double-count server
  * updates on flush.
  *
- * The `_call` parameter is accepted for symmetry with `flushMarkReadQueue` and
- * for the future wiring that will both enqueue AND kick a flush; today it is
- * unused.
+ * When a `call` is provided, an enqueue both persists the intent AND kicks a
+ * flush, so a chat open reaches the server promptly. The flush is
+ * fire-and-forget — flush failures stay queued (retry budget + foreground
+ * flushes cover them).
  */
-export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall): Promise<void> {
+export async function enqueueMarkRead(messageIds: string[], call?: MarkReadCall): Promise<void> {
   await withQueueLock(async () => {
     const current = await readQueue()
     const seen = new Set(current)
@@ -89,6 +95,13 @@ export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall
       await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged)
     }
   })
+  // The wiring this docstring anticipated: an enqueue with a call both persists
+  // the intent AND kicks a flush, so a chat open reaches the server promptly.
+  // Fire-and-forget — flush failures stay queued (retry budget + foreground
+  // flushes cover them).
+  if (call && messageIds.length > 0) {
+    void flushMarkReadQueue(call).catch(() => {})
+  }
 }
 
 /**
