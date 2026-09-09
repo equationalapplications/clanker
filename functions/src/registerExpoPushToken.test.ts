@@ -100,3 +100,103 @@ test('registerExpoPushTokenHandler exchanges web subscription and stores Expo to
     deviceId: 'install-1',
   })
 })
+
+test('capabilities.proactivePush true sets the flag alongside the token', async () => {
+  let savedUpdates: Record<string, unknown> | undefined
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, updates: Record<string, unknown>) => {
+        savedUpdates = updates
+        return { ...mockUser, ...(updates as object) } as typeof mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
+    } as never,
+    deps,
+  )
+
+  assert.deepEqual(result, { ok: true })
+  assert.equal(savedUpdates!.expoPushToken, 'ExponentPushToken[abc]')
+  assert.equal(savedUpdates!.proactivePushReady, true)
+})
+
+test('omitted capabilities actively sets the flag false (the downgrade path)', async () => {
+  let savedUpdates: Record<string, unknown> | undefined
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, updates: Record<string, unknown>) => {
+        savedUpdates = updates
+        return { ...mockUser, ...(updates as object) } as typeof mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { expoPushToken: 'ExponentPushToken[abc]' },
+    } as never,
+    deps,
+  )
+
+  assert.deepEqual(result, { ok: true })
+  assert.equal(savedUpdates!.proactivePushReady, false)
+})
+
+test('capabilities.proactivePush false sets the flag false', async () => {
+  let savedUpdates: Record<string, unknown> | undefined
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, updates: Record<string, unknown>) => {
+        savedUpdates = updates
+        return { ...mockUser, ...(updates as object) } as typeof mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: false } },
+    } as never,
+    deps,
+  )
+
+  assert.deepEqual(result, { ok: true })
+  assert.equal(savedUpdates!.proactivePushReady, false)
+})
+
+test('the token and the flag are written in ONE updateUser call (atomic)', async () => {
+  let callCount = 0
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, _updates: Record<string, unknown>) => {
+        callCount += 1
+        return mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
+    } as never,
+    deps,
+  )
+
+  assert.equal(callCount, 1)
+})
