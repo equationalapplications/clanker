@@ -79,7 +79,13 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
   let posted = 0
   let skipped = 0
 
-  for (const row of due) {
+  // Indexed rather than a bare for-of so the early-break log can report how
+  // much of the batch was actually reached. posted + skipped is NOT that
+  // number: a row that lost the claim race, or threw mid-turn, increments
+  // neither counter, so deriving `remaining` from them would count
+  // attempted-but-stranded rows as still-queued and inflate the backlog anyone
+  // sizes SWEEP_TIME_BUDGET_MS from.
+  for (const [index, row] of due.entries()) {
     // Stop before claiming anything this sweep cannot finish. Checked at the
     // top of the iteration, ahead of the claim, because it is the claim that
     // does the damage: a row killed after claiming is stranded until the
@@ -92,8 +98,10 @@ export async function proactiveWakeupSweepHandler(deps: SweepDeps): Promise<void
     if (elapsedMs + WAKEUP_POST_TIMEOUT_MS + SWEEP_RESERVE_MS > SWEEP_TIME_BUDGET_MS) {
       logger.info('Proactive sweep stopped early on time budget', {
         elapsedMs,
-        claimed: posted + skipped,
-        remaining: due.length - (posted + skipped),
+        attempted: index,
+        posted,
+        skipped,
+        remaining: due.length - index,
       })
       break
     }
