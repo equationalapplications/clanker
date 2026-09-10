@@ -14,31 +14,49 @@ import type { ScheduleWakeupRequest, ScheduleWakeupResponse } from './proactiveW
 import { saveCharacterImage } from './characterImageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { MASTER_DIMENSION } from './imageVariants'
+import * as Crypto from 'expo-crypto'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
 
 /**
- * Deterministic operation id: same (character, reason, remindAt, priority) →
- * same opId, so a network retry lands on the same server row (the callable's
- * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
- * double-fire. FNV-1a 32-bit, no crypto dependency required for React Native.
+ * Canonical string for a set_reminder operation. Both the edge executor and
+ * the cloud-agent's escalated set_reminder produce identical bytes here, so the
+ * opId they hash agrees across the two paths. `remindAt` is the raw ISO string
+ * from the model — NOT a parsed Date — because Date#toISOString normalises the
+ * offset to "Z" while the edge input may carry "+02:00", and the two would hash
+ * to different bytes for the same wall-clock moment.
+ *
+ * Mirrored in cloud-agent/src/tools/reminders.ts (kept identical by hand; the
+ * two packages do not share code).
  */
-export function deriveOpId(args: {
+export function reminderOpIdCanonical(args: {
   characterId: string
   reason: string
   remindAt: string
   priority?: number
 }): string {
-  const raw = `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
-  let hash = 0x811c9dc5
-  for (let i = 0; i < raw.length; i++) {
-    hash ^= raw.charCodeAt(i)
-    hash = Math.imul(hash, 0x01000193) & 0xffffffff
-  }
-  // Negative hashes get the sign-bit cleared and zero-padded. 8 hex chars fits
-  // Postgres's text primary key without ceremony and avoids the 36-byte UUID
-  // shape the server used to mint on every call.
-  return `op-${(hash >>> 0).toString(16).padStart(8, '0')}`
+  return `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
+}
+
+/**
+ * Deterministic operation id: same (character, reason, remindAt, priority) →
+ * same opId, so a network retry lands on the same server row (the callable's
+ * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
+ * double-fire. SHA-256 over the canonical string — 256 bits of entropy, well
+ * above the FNV-1a 32-bit budget that collided on a real test corpus. Uses
+ * expo-crypto so it is Hermes-safe in the React Native runtime.
+ */
+export async function deriveOpId(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): Promise<string> {
+  const hex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    reminderOpIdCanonical(args),
+  )
+  return `op-${hex}`
 }
 
 /**
@@ -177,8 +195,9 @@ export function createEdgeToolExecutors(
             // same call from a model that produced the same args twice) hits
             // ON CONFLICT DO NOTHING on the row's primary key and returns the
             // existing dueAt, instead of inserting a duplicate that the sweep
-            // would later double-fire. FNV-1a 32-bit, no crypto dep needed.
-            const opId = deriveOpId({
+            // would later double-fire. SHA-256 (256-bit) over the canonical
+            // string — see deriveOpId for the entropy rationale.
+            const opId = await deriveOpId({
               characterId: reminder.characterId,
               reason,
               remindAt,
