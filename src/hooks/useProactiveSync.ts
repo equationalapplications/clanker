@@ -28,7 +28,9 @@ export function isProactivePushData(data: unknown): data is { deepLink?: unknown
  * not just on first focus, where the initial countUnreadProactive returned 0
  * because the message had not arrived yet).
  */
-export function useProactiveSync(userId: string | null | undefined): { triggerSync: () => Promise<void> | void } {
+export function useProactiveSync(userId: string | null | undefined): {
+  triggerSync: () => Promise<void> | void
+} {
   const queryClient = useQueryClient()
   const inFlightRef = useRef<Promise<void> | null>(null)
 

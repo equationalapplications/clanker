@@ -27,11 +27,11 @@
 
 ## File Structure (what lands where)
 
-| Layer | Create | Modify |
-|---|---|---|
-| functions | `src/scheduleWakeup.ts` + `.test.ts`, `drizzle/0030_users_proactive_push_ready.sql` | `src/db/schema.ts`, `src/registerExpoPushToken.ts` + `.test.ts`, `src/index.ts`, `scripts/migrationOrder.mjs` |
-| cloud-agent | — | `src/db/schema.ts`, `src/index.ts` (loadCharacter), `src/handlers/proactiveWakeupHandler.ts` + `.test.ts` |
-| shared | — | `shared/agent-tools-spec.ts` |
+| Layer       | Create                                                                                                                                                                                                                                  | Modify                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| functions   | `src/scheduleWakeup.ts` + `.test.ts`, `drizzle/0030_users_proactive_push_ready.sql`                                                                                                                                                     | `src/db/schema.ts`, `src/registerExpoPushToken.ts` + `.test.ts`, `src/index.ts`, `scripts/migrationOrder.mjs`                                                                                                                                                                                                                                                                                    |
+| cloud-agent | —                                                                                                                                                                                                                                       | `src/db/schema.ts`, `src/index.ts` (loadCharacter), `src/handlers/proactiveWakeupHandler.ts` + `.test.ts`                                                                                                                                                                                                                                                                                        |
+| shared      | —                                                                                                                                                                                                                                       | `shared/agent-tools-spec.ts`                                                                                                                                                                                                                                                                                                                                                                     |
 | client root | `src/services/proactiveWakeupService.ts`, `src/services/proactiveMarkReadService.ts`, `src/hooks/useProactiveSync.ts`, `src/hooks/useProactiveNotificationRouting.ts`, `src/hooks/useMarkProactiveReadOnOpen.ts` + `__tests__` for each | `src/services/edgeToolExecutors.ts` + test, `src/hooks/useEdgeAgent.ts` + test, `src/hooks/useAIChat.ts`, `src/hooks/useRegisterExpoPushToken.ts`, `src/database/messageDatabase.ts` + proactive test, `src/services/proactiveReadQueue.ts` + test, `src/components/ChatView.tsx` + test, `src/components/CharacterCard.tsx`, `__tests__/characterCardAccessibility.test.tsx`, `app/_layout.tsx` |
 
 ---
@@ -39,12 +39,14 @@
 ### Task 1: Migration `0030_users_proactive_push_ready` + both schema declarations
 
 **Files:**
+
 - Create: `functions/drizzle/0030_users_proactive_push_ready.sql`
 - Modify: `functions/scripts/migrationOrder.mjs` (append to `MIGRATION_ORDER`)
 - Modify: `functions/src/db/schema.ts` (users table, after `expoPushToken`, ~line 31)
 - Modify: `cloud-agent/src/db/schema.ts` (users table, after `expoPushToken`, ~line 28)
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `users.proactivePushReady: boolean('proactive_push_ready').notNull().default(false)` present in both Drizzle schemas; DB column `users.proactive_push_ready boolean NOT NULL DEFAULT false`. Later tasks read/write it via Drizzle only — no raw SQL elsewhere.
 
@@ -118,11 +120,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 2: `scheduleWakeup` callable in `functions`
 
 **Files:**
+
 - Create: `functions/src/scheduleWakeup.ts`
 - Create: `functions/src/scheduleWakeup.test.ts`
 - Modify: `functions/src/index.ts` (add export near line 57)
 
 **Interfaces:**
+
 - Consumes: `userRepository.findUserByFirebaseUid`, `getDb()` from `./db/cloudSql.js`, `characters` + `scheduledWakeups` from `./db/schema.js`, `DAILY_PROACTIVE_POWER_CEILING` from `./services/proactiveWakeupGuardrails.js`, `CLOUD_SQL_SECRETS` from `./cloudSqlSecrets.js`.
 - Produces (used by Task 5 and Task 10): exported callable `scheduleWakeup`; request `{ characterId: string; reason: string; remindAt: string; priority?: number }`; response `{ ok: boolean; message: string; dueAt?: string }` — validation/ceiling refusals are `ok: false` DATA responses carrying the exact cloud-agent refusal strings (the model must read them); auth/ownership violations throw `HttpsError`. Also exports `buildWakeupInsert(args)` and `WAKEUP_LIMIT_REFUSAL` for tests.
 
@@ -136,11 +140,7 @@ process.env.NODE_ENV = 'test'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HttpsError } from 'firebase-functions/v2/https'
-import {
-  scheduleWakeupHandler,
-  buildWakeupInsert,
-  WAKEUP_LIMIT_REFUSAL,
-} from './scheduleWakeup.js'
+import { scheduleWakeupHandler, buildWakeupInsert, WAKEUP_LIMIT_REFUSAL } from './scheduleWakeup.js'
 import type { ScheduleWakeupDeps } from './scheduleWakeup.js'
 
 function buildDeps(overrides: Partial<ScheduleWakeupDeps> = {}): ScheduleWakeupDeps {
@@ -219,7 +219,12 @@ test('returns the vague-limit refusal at the ceiling and inserts nothing', async
   const inserted: unknown[] = []
   const result = await scheduleWakeupHandler(
     authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
-    buildDeps({ todaysProactiveSpend: async () => 500, insertWakeup: async (row) => { inserted.push(row) } }),
+    buildDeps({
+      todaysProactiveSpend: async () => 500,
+      insertWakeup: async (row) => {
+        inserted.push(row)
+      },
+    }),
   )
   assert.equal(result.ok, false)
   assert.equal(result.message, WAKEUP_LIMIT_REFUSAL)
@@ -232,8 +237,17 @@ test('success inserts a pending row with minted id/runKey and returns the due ti
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   const due = futureIso()
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: '  follow up  ', remindAt: due, priority: 3 }),
-    buildDeps({ insertWakeup: async (row) => { saved = row } }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: '  follow up  ',
+      remindAt: due,
+      priority: 3,
+    }),
+    buildDeps({
+      insertWakeup: async (row) => {
+        saved = row
+      },
+    }),
   )
   assert.equal(result.ok, true)
   assert.equal(result.dueAt, new Date(due).toISOString())
@@ -251,7 +265,11 @@ test('priority defaults to 0 when omitted', async () => {
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   await scheduleWakeupHandler(
     authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
-    buildDeps({ insertWakeup: async (row) => { saved = row } }),
+    buildDeps({
+      insertWakeup: async (row) => {
+        saved = row
+      },
+    }),
   )
   assert.equal(saved!.priority, 0)
 })
@@ -335,7 +353,10 @@ async function todaysProactiveSpend(characterId: string, now: Date): Promise<num
     .select({ spent: sql<number>`COALESCE(SUM(${scheduledWakeups.spentAmount}), 0)::int` })
     .from(scheduledWakeups)
     .where(
-      and(eq(scheduledWakeups.characterId, characterId), gte(scheduledWakeups.resolvedAt, dayStart)),
+      and(
+        eq(scheduledWakeups.characterId, characterId),
+        gte(scheduledWakeups.resolvedAt, dayStart),
+      ),
     )
   return row?.spent ?? 0
 }
@@ -344,7 +365,12 @@ async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<
   await getDb().insert(scheduledWakeups).values(row)
 }
 
-const defaultDeps: ScheduleWakeupDeps = { userRepository, characterOwnedBy, todaysProactiveSpend, insertWakeup }
+const defaultDeps: ScheduleWakeupDeps = {
+  userRepository,
+  characterOwnedBy,
+  todaysProactiveSpend,
+  insertWakeup,
+}
 
 type ScheduleWakeupData = {
   characterId: string
@@ -369,11 +395,19 @@ function parsePayload(data: unknown): ScheduleWakeupData {
   }
   if (
     d.priority !== undefined &&
-    (typeof d.priority !== 'number' || !Number.isInteger(d.priority) || d.priority < 0 || d.priority > 10)
+    (typeof d.priority !== 'number' ||
+      !Number.isInteger(d.priority) ||
+      d.priority < 0 ||
+      d.priority > 10)
   ) {
     throw new HttpsError('invalid-argument', 'priority must be an integer between 0 and 10.')
   }
-  return { characterId: d.characterId, reason: d.reason, remindAt: d.remindAt, priority: d.priority }
+  return {
+    characterId: d.characterId,
+    reason: d.reason,
+    remindAt: d.remindAt,
+    priority: d.priority,
+  }
 }
 
 export async function scheduleWakeupHandler(
@@ -424,7 +458,11 @@ export async function scheduleWakeupHandler(
     priority: data.priority ?? 0,
   })
   await deps.insertWakeup(row)
-  return { ok: true, message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`, dueAt: dueAt.toISOString() }
+  return {
+    ok: true,
+    message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`,
+    dueAt: dueAt.toISOString(),
+  }
 }
 
 export const scheduleWakeup = onCall(
@@ -474,10 +512,12 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 3: `registerExpoPushToken` capability write (Decision 1, functions half)
 
 **Files:**
+
 - Modify: `functions/src/registerExpoPushToken.ts` (payload validation ~lines 35-96, write at line ~133)
 - Modify: `functions/src/registerExpoPushToken.test.ts`
 
 **Interfaces:**
+
 - Consumes: `userRepository.updateUser(userId, updates)` (already accepts arbitrary `users.$inferInsert` fields — no signature change).
 - Produces: callable body gains optional `capabilities?: { proactivePush?: boolean }`; the write becomes `{ expoPushToken, proactivePushReady }` with the flag written explicitly in both directions. Task 10's client change depends on this wire shape.
 
@@ -489,30 +529,58 @@ In `functions/src/registerExpoPushToken.test.ts`, extend the saved-capture patte
 test('capabilities.proactivePush true sets the flag alongside the token', async () => {
   let savedUpdates: Record<string, unknown> | undefined
   // (reuse the file's existing deps/request harness; capture updateUser's 2nd arg)
-  await runRegister({ expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
-    { updateUser: async (_id, updates) => { savedUpdates = updates as Record<string, unknown>; return mockUserRow } })
+  await runRegister(
+    { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
+    {
+      updateUser: async (_id, updates) => {
+        savedUpdates = updates as Record<string, unknown>
+        return mockUserRow
+      },
+    },
+  )
   assert.equal(savedUpdates!.expoPushToken, 'ExponentPushToken[abc]')
   assert.equal(savedUpdates!.proactivePushReady, true)
 })
 
 test('omitted capabilities actively sets the flag false (the downgrade path)', async () => {
   let savedUpdates: Record<string, unknown> | undefined
-  await runRegister({ expoPushToken: 'ExponentPushToken[abc]' },
-    { updateUser: async (_id, updates) => { savedUpdates = updates as Record<string, unknown>; return mockUserRow } })
+  await runRegister(
+    { expoPushToken: 'ExponentPushToken[abc]' },
+    {
+      updateUser: async (_id, updates) => {
+        savedUpdates = updates as Record<string, unknown>
+        return mockUserRow
+      },
+    },
+  )
   assert.equal(savedUpdates!.proactivePushReady, false)
 })
 
 test('capabilities.proactivePush false sets the flag false', async () => {
   let savedUpdates: Record<string, unknown> | undefined
-  await runRegister({ expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: false } },
-    { updateUser: async (_id, updates) => { savedUpdates = updates as Record<string, unknown>; return mockUserRow } })
+  await runRegister(
+    { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: false } },
+    {
+      updateUser: async (_id, updates) => {
+        savedUpdates = updates as Record<string, unknown>
+        return mockUserRow
+      },
+    },
+  )
   assert.equal(savedUpdates!.proactivePushReady, false)
 })
 
 test('the token and the flag are written in ONE updateUser call (atomic)', async () => {
   const calls: number[] = []
-  await runRegister({ expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
-    { updateUser: async (_id, updates) => { calls.push(1); return mockUserRow } })
+  await runRegister(
+    { expoPushToken: 'ExponentPushToken[abc]', capabilities: { proactivePush: true } },
+    {
+      updateUser: async (_id, updates) => {
+        calls.push(1)
+        return mockUserRow
+      },
+    },
+  )
   assert.equal(calls.length, 1)
 })
 ```
@@ -579,12 +647,14 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 4: cloud-agent — flag-aware `loadCharacter` + handler push gate (Decision 1)
 
 **Files:**
+
 - Modify: `cloud-agent/src/db/schema.ts` (done in Task 1 — no further change)
 - Modify: `cloud-agent/src/index.ts` (`loadCharacter` at ~lines 681-703)
 - Modify: `cloud-agent/src/handlers/proactiveWakeupHandler.ts` (`ProactiveCharacter` ~lines 20-28; notify branch ~lines 294-308; deps interface if `resolveDeliveryMode` is not already injectable)
 - Modify: `cloud-agent/src/handlers/proactiveWakeupHandler.test.ts`
 
 **Interfaces:**
+
 - Consumes: `users.proactivePushReady` (Task 1).
 - Produces: `ProactiveCharacter.proactivePushReady: boolean`; handler sends push only when `mode === 'notify' && character.proactivePushReady && character.expoPushToken && messageId`. No other package consumes these.
 - **Constraint:** the two flip tests and the `PROACTIVE_PUSH_ENABLED = false` const are UNTOUCHED (see Global Constraints).
@@ -672,6 +742,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 5: Edge executor for `set_reminder` (Decision 0, client half)
 
 **Files:**
+
 - Create: `src/services/proactiveWakeupService.ts`
 - Create: `src/services/__tests__/proactiveWakeupService.test.ts` (only if a mockable unit is worth it — see Step 1 note; otherwise cover via executor tests)
 - Modify: `shared/agent-tools-spec.ts` (`set_reminder` block ~lines 171-183, `LOCALLY_EXECUTABLE_CLOUD_TOOLS` comment ~lines 205-212)
@@ -682,6 +753,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `src/hooks/useAIChat.ts` (~line 92 call site)
 
 **Interfaces:**
+
 - Consumes: `scheduleWakeup` callable (Task 2) — request `{ characterId, reason, remindAt, priority? }`, response `{ ok, message, dueAt? }`.
 - Produces:
   - `src/services/proactiveWakeupService.ts`: `scheduleWakeupViaCallable(request: { characterId: string; reason: string; remindAt: string; priority?: number }): Promise<{ ok: boolean; message: string; dueAt?: string }>`
@@ -701,24 +773,58 @@ describe('set_reminder executor', () => {
   })
 
   it('calls the callable with the session-bound cloud character id and returns its message', async () => {
-    mockScheduleWakeupViaCallable.mockResolvedValue({ ok: true, message: 'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.', dueAt: '2026-09-10T10:00:00.000Z' })
-    const executors = createEdgeToolExecutors('local-1', null, undefined, { characterId: 'cloud-9', scheduleWakeup: mockScheduleWakeupViaCallable })
-    const out = await executors.set_reminder!({ reason: 'follow up on the recipe', remind_at: '2026-09-10T10:00:00.000Z', priority: 2 })
-    expect(mockScheduleWakeupViaCallable).toHaveBeenCalledWith({ characterId: 'cloud-9', reason: 'follow up on the recipe', remindAt: '2026-09-10T10:00:00.000Z', priority: 2 })
-    expect(out).toBe('Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.')
+    mockScheduleWakeupViaCallable.mockResolvedValue({
+      ok: true,
+      message: 'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
+      dueAt: '2026-09-10T10:00:00.000Z',
+    })
+    const executors = createEdgeToolExecutors('local-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'follow up on the recipe',
+      remind_at: '2026-09-10T10:00:00.000Z',
+      priority: 2,
+    })
+    expect(mockScheduleWakeupViaCallable).toHaveBeenCalledWith({
+      characterId: 'cloud-9',
+      reason: 'follow up on the recipe',
+      remindAt: '2026-09-10T10:00:00.000Z',
+      priority: 2,
+    })
+    expect(out).toBe(
+      'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
+    )
   })
 
   it('surfaces a callable refusal (ceiling) to the model as the tool result', async () => {
-    mockScheduleWakeupViaCallable.mockResolvedValue({ ok: false, message: 'Not scheduled: this character has reached its background activity limit for today. Do not promise the user a follow-up for today.' })
-    const executors = createEdgeToolExecutors('local-1', null, undefined, { characterId: 'cloud-9', scheduleWakeup: mockScheduleWakeupViaCallable })
-    const out = await executors.set_reminder!({ reason: 'r', remind_at: '2026-09-10T10:00:00.000Z' })
+    mockScheduleWakeupViaCallable.mockResolvedValue({
+      ok: false,
+      message:
+        'Not scheduled: this character has reached its background activity limit for today. Do not promise the user a follow-up for today.',
+    })
+    const executors = createEdgeToolExecutors('local-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'r',
+      remind_at: '2026-09-10T10:00:00.000Z',
+    })
     expect(out).toMatch(/background activity limit/)
   })
 
   it('surfaces a callable failure as a tool-error string, not a thrown crash of the turn', async () => {
     mockScheduleWakeupViaCallable.mockRejectedValue(new Error('network down'))
-    const executors = createEdgeToolExecutors('local-1', null, undefined, { characterId: 'cloud-9', scheduleWakeup: mockScheduleWakeupViaCallable })
-    const out = await executors.set_reminder!({ reason: 'r', remind_at: '2026-09-10T10:00:00.000Z' })
+    const executors = createEdgeToolExecutors('local-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const out = await executors.set_reminder!({
+      reason: 'r',
+      remind_at: '2026-09-10T10:00:00.000Z',
+    })
     expect(out).toBe('Not scheduled: an internal error occurred.')
   })
 })
@@ -859,19 +965,19 @@ export function createEdgeToolExecutors(
 - Escalation predicate (~line 150):
 
 ```ts
-          // Cloud-only tools (generate_image, set_reminder) are offered to the edge
-          // model as stubs it can call... [keep existing comment, extend it:]
-          // set_reminder no longer escalates at all: for a cloud-synced character
-          // the executor above schedules the wakeup via the scheduleWakeup
-          // callable directly (Decision 0 — production chat is edge-first and
-          // escalation almost never happens, which left the producer cold).
-          const escalates = functionCalls.some(
-            (fc) =>
-              fc.name === 'escalate_to_cloud_agent' ||
-              (isCloudOnlyToolName(fc.name ?? '') &&
-                fc.name !== 'set_reminder' &&
-                !(canGenerateLocally && isLocallyExecutableCloudTool(fc.name ?? ''))),
-          )
+// Cloud-only tools (generate_image, set_reminder) are offered to the edge
+// model as stubs it can call... [keep existing comment, extend it:]
+// set_reminder no longer escalates at all: for a cloud-synced character
+// the executor above schedules the wakeup via the scheduleWakeup
+// callable directly (Decision 0 — production chat is edge-first and
+// escalation almost never happens, which left the producer cold).
+const escalates = functionCalls.some(
+  (fc) =>
+    fc.name === 'escalate_to_cloud_agent' ||
+    (isCloudOnlyToolName(fc.name ?? '') &&
+      fc.name !== 'set_reminder' &&
+      !(canGenerateLocally && isLocallyExecutableCloudTool(fc.name ?? ''))),
+)
 ```
 
 6. `src/hooks/useAIChat.ts` call site (~line 92):
@@ -908,6 +1014,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 6: `markProactiveReadViaCallable` + queue kick-flush + `useProactiveSync` hook (Decision 3)
 
 **Files:**
+
 - Create: `src/services/proactiveMarkReadService.ts`
 - Create: `src/hooks/useProactiveSync.ts`
 - Create: `src/hooks/__tests__/useProactiveSync.test.tsx`
@@ -915,6 +1022,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: the queue's test file (find it: `grep -rl "enqueueMarkRead" src --include="*.test.ts*"`)
 
 **Interfaces:**
+
 - Consumes: `syncProactiveMessages(userId)` (`src/services/proactiveSync.ts`), `flushMarkReadQueue(call)` / `MarkReadCall` (`src/services/proactiveReadQueue.ts`), `proactiveUnreadKeys` (`src/hooks/useProactiveUnread.ts`), `messageKeys` (`src/hooks/useMessages.ts`).
 - Produces:
   - `markProactiveReadViaCallable(request: { messageIds: string[] }): Promise<{ updated: number }>` — the real `MarkReadCall` binding (shared by this hook and Task 8).
@@ -1078,13 +1186,13 @@ export function useProactiveSync(userId: string | null | undefined): { triggerSy
 `enqueueMarkRead` kick (in `src/services/proactiveReadQueue.ts`) — rename `_call` to `call`, keep the dedupe/append logic identical, and after the locked append:
 
 ```ts
-  // The wiring this docstring anticipated: an enqueue with a call both persists
-  // the intent AND kicks a flush, so a chat open reaches the server promptly.
-  // Fire-and-forget — flush failures stay queued (retry budget + foreground
-  // flushes cover them).
-  if (call && messageIds.length > 0) {
-    void flushMarkReadQueue(call).catch(() => {})
-  }
+// The wiring this docstring anticipated: an enqueue with a call both persists
+// the intent AND kicks a flush, so a chat open reaches the server promptly.
+// Fire-and-forget — flush failures stay queued (retry budget + foreground
+// flushes cover them).
+if (call && messageIds.length > 0) {
+  void flushMarkReadQueue(call).catch(() => {})
+}
 ```
 
 Update the file's top docstring (the "intentionally left to a future task" note) to describe the shipped wiring.
@@ -1112,11 +1220,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 7: `useProactiveNotificationRouting` + mount both hooks (Decision 2)
 
 **Files:**
+
 - Create: `src/hooks/useProactiveNotificationRouting.ts`
 - Create: `src/hooks/__tests__/useProactiveNotificationRouting.test.tsx`
 - Modify: `app/_layout.tsx` (`AppOrchestrator`, ~lines 151-157)
 
 **Interfaces:**
+
 - Consumes: `useProactiveSync(userId).triggerSync` (Task 6); `isProactivePushData`, `PROACTIVE_PUSH_TYPE` from `useProactiveSync.ts`; `router` from `expo-router`.
 - Produces: `useProactiveNotificationRouting({ triggerSync }: { triggerSync: () => void }): void`. Push payload contract (from `cloud-agent/src/services/fcmDispatcher.ts:125-130`): `data: { type: 'PROACTIVE_CHARACTER_MESSAGE', characterId, messageId, deepLink: '/chat/<id>' }`.
 
@@ -1143,7 +1253,10 @@ function response(data: unknown) {
   return { notification: { request: { content: { data } } } }
 }
 
-beforeEach(() => { jest.clearAllMocks(); responseListener = undefined })
+beforeEach(() => {
+  jest.clearAllMocks()
+  responseListener = undefined
+})
 
 it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger non-blocking', () => {
   renderHook(() => useProactiveNotificationRouting({ triggerSync }))
@@ -1152,13 +1265,23 @@ it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger no
   expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc')
 })
 
-it('ignores a wrong type', () => { /* data.type: 'OTHER' → neither fn called */ })
-it('ignores a malformed deepLink', () => { /* deepLink: 'https://evil.example/chat/x' → neither called */ })
-it('ignores a missing deepLink', () => { /* type ok, no deepLink → neither called */ })
-it('ignores missing data', () => { /* data: undefined → neither called */ })
+it('ignores a wrong type', () => {
+  /* data.type: 'OTHER' → neither fn called */
+})
+it('ignores a malformed deepLink', () => {
+  /* deepLink: 'https://evil.example/chat/x' → neither called */
+})
+it('ignores a missing deepLink', () => {
+  /* type ok, no deepLink → neither called */
+})
+it('ignores missing data', () => {
+  /* data: undefined → neither called */
+})
 
 it('routes cold start after mount', async () => {
-  mockGetInitial.mockResolvedValueOnce(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
+  mockGetInitial.mockResolvedValueOnce(
+    response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }),
+  )
   renderHook(() => useProactiveNotificationRouting({ triggerSync }))
   await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc'))
   expect(triggerSync).toHaveBeenCalledTimes(1)
@@ -1195,7 +1318,11 @@ import { isProactivePushData } from '~/hooks/useProactiveSync'
 // send the user anywhere unexpected.
 const CHAT_DEEPLINK_PATTERN = /^\/chat\//
 
-export function useProactiveNotificationRouting({ triggerSync }: { triggerSync: () => void }): void {
+export function useProactiveNotificationRouting({
+  triggerSync,
+}: {
+  triggerSync: () => void
+}): void {
   useEffect(() => {
     const routeIfProactive = (data: unknown) => {
       if (!isProactivePushData(data)) return
@@ -1236,11 +1363,11 @@ export function useProactiveNotificationRouting({ triggerSync }: { triggerSync: 
 Mount in `app/_layout.tsx` `AppOrchestrator` (after the existing `useRegisterExpoPushToken`/`useBrowserActionApproval` calls):
 
 ```tsx
-  const currentUserId = useSelector(authService, (state) => state.context.user?.uid ?? null)
-  // Proactive lifecycle-sync wiring (spec Decisions 2+3): foreground/receipt
-  // sync with in-flight guard; notification taps reuse the same guarded run.
-  const { triggerSync } = useProactiveSync(currentUserId)
-  useProactiveNotificationRouting({ triggerSync })
+const currentUserId = useSelector(authService, (state) => state.context.user?.uid ?? null)
+// Proactive lifecycle-sync wiring (spec Decisions 2+3): foreground/receipt
+// sync with in-flight guard; notification taps reuse the same guarded run.
+const { triggerSync } = useProactiveSync(currentUserId)
+useProactiveNotificationRouting({ triggerSync })
 ```
 
 (import both hooks; `useSelector` is already imported in the file.)
@@ -1267,6 +1394,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 8: Local mark-read on chat open (Decision 4)
 
 **Files:**
+
 - Modify: `src/database/messageDatabase.ts` (new function near `countUnreadProactive`, ~line 620)
 - Modify: `src/database/__tests__/messageDatabase.proactive.test.ts`
 - Create: `src/hooks/useMarkProactiveReadOnOpen.ts`
@@ -1274,6 +1402,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Modify: `src/components/ChatView.tsx` (`ChatViewContent`, ~lines 92-398)
 
 **Interfaces:**
+
 - Consumes: `countUnreadProactive(characterId, nowMs)` (messageDatabase.ts:611), `enqueueMarkRead(ids, call)` (Task 6 wiring), `markProactiveReadViaCallable` (Task 6), `proactiveUnreadKeys`.
 - Produces: `markProactiveReadLocally(characterId: string): Promise<string[]>` — returns the ids it marked (empty array = no-op), so the caller can enqueue exactly those ids. `useMarkProactiveReadOnOpen(characterId: string | null | undefined): void`.
 
@@ -1283,11 +1412,11 @@ In `src/database/__tests__/messageDatabase.proactive.test.ts` (real in-memory SQ
 
 ```ts
 describe('markProactiveReadLocally', () => {
-  it('writes read_at for ALL of the character\'s unread proactive rows and returns their ids', async () => {
+  it("writes read_at for ALL of the character's unread proactive rows and returns their ids", async () => {
     await seedProactiveMessage({ id: 'p1', characterId: 'c1' })
     await seedProactiveMessage({ id: 'p2', characterId: 'c1' })
     await seedProactiveMessage({ id: 'regular', characterId: 'c1', proactive: false }) // not proactive
-    await seedProactiveMessage({ id: 'p3', characterId: 'c2' })                        // other character
+    await seedProactiveMessage({ id: 'p3', characterId: 'c2' }) // other character
     const ids = await markProactiveReadLocally('c1')
     expect(ids.sort()).toEqual(['p1', 'p2'])
     const row = await getRow('p1')
@@ -1446,9 +1575,9 @@ export function useMarkProactiveReadOnOpen(characterId: string | null | undefine
 In `src/components/ChatView.tsx` `ChatViewContent` (it has `characterId`), add near the top of the component body:
 
 ```tsx
-  // Decision 4: reading the chat reads the thread — clear the badge now,
-  // enqueue the durable server receipt.
-  useMarkProactiveReadOnOpen(characterId)
+// Decision 4: reading the chat reads the thread — clear the badge now,
+// enqueue the durable server receipt.
+useMarkProactiveReadOnOpen(characterId)
 ```
 
 (import the hook.)
@@ -1475,10 +1604,12 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 9: Restore the unread dot on `CharacterCard` (Decision 5)
 
 **Files:**
+
 - Modify: `src/components/CharacterCard.tsx` (severed comment at lines 28-34; avatar JSX at line ~64; styles ~line 117)
 - Modify: `__tests__/characterCardAccessibility.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useProactiveUnread(id): { hasUnread: boolean }` (already exists; the accessibility test file already mocks it to `{ hasUnread: false }`).
 - Produces: nothing consumed downstream.
 
@@ -1513,26 +1644,28 @@ Expected: FAIL — no `proactive-unread-dot` in the tree.
 2. Replace the severed comment block (lines 28-34) with the hook + comment:
 
 ```tsx
-  // Boolean badge — `countUnreadProactive` already enforces the staleness
-  // escape, so the dot matches the server's push-decision contract. Deliberately
-  // a boolean, not a count: AI chats are not an inbox.
-  const { hasUnread: hasUnreadProactive } = useProactiveUnread(id)
+// Boolean badge — `countUnreadProactive` already enforces the staleness
+// escape, so the dot matches the server's push-decision contract. Deliberately
+// a boolean, not a count: AI chats are not an inbox.
+const { hasUnread: hasUnreadProactive } = useProactiveUnread(id)
 ```
 
 3. Inside `styles.avatarContainer` (after `<CharacterAvatar size={48} … />`, line ~64):
 
 ```tsx
-            {hasUnreadProactive ? (
-              <View
-                testID="proactive-unread-dot"
-                style={[
-                  styles.unreadDot,
-                  { backgroundColor: theme.colors.error, borderColor: theme.colors.surface },
-                ]}
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-              />
-            ) : null}
+{
+  hasUnreadProactive ? (
+    <View
+      testID="proactive-unread-dot"
+      style={[
+        styles.unreadDot,
+        { backgroundColor: theme.colors.error, borderColor: theme.colors.surface },
+      ]}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+    />
+  ) : null
+}
 ```
 
 (the `testID` is the one addition over the severed original — it exists for the test in Step 1.)
@@ -1573,11 +1706,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 10: Client registers `capabilities.proactivePush: true` (Decision 1, client half)
 
 **Files:**
+
 - Modify: `src/hooks/useRegisterExpoPushToken.ts` (native write at ~line 121; web path `registerWebPushToken` at ~line 63)
 - Modify: `src/config/firebaseConfig.ts` (widen `registerExpoPushTokenFn`'s request type if it constrains the body)
 - Create or Modify: `src/hooks/__tests__/useRegisterExpoPushToken.test.ts` (check for an existing suite first — none was found for this hook; create it)
 
 **Interfaces:**
+
 - Consumes: Task 3's wire shape (`capabilities?: { proactivePush?: boolean }`).
 - Produces: both registration paths send `capabilities: { proactivePush: true }`.
 
@@ -1608,10 +1743,10 @@ Expected: FAIL — payload lacks `capabilities`.
 Native path (~line 121):
 
 ```ts
-        await registerExpoPushTokenFn({
-          expoPushToken,
-          capabilities: { proactivePush: true },
-        })
+await registerExpoPushTokenFn({
+  expoPushToken,
+  capabilities: { proactivePush: true },
+})
 ```
 
 Web path (`registerWebPushToken`): add the same field to the `registerExpoPushTokenFn({...})` call. If `registerExpoPushTokenFn` in `src/config/firebaseConfig.ts` is typed, widen its request type to include `capabilities?: { proactivePush?: boolean }`.
@@ -1638,6 +1773,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ### Task 11: Full-suite verification + spec status update
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-09-09-proactive-lifecycle-sync-ungate-design.md` (Status: Draft → Implemented; note the resolved flip-test discrepancy)
 
 - [ ] **Step 1: Per-package suites (scoped, then full)**

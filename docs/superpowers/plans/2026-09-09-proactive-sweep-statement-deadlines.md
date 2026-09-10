@@ -32,11 +32,13 @@
 ### Task 1: Deadline constants + `withStatementTimeout` helper
 
 **Files:**
+
 - Modify: `functions/src/services/proactiveWakeupGuardrails.ts` (add constants after `SWEEP_RESERVE_MS`, around line 73)
 - Modify: `functions/src/proactiveWakeupSweep.ts` (add helper after the `DbLike` type, around line 27)
 - Test: `functions/src/proactiveWakeupSweep.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing new (drizzle `sql` and `DbLike` already in `proactiveWakeupSweep.ts`).
 - Produces: `CLAIM_DEADLINE_MS = 500`, `LOAD_CONTEXT_DEADLINE_MS = 1_500`, `SWEEP_STATEMENT_DEFAULT_MS = 2_000` (exported from `services/proactiveWakeupGuardrails.ts`); `export async function withStatementTimeout<T>(db: DbLike, deadlineMs: number, fn: (tx: DbLike) => Promise<T>): Promise<T>` in `proactiveWakeupSweep.ts`. Task 2 wires these into `buildSweepDeps`.
 
@@ -225,10 +227,12 @@ git commit -m "feat(proactive): add per-op statement deadline constants and with
 ### Task 2: Wire the six sweep ops through `withStatementTimeout`
 
 **Files:**
+
 - Modify: `functions/src/proactiveWakeupSweep.ts:186-368` (`buildSweepDeps`)
 - Test: `functions/src/proactiveWakeupSweep.test.ts`
 
 **Interfaces:**
+
 - Consumes: `withStatementTimeout` and the three constants from Task 1.
 - Produces: no signature change — `buildSweepDeps` still returns the same `SweepDeps`; only the internals gain transactions. The wiring order the Task 3 unit test pins: `selectDue` → `claim` → `loadContext` → (`resolveWakeup` only on skip) → `reapStaleClaims` → `deleteExpired`.
 
@@ -253,11 +257,7 @@ const MAGIC_ROW = {
 // failDeadline set, a select whose transaction's set_config deadline matches
 // rejects with a 57014-shaped error — the server-side cancellation the real
 // deadline produces.
-function makeFakeDb(
-  setConfigCalls: unknown[][],
-  failDeadline: string | null = null,
-  dueRows = 1,
-) {
+function makeFakeDb(setConfigCalls: unknown[][], failDeadline: string | null = null, dueRows = 1) {
   let selects = 0
   const makeChain = (kind: string, rejects: boolean): unknown => {
     const step: any = new Proxy(function () {} as never, {
@@ -275,7 +275,8 @@ function makeFakeDb(
           // loadContext's five reads — one MAGIC_ROW each.
           const resolveValue =
             kind === 'select'
-              ? (selects++, selects === 1 ? Array.from({ length: dueRows }, () => MAGIC_ROW) : [MAGIC_ROW])
+              ? (selects++,
+                selects === 1 ? Array.from({ length: dueRows }, () => MAGIC_ROW) : [MAGIC_ROW])
               : Object.assign([], { rowCount: 1 })
           return (resolve: (v: unknown) => void) => Promise.resolve(resolveValue).then(resolve)
         }
@@ -385,7 +386,7 @@ In `buildSweepDeps` (`functions/src/proactiveWakeupSweep.ts:186`), wrap each op.
     },
 ```
 
-`loadContext`: replace `const db = await dbFactory()` with the same two lines, then indent the entire existing body (all five SELECTs and the Invalid-Date guard and the return) into `return withStatementTimeout(db, LOAD_CONTEXT_DEADLINE_MS, async (tx) => { ...existing body with every `db.select` changed to `tx.select`... })`. The five `db.select(` occurrences (lines 211, 217, 234, 246, 277) become `tx.select(`. Nothing else in the body changes.
+`loadContext`: replace `const db = await dbFactory()` with the same two lines, then indent the entire existing body (all five SELECTs and the Invalid-Date guard and the return) into `return withStatementTimeout(db, LOAD_CONTEXT_DEADLINE_MS, async (tx) => { ...existing body with every `db.select`changed to`tx.select`... })`. The five `db.select(` occurrences (lines 211, 217, 234, 246, 277) become `tx.select(`. Nothing else in the body changes.
 
 `claim`, rewritten:
 
@@ -477,9 +478,11 @@ git commit -m "feat(proactive): bound sweep DB ops with per-op statement deadlin
 ### Task 3: Unit regression test — deadline firing leaves the row claimed, not skipped
 
 **Files:**
+
 - Test: `functions/src/proactiveWakeupSweep.test.ts`
 
 **Interfaces:**
+
 - Consumes: `makeFakeDbFactory` with its `failDeadline` argument (Task 2), `proactiveWakeupSweepHandler`, `buildSweepDeps`.
 - Produces: nothing — this is the AC3 behavior regression test. A 57014 surfacing from `loadContext` must strand the row (claimed, NULL resolved_at, reaper's job) exactly as the spec's stranding-semantics section requires, while the sweep survives and runs its tail.
 
@@ -529,13 +532,15 @@ git commit -m "test(proactive): pin deadline-firing stranding semantics (claimed
 ### Task 4: Integration tests — real Postgres, lock-parked statements prove the per-op deadline fires
 
 **Files:**
+
 - Test: `functions/src/integration/proactiveWakeupSweep.int.test.ts`
 
 **Interfaces:**
+
 - Consumes: existing harness (`testGetDb`, `insertWakeup`, `dueRowFor`, `getPool`, `waitForBlockedBackends`, `NOW`, `DAY_START`).
 - Produces: nothing — AC3's real-Postgres half.
 
-**Design note — lock blocking, not pg_sleep injection.** The spec sketched injecting `pg_sleep` via a test-only dbFactory wrapper. That interception is not reliably possible at the `tx` seam: drizzle query builders capture the transaction's `session` at construction (`pg-core/query-builders/select.cjs` — `this.session = config.session`), and transactions pin a dedicated client via `pool.connect()` (`node-postgres/session.cjs:215-217`), so builder queries never pass through `tx.execute` — only the `set_config` statement does. A Proxy on `tx.execute` would intercept nothing the ops run. Instead these tests park a statement on a **lock** held by a second session: `statement_timeout` measures the whole statement duration *including lock waits*, so the parked statement is canceled at the per-op deadline (500ms/1500ms) — far below the pool's 10s backstop, so the per-op deadline is demonstrably what fires. This reuses the suite's own proven pattern: `waitForBlockedBackends` exists in this file for exactly this kind of forced interleave.
+**Design note — lock blocking, not pg_sleep injection.** The spec sketched injecting `pg_sleep` via a test-only dbFactory wrapper. That interception is not reliably possible at the `tx` seam: drizzle query builders capture the transaction's `session` at construction (`pg-core/query-builders/select.cjs` — `this.session = config.session`), and transactions pin a dedicated client via `pool.connect()` (`node-postgres/session.cjs:215-217`), so builder queries never pass through `tx.execute` — only the `set_config` statement does. A Proxy on `tx.execute` would intercept nothing the ops run. Instead these tests park a statement on a **lock** held by a second session: `statement_timeout` measures the whole statement duration _including lock waits_, so the parked statement is canceled at the per-op deadline (500ms/1500ms) — far below the pool's 10s backstop, so the per-op deadline is demonstrably what fires. This reuses the suite's own proven pattern: `waitForBlockedBackends` exists in this file for exactly this kind of forced interleave.
 
 - [ ] **Step 1: Prerequisite — local Postgres running**
 

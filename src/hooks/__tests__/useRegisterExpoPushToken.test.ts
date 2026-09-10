@@ -111,7 +111,8 @@ describe('useRegisterExpoPushToken', () => {
   it('clears proactivePushReady when notifications transition from enabled to disabled', async () => {
     setPlatformOS('ios')
     const { rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) => useRegisterExpoPushToken({ enabled, projectId: 'proj' }),
+      ({ enabled }: { enabled: boolean }) =>
+        useRegisterExpoPushToken({ enabled, projectId: 'proj' }),
       { initialProps: { enabled: true } },
     )
     await waitFor(() =>

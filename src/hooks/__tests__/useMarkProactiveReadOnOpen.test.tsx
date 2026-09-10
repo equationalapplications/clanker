@@ -79,9 +79,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     const { invalidateSpy, Wrapper } = createWrapper()
     renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
     // Atomic pair: mark locally + enqueue (no call) inside the same SQLite tx.
-    await waitFor(() =>
-      expect(mockMarkLocally).toHaveBeenCalledWith('c1', mockFakeDb),
-    )
+    await waitFor(() => expect(mockMarkLocally).toHaveBeenCalledWith('c1', mockFakeDb))
     await waitFor(() =>
       expect(mockEnqueue).toHaveBeenCalledWith(['p1', 'p2'], undefined, mockFakeDb),
     )
@@ -138,9 +136,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     // must re-run and clear it. re-rendering with the same props drives the
     // refocused mount the real navigation would produce.
     rerender({ characterId: 'c1' })
-    await waitFor(() =>
-      expect(mockEnqueue).toHaveBeenCalledWith(['p-new'], undefined, mockFakeDb),
-    )
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith(['p-new'], undefined, mockFakeDb))
     await waitFor(() => expect(mockFlush).toHaveBeenCalledTimes(1))
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['proactiveUnread'] })
   })

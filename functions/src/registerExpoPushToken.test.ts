@@ -306,10 +306,7 @@ test('capabilities-only path with capabilities omitted still clears the flag to 
     fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
   }
 
-  await registerExpoPushTokenHandler(
-    { auth: { uid: 'firebase-uid-1' }, data: {} } as never,
-    deps,
-  )
+  await registerExpoPushTokenHandler({ auth: { uid: 'firebase-uid-1' }, data: {} } as never, deps)
 
   assert.equal(savedUpdates!.proactivePushReady, false)
 })

@@ -206,9 +206,7 @@ it('marks the opened thread read after triggerSync resolves', async () => {
   // Pre-resolution: navigation fired, sync is in flight, no mark-read yet.
   expect(mockMarkLocally).not.toHaveBeenCalled()
   triggerSyncPending.resolve?.()
-  await waitFor(() =>
-    expect(mockMarkLocally).toHaveBeenCalledWith('abc', mockFakeDb),
-  )
+  await waitFor(() => expect(mockMarkLocally).toHaveBeenCalledWith('abc', mockFakeDb))
   await waitFor(() =>
     expect(mockEnqueue).toHaveBeenCalledWith(['p-new-1', 'p-new-2'], undefined, mockFakeDb),
   )

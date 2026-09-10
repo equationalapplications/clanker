@@ -89,7 +89,9 @@ async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<
   // ON CONFLICT DO NOTHING so a retry with the same opId (the row's primary
   // key) leaves the existing row untouched. The sweep would otherwise see two
   // pending rows for the same logical operation and POST twice.
-  const result = await (await getDb())
+  const result = await (
+    await getDb()
+  )
     .insert(scheduledWakeups)
     .values(row)
     .onConflictDoNothing({ target: scheduledWakeups.id })

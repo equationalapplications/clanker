@@ -420,19 +420,17 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
         // materializing ids — none of the callers need them. Same Drizzle
         // subquery-LIMIT shape as reapStaleClaims; the resolvedAt index keeps
         // the inner ORDER BY scan cheap.
-        const deleted = await tx
-          .delete(scheduledWakeups)
-          .where(
-            and(
-              lt(scheduledWakeups.resolvedAt, cutoff),
-              sql`${scheduledWakeups.id} in (
+        const deleted = await tx.delete(scheduledWakeups).where(
+          and(
+            lt(scheduledWakeups.resolvedAt, cutoff),
+            sql`${scheduledWakeups.id} in (
                 select id from ${scheduledWakeups}
                 where ${scheduledWakeups.resolvedAt} < ${cutoff}
                 order by ${scheduledWakeups.resolvedAt}
                 limit ${SWEEP_TAIL_BATCH_LIMIT}
               )`,
-            ),
-          )
+          ),
+        )
         return deleted.rowCount ?? 0
       })
     },

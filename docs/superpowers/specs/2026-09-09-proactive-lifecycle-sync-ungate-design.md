@@ -369,7 +369,7 @@ react-query tests need `gcTime: 0`). Baselines to hold or beat: functions
 
 - **`scheduleWakeup` callable** — rejects unauthenticated / App-Check-less;
   rejects a `characterId` the caller does not own; rejects `remind_at` in the
-  past *against the server clock* (a client with a skewed clock must not be
+  past _against the server clock_ (a client with a skewed clock must not be
   able to insert immediately-due rows); rejects an empty reason; returns the
   vague-limit refusal at the ceiling; success inserts a pending row with
   minted `id`/`run_key` and returns the due time.
@@ -430,7 +430,7 @@ existing behavior, unchanged.
 None. The four carried from Phase 2 are resolved by shipped code (Locked
 decisions); the rollout mechanism is resolved by Decision 1; the producer
 placement by Decision 0. The stage-2 telemetry reading (Rollout gate) is an
-open *measurement*, not an open design question.
+open _measurement_, not an open design question.
 
 ---
 
@@ -464,4 +464,7 @@ doesn't re-litigate the resolved questions:
    clamp branch) are post-merge work, scoped out of this branch. Decision 1's
    capability flag bounds the blast radius of stage 3 to clients that have
    registered `capabilities.proactivePush: true`.
+
+```
+
 ```
