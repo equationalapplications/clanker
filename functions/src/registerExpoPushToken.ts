@@ -15,12 +15,17 @@ type WebDevicePushRegistration = {
 }
 
 type RegisterExpoPushTokenPayload =
-  | { expoPushToken: string; capabilities: { proactivePush: boolean } }
+  | { kind?: 'token'; expoPushToken: string; capabilities: { proactivePush: boolean } }
   | {
+      kind?: 'web'
       webDevicePushToken: WebDevicePushRegistration
       projectId: string
       applicationId: string
       deviceId: string
+      capabilities: { proactivePush: boolean }
+    }
+  | {
+      kind: 'capabilities-only'
       capabilities: { proactivePush: boolean }
     }
 
@@ -56,6 +61,18 @@ function parsePayload(data: unknown): RegisterExpoPushTokenPayload {
   if (typeof data.expoPushToken === 'string' && data.expoPushToken.trim().length > 0) {
     return {
       expoPushToken: data.expoPushToken.trim(),
+      capabilities: parseCapabilities(data.capabilities),
+    }
+  }
+
+  // Capability-only downgrade path. No token supplied — the user disabled
+  // notifications and the client needs the server to clear proactivePushReady
+  // without overwriting expo_push_token (which may still belong to another
+  // device, or to the same device after they re-enable). The handler routes
+  // this to an update that touches only the flag.
+  if (data.expoPushToken === undefined && data.webDevicePushToken === undefined) {
+    return {
+      kind: 'capabilities-only',
       capabilities: parseCapabilities(data.capabilities),
     }
   }
@@ -101,6 +118,7 @@ function parsePayload(data: unknown): RegisterExpoPushTokenPayload {
   }
 
   return {
+    kind: 'web',
     webDevicePushToken: {
       type: 'web',
       data: {
@@ -132,6 +150,17 @@ export const registerExpoPushTokenHandler = async (
     throw new HttpsError('not-found', 'User not found.')
   }
 
+  if (payload.kind === 'capabilities-only') {
+    // Downgrade: clear the flag without touching the existing token. expoPushToken
+    // stays as-is so a later re-enable (or another device's token) is preserved.
+    const updated = await deps.userRepository.updateUser(user.id, {
+      proactivePushReady: payload.capabilities.proactivePush,
+    })
+    if (!updated) {
+      throw new HttpsError('not-found', 'User not found.')
+    }
+    return { ok: true }
+  }
   let expoPushToken: string
   if ('expoPushToken' in payload) {
     expoPushToken = payload.expoPushToken

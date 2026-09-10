@@ -287,24 +287,6 @@ ChatView mount, unread > 0
        (durable queue; flush on fg/sync)
 ```
 
-                                        ◄── POST /agent/proactive-wakeup ──
-                                        persist message (read_at NULL)
-                                        mode=notify && user flag ►
-                                          sendCharacterProactive ─► push
-
-foreground / tap / receipt
-└─ syncProactiveMessages(uid)
-fetchProactiveMessages ────────► cursor page (owned chars only)
-INSERT OR IGNORE + read_at backfill (existing two-phase apply)
-cursor advanced, same tx
-invalidate unread + message caches
-ChatView mount, unread > 0
-├─ local read_at write + invalidate (dot clears now)
-└─ enqueue → markProactiveRead ─────► read_at = now (NULL→ts only)
-(durable queue; flush on fg/sync)
-
-```
-
 ### Components
 
 **Server (functions)**

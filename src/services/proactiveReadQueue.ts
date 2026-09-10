@@ -27,6 +27,7 @@
 
 import { PROACTIVE_READ_QUEUE_KEY } from '~/constants/proactive'
 import { getSyncJson, setSyncJson } from '~/database/syncState'
+import type { SQLiteDatabase } from 'expo-sqlite'
 
 /**
  * Wire shape for the server-side callable. Matches the request/response types
@@ -63,8 +64,8 @@ async function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function readQueue(): Promise<string[]> {
-  return (await getSyncJson<string[]>(PROACTIVE_READ_QUEUE_KEY)) ?? []
+async function readQueue(db?: SQLiteDatabase): Promise<string[]> {
+  return (await getSyncJson<string[]>(PROACTIVE_READ_QUEUE_KEY, db)) ?? []
 }
 
 /**
@@ -77,10 +78,22 @@ async function readQueue(): Promise<string[]> {
  * flush, so a chat open reaches the server promptly. The flush is
  * fire-and-forget — flush failures stay queued (retry budget + foreground
  * flushes cover them).
+ *
+ * `txDb` is the optional transaction-scoped handle for atomic joins with the
+ * caller (see `enqueueMarkReadWithLocalMark`). When supplied, the read-modify-
+ * write of the queue joins the caller's transaction so a mid-transaction
+ * failure cannot strand ids whose `read_at` was already written on the
+ * `messages` table. The lock is still acquired — SQLite serializes writers,
+ * but the JS-side lock keeps the read-modify-write consistent across multiple
+ * queued enqueues, and the caller's transaction wraps the locked write.
  */
-export async function enqueueMarkRead(messageIds: string[], call?: MarkReadCall): Promise<void> {
+export async function enqueueMarkRead(
+  messageIds: string[],
+  call?: MarkReadCall,
+  txDb?: SQLiteDatabase,
+): Promise<void> {
   await withQueueLock(async () => {
-    const current = await readQueue()
+    const current = await readQueue(txDb)
     const seen = new Set(current)
     const merged = current.slice()
     let appended = false
@@ -92,7 +105,7 @@ export async function enqueueMarkRead(messageIds: string[], call?: MarkReadCall)
       }
     }
     if (appended) {
-      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged)
+      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged, txDb)
     }
   })
   // The wiring this docstring anticipated: an enqueue with a call both persists

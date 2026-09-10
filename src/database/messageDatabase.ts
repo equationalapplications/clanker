@@ -4,6 +4,7 @@
  */
 
 import type { Message } from '~/types/chat'
+import type { SQLiteDatabase } from 'expo-sqlite'
 import { getDatabase } from './index'
 import { UNREAD_STALENESS_ESCAPE_MS } from '~/constants/proactive'
 
@@ -625,6 +626,13 @@ export async function countUnreadProactive(characterId: string, nowMs: number): 
  * thread; the server guardrail's 7-day escape makes the distinction invisible
  * to the push decision. Returns the ids marked so the caller can enqueue them
  * for the durable server retry.
+ *
+ * The optional `db` handle lets the caller join a transaction that ALSO writes
+ * the durable receipt queue (see proactiveReadQueue's enqueueMarkRead). Without
+ * it, a queue persistence failure between this function and the enqueue
+ * silently strands the ids: the rows are already marked read locally, so the
+ * next open finds zero unread and cannot reconstruct what still needs the
+ * server receipt.
  */
 // SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999, and a character's
 // proactive backlog can outgrow that comfortably once pushes are live. A
@@ -634,9 +642,12 @@ export async function countUnreadProactive(characterId: string, nowMs: number): 
 // leaves the local read_at state consistent.
 const MARKDOWN_BATCH_SIZE = 100
 
-export async function markProactiveReadLocally(characterId: string): Promise<string[]> {
-  const db = await getDatabase()
-  const rows = await db.getAllAsync<{ id: string }>(
+export async function markProactiveReadLocally(
+  characterId: string,
+  db?: SQLiteDatabase,
+): Promise<string[]> {
+  const database = db ?? (await getDatabase())
+  const rows = await database.getAllAsync<{ id: string }>(
     `SELECT id FROM messages
       WHERE character_id = ? AND read_at IS NULL
         AND json_extract(message_data, '$.proactive') = 1`,
@@ -645,15 +656,24 @@ export async function markProactiveReadLocally(characterId: string): Promise<str
   const ids = rows.map((row) => row.id)
   if (ids.length === 0) return []
   const now = Date.now()
-  await db.withTransactionAsync(async () => {
+  // When called without an external db handle, run our own transaction. When
+  // called from a transaction owner (see useMarkProactiveReadOnOpen + the
+  // proactiveReadQueue's enqueueMarkRead atomic wrapper), the UPDATE joins
+  // that transaction and SQLite groups everything into one atomic commit.
+  const runUpdates = async () => {
     for (let i = 0; i < ids.length; i += MARKDOWN_BATCH_SIZE) {
       const batch = ids.slice(i, i + MARKDOWN_BATCH_SIZE)
       const placeholders = batch.map(() => '?').join(',')
-      await db.runAsync(
+      await database.runAsync(
         `UPDATE messages SET read_at = ? WHERE id IN (${placeholders}) AND read_at IS NULL`,
         [now, ...batch],
       )
     }
-  })
+  }
+  if (db) {
+    await runUpdates()
+  } else {
+    await database.withTransactionAsync(runUpdates)
+  }
   return ids
 }

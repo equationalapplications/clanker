@@ -17,18 +17,46 @@ export interface WakeupInsertArgs {
   reason: string
   dueAt: Date
   priority: number
+  /**
+   * Stable operation identifier. Same logical args → same opId → same row,
+   * so a retry (or a duplicate call from the model) hits ON CONFLICT DO
+   * NOTHING on the primary key instead of inserting a duplicate the sweep
+   * would double-fire. The escalation path is responsible for deriving this
+   * — it has no caller-driven opId supply.
+   */
+  opId: string
+}
+
+/**
+ * Deterministic FNV-1a hash for opId derivation. Mirrors the same helper in
+ * src/services/edgeToolExecutors.ts so both set_reminder entry points
+ * (escalation and edge) collapse to the same row for the same logical call.
+ */
+function deriveOpId(args: {
+  characterId: string
+  reason: string
+  remindAt: Date
+  priority: number
+}): string {
+  const raw = `${args.characterId}|${args.reason.trim()}|${args.remindAt.toISOString()}|${args.priority}`
+  let hash = 0x811c9dc5
+  for (let i = 0; i < raw.length; i++) {
+    hash ^= raw.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) & 0xffffffff
+  }
+  return `op-${(hash >>> 0).toString(16).padStart(8, '0')}`
 }
 
 export function buildWakeupInsert(args: WakeupInsertArgs) {
   return {
-    id: crypto.randomUUID(),
+    id: args.opId,
     characterId: args.characterId,
     userId: args.userId,
     reason: args.reason,
     dueAt: args.dueAt,
     priority: args.priority,
     status: 'pending' as const,
-    runKey: crypto.randomUUID(),
+    runKey: args.opId,
   }
 }
 
@@ -107,15 +135,29 @@ export function setReminderTool(
           return formatReminderResult({ scheduled: false, reason: 'daily_ceiling' })
         }
 
-        await db.insert(scheduledWakeups).values(
-          buildWakeupInsert({
-            userId,
-            characterId,
-            reason: reason.trim(),
-            dueAt,
-            priority: priority ?? 0,
-          }),
-        )
+        const opId = deriveOpId({
+          characterId,
+          reason: reason.trim(),
+          remindAt: dueAt,
+          priority: priority ?? 0,
+        })
+        // ON CONFLICT DO NOTHING so a retry from the same logical call lands
+        // on the existing row instead of inserting a duplicate the sweep
+        // would double-fire. The cloud-agent path has no client-driven opId
+        // supply, so the deterministic hash is what collapses retries.
+        await db
+          .insert(scheduledWakeups)
+          .values(
+            buildWakeupInsert({
+              userId,
+              characterId,
+              reason: reason.trim(),
+              dueAt,
+              priority: priority ?? 0,
+              opId,
+            }),
+          )
+          .onConflictDoNothing({ target: scheduledWakeups.id })
         return formatReminderResult({ scheduled: true, dueAt: dueAt.toISOString() })
       } catch (error) {
         console.error('[CloudAgent] set_reminder failed:', error)

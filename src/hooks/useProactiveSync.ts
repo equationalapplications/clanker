@@ -22,13 +22,19 @@ export function isProactivePushData(data: unknown): data is { deepLink?: unknown
  * Decision 3: sync on mount, on foreground, and on foreground receipt, one
  * in-flight run, invalidate the badge + the touched thread caches on
  * completion. Task 7's routing hook reuses triggerSync for notification taps.
+ *
+ * `triggerSync` returns the in-flight run as a Promise so a tap handler can
+ * await the sync (marking the opened thread read AFTER the new messages land,
+ * not just on first focus, where the initial countUnreadProactive returned 0
+ * because the message had not arrived yet).
  */
-export function useProactiveSync(userId: string | null | undefined): { triggerSync: () => void } {
+export function useProactiveSync(userId: string | null | undefined): { triggerSync: () => Promise<void> | void } {
   const queryClient = useQueryClient()
   const inFlightRef = useRef<Promise<void> | null>(null)
 
-  const triggerSync = useCallback(() => {
-    if (!userId || inFlightRef.current) return
+  const triggerSync = useCallback((): Promise<void> | void => {
+    if (!userId) return
+    if (inFlightRef.current) return inFlightRef.current
     const run = (async () => {
       try {
         // `null` means the pull failed — distinct from `[]` (pull succeeded,
@@ -69,6 +75,7 @@ export function useProactiveSync(userId: string | null | undefined): { triggerSy
       }
     })()
     inFlightRef.current = run
+    return run
   }, [userId, queryClient])
 
   // Cold start. An app that launches straight into the foreground emits no

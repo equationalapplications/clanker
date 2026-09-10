@@ -18,6 +18,30 @@ import { MASTER_DIMENSION } from './imageVariants'
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
 
 /**
+ * Deterministic operation id: same (character, reason, remindAt, priority) →
+ * same opId, so a network retry lands on the same server row (the callable's
+ * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
+ * double-fire. FNV-1a 32-bit, no crypto dependency required for React Native.
+ */
+export function deriveOpId(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): string {
+  const raw = `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
+  let hash = 0x811c9dc5
+  for (let i = 0; i < raw.length; i++) {
+    hash ^= raw.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) & 0xffffffff
+  }
+  // Negative hashes get the sign-bit cleared and zero-padded. 8 hex chars fits
+  // Postgres's text primary key without ceremony and avoids the 36-byte UUID
+  // shape the server used to mint on every call.
+  return `op-${(hash >>> 0).toString(16).padStart(8, '0')}`
+}
+
+/**
  * Deps for the local `generate_image` executor, supplied only for characters
  * that cannot escalate (see isLocallyExecutableCloudTool). Cloud-synced
  * characters route the same tool call to cloud-agent instead, which owns its
@@ -148,6 +172,18 @@ export function createEdgeToolExecutors(
               args.priority <= 10
                 ? args.priority
                 : undefined
+            // Deterministic opId: same logical args → same opId → same server
+            // row on retry. A network retry of this turn (or a replay of the
+            // same call from a model that produced the same args twice) hits
+            // ON CONFLICT DO NOTHING on the row's primary key and returns the
+            // existing dueAt, instead of inserting a duplicate that the sweep
+            // would later double-fire. FNV-1a 32-bit, no crypto dep needed.
+            const opId = deriveOpId({
+              characterId: reminder.characterId,
+              reason,
+              remindAt,
+              priority,
+            })
             try {
               // characterId comes from useEdgeAgent (cloud UUID), never from the
               // model — the callable verifies ownership against characters.user_id.
@@ -156,6 +192,7 @@ export function createEdgeToolExecutors(
                 reason,
                 remindAt,
                 ...(priority !== undefined ? { priority } : {}),
+                opId,
               })
               // Surfaces both success and semantic refusal (ceiling, malformed
               // remind_at, etc.) verbatim — the server strings are model-safe.

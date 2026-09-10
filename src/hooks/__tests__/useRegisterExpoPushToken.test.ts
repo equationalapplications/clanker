@@ -102,4 +102,44 @@ describe('useRegisterExpoPushToken', () => {
     await waitFor(() => expect(mockGetPermissions).not.toHaveBeenCalled())
     expect(mockRegisterFn).not.toHaveBeenCalled()
   })
+
+  // Regression for the CodeRabbit finding: a true→false transition must
+  // actively clear proactivePushReady on the server. The previous behavior
+  // just skipped registration, leaving a persisted `true` from the prior
+  // session. The downgrade fires a capability-only call (no token) so the
+  // server clears the flag without overwriting the existing expo_push_token.
+  it('clears proactivePushReady when notifications transition from enabled to disabled', async () => {
+    setPlatformOS('ios')
+    const { rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useRegisterExpoPushToken({ enabled, projectId: 'proj' }),
+      { initialProps: { enabled: true } },
+    )
+    await waitFor(() =>
+      expect(mockRegisterFn).toHaveBeenCalledWith({
+        expoPushToken: 'ExponentPushToken[abc]',
+        capabilities: { proactivePush: true },
+      }),
+    )
+    mockRegisterFn.mockClear()
+
+    rerender({ enabled: false })
+
+    await waitFor(() =>
+      expect(mockRegisterFn).toHaveBeenCalledWith({
+        capabilities: { proactivePush: false },
+      }),
+    )
+    // No token in the payload — the server's capabilities-only branch leaves
+    // expo_push_token untouched.
+    const downgradeArg = mockRegisterFn.mock.calls[0][0] as Record<string, unknown>
+    expect(downgradeArg.expoPushToken).toBeUndefined()
+    expect(downgradeArg.webDevicePushToken).toBeUndefined()
+  })
+
+  it('does not fire a downgrade call on the very first render with enabled=false', async () => {
+    setPlatformOS('ios')
+    renderHook(() => useRegisterExpoPushToken({ enabled: false, projectId: 'proj' }))
+    await waitFor(() => expect(mockGetPermissions).not.toHaveBeenCalled())
+    expect(mockRegisterFn).not.toHaveBeenCalled()
+  })
 })

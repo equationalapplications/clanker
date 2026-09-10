@@ -256,3 +256,60 @@ test('the token and the flag are written in ONE updateUser call (atomic)', async
 
   assert.equal(callCount, 1)
 })
+
+// Capabilities-only downgrade: client sent neither a token nor a web device
+// push subscription, just the flag. The handler must clear the flag without
+// touching expo_push_token (which may still belong to another device).
+test('capabilities-only path clears the flag without touching expo_push_token', async () => {
+  let savedUpdates: Record<string, unknown> | undefined
+  let exchangeCalled = false
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, updates: Record<string, unknown>) => {
+        savedUpdates = updates
+        return { ...mockUser, ...(updates as object) } as typeof mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => {
+      exchangeCalled = true
+      return 'ExponentPushToken[unused]'
+    },
+  }
+
+  const result = await registerExpoPushTokenHandler(
+    {
+      auth: { uid: 'firebase-uid-1' },
+      data: { capabilities: { proactivePush: false } },
+    } as never,
+    deps,
+  )
+
+  assert.deepEqual(result, { ok: true })
+  // No token-shaped field in the update — expo_push_token is preserved.
+  assert.equal('expoPushToken' in (savedUpdates ?? {}), false)
+  assert.equal(savedUpdates!.proactivePushReady, false)
+  // The web exchange must not run when no token was provided.
+  assert.equal(exchangeCalled, false)
+})
+
+test('capabilities-only path with capabilities omitted still clears the flag to false', async () => {
+  let savedUpdates: Record<string, unknown> | undefined
+  const deps = {
+    userRepository: {
+      findUserByFirebaseUid: async () => mockUser,
+      updateUser: async (_id: string, updates: Record<string, unknown>) => {
+        savedUpdates = updates
+        return { ...mockUser, ...(updates as object) } as typeof mockUser
+      },
+    },
+    fetchExpoPushTokenFromWebDevice: async () => 'ExponentPushToken[unused]',
+  }
+
+  await registerExpoPushTokenHandler(
+    { auth: { uid: 'firebase-uid-1' }, data: {} } as never,
+    deps,
+  )
+
+  assert.equal(savedUpdates!.proactivePushReady, false)
+})

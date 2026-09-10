@@ -14,24 +14,32 @@ export const WAKEUP_LIMIT_REFUSAL =
 
 // Mirrors buildWakeupInsert in cloud-agent/src/tools/reminders.ts (row shape,
 // minted id/run_key, status 'pending'). The packages cannot share code.
+//
+// `opId` is a client-minted stable operation identifier — required so retries
+// from the same logical operation collapse onto the same row. The caller (the
+// edge executor) mints it once per intent and reuses it on every retry. Server
+// uses it as the row's primary key, and the insert path is ON CONFLICT DO
+// NOTHING so the second attempt returns the existing row's dueAt instead of
+// creating a duplicate that the sweep would later double-fire.
 export interface WakeupInsertArgs {
   userId: string
   characterId: string
   reason: string
   dueAt: Date
   priority: number
+  opId: string
 }
 
 export function buildWakeupInsert(args: WakeupInsertArgs) {
   return {
-    id: crypto.randomUUID(),
+    id: args.opId,
     characterId: args.characterId,
     userId: args.userId,
     reason: args.reason,
     dueAt: args.dueAt,
     priority: args.priority,
     status: 'pending' as const,
-    runKey: crypto.randomUUID(),
+    runKey: args.opId,
   }
 }
 
@@ -45,7 +53,12 @@ export type ScheduleWakeupDeps = {
   // SUM of spent_amount over resolved wakeups. Ceiling gates spend; pendings
   // carry 0 (no pending-row cap on either path — accepted parity gap).
   todaysProactiveSpend: (characterId: string, now: Date) => Promise<number>
-  insertWakeup: (row: ReturnType<typeof buildWakeupInsert>) => Promise<void>
+  // Returns true when a new row was inserted, false when an existing row with
+  // the same opId was found and left untouched.
+  insertWakeup: (row: ReturnType<typeof buildWakeupInsert>) => Promise<boolean>
+  // Reads back an existing row's dueAt for the conflict-returned path. The
+  // caller passes the opId (the row's id).
+  findWakeupDueAt: (opId: string) => Promise<Date | null>
 }
 
 async function characterOwnedBy(characterId: string, userId: string): Promise<boolean> {
@@ -72,8 +85,25 @@ async function todaysProactiveSpend(characterId: string, now: Date): Promise<num
   return row?.spent ?? 0
 }
 
-async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<void> {
-  await (await getDb()).insert(scheduledWakeups).values(row)
+async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<boolean> {
+  // ON CONFLICT DO NOTHING so a retry with the same opId (the row's primary
+  // key) leaves the existing row untouched. The sweep would otherwise see two
+  // pending rows for the same logical operation and POST twice.
+  const result = await (await getDb())
+    .insert(scheduledWakeups)
+    .values(row)
+    .onConflictDoNothing({ target: scheduledWakeups.id })
+  return (result.rowCount ?? 0) === 1
+}
+
+async function findWakeupDueAt(opId: string): Promise<Date | null> {
+  const db = await getDb()
+  const [row] = await db
+    .select({ dueAt: scheduledWakeups.dueAt })
+    .from(scheduledWakeups)
+    .where(eq(scheduledWakeups.id, opId))
+    .limit(1)
+  return row?.dueAt ?? null
 }
 
 const defaultDeps: ScheduleWakeupDeps = {
@@ -81,6 +111,7 @@ const defaultDeps: ScheduleWakeupDeps = {
   characterOwnedBy,
   todaysProactiveSpend,
   insertWakeup,
+  findWakeupDueAt,
 }
 
 type ScheduleWakeupData = {
@@ -88,6 +119,7 @@ type ScheduleWakeupData = {
   reason: string
   remindAt: string
   priority?: number
+  opId: string
 }
 
 function parsePayload(data: unknown): ScheduleWakeupData {
@@ -104,6 +136,12 @@ function parsePayload(data: unknown): ScheduleWakeupData {
   if (typeof d.remindAt !== 'string') {
     throw new HttpsError('invalid-argument', 'remindAt must be a string.')
   }
+  if (typeof d.opId !== 'string' || d.opId.length === 0) {
+    throw new HttpsError(
+      'invalid-argument',
+      'opId must be a non-empty stable operation identifier.',
+    )
+  }
   if (
     d.priority !== undefined &&
     (typeof d.priority !== 'number' ||
@@ -117,6 +155,7 @@ function parsePayload(data: unknown): ScheduleWakeupData {
     characterId: d.characterId,
     reason: d.reason,
     remindAt: d.remindAt,
+    opId: d.opId,
     priority: d.priority,
   }
 }
@@ -167,8 +206,22 @@ export async function scheduleWakeupHandler(
     reason,
     dueAt,
     priority: data.priority ?? 0,
+    opId: data.opId,
   })
-  await deps.insertWakeup(row)
+  const wasInserted = await deps.insertWakeup(row)
+  if (!wasInserted) {
+    // The opId already has a row — a retry from the same logical operation.
+    // Return that row's dueAt so the caller sees a stable answer across
+    // retries. If the row has since been deleted we report the originally
+    // requested dueAt: the caller's intent is still valid for that time.
+    const existingDueAt = await deps.findWakeupDueAt(data.opId)
+    const dueAtIso = (existingDueAt ?? dueAt).toISOString()
+    return {
+      ok: true,
+      message: `Scheduled. You will wake up at ${dueAtIso} to follow up on this.`,
+      dueAt: dueAtIso,
+    }
+  }
   return {
     ok: true,
     message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`,

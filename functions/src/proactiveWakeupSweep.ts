@@ -13,6 +13,7 @@ import {
   LOAD_CONTEXT_DEADLINE_MS,
   SWEEP_STATEMENT_DEFAULT_MS,
   SWEEP_BATCH_LIMIT,
+  SWEEP_TAIL_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
   SWEEP_RESERVE_MS,
   SWEEP_TIME_BUDGET_MS,
@@ -378,7 +379,16 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
         // spent_amount is left as-is rather than zeroed: if the turn did commit a
         // spend before dying, that money was really taken and the day's ceiling
         // should keep counting it. The status becomes terminal so the row stops
-        // being invisible to both selectDue and deleteExpired.
+        // being invisible to both selectDue and deleteExpired. Capped at
+        // SWEEP_TAIL_BATCH_LIMIT rows so a one-time backlog cannot blow the
+        // SWEEP_STATEMENT_DEFAULT_MS ceiling and skip deleteExpired; whatever
+        // remains drains across later sweeps via the same idempotent predicate.
+        //
+        // Drizzle's pg UPDATE has no .limit() in 0.45 — Postgres does support
+        // UPDATE ... LIMIT, so we bind the cap as a parameter through a
+        // subquery. The partial claimedAt index (WHERE resolved_at IS NULL)
+        // makes the inner ORDER BY claim scan cheap, and LIMIT short-circuits
+        // before the UPDATE touches anything.
         const reaped = await tx
           .update(scheduledWakeups)
           .set({ status: 'skipped', outcome: 'stale_claim', resolvedAt: new Date() })
@@ -387,20 +397,43 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
               sql`${scheduledWakeups.status} in ('claimed','running')`,
               sql`${scheduledWakeups.resolvedAt} is null`,
               lt(scheduledWakeups.claimedAt, claimedBefore),
+              sql`${scheduledWakeups.id} in (
+                select id from ${scheduledWakeups}
+                where ${scheduledWakeups.status} in ('claimed','running')
+                  and ${scheduledWakeups.resolvedAt} is null
+                  and ${scheduledWakeups.claimedAt} < ${claimedBefore}
+                order by ${scheduledWakeups.claimedAt}
+                limit ${SWEEP_TAIL_BATCH_LIMIT}
+              )`,
             ),
           )
-          .returning({ id: scheduledWakeups.id })
-        return reaped.length
+        return reaped.rowCount ?? 0
       })
     },
     async deleteExpired(cutoff: Date): Promise<number> {
       const db = await dbFactory()
       return withStatementTimeout(db, SWEEP_STATEMENT_DEFAULT_MS, async (tx) => {
+        // Capped at SWEEP_TAIL_BATCH_LIMIT rows for the same reason as
+        // reapStaleClaims: a one-time backlog cannot blow the deadline and
+        // strand retention; whatever remains drains across later sweeps via
+        // the same idempotent predicate. rowCount is used rather than
+        // materializing ids — none of the callers need them. Same Drizzle
+        // subquery-LIMIT shape as reapStaleClaims; the resolvedAt index keeps
+        // the inner ORDER BY scan cheap.
         const deleted = await tx
           .delete(scheduledWakeups)
-          .where(lt(scheduledWakeups.resolvedAt, cutoff))
-          .returning({ id: scheduledWakeups.id })
-        return deleted.length
+          .where(
+            and(
+              lt(scheduledWakeups.resolvedAt, cutoff),
+              sql`${scheduledWakeups.id} in (
+                select id from ${scheduledWakeups}
+                where ${scheduledWakeups.resolvedAt} < ${cutoff}
+                order by ${scheduledWakeups.resolvedAt}
+                limit ${SWEEP_TAIL_BATCH_LIMIT}
+              )`,
+            ),
+          )
+        return deleted.rowCount ?? 0
       })
     },
   }

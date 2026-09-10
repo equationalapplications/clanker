@@ -7,6 +7,12 @@ export interface ScheduleWakeupRequest {
   reason: string
   remindAt: string
   priority?: number
+  /**
+   * Client-minted stable operation identifier — required so retries from the
+   * same logical set_reminder collapse onto one server row. The edge executor
+   * mints one UUID per intent and reuses it on every retry.
+   */
+  opId: string
 }
 
 export interface ScheduleWakeupResponse {

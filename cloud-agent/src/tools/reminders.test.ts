@@ -2,13 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildWakeupInsert, formatReminderResult } from './reminders.js'
 
-test('builds a pending row with a unique run key', () => {
+test('builds a pending row keyed by the supplied opId', () => {
   const row = buildWakeupInsert({
     userId: 'user-1',
     characterId: 'char-1',
     reason: 'ask how the interview went',
     dueAt: new Date('2026-09-10T09:00:00.000Z'),
     priority: 3,
+    opId: 'op-deadbeef',
   })
   assert.equal(row.userId, 'user-1')
   assert.equal(row.characterId, 'char-1')
@@ -16,20 +17,10 @@ test('builds a pending row with a unique run key', () => {
   assert.equal(row.status, 'pending')
   assert.equal(row.priority, 3)
   assert.equal(row.dueAt.toISOString(), '2026-09-10T09:00:00.000Z')
-  assert.ok(row.id.length > 0)
-  assert.ok(row.runKey.length > 0)
-  assert.notEqual(row.id, row.runKey)
-})
-
-test('mints a distinct run key per call', () => {
-  const args = {
-    userId: 'u',
-    characterId: 'c',
-    reason: 'r',
-    dueAt: new Date('2026-09-10T09:00:00.000Z'),
-    priority: 0,
-  }
-  assert.notEqual(buildWakeupInsert(args).runKey, buildWakeupInsert(args).runKey)
+  // opId is the row's primary key, used for both id and run_key so a retry
+  // lands on the same row instead of minting a duplicate.
+  assert.equal(row.id, 'op-deadbeef')
+  assert.equal(row.runKey, 'op-deadbeef')
 })
 
 test('formats a confirmation when scheduled', () => {

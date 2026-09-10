@@ -451,10 +451,32 @@ describe('set_reminder executor', () => {
       reason: 'follow up on the recipe',
       remindAt: '2026-09-10T10:00:00.000Z',
       priority: 2,
+      opId: expect.stringMatching(/^op-[0-9a-f]{8}$/),
     })
     expect(out).toBe(
       'Scheduled. You will wake up at 2026-09-10T10:00:00.000Z to follow up on this.',
     )
+  })
+
+  it('derives a stable opId so a retry with the same args hits the same row', async () => {
+    mockScheduleWakeupViaCallable.mockResolvedValue({
+      ok: true,
+      message: 'Scheduled.',
+      dueAt: '2026-09-10T10:00:00.000Z',
+    })
+    const executors = createEdgeToolExecutors('char-1', null, undefined, {
+      characterId: 'cloud-9',
+      scheduleWakeup: mockScheduleWakeupViaCallable,
+    })
+    const callArgs = {
+      reason: 'follow up',
+      remind_at: '2026-09-10T10:00:00.000Z',
+    }
+    await executors.set_reminder!(callArgs)
+    await executors.set_reminder!(callArgs)
+    const first = (mockScheduleWakeupViaCallable.mock.calls[0][0] as { opId: string }).opId
+    const second = (mockScheduleWakeupViaCallable.mock.calls[1][0] as { opId: string }).opId
+    expect(first).toBe(second)
   })
 
   it('surfaces a callable refusal (ceiling) to the model as the tool result', async () => {
