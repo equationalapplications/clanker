@@ -87,9 +87,12 @@ export const SWEEP_RESERVE_MS = 2_000
 export const CLAIM_DEADLINE_MS = 500
 
 /**
- * `loadContext` as a whole — all five SELECTs inside one transaction, which
- * also gives its reads a single snapshot: the spend/count rows it reads can no
- * longer shift underneath decideWakeup mid-row.
+ * `loadContext`'s five SELECTs, all inside one transaction. `statement_timeout`
+ * is per-statement, so the transaction's worst case is 5 × 1.5s = 7.5s — the
+ * deadline bounds each read, not the whole op. The shared transaction scopes
+ * the deadline (and keeps the op atomic per connection); it does NOT confer
+ * snapshot isolation — under READ COMMITTED each SELECT still gets its own
+ * snapshot.
  */
 export const LOAD_CONTEXT_DEADLINE_MS = 1_500
 

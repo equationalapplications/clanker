@@ -1,7 +1,7 @@
 # Proactive Sweep Per-Statement DB Deadlines — Design
 
 **Date:** 2026-09-09
-**Status:** Proposed
+**Status:** Implemented
 **Resolves:** issue #706
 **Related:** [2026-09-08-proactive-character-scheduler-design.md](2026-09-08-proactive-character-scheduler-design.md) · PR #705 (`b99f3685`, added `SWEEP_RESERVE_MS`) · `6cc3bda7` (added the pool-wide `statement_timeout`)
 
@@ -94,15 +94,16 @@ Why this shape:
 New constants in `proactiveWakeupGuardrails.ts`, documented as per-op
 deadlines composing with the wall-clock budgets:
 
-| Constant                     | Value | Applied to                                                                                                               |
-| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------ |
-| `CLAIM_DEADLINE_MS`          | 500   | `claim` (one UPDATE on an indexed row; normal completion is tens of ms)                                                  |
-| `LOAD_CONTEXT_DEADLINE_MS`   | 1500  | `loadContext` as a **whole** — all five SELECTs inside one transaction, matching the issue's "one on the wrapper" option |
-| `SWEEP_STATEMENT_DEFAULT_MS` | 2_000 | `selectDue`, `resolveWakeup`, `reapStaleClaims`, `deleteExpired`                                                         |
+| Constant                     | Value | Applied to                                                                                                                    |
+| ---------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `CLAIM_DEADLINE_MS`          | 500   | `claim` (one UPDATE on an indexed row; normal completion is tens of ms)                                                       |
+| `LOAD_CONTEXT_DEADLINE_MS`   | 1500  | each of `loadContext`'s five SELECTs (one transaction; worst case 5 × 1.5s), matching the issue's "one on the wrapper" option |
+| `SWEEP_STATEMENT_DEFAULT_MS` | 2_000 | `selectDue`, `resolveWakeup`, `reapStaleClaims`, `deleteExpired`                                                              |
 
-`loadContext` inside a single transaction also gives its five reads one
-snapshot — the spend/count rows it reads can no longer shift underneath
-`decideWakeup` mid-row.
+`loadContext`'s five SELECTs share one transaction, which scopes the deadline
+and keeps the op on a single connection; it does **not** confer snapshot
+isolation — under READ COMMITTED each SELECT still sees its own snapshot, so
+the spend/count rows can still shift between reads exactly as before.
 
 ### Error handling — stranding semantics unchanged
 
