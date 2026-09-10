@@ -6,6 +6,7 @@ import ChatImageBubble from '../ChatImageBubble'
 // assertion handle must target that specifier.
 import * as MediaLibrary from 'expo-media-library/legacy'
 import * as Sharing from 'expo-sharing'
+import { File } from 'expo-file-system'
 
 jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: (imageId: string | null, variant: 'thumb' | 'master') =>
@@ -28,6 +29,36 @@ jest.mock('expo-sharing', () => ({
   shareAsync: jest.fn(),
 }))
 
+// The image-share seam stages remote masters through expo-file-system.
+jest.mock('expo-file-system', () => {
+  class FakeFile {
+    uri: string
+    static readonly deleteCalls = jest.fn()
+    constructor(_dir: unknown, name: string) {
+      // Real File instances always carry the file:// scheme — the fake must
+      // too, since the Android share bridge rejects anything else.
+      this.uri = `file:///cache/photo-share/${name}`
+      void _dir
+    }
+    async delete(): Promise<void> {
+      FakeFile.deleteCalls()
+    }
+  }
+  return {
+    Paths: { cache: '/cache' },
+    Directory: class {
+      exists = false
+      create(): void {}
+    },
+    File: Object.assign(FakeFile, { downloadFileAsync: jest.fn(async () => undefined) }),
+  }
+})
+
+const fakeShareFs = File as unknown as typeof File & {
+  downloadFileAsync: jest.Mock
+  deleteCalls: jest.Mock
+}
+
 const message = {
   _id: 'm1',
   text: '',
@@ -43,7 +74,15 @@ function openViewer() {
 }
 
 describe('ChatImageBubble viewer actions', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    // clearAllMocks resets call history but NOT implementations — the
+    // no-share-sheet test below overrides this default with false, which
+    // would otherwise poison every later test in this file. Same for the
+    // staging-failure test's mockRejectedValue on the download.
+    ;(Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true)
+    fakeShareFs.downloadFileAsync.mockReset().mockResolvedValue(undefined)
+  })
 
   it('saves the resolved master to the photo library after an add-only grant', async () => {
     ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
@@ -100,6 +139,58 @@ describe('ChatImageBubble viewer actions', () => {
     fireEvent.press(screen.getByLabelText('Share photo'))
 
     await waitFor(() => expect(screen.getByText("Couldn't share this image")).toBeTruthy())
+  })
+
+  it('shows a notice when the platform has no share sheet', async () => {
+    ;(Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false)
+    const screen = openViewer()
+
+    fireEvent.press(screen.getByLabelText('Share photo'))
+
+    await waitFor(() => expect(screen.getByText('Sharing is not available here')).toBeTruthy())
+    expect(Sharing.shareAsync).not.toHaveBeenCalled()
+  })
+
+  describe('when the resolved master is a remote URL (cloud rows)', () => {
+    beforeEach(() => {
+      mockUseResolvedImage.mockImplementation(
+        (imageId: string | null, variant: 'thumb' | 'master') => ({
+          uri: imageId
+            ? `https://firebasestorage.googleapis.com/v0/b/bucket/o/${variant}.webp?alt=media&token=t`
+            : null,
+          isResolved: !!imageId,
+        }),
+      )
+    })
+
+    it('Share stages the remote master locally and never shares the raw URL', async () => {
+      fakeShareFs.deleteCalls.mockClear()
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Share photo'))
+
+      await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalled())
+      const sharedUri = (Sharing.shareAsync as jest.Mock).mock.calls[0][0] as string
+      // The Android bridge rejects anything but file://, so the raw URL would
+      // fail — the original bug. Assert the required scheme, not just the
+      // absence of http(s).
+      expect(sharedUri).toMatch(/^file:\/\//)
+      expect(sharedUri).toMatch(/share_.*\.webp$/)
+      expect(fakeShareFs.downloadFileAsync).toHaveBeenCalledWith(expect.stringMatching(/^https:/), {
+        uri: sharedUri,
+      })
+      expect(fakeShareFs.deleteCalls).toHaveBeenCalled()
+    })
+
+    it('Share shows the failure notice when staging the download fails', async () => {
+      fakeShareFs.downloadFileAsync.mockRejectedValue(new Error('offline'))
+      const screen = openViewer()
+
+      fireEvent.press(screen.getByLabelText('Share photo'))
+
+      await waitFor(() => expect(screen.getByText("Couldn't share this image")).toBeTruthy())
+      expect(Sharing.shareAsync).not.toHaveBeenCalled()
+    })
   })
 
   describe('while the master lookup is still in flight', () => {

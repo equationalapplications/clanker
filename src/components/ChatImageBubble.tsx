@@ -13,13 +13,14 @@
 import { useRef, useState } from 'react'
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
-import * as Sharing from 'expo-sharing'
 import type { Message } from '~/types/chat'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
-// Never import `expo-media-library` in shared components: it crashes the web
-// bundle at import time. This seam keeps the import native-only — see the
-// photoLibrarySaver header for the full story (enforced by eslint).
+// Never import `expo-media-library` or `expo-sharing` in shared components:
+// the former crashes the web bundle at import time, the latter's web build
+// shares a raw URL instead of image bytes. These seams keep the imports
+// platform-split — see their headers for the full story (enforced by eslint).
 import { saveToPhotos, type PhotoSaveResult } from '~/services/photoLibrarySaver'
+import { shareImage, type ImageShareResult } from '~/services/imageSharer'
 
 type PhotoMessage = Message & { imageId?: string }
 
@@ -28,8 +29,16 @@ const THUMB_SIZE = 200
 const SAVE_NOTICE: Record<PhotoSaveResult, string> = {
   saved: 'Saved to Photos',
   denied: 'Photo library permission denied',
-  unavailable: 'Saving to Photos is not available here',
+  downloaded: 'Image downloaded',
   failed: "Couldn't save to Photos",
+}
+
+const SHARE_NOTICE: Record<ImageShareResult, string | null> = {
+  shared: null,
+  downloaded: 'Image downloaded',
+  cancelled: null,
+  unavailable: 'Sharing is not available here',
+  failed: "Couldn't share this image",
 }
 
 export default function ChatImageBubble({ currentMessage }: { currentMessage?: PhotoMessage }) {
@@ -75,17 +84,12 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
     }
   }
 
-  const shareImage = async (): Promise<void> => {
+  const handleShare = async (): Promise<void> => {
     if (!guardMasterReady() || !masterUri) return
-    try {
-      if (!(await Sharing.isAvailableAsync())) {
-        setNotice('Sharing is not available here')
-        return
-      }
-      await Sharing.shareAsync(masterUri, { mimeType: 'image/webp', dialogTitle: 'Share image' })
-    } catch {
-      setNotice("Couldn't share this image")
-    }
+    // The seam stages remote masters and maps every outcome (share, silent
+    // cancel, unavailability, bridge failure) to a result instead of rejecting.
+    const notice = SHARE_NOTICE[await shareImage(masterUri)]
+    if (notice) setNotice(notice)
   }
 
   if (!thumbUri) {
@@ -152,7 +156,7 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
             </Pressable>
             <Pressable
               style={styles.actionButton}
-              onPress={shareImage}
+              onPress={handleShare}
               accessibilityRole="button"
               accessibilityLabel="Share photo"
             >
