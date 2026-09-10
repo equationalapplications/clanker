@@ -97,12 +97,24 @@ export function useProactiveNotificationRouting({
       // SQLite read, not the network.
       const syncPromise = triggerSync()
       void (async () => {
-        let characterId = cloudCharacterId
+        let characterId: string | undefined
         try {
           characterId = await resolveLocalCharacterId(cloudCharacterId)
         } catch (error) {
-          // A failed lookup must not strand the user on the notification.
+          // A failed lookup must not strand the user on a dead /chat/<id>
+          // route. The /chat/<id> route is validated against the set of
+          // LOCAL character ids (see useTabCharacterId), so pushing the
+          // unresolved cloud id lands on a route the router has no record
+          // of — worse than not navigating at all. Fall back to the chat
+          // index, which has its own no-characters / loading states.
           console.warn('[proactiveNotification] local id resolve failed:', error)
+          router.push('/chat' as never)
+          // The post-sync mark-read targets the local id; with no local id
+          // there is nothing to mark, so skip that step entirely.
+          if (syncPromise && typeof syncPromise.then === 'function') {
+            await syncPromise
+          }
+          return
         }
         router.push(`/chat/${characterId}` as never)
         if (syncPromise && typeof syncPromise.then === 'function') {

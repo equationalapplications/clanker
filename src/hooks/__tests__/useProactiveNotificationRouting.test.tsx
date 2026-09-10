@@ -54,8 +54,12 @@ jest.mock('~/services/proactiveMarkReadService', () => ({
 // Cloud UUID -> local id. Defaults to identity (no divergence); tests that
 // exercise the mapping register an entry.
 const mockLocalIds = new Map<string, string>()
+const mockThrowingIds = new Set<string>()
 jest.mock('~/database/characterDatabase', () => ({
-  resolveLocalCharacterId: async (cloudId: string) => mockLocalIds.get(cloudId) ?? cloudId,
+  resolveLocalCharacterId: async (cloudId: string) => {
+    if (mockThrowingIds.has(cloudId)) throw new Error('simulated DB error')
+    return mockLocalIds.get(cloudId) ?? cloudId
+  },
 }))
 
 function response(data: unknown, identifier = 'notif-1') {
@@ -248,6 +252,7 @@ it('does not mark the thread read when triggerSync returns void', async () => {
 describe('cloud->local character id resolution', () => {
   beforeEach(() => {
     mockLocalIds.clear()
+    mockThrowingIds.clear()
   })
 
   it('routes to the LOCAL chat id, not the cloud id from the deepLink', async () => {
@@ -297,6 +302,38 @@ describe('cloud->local character id resolution', () => {
     )
 
     await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/cloud-orphan'))
+    unmount()
+  })
+
+  // Regression (CodeRabbit finding on the cloud->local fix): a thrown lookup
+  // (DB error, getDatabase timeout, getFirstAsync failure) must not push the
+  // unresolved cloud id — /chat/<id> is validated against the set of local
+  // ids and would land on a dead route. Fall back to the chat index and skip
+  // the post-sync mark-read, since there is no local id to target.
+  it('falls back to /chat index when resolveLocalCharacterId throws', async () => {
+    mockThrowingIds.add('cloud-db-fail')
+    const { Wrapper } = createWrapper()
+    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+      wrapper: Wrapper,
+    })
+
+    responseListener?.(
+      response(
+        { type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/cloud-db-fail' },
+        'notif-throw',
+      ),
+    )
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat'))
+    expect(mockRouterPush).not.toHaveBeenCalledWith(expect.stringContaining('/chat/cloud-db-fail'))
+
+    // The post-sync mark-read targets the local id; with no local id there
+    // is nothing to mark, so it must not fire — and triggerSync still runs
+    // so the unread state catches up on the next mount.
+    triggerSyncPending.resolve?.()
+    await new Promise((res) => setTimeout(res, 10))
+    expect(mockMarkLocally).not.toHaveBeenCalled()
+    expect(triggerSync).toHaveBeenCalledTimes(1)
     unmount()
   })
 })
