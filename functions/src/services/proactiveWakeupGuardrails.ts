@@ -66,11 +66,35 @@ export const SWEEP_TIME_BUDGET_MS = 45_000
  * so that a slow loadContext cannot push the sweep into its last ten seconds
  * of budget and then be killed during POST — which would strand a freshly
  * claimed row. Pathological hangs in claim/loadContext are bounded by the
- * pool-wide statement_timeout in db/cloudSql.ts, not by this reserve: a hung
- * statement aborts, the row throws into the per-row catch, and the sweep
- * survives instead of being killed mid-POST.
+ * per-op statement deadlines below (via withStatementTimeout), not by this
+ * reserve: a hung statement aborts, the row throws into the per-row catch, and
+ * the sweep survives instead of being killed mid-POST.
  */
 export const SWEEP_RESERVE_MS = 2_000
+
+/**
+ * Per-operation DB deadlines for the sweep, composing with the wall-clock
+ * budgets above: the pool-wide statement_timeout (10s, db/cloudSql.ts) bounds
+ * any single statement, but a sweep claim + loadContext run five statements
+ * between the budget check and the POST, so a pathological hang could eat ~50s
+ * of a 45s loop budget before the pool backstop fired. These per-op deadlines
+ * abort the hang while the sweep still has room to log, continue, and finish
+ * the rest of the batch. Applied via withStatementTimeout in
+ * proactiveWakeupSweep.ts, which scopes them to the op's own transaction.
+ */
+
+/** `claim` — one UPDATE on an indexed row; normal completion is tens of ms. */
+export const CLAIM_DEADLINE_MS = 500
+
+/**
+ * `loadContext` as a whole — all five SELECTs inside one transaction, which
+ * also gives its reads a single snapshot: the spend/count rows it reads can no
+ * longer shift underneath decideWakeup mid-row.
+ */
+export const LOAD_CONTEXT_DEADLINE_MS = 1_500
+
+/** Every other sweep statement: selectDue, resolveWakeup, reapStaleClaims, deleteExpired. */
+export const SWEEP_STATEMENT_DEFAULT_MS = 2_000
 
 /**
  * A row claimed longer ago than this is presumed abandoned — its POST died

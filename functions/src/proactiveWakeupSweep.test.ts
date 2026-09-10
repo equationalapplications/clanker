@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { proactiveWakeupSweep, proactiveWakeupSweepHandler } from './proactiveWakeupSweep.js'
+import {
+  proactiveWakeupSweep,
+  proactiveWakeupSweepHandler,
+  withStatementTimeout,
+} from './proactiveWakeupSweep.js'
 
 const NOW = new Date('2026-09-08T14:00:00.000Z')
 
@@ -240,4 +244,58 @@ test('reserve tightens the budget so claim+loadContext do not strand a row at PO
 
   assert.deepEqual(claimed, [], 'the reserve must stop this row before it can claim')
   assert.equal(posted.length, 0)
+})
+
+// The set_config literal text and dynamic values live in the drizzle sql
+// template's queryChunks: literal SQL arrives as StringChunk objects (value is
+// a string[]), template values as boxed primitives (String/Number wrapper
+// objects, no .value property — verified against the installed drizzle-orm
+// 0.45.2 ESM build; the 0.45 CJS bundle wraps them as Param objects instead).
+// Keeping only the primitive chunks yields the bound values in order; joining
+// the StringChunk string[] values yields the literal SQL around them
+// (placeholders like $1 are substituted only at compile time, so they do NOT
+// appear in the joined text). Shared by every fake in this file.
+function chunksOf(query: unknown): Array<Record<string, unknown>> {
+  return (query as { queryChunks?: Array<Record<string, unknown>> }).queryChunks ?? []
+}
+
+function paramsOf(query: unknown): unknown[] {
+  return chunksOf(query)
+    .filter((c) => !(c && typeof c === 'object' && Array.isArray(c.value)))
+    .map((c) => String(c))
+}
+
+function sqlTextOf(query: unknown): string {
+  return chunksOf(query)
+    .flatMap((c) => (Array.isArray(c.value) ? (c.value as string[]) : []))
+    .join('')
+}
+
+test('withStatementTimeout sets a transaction-local deadline and runs fn on the tx', async () => {
+  const executed: Array<{ text: string; params: unknown[] }> = []
+  const fakeTx = {
+    execute: async (q: unknown) => {
+      executed.push({ text: sqlTextOf(q), params: paramsOf(q) })
+      return { rows: [] }
+    },
+  }
+  const fakeDb = {
+    transaction: async (cb: (tx: typeof fakeTx) => Promise<string>) => cb(fakeTx),
+  } as unknown as Parameters<typeof withStatementTimeout>[0]
+
+  const result = await withStatementTimeout(fakeDb, 500, async (tx) => {
+    assert.equal(tx, fakeTx, 'fn must receive the transaction, not the pool')
+    return 'ran'
+  })
+
+  assert.equal(result, 'ran')
+  assert.equal(executed.length, 1)
+  // Exactly one bind param: the deadline string. `is_local` is NOT a bind
+  // param — it is literal SQL text (part of a StringChunk), which is why the
+  // assertion below pins it on the joined text, not on params. The `true` is
+  // the whole point: without it the deadline would leak past COMMIT onto the
+  // shared pool and silently throttle every other consumer.
+  assert.deepEqual(executed[0].params, ['500'])
+  assert.match(executed[0].text, /set_config\('statement_timeout'/)
+  assert.match(executed[0].text, /,\s*true\)\s*$/, 'is_local must be the literal true')
 })

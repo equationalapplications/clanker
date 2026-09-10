@@ -26,6 +26,29 @@ import {
  */
 type DbLike = NodePgDatabase<typeof schema>
 
+/**
+ * Runs fn on a transaction whose statement_timeout is set to deadlineMs via
+ * set_config(..., is_local => true), so it reverts at COMMIT/ROLLBACK and no
+ * other user of the shared pool ever sees it. set_config rather than SET LOCAL
+ * because Postgres rejects bind parameters on bare SET (utility statements
+ * take no placeholders) and the drizzle-parameterized form must go through a
+ * function call. Postgres cancels an over-deadline statement server-side
+ * (SQLSTATE 57014) and the connection returns to the pool usable — which a
+ * client-side Promise.race timer cannot do: a raced timeout throws into the
+ * per-row catch but leaves the server query running and the connection busy
+ * until the pool-wide 10s frees it.
+ */
+export async function withStatementTimeout<T>(
+  db: DbLike,
+  deadlineMs: number,
+  fn: (tx: DbLike) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('statement_timeout', ${String(deadlineMs)}, true)`)
+    return fn(tx as unknown as DbLike)
+  })
+}
+
 export interface DueWakeup {
   id: string
   characterId: string
