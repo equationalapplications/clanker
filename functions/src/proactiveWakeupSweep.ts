@@ -9,6 +9,9 @@ import { messages, scheduledWakeups, subscriptions, users } from './db/schema.js
 import {
   decideWakeup,
   utcDayStart,
+  CLAIM_DEADLINE_MS,
+  LOAD_CONTEXT_DEADLINE_MS,
+  SWEEP_STATEMENT_DEFAULT_MS,
   SWEEP_BATCH_LIMIT,
   STALE_CLAIM_TIMEOUT_MS,
   SWEEP_RESERVE_MS,
@@ -25,6 +28,29 @@ import {
  * touch and which the integration suite's client does not expose.
  */
 type DbLike = NodePgDatabase<typeof schema>
+
+/**
+ * Runs fn on a transaction whose statement_timeout is set to deadlineMs via
+ * set_config(..., is_local => true), so it reverts at COMMIT/ROLLBACK and no
+ * other user of the shared pool ever sees it. set_config rather than SET LOCAL
+ * because Postgres rejects bind parameters on bare SET (utility statements
+ * take no placeholders) and the drizzle-parameterized form must go through a
+ * function call. Postgres cancels an over-deadline statement server-side
+ * (SQLSTATE 57014) and the connection returns to the pool usable — which a
+ * client-side Promise.race timer cannot do: a raced timeout throws into the
+ * per-row catch but leaves the server query running and the connection busy
+ * until the pool-wide 10s frees it.
+ */
+export async function withStatementTimeout<T>(
+  db: DbLike,
+  deadlineMs: number,
+  fn: (tx: DbLike) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('statement_timeout', ${String(deadlineMs)}, true)`)
+    return fn(tx as unknown as DbLike)
+  })
+}
 
 export interface DueWakeup {
   id: string
@@ -188,127 +214,133 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
     now: () => new Date(),
     async selectDue(limit: number): Promise<DueWakeup[]> {
       const db = await dbFactory()
-      const rows = await db
-        .select({
-          id: scheduledWakeups.id,
-          characterId: scheduledWakeups.characterId,
-          userId: scheduledWakeups.userId,
-          firebaseUid: users.firebaseUid,
-          reason: scheduledWakeups.reason,
-          runKey: scheduledWakeups.runKey,
-          priority: scheduledWakeups.priority,
-        })
-        .from(scheduledWakeups)
-        .innerJoin(users, eq(scheduledWakeups.userId, users.id))
-        .where(and(eq(scheduledWakeups.status, 'pending'), sql`${scheduledWakeups.dueAt} <= now()`))
-        .orderBy(desc(scheduledWakeups.priority), scheduledWakeups.dueAt)
-        .limit(limit)
-      return rows
+      return withStatementTimeout(db, SWEEP_STATEMENT_DEFAULT_MS, async (tx) =>
+        tx
+          .select({
+            id: scheduledWakeups.id,
+            characterId: scheduledWakeups.characterId,
+            userId: scheduledWakeups.userId,
+            firebaseUid: users.firebaseUid,
+            reason: scheduledWakeups.reason,
+            runKey: scheduledWakeups.runKey,
+            priority: scheduledWakeups.priority,
+          })
+          .from(scheduledWakeups)
+          .innerJoin(users, eq(scheduledWakeups.userId, users.id))
+          .where(
+            and(eq(scheduledWakeups.status, 'pending'), sql`${scheduledWakeups.dueAt} <= now()`),
+          )
+          .orderBy(desc(scheduledWakeups.priority), scheduledWakeups.dueAt)
+          .limit(limit),
+      )
     },
     async loadContext(row: DueWakeup, now: Date, dayStart: Date): Promise<WakeupContext> {
       const db = await dbFactory()
+      return withStatementTimeout(db, LOAD_CONTEXT_DEADLINE_MS, async (tx) => {
+        const [subRow] = await tx
+          .select({ currentCredits: subscriptions.currentCredits })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, row.userId))
+          .limit(1)
 
-      const [subRow] = await db
-        .select({ currentCredits: subscriptions.currentCredits })
-        .from(subscriptions)
-        .where(eq(subscriptions.userId, row.userId))
-        .limit(1)
+        const [spendRow] = await tx
+          .select({ total: sum(scheduledWakeups.spentAmount) })
+          .from(scheduledWakeups)
+          .where(
+            and(
+              eq(scheduledWakeups.characterId, row.characterId),
+              gte(scheduledWakeups.resolvedAt, dayStart),
+              ne(scheduledWakeups.status, 'pending'),
+              ne(scheduledWakeups.status, 'claimed'),
+              // 'running' rows have not written spent_amount back yet; counting
+              // them would read 0 and understate the day, and they are excluded
+              // by the resolved_at filter anyway. Named explicitly so the set of
+              // non-terminal statuses stays obvious at the call site.
+              ne(scheduledWakeups.status, 'running'),
+            ),
+          )
 
-      const [spendRow] = await db
-        .select({ total: sum(scheduledWakeups.spentAmount) })
-        .from(scheduledWakeups)
-        .where(
-          and(
-            eq(scheduledWakeups.characterId, row.characterId),
-            gte(scheduledWakeups.resolvedAt, dayStart),
-            ne(scheduledWakeups.status, 'pending'),
-            ne(scheduledWakeups.status, 'claimed'),
-            // 'running' rows have not written spent_amount back yet; counting
-            // them would read 0 and understate the day, and they are excluded
-            // by the resolved_at filter anyway. Named explicitly so the set of
-            // non-terminal statuses stays obvious at the call site.
-            ne(scheduledWakeups.status, 'running'),
-          ),
-        )
+        const [pushRow] = await tx
+          .select({ count: sql<number>`COUNT(*)::int` })
+          .from(scheduledWakeups)
+          .where(
+            and(
+              eq(scheduledWakeups.characterId, row.characterId),
+              gte(scheduledWakeups.resolvedAt, dayStart),
+              eq(scheduledWakeups.deliveryMode, 'notify'),
+            ),
+          )
 
-      const [pushRow] = await db
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(scheduledWakeups)
-        .where(
-          and(
-            eq(scheduledWakeups.characterId, row.characterId),
-            gte(scheduledWakeups.resolvedAt, dayStart),
-            eq(scheduledWakeups.deliveryMode, 'notify'),
-          ),
-        )
+        const staleCutoff = new Date(now.getTime() - UNREAD_STALENESS_ESCAPE_MS)
+        const [unreadRow] = await tx
+          .select({ count: sql<number>`COUNT(*)::int` })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.characterId, row.characterId),
+              isNull(messages.readAt),
+              // The staleness escape. Without it one lost mark-read mutes this
+              // character forever.
+              gte(messages.createdAt, staleCutoff),
+              sql`${messages.messageData}->>'proactive' = 'true'`,
+            ),
+          )
 
-      const staleCutoff = new Date(now.getTime() - UNREAD_STALENESS_ESCAPE_MS)
-      const [unreadRow] = await db
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.characterId, row.characterId),
-            isNull(messages.readAt),
-            // The staleness escape. Without it one lost mark-read mutes this
-            // character forever.
-            gte(messages.createdAt, staleCutoff),
-            sql`${messages.messageData}->>'proactive' = 'true'`,
-          ),
-        )
+        // Proactive messages are excluded: they are written with the owner's
+        // userId as sender (cloud-agent), exactly like user-authored rows, so the
+        // JSON marker is the only thing that tells them apart. Counting them here
+        // would let a wake-up re-arm the notify cooldown against itself — the
+        // sweep posts at T, reads its own row back as `lastUserMessageAt` at
+        // T+5min, and suppresses notify for the next cooldown window even though
+        // the user has done nothing. The spec defines this window against the
+        // user's last message.
+        // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
+        // result through messages.createdAt's own decoder, so it comes back as a
+        // Date. A raw sql<> select bypasses column decoding and returns the
+        // driver's text form, which then has to be parsed by hand — the trap this
+        // comment used to document at length. The guard below keeps a malformed
+        // decode loud: an Invalid Date is not null, so decideWakeup's null check
+        // would pass and NaN would silently disable the notify cooldown.
+        // Throwing strands one row for the reaper instead of un-muting a
+        // character for a whole cooldown window.
+        const [lastMsgRow] = await tx
+          .select({ lastAt: max(messages.createdAt) })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.characterId, row.characterId),
+              sql`${messages.messageData}->>'proactive' is distinct from 'true'`,
+            ),
+          )
 
-      // Proactive messages are excluded: they are written with the owner's
-      // userId as sender (cloud-agent), exactly like user-authored rows, so the
-      // JSON marker is the only thing that tells them apart. Counting them here
-      // would let a wake-up re-arm the notify cooldown against itself — the
-      // sweep posts at T, reads its own row back as `lastUserMessageAt` at
-      // T+5min, and suppresses notify for the next cooldown window even though
-      // the user has done nothing. The spec defines this window against the
-      // user's last message.
-      // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
-      // result through messages.createdAt's own decoder, so it comes back as a
-      // Date. A raw sql<> select bypasses column decoding and returns the
-      // driver's text form, which then has to be parsed by hand — the trap this
-      // comment used to document at length. The guard below keeps a malformed
-      // decode loud: an Invalid Date is not null, so decideWakeup's null check
-      // would pass and NaN would silently disable the notify cooldown.
-      // Throwing strands one row for the reaper instead of un-muting a
-      // character for a whole cooldown window.
-      const [lastMsgRow] = await db
-        .select({ lastAt: max(messages.createdAt) })
-        .from(messages)
-        .where(
-          and(
-            eq(messages.characterId, row.characterId),
-            sql`${messages.messageData}->>'proactive' is distinct from 'true'`,
-          ),
-        )
+        const lastUserMessageAt = lastMsgRow?.lastAt ?? null
+        if (lastUserMessageAt && Number.isNaN(lastUserMessageAt.getTime())) {
+          throw new Error(
+            `loadContext: MAX(messages.created_at) decoded to Invalid Date for character ${row.characterId}`,
+          )
+        }
 
-      const lastUserMessageAt = lastMsgRow?.lastAt ?? null
-      if (lastUserMessageAt && Number.isNaN(lastUserMessageAt.getTime())) {
-        throw new Error(
-          `loadContext: MAX(messages.created_at) decoded to Invalid Date for character ${row.characterId}`,
-        )
-      }
-
-      return {
-        balance: subRow?.currentCredits ?? 0,
-        todaysProactiveSpend: Number(spendRow?.total ?? 0),
-        todaysPushCount: Number(pushRow?.count ?? 0),
-        lastUserMessageAt,
-        unreadProactiveCount: Number(unreadRow?.count ?? 0),
-      }
+        return {
+          balance: subRow?.currentCredits ?? 0,
+          todaysProactiveSpend: Number(spendRow?.total ?? 0),
+          todaysPushCount: Number(pushRow?.count ?? 0),
+          lastUserMessageAt,
+          unreadProactiveCount: Number(unreadRow?.count ?? 0),
+        }
+      })
     },
     async claim(id: string, claimedAt: Date): Promise<boolean> {
       const db = await dbFactory()
-      // AND status = 'pending' is the race-safety guard: two overlapping sweeps
-      // both SELECT the same row, but only the first UPDATE matches a row still
-      // in 'pending' status. The second returns rowCount = 0 and we skip.
-      const result = await db
-        .update(scheduledWakeups)
-        .set({ status: 'claimed', claimedAt })
-        .where(and(eq(scheduledWakeups.id, id), eq(scheduledWakeups.status, 'pending')))
-      return result.rowCount === 1
+      return withStatementTimeout(db, CLAIM_DEADLINE_MS, async (tx) => {
+        // AND status = 'pending' is the race-safety guard: two overlapping sweeps
+        // both SELECT the same row, but only the first UPDATE matches a row still
+        // in 'pending' status. The second returns rowCount = 0 and we skip.
+        const result = await tx
+          .update(scheduledWakeups)
+          .set({ status: 'claimed', claimedAt })
+          .where(and(eq(scheduledWakeups.id, id), eq(scheduledWakeups.status, 'pending')))
+        return result.rowCount === 1
+      })
     },
     async postWakeup(payload): Promise<void> {
       const url = process.env.CLOUD_AGENT_URL
@@ -333,37 +365,43 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
     },
     async resolveWakeup(id, patch): Promise<void> {
       const db = await dbFactory()
-      await db
-        .update(scheduledWakeups)
-        .set({ status: patch.status, outcome: patch.outcome, resolvedAt: new Date() })
-        .where(eq(scheduledWakeups.id, id))
+      await withStatementTimeout(db, SWEEP_STATEMENT_DEFAULT_MS, async (tx) =>
+        tx
+          .update(scheduledWakeups)
+          .set({ status: patch.status, outcome: patch.outcome, resolvedAt: new Date() })
+          .where(eq(scheduledWakeups.id, id)),
+      )
     },
     async reapStaleClaims(claimedBefore: Date): Promise<number> {
       const db = await dbFactory()
-      // spent_amount is left as-is rather than zeroed: if the turn did commit a
-      // spend before dying, that money was really taken and the day's ceiling
-      // should keep counting it. The status becomes terminal so the row stops
-      // being invisible to both selectDue and deleteExpired.
-      const reaped = await db
-        .update(scheduledWakeups)
-        .set({ status: 'skipped', outcome: 'stale_claim', resolvedAt: new Date() })
-        .where(
-          and(
-            sql`${scheduledWakeups.status} in ('claimed','running')`,
-            sql`${scheduledWakeups.resolvedAt} is null`,
-            lt(scheduledWakeups.claimedAt, claimedBefore),
-          ),
-        )
-        .returning({ id: scheduledWakeups.id })
-      return reaped.length
+      return withStatementTimeout(db, SWEEP_STATEMENT_DEFAULT_MS, async (tx) => {
+        // spent_amount is left as-is rather than zeroed: if the turn did commit a
+        // spend before dying, that money was really taken and the day's ceiling
+        // should keep counting it. The status becomes terminal so the row stops
+        // being invisible to both selectDue and deleteExpired.
+        const reaped = await tx
+          .update(scheduledWakeups)
+          .set({ status: 'skipped', outcome: 'stale_claim', resolvedAt: new Date() })
+          .where(
+            and(
+              sql`${scheduledWakeups.status} in ('claimed','running')`,
+              sql`${scheduledWakeups.resolvedAt} is null`,
+              lt(scheduledWakeups.claimedAt, claimedBefore),
+            ),
+          )
+          .returning({ id: scheduledWakeups.id })
+        return reaped.length
+      })
     },
     async deleteExpired(cutoff: Date): Promise<number> {
       const db = await dbFactory()
-      const deleted = await db
-        .delete(scheduledWakeups)
-        .where(lt(scheduledWakeups.resolvedAt, cutoff))
-        .returning({ id: scheduledWakeups.id })
-      return deleted.length
+      return withStatementTimeout(db, SWEEP_STATEMENT_DEFAULT_MS, async (tx) => {
+        const deleted = await tx
+          .delete(scheduledWakeups)
+          .where(lt(scheduledWakeups.resolvedAt, cutoff))
+          .returning({ id: scheduledWakeups.id })
+        return deleted.length
+      })
     },
   }
 }

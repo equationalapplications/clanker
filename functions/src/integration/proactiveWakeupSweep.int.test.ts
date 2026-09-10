@@ -46,6 +46,34 @@ async function waitForBlockedBackends(expected: number): Promise<void> {
   assert.fail(`timed out waiting for ${expected} lock-blocked backends; the race never formed`)
 }
 
+// drizzle may hand back the pg error as-is or wrapped in its own error type
+// (cause chain); walk it either way.
+function expectQueryCanceled(err: unknown): boolean {
+  let cur: unknown = err
+  for (let depth = 0; depth < 5 && cur; depth++) {
+    const e = cur as { code?: string; cause?: unknown }
+    if (e.code === '57014') return true
+    cur = e.cause
+  }
+  assert.fail(`expected a 57014 query_canceled error, got ${String(err)}`)
+}
+
+/**
+ * Runs fn inside a transaction on a dedicated pooled client, so the test can
+ * take locks that park the sweep's statements. Always rolls back — the locks
+ * exist only to block, never to leave state behind.
+ */
+async function withBlockingSession(fn: (client: pg.PoolClient) => Promise<void>): Promise<void> {
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    await fn(client)
+  } finally {
+    await client.query('ROLLBACK').catch(() => {})
+    client.release()
+  }
+}
+
 const deps = buildSweepDeps(testGetDb)
 
 const NOW = new Date('2026-09-09T14:00:00.000Z')
@@ -464,4 +492,60 @@ test('deleteExpired removes resolved rows past the cutoff and keeps unresolved o
     rows.map((r) => r.id),
     ['d-pending', 'd-recent'],
   )
+})
+
+// --- per-op statement deadlines (AC3) -----------------------------------------
+
+// The claim UPDATE parks on a row lock held by another session.
+// statement_timeout counts lock-wait time, so the parked UPDATE is canceled
+// at CLAIM_DEADLINE_MS (500ms) — far below the pool's 10s backstop, proving
+// the per-op deadline is what fired.
+test('claim aborts with 57014 when its UPDATE exceeds CLAIM_DEADLINE_MS', async () => {
+  const id = await insertWakeup()
+  await withBlockingSession(async (lockHolder) => {
+    await lockHolder.query('SELECT id FROM scheduled_wakeups WHERE id = $1 FOR UPDATE', [id])
+    const deps = buildSweepDeps(testGetDb)
+    const claimPromise = deps.claim(id, new Date())
+    // Both sides are now inside the contended window; the deadline fires
+    // mid-wait without any release, because statement_timeout covers it.
+    await waitForBlockedBackends(1)
+    await assert.rejects(claimPromise, expectQueryCanceled)
+  })
+  // Canceled mid-UPDATE and rolled back: the row is untouched, still pending
+  // for the next tick — not claimed, not skipped.
+  const { rows } = await getPool().query(
+    'SELECT status, resolved_at FROM scheduled_wakeups WHERE id = $1',
+    [id],
+  )
+  assert.equal(rows[0].status, 'pending')
+  assert.equal(rows[0].resolved_at, null)
+})
+
+// loadContext's fourth read (the unread count over `messages`) parks on an
+// ACCESS EXCLUSIVE table lock — MVCC reads do not block on row locks, so a
+// table lock is what parks a SELECT. The row is claimed first the ordinary
+// way: exactly the state the sweep is in when loadContext hangs.
+test('loadContext aborts with 57014 when a read exceeds LOAD_CONTEXT_DEADLINE_MS', async () => {
+  const id = await insertWakeup()
+  await getPool().query(
+    "UPDATE scheduled_wakeups SET status = 'claimed', claimed_at = now() WHERE id = $1",
+    [id],
+  )
+  await withBlockingSession(async (lockHolder) => {
+    await lockHolder.query('LOCK TABLE messages IN ACCESS EXCLUSIVE MODE')
+    const deps = buildSweepDeps(testGetDb)
+    const ctxPromise = deps.loadContext(dueRowFor(id), NOW, DAY_START)
+    await waitForBlockedBackends(1)
+    await assert.rejects(ctxPromise, expectQueryCanceled)
+  })
+  // Not resolved as skipped by anything: still claimed with a NULL
+  // resolved_at, recovering via reapStaleClaims per the spec's stranding
+  // semantics. The deadlines shrink how often the reaper is needed; they do
+  // not replace it.
+  const { rows } = await getPool().query(
+    'SELECT status, resolved_at FROM scheduled_wakeups WHERE id = $1',
+    [id],
+  )
+  assert.equal(rows[0].status, 'claimed')
+  assert.equal(rows[0].resolved_at, null)
 })
