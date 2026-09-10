@@ -435,14 +435,26 @@ export default function RootLayout() {
     <CookieConsentProvider>
       <SettingsProvider>
         <ThemeProvider>
-          <GlobalStateProvider>
-            <PersistQueryClientProvider
-              client={queryClient}
-              persistOptions={{
-                persister: kvStorePersister,
-                maxAge: 1000 * 60 * 60 * 24,
-              }}
-            >
+          {/*
+            PersistQueryClientProvider MUST stay above GlobalStateProvider.
+            GlobalStateProvider renders AppOrchestrator, whose useProactiveSync
+            and useProactiveNotificationRouting both call useQueryClient(); with
+            the query provider nested inside, those hooks threw "No QueryClient
+            set" during render and the app mounted a blank page on every
+            platform. queryClient and kvStorePersister are module singletons
+            (src/config/), so nothing here depends on global state being set up
+            first. Enforced by
+            app/__tests__/layoutProviderOrder.test.ts — new providers that call
+            useQueryClient() belong INSIDE this wrapper, not beside it.
+          */}
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister: kvStorePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            }}
+          >
+            <GlobalStateProvider>
               <SafeAreaProvider initialMetrics={initialWindowMetrics}>
                 <KeyboardProvider>
                   <StatusBar style="auto" />
@@ -451,8 +463,8 @@ export default function RootLayout() {
                   <CookiePreferencesModal />
                 </KeyboardProvider>
               </SafeAreaProvider>
-            </PersistQueryClientProvider>
-          </GlobalStateProvider>
+            </GlobalStateProvider>
+          </PersistQueryClientProvider>
         </ThemeProvider>
       </SettingsProvider>
     </CookieConsentProvider>

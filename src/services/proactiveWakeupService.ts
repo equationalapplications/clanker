@@ -1,33 +1,9 @@
-import { getApp } from '@react-native-firebase/app'
-import { getFunctions, httpsCallable } from '@react-native-firebase/functions'
-import { appCheckReady } from '~/config/firebaseConfig'
+import { appCheckReady, scheduleWakeupFn } from '~/config/firebaseConfig'
+import type { ScheduleWakeupRequest, ScheduleWakeupResponse } from './proactiveCallableTypes'
 
-export interface ScheduleWakeupRequest {
-  characterId: string
-  reason: string
-  remindAt: string
-  priority?: number
-  /**
-   * Client-minted stable operation identifier — required so retries from the
-   * same logical set_reminder collapse onto one server row. The edge executor
-   * mints one UUID per intent and reuses it on every retry.
-   */
-  opId: string
-}
-
-export interface ScheduleWakeupResponse {
-  ok: boolean
-  message: string
-  dueAt?: string
-}
-
-// Module-scope callable, mirroring proactiveSync's pattern: the orchestrator's
-// only collaborator surface is this file. The brief restricts edits to keep
-// firebaseConfig.ts untouched.
-const scheduleWakeupFn = httpsCallable<ScheduleWakeupRequest, ScheduleWakeupResponse>(
-  getFunctions(getApp(), 'us-central1'),
-  'scheduleWakeup',
-)
+// Re-exported so existing consumers (edgeToolExecutors) keep importing these
+// from the service they already depend on.
+export type { ScheduleWakeupRequest, ScheduleWakeupResponse }
 
 export async function scheduleWakeupViaCallable(
   request: ScheduleWakeupRequest,

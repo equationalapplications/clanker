@@ -3,6 +3,23 @@ const { defineConfig } = require('eslint/config')
 const expoConfig = require('eslint-config-expo/flat')
 const reactCompiler = require('eslint-plugin-react-compiler')
 
+// Both patterns are defined once and shared. `no-restricted-imports` is not
+// merged across flat-config objects — the last object matching a file replaces
+// the rule wholesale — so the exemption block below has to re-state every
+// pattern it still wants enforced. Sharing the objects keeps the two lists from
+// drifting apart.
+const EXPO_MEDIA_LIBRARY_PATTERN = {
+  group: ['expo-media-library', 'expo-media-library/*'],
+  message:
+    'expo-media-library crashes the web bundle at import time (native module, no web implementation). Import it only inside src/services/photoLibrarySaver.ts.',
+}
+
+const REACT_NATIVE_FIREBASE_PATTERN = {
+  group: ['@react-native-firebase/*'],
+  message:
+    "@react-native-firebase maintains a native-only app registry, separate from the web SDK's. In the web bundle it is empty, so getApp() throws \"No Firebase App '[DEFAULT]' has been created\" at import time and takes down every route. Take the callable from ~/config/firebaseConfig (the platform seam), or import this package only from a module that has a .web.ts twin.",
+}
+
 module.exports = defineConfig([
   expoConfig,
   reactCompiler.configs.recommended,
@@ -10,12 +27,23 @@ module.exports = defineConfig([
     ignores: ['dist/*', 'web-build/*', 'build-*.ipa', 'functions/*'],
   },
   {
+    // Both guarded packages break the web bundle at IMPORT time, which no test
+    // gate can catch: Jest resolves platform-seamed specifiers to the native
+    // twin, and tsc never sees Metro's resolution. These rules are the guard.
+    //
     // `expo-media-library`'s main entry calls requireNativeModule at import
-    // time with no web implementation, so any import reachable from the web
-    // bundle crashes clanker-ai.com at load. Jest resolves platform-seamed
-    // specifiers to the native twin and tsc never sees Metro's resolution, so
-    // no test gate would catch a reintroduction — this rule is the guard.
-    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    // time with no web implementation. `@react-native-firebase/*` reads a
+    // native app registry that is empty on web.
+    files: [
+      'src/**/*.ts',
+      'src/**/*.tsx',
+      'app/**/*.ts',
+      'app/**/*.tsx',
+      'components/**/*.ts',
+      'components/**/*.tsx',
+      'lib/**/*.ts',
+      'lib/**/*.tsx',
+    ],
     // `src/services/__tests__/**` covers the seam's own suites (they import
     // the package under its real subpath to verify the native twin's behavior).
     // `src/components/__tests__/ChatImageBubble.test.tsx` is a second carve-out
@@ -36,13 +64,42 @@ module.exports = defineConfig([
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: ['expo-media-library', 'expo-media-library/*'],
-              message:
-                'expo-media-library crashes the web bundle at import time (native module, no web implementation). Import it only inside src/services/photoLibrarySaver.ts.',
-            },
-          ],
+          patterns: [EXPO_MEDIA_LIBRARY_PATTERN, REACT_NATIVE_FIREBASE_PATTERN],
+        },
+      ],
+    },
+  },
+  {
+    // The modules that may reach @react-native-firebase directly. Each is the
+    // NATIVE half of a platform pair — a `.web.ts` twin exists beside it, so
+    // Metro never resolves these files into the web bundle — plus the two auth
+    // suites that assert against the native twin's behavior.
+    //
+    // `useBrowserActionApproval.ts` is the one entry here without a twin. It is
+    // exempt because its `getAuth()` sits inside a callback rather than at
+    // module scope, so it does not throw at import time the way the three
+    // proactive services did; it is a known gap, not an endorsement, and it
+    // should get a twin (or move to the seam) rather than stay on this list.
+    //
+    // These files stay subject to the expo-media-library pattern; only the
+    // @react-native-firebase pattern is lifted.
+    files: [
+      'src/config/firebaseConfig.ts',
+      'src/auth/appleSignin.ts',
+      'src/auth/googleSignin.ts',
+      'src/auth/syncDisplayName.ts',
+      'src/auth/__tests__/googleSignin.test.ts',
+      'src/auth/__tests__/syncDisplayName.test.ts',
+      'src/services/analyticsService.ts',
+      'src/services/crashlyticsService.ts',
+      'src/services/storageService.ts',
+      'src/hooks/useBrowserActionApproval.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [EXPO_MEDIA_LIBRARY_PATTERN],
         },
       ],
     },

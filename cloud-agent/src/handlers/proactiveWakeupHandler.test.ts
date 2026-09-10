@@ -229,23 +229,46 @@ test('character_missing refund failure does not double-refund', async () => {
 })
 
 test('downgrades notify to quiet when the sweeper forbade notifying', () => {
-  assert.deepEqual(resolveDeliveryMode('notify', false), {
+  assert.deepEqual(resolveDeliveryMode('notify', false, true), {
     mode: 'quiet',
     clampReason: 'guardrail',
   })
-  assert.deepEqual(resolveDeliveryMode('quiet', true), { mode: 'quiet', clampReason: null })
-  assert.deepEqual(resolveDeliveryMode('silent', true), { mode: 'silent', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('quiet', true, true), { mode: 'quiet', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('silent', true, true), { mode: 'silent', clampReason: null })
 })
 
-// TEMPORARY, paired with PROACTIVE_PUSH_ENABLED = false. Until the lifecycle
-// sync is wired, a push would deeplink into an empty local chat, so notify is
-// gated off even when the sweeper permits it. When the fast-follow un-gates
-// push, this assertion flips back to 'notify' — and the line above in the
-// sweeper-forbade test stays 'quiet' either way. The guardrail is checked
-// first, so while the gate is closed a guardrail-blocked notify is labelled
-// 'guardrail' (the tunable signal) and only guardrail-permitted ones 'gate'.
-test('gates notify off while the client sync is unwired', () => {
-  assert.deepEqual(resolveDeliveryMode('notify', true), { mode: 'quiet', clampReason: 'gate' })
+// Paired with PROACTIVE_PUSH_ENABLED = true. Guardrail still wins when the
+// sweeper forbade notifying (line above stays 'quiet'/'guardrail'); when the
+// sweeper permits, the open gate passes notify through unclamped and the
+// per-user flag is the only remaining suppression.
+test('passes notify through when the gate is open', () => {
+  assert.deepEqual(resolveDeliveryMode('notify', true, true), { mode: 'notify', clampReason: null })
+})
+
+// The gate is the documented incident-rollback lever ("Re-deploy required to
+// flip", see PROACTIVE_PUSH_ENABLED above), so its branch needs coverage even
+// while the gate is open in production — flipping the constant must not depend
+// on the branch never having been exercised since the un-gate. The injectable
+// fourth parameter exists for exactly this test; production callers never
+// pass it.
+test('clamps notify to quiet with clamp=gate when the gate is re-closed', () => {
+  // A flag-true, guardrail-permitted notify is suppressed by the gate alone.
+  assert.deepEqual(resolveDeliveryMode('notify', true, true, false), {
+    mode: 'quiet',
+    clampReason: 'gate',
+  })
+  // Guardrail still wins over the gate: a notify the sweeper forbade is
+  // labelled 'guardrail', keeping the tunable signal unambiguous even with
+  // the gate shut.
+  assert.deepEqual(resolveDeliveryMode('notify', false, true, false), {
+    mode: 'quiet',
+    clampReason: 'guardrail',
+  })
+  // Non-notify modes pass through a closed gate unclamped.
+  assert.deepEqual(resolveDeliveryMode('quiet', true, true, false), {
+    mode: 'quiet',
+    clampReason: null,
+  })
 })
 
 test('resolve records effective and chosen delivery modes as columns', async () => {
@@ -415,23 +438,11 @@ test('a guardrail-clamped notify stays quiet regardless of flag', async () => {
   assert.equal(pushed, false, 'guardrail-clamped notifies must not push regardless of flag')
 })
 
-// TEMPORARY inversion, paired with PROACTIVE_PUSH_ENABLED = false. This test
-// asserted that a push fires; while the client sync is unwired a push would
-// deeplink into an empty local chat, so the gate must suppress it even on the
-// happy path — notify allowed AND a real token present. The setup is left
-// intact so the production loadCharacter shape stays exercised (the token lives
-// on users, not characters; a plain characters select would leave it undefined
-// and every push would silently no-op).
-//
-// To un-gate: flip PROACTIVE_PUSH_ENABLED, restore the name to 'fires a push
-// when notify is allowed and the character carries an expoPushToken', and swap
-// the assertion block back to:
-//   assert.ok(pushed, 'expected sendCharacterProactive to be called')
-//   assert.equal(pushed.token, 'ExponentPushToken[abc]')
-//   assert.equal(pushed.charId, body.characterId)
-//   assert.equal(pushed.name, 'Ada')
-//   assert.equal(pushed.body, 'Hi')
-test('does not push while the gate is closed, even on the happy path', async () => {
+// Happy path with PROACTIVE_PUSH_ENABLED = true: a notify on a flag-true
+// character with a real token MUST fire the push. Production loadCharacter
+// shape is kept (token lives on users, not characters) so a plain characters
+// select would leave it undefined and every push would silently no-op.
+test('fires a push when notify is allowed and the character carries an expoPushToken', async () => {
   let pushed: { token: string; charId: string; name: string; body: string } | undefined
   const { app } = buildApp({
     loadCharacter: (async () => ({
@@ -460,9 +471,11 @@ test('does not push while the gate is closed, even on the happy path', async () 
     .post('/agent/proactive-wakeup')
     .send({ ...body, notifyAllowed: true })
   assert.equal(res.status, 200)
-  assert.equal(pushed, undefined, 'gate must suppress the push while sync is unwired')
-  // The turn itself still runs and is recorded — only delivery is withheld.
-  assert.equal(res.body.mode, 'quiet')
+  assert.ok(pushed, 'expected sendCharacterProactive to be called')
+  assert.equal(pushed!.token, 'ExponentPushToken[abc]')
+  assert.equal(pushed!.charId, body.characterId)
+  assert.equal(pushed!.name, 'Ada')
+  assert.equal(pushed!.body, 'Hi')
 })
 
 test('skips the push when the character has no expoPushToken', async () => {
@@ -573,11 +586,12 @@ test('resolveDeliveryMode clamps an un-gated notify for a flag-false user', () =
     mode: 'quiet',
     clampReason: 'guardrail',
   })
-  // While PROACTIVE_PUSH_ENABLED is false the gate still wins, so a flag-false
-  // user is indistinguishable from any other clamped notify today.
+  // With PROACTIVE_PUSH_ENABLED = true the gate is gone; the readiness flag is
+  // what suppresses a notify for a client that cannot sync/badge/deeplink.
+  // 'gate' would mean a closed global gate, which no longer describes this.
   assert.deepEqual(resolveDeliveryMode('notify', true, false), {
     mode: 'quiet',
-    clampReason: 'gate',
+    clampReason: 'flag',
   })
   // A non-notify mode is never clamped regardless of readiness.
   assert.deepEqual(resolveDeliveryMode('quiet', true, false), { mode: 'quiet', clampReason: null })
