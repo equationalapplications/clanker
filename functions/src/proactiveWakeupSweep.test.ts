@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  buildSweepDeps,
   proactiveWakeupSweep,
   proactiveWakeupSweepHandler,
   withStatementTimeout,
@@ -298,4 +299,115 @@ test('withStatementTimeout sets a transaction-local deadline and runs fn on the 
   assert.deepEqual(executed[0].params, ['500'])
   assert.match(executed[0].text, /set_config\('statement_timeout'/)
   assert.match(executed[0].text, /,\s*true\)\s*$/, 'is_local must be the literal true')
+})
+
+// One row object whose fields satisfy every shape loadContext destructures:
+// balance 1000 (passes the power check against turnCost 100), zero spend,
+// zero counts, and a valid Date so the Invalid-Date guard does not fire.
+const MAGIC_ROW = {
+  currentCredits: 1000,
+  total: 0,
+  count: 0,
+  lastAt: new Date('2026-09-01T00:00:00.000Z'),
+}
+
+// A drizzle-builder-shaped chainable: every method returns itself, awaiting
+// resolves to [MAGIC_ROW] for selects or an array with rowCount 1 for
+// update/delete (claim reads rowCount, reap/delete read .length). With
+// failDeadline set, a select whose transaction's set_config deadline matches
+// rejects with a 57014-shaped error — the server-side cancellation the real
+// deadline produces.
+function makeFakeDb(
+  setConfigCalls: unknown[][],
+  failDeadline: string | null = null,
+  dueRows = 1,
+) {
+  let selects = 0
+  const makeChain = (kind: string, rejects: boolean): unknown => {
+    const step: any = new Proxy(function () {} as never, {
+      get(_t, prop) {
+        if (prop === 'then') {
+          if (rejects) {
+            const err = new Error('canceling statement due to statement timeout') as Error & {
+              code?: string
+            }
+            err.code = '57014'
+            return (_resolve: unknown, reject: (e: unknown) => void) => reject(err)
+          }
+          // The first select of the sweep is always selectDue; hand back as
+          // many due rows as the test asked for. Every later select is one of
+          // loadContext's five reads — one MAGIC_ROW each.
+          const resolveValue =
+            kind === 'select'
+              ? (selects++, selects === 1 ? Array.from({ length: dueRows }, () => MAGIC_ROW) : [MAGIC_ROW])
+              : Object.assign([], { rowCount: 1 })
+          return (resolve: (v: unknown) => void) => Promise.resolve(resolveValue).then(resolve)
+        }
+        return () => step
+      },
+      apply() {
+        return step
+      },
+    })
+    return step
+  }
+  return {
+    transaction: async (cb: (tx: never) => Promise<unknown>) => {
+      const tx: Record<string, unknown> = new Proxy(
+        {},
+        {
+          get(_t, prop: string) {
+            if (prop === 'execute') {
+              return async (q: unknown) => {
+                setConfigCalls.push(paramsOf(q))
+                return { rows: [] }
+              }
+            }
+            return () =>
+              makeChain(prop, prop === 'select' && setConfigCalls.at(-1)?.[0] === failDeadline)
+          },
+        },
+      )
+      return cb(tx as never)
+    },
+  } as unknown as FakeDb
+}
+
+// buildSweepDeps's dbFactory param is optional, so a bare Parameters<>[0] is a
+// union with undefined; strip it before awaiting the return type.
+type SweepDbFactory = NonNullable<Parameters<typeof buildSweepDeps>[0]>
+type FakeDb = Awaited<ReturnType<SweepDbFactory>>
+
+function makeFakeDbFactory(
+  setConfigCalls: unknown[][],
+  opts: { failDeadline?: string; dueRows?: number } = {},
+) {
+  const db = makeFakeDb(setConfigCalls, opts.failDeadline ?? null, opts.dueRows ?? 1)
+  return async () => db
+}
+
+test('wraps every DB op in a transaction whose set_config carries the op deadline, is_local true', async () => {
+  const setConfigCalls: unknown[][] = []
+  const savedUrl = process.env.CLOUD_AGENT_URL
+  delete process.env.CLOUD_AGENT_URL // postWakeup must fail fast, never fetch
+  try {
+    await proactiveWakeupSweepHandler(buildSweepDeps(makeFakeDbFactory(setConfigCalls)))
+  } finally {
+    if (savedUrl !== undefined) process.env.CLOUD_AGENT_URL = savedUrl
+  }
+
+  // Handler order for one due row that passes the guardrails, whose POST then
+  // throws on the missing env (swallowed by the per-row catch):
+  //   selectDue 2000, claim 500, loadContext 1500, then the reap/delete tail.
+  // resolveWakeup never runs — no skip decision happened.
+  assert.deepEqual(
+    setConfigCalls.map((params) => params[0]),
+    ['2000', '500', '1500', '2000', '2000'],
+  )
+  // is_local is literal SQL text, not a bind param, so it is not in params —
+  // the Task 1 helper test pins it via sqlTextOf. Here the bind-param count
+  // pins the other half of the wiring: exactly one param per set_config.
+  for (const params of setConfigCalls) {
+    assert.equal(params.length, 1, 'set_config must bind only the deadline value')
+  }
 })
