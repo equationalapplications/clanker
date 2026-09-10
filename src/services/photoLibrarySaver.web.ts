@@ -34,18 +34,24 @@ export async function saveToPhotos(uri: string): Promise<PhotoSaveResult> {
     return 'failed'
   }
 
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
+  // The seam must never reject (its consumer renders the outcome from a
+  // notice map), so the download stage is guarded just like the fetch above.
   try {
-    anchor.href = url
-    anchor.download = filenameFor(uri)
-    document.body.appendChild(anchor)
-    anchor.click()
-  } finally {
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
+    const url = URL.createObjectURL(blob)
+    try {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filenameFor(uri)
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+    return 'downloaded'
+  } catch {
+    return 'failed'
   }
-  return 'downloaded'
 }
 
 // Compile-time guard: both platform twins must expose the same surface (same

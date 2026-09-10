@@ -73,4 +73,16 @@ describe('saveToPhotos (web twin)', () => {
 
     expect(mockAnchorClick).not.toHaveBeenCalled()
   })
+
+  it('maps a download-stage failure to failed instead of rejecting', async () => {
+    mockCreateObjectURL.mockImplementation(() => {
+      throw new Error('no object URLs')
+    })
+
+    await expect(saveToPhotos('https://example.com/master.webp')).resolves.toBe('failed')
+
+    expect(mockAnchorClick).not.toHaveBeenCalled()
+    // Nothing was ever created, so there is nothing to revoke either.
+    expect(mockRevokeObjectURL).not.toHaveBeenCalled()
+  })
 })

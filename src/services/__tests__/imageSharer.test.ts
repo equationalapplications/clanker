@@ -12,7 +12,9 @@ jest.mock('expo-file-system', () => {
     uri: string
     static readonly deleteCalls = jest.fn()
     constructor(_dir: unknown, name: string) {
-      this.uri = `/cache/photo-share/${name}`
+      // Real File instances always carry the file:// scheme — the fake must
+      // too, since the Android share bridge rejects anything else.
+      this.uri = `file:///cache/photo-share/${name}`
       void _dir
     }
     async delete(): Promise<void> {
@@ -35,7 +37,16 @@ const fakeFs = File as unknown as typeof File & {
 }
 
 describe('shareImage (native)', () => {
-  beforeEach(() => jest.clearAllMocks())
+  // clearAllMocks only resets call history, NOT implementations — a
+  // mockRejectedValue left over from one test would silently reroute a later
+  // test through the wrong failure path, so reset the implementations the
+  // failure tests below override.
+  beforeEach(() => {
+    jest.clearAllMocks()
+    fakeFs.downloadFileAsync.mockReset().mockResolvedValue(undefined)
+    ;(Sharing.isAvailableAsync as jest.Mock).mockReset().mockResolvedValue(true)
+    ;(Sharing.shareAsync as jest.Mock).mockReset()
+  })
 
   it('shares a local file URI as-is with the image mime type', async () => {
     await expect(shareImage('file:///cache/master.webp')).resolves.toBe('shared')
@@ -58,7 +69,7 @@ describe('shareImage (native)', () => {
     // Shared from the staged file:// URI, never the remote URL — the native
     // bridge rejects anything but file://.
     const stagedUri = (Sharing.shareAsync as jest.Mock).mock.calls[0][0] as string
-    expect(stagedUri).toMatch(/^\/cache\/photo-share\/share_.*\.webp$/)
+    expect(stagedUri).toMatch(/^file:\/\/\/cache\/photo-share\/share_.*\.webp$/)
     expect(fakeFs.downloadFileAsync).toHaveBeenCalledWith(expect.stringMatching(/^https:/), {
       uri: stagedUri,
     })
@@ -88,6 +99,10 @@ describe('shareImage (native)', () => {
 
     await expect(shareImage('https://example.com/master.webp')).resolves.toBe('failed')
 
+    // Proves this test exercised the share-bridge path and not a leftover
+    // staging failure — staging must have succeeded for the sheet to open.
+    expect(fakeFs.downloadFileAsync).toHaveBeenCalled()
+    expect(Sharing.shareAsync).toHaveBeenCalled()
     expect(fakeFs.deleteCalls).toHaveBeenCalled()
   })
 

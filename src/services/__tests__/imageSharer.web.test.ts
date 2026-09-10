@@ -109,4 +109,16 @@ describe('shareImage (web twin)', () => {
     expect(mockShare).not.toHaveBeenCalled()
     expect(mockAnchorClick).not.toHaveBeenCalled()
   })
+
+  it('maps a download-fallback failure to failed instead of rejecting', async () => {
+    mockCanShare.mockReturnValue(false)
+    mockCreateObjectURL.mockImplementation(() => {
+      throw new Error('no object URLs')
+    })
+
+    await expect(shareImage('https://example.com/master.webp')).resolves.toBe('failed')
+
+    expect(mockShare).not.toHaveBeenCalled()
+    expect(mockAnchorClick).not.toHaveBeenCalled()
+  })
 })

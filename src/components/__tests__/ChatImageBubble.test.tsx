@@ -35,7 +35,9 @@ jest.mock('expo-file-system', () => {
     uri: string
     static readonly deleteCalls = jest.fn()
     constructor(_dir: unknown, name: string) {
-      this.uri = `/cache/photo-share/${name}`
+      // Real File instances always carry the file:// scheme — the fake must
+      // too, since the Android share bridge rejects anything else.
+      this.uri = `file:///cache/photo-share/${name}`
       void _dir
     }
     async delete(): Promise<void> {
@@ -76,8 +78,10 @@ describe('ChatImageBubble viewer actions', () => {
     jest.clearAllMocks()
     // clearAllMocks resets call history but NOT implementations — the
     // no-share-sheet test below overrides this default with false, which
-    // would otherwise poison every later test in this file.
+    // would otherwise poison every later test in this file. Same for the
+    // staging-failure test's mockRejectedValue on the download.
     ;(Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true)
+    fakeShareFs.downloadFileAsync.mockReset().mockResolvedValue(undefined)
   })
 
   it('saves the resolved master to the photo library after an add-only grant', async () => {
@@ -168,8 +172,9 @@ describe('ChatImageBubble viewer actions', () => {
       await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalled())
       const sharedUri = (Sharing.shareAsync as jest.Mock).mock.calls[0][0] as string
       // The Android bridge rejects anything but file://, so the raw URL would
-      // fail — the original bug.
-      expect(sharedUri).not.toMatch(/^https?:/)
+      // fail — the original bug. Assert the required scheme, not just the
+      // absence of http(s).
+      expect(sharedUri).toMatch(/^file:\/\//)
       expect(sharedUri).toMatch(/share_.*\.webp$/)
       expect(fakeShareFs.downloadFileAsync).toHaveBeenCalledWith(expect.stringMatching(/^https:/), {
         uri: sharedUri,
