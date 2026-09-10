@@ -320,6 +320,7 @@ const MAGIC_ROW = {
 function makeFakeDb(setConfigCalls: unknown[][], failDeadline: string | null = null, dueRows = 1) {
   let selects = 0
   const makeChain = (kind: string, rejects: boolean): unknown => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const step: any = new Proxy(function () {} as never, {
       get(_t, prop) {
         if (prop === 'then') {
