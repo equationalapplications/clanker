@@ -19,7 +19,13 @@ import { PROACTIVE_SYNC_CURSOR_KEY } from '~/constants/proactive'
 import { syncProactiveMessages } from '../proactiveSync'
 
 const mockCallable = jest.fn()
-const mockApplyProactiveMessages = jest.fn(async () => {})
+// Returns the LOCAL character ids it wrote under, mirroring the real
+// implementation. The default stands in for the no-divergence case (local id
+// == cloud id), so the identity mapping keeps the existing touched-id
+// assertions meaningful; a test can override it to simulate divergence.
+const mockApplyProactiveMessages = jest.fn(async (payload: { characterId: string }[] = []) =>
+  Array.from(new Set(payload.map((m) => m.characterId))),
+)
 const mockSetSyncCursor = jest.fn(async () => {})
 let mockStoredCursor: { createdAt: string; messageId: string } | null = null
 

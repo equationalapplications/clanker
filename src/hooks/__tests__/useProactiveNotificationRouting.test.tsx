@@ -51,6 +51,17 @@ jest.mock('~/services/proactiveMarkReadService', () => ({
   markProactiveReadViaCallable: jest.fn(),
 }))
 
+// Cloud UUID -> local id. Defaults to identity (no divergence); tests that
+// exercise the mapping register an entry.
+const mockLocalIds = new Map<string, string>()
+const mockThrowingIds = new Set<string>()
+jest.mock('~/database/characterDatabase', () => ({
+  resolveLocalCharacterId: async (cloudId: string) => {
+    if (mockThrowingIds.has(cloudId)) throw new Error('simulated DB error')
+    return mockLocalIds.get(cloudId) ?? cloudId
+  },
+}))
+
 function response(data: unknown, identifier = 'notif-1') {
   return { notification: { request: { identifier, content: { data } } } }
 }
@@ -77,12 +88,15 @@ beforeEach(() => {
   mockMarkLocally.mockResolvedValue([])
 })
 
-it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger non-blocking', () => {
+it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger non-blocking', async () => {
   const { Wrapper } = createWrapper()
   renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
+  // triggerSync still fires synchronously; only the push waits on the
+  // cloud->local id resolve (one local SQLite read), so it lands a microtask
+  // later than it used to.
   expect(triggerSync).toHaveBeenCalledTimes(1)
-  expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc')
+  await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc'))
 })
 
 it('ignores a wrong type', () => {
@@ -153,7 +167,7 @@ it('ignores a cold-start notification of the wrong shape and leaves the response
   expect(mockClearLast).not.toHaveBeenCalled()
 })
 
-it('does not route the same response identifier twice (listener + useLastNotificationResponse)', () => {
+it('does not route the same response identifier twice (listener + useLastNotificationResponse)', async () => {
   // Cold-start: useLastNotificationResponse fires first, captures the response
   // and routes it. A duplicate tap on the same notification (same identifier)
   // then arrives via the listener — must dedupe so the chat route isn't
@@ -164,7 +178,7 @@ it('does not route the same response identifier twice (listener + useLastNotific
     'dup-id',
   )
   renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
-  expect(mockRouterPush).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(mockRouterPush).toHaveBeenCalledTimes(1))
   expect(triggerSync).toHaveBeenCalledTimes(1)
   expect(mockClearLast).toHaveBeenCalledTimes(1)
 
@@ -174,11 +188,14 @@ it('does not route the same response identifier twice (listener + useLastNotific
   responseListener!(
     response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'dup-id'),
   )
+  // Dedupe is still decided synchronously, so a flush of the microtask queue
+  // must not produce a second push.
+  await Promise.resolve()
   expect(mockRouterPush).toHaveBeenCalledTimes(1)
   expect(triggerSync).toHaveBeenCalledTimes(1)
 })
 
-it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', () => {
+it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', async () => {
   const { Wrapper } = createWrapper()
   renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(
@@ -187,7 +204,7 @@ it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', () =>
   responseListener!(
     response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'id-2'),
   )
-  expect(mockRouterPush).toHaveBeenCalledTimes(2)
+  await waitFor(() => expect(mockRouterPush).toHaveBeenCalledTimes(2))
   expect(triggerSync).toHaveBeenCalledTimes(2)
 })
 
@@ -224,4 +241,99 @@ it('does not mark the thread read when triggerSync returns void', async () => {
   await new Promise((res) => setTimeout(res, 10))
   expect(syncVoid).toHaveBeenCalledTimes(1)
   expect(mockMarkLocally).not.toHaveBeenCalled()
+})
+
+/**
+ * Regression: the push payload's deepLink carries the SERVER character UUID,
+ * but `/chat/<id>` is validated by useTabCharacterId against the set of LOCAL
+ * character ids, and markProactiveReadLocally filters on the local id too. A
+ * diverged character therefore routed to a dead id and marked nothing read.
+ */
+describe('cloud->local character id resolution', () => {
+  beforeEach(() => {
+    mockLocalIds.clear()
+    mockThrowingIds.clear()
+  })
+
+  it('routes to the LOCAL chat id, not the cloud id from the deepLink', async () => {
+    mockLocalIds.set('cloud-uuid-9', 'char_local9')
+    const { Wrapper } = createWrapper()
+    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+      wrapper: Wrapper,
+    })
+
+    responseListener?.(
+      response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/cloud-uuid-9' }),
+    )
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/char_local9'))
+    unmount()
+  })
+
+  it('marks the LOCAL thread read after the sync resolves', async () => {
+    mockLocalIds.set('cloud-uuid-8', 'char_local8')
+    mockMarkLocally.mockResolvedValue(['m1'])
+    const { Wrapper } = createWrapper()
+    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+      wrapper: Wrapper,
+    })
+
+    responseListener?.(
+      response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/cloud-uuid-8' }, 'notif-8'),
+    )
+
+    await waitFor(() => expect(triggerSyncPending.resolve).not.toBeNull())
+    triggerSyncPending.resolve?.()
+
+    await waitFor(() =>
+      expect(mockMarkLocally).toHaveBeenCalledWith('char_local8', expect.anything()),
+    )
+    unmount()
+  })
+
+  it('falls back to the deepLink id when the character has no local row', async () => {
+    const { Wrapper } = createWrapper()
+    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+      wrapper: Wrapper,
+    })
+
+    responseListener?.(
+      response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/cloud-orphan' }, 'notif-7'),
+    )
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/cloud-orphan'))
+    unmount()
+  })
+
+  // Regression (CodeRabbit finding on the cloud->local fix): a thrown lookup
+  // (DB error, getDatabase timeout, getFirstAsync failure) must not push the
+  // unresolved cloud id — /chat/<id> is validated against the set of local
+  // ids and would land on a dead route. Fall back to the chat index and skip
+  // the post-sync mark-read, since there is no local id to target.
+  it('falls back to /chat index when resolveLocalCharacterId throws', async () => {
+    mockThrowingIds.add('cloud-db-fail')
+    const { Wrapper } = createWrapper()
+    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+      wrapper: Wrapper,
+    })
+
+    responseListener?.(
+      response(
+        { type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/cloud-db-fail' },
+        'notif-throw',
+      ),
+    )
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat'))
+    expect(mockRouterPush).not.toHaveBeenCalledWith(expect.stringContaining('/chat/cloud-db-fail'))
+
+    // The post-sync mark-read targets the local id; with no local id there
+    // is nothing to mark, so it must not fire — and triggerSync still runs
+    // so the unread state catches up on the next mount.
+    triggerSyncPending.resolve?.()
+    await new Promise((res) => setTimeout(res, 10))
+    expect(mockMarkLocally).not.toHaveBeenCalled()
+    expect(triggerSync).toHaveBeenCalledTimes(1)
+    unmount()
+  })
 })

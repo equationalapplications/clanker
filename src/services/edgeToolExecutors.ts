@@ -1,3 +1,4 @@
+import { reminderOpIdCanonical } from '../../shared/reminderOpId'
 import { readFromWiki, writeToWiki } from './wikiService'
 import type { Wiki } from './wikiService'
 import {
@@ -18,25 +19,10 @@ import * as Crypto from 'expo-crypto'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
 
-/**
- * Canonical string for a set_reminder operation. Both the edge executor and
- * the cloud-agent's escalated set_reminder produce identical bytes here, so the
- * opId they hash agrees across the two paths. `remindAt` is the raw ISO string
- * from the model — NOT a parsed Date — because Date#toISOString normalises the
- * offset to "Z" while the edge input may carry "+02:00", and the two would hash
- * to different bytes for the same wall-clock moment.
- *
- * Mirrored in cloud-agent/src/tools/reminders.ts (kept identical by hand; the
- * two packages do not share code).
- */
-export function reminderOpIdCanonical(args: {
-  characterId: string
-  reason: string
-  remindAt: string
-  priority?: number
-}): string {
-  return `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
-}
+// One definition, shared with cloud-agent's escalated set_reminder — the two
+// entry points must hash identical bytes. Re-exported because this module is
+// where callers and tests already reach for it.
+export { reminderOpIdCanonical }
 
 /**
  * Deterministic operation id: same (character, reason, remindAt, priority) →
@@ -44,7 +30,9 @@ export function reminderOpIdCanonical(args: {
  * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
  * double-fire. SHA-256 over the canonical string — 256 bits of entropy, well
  * above the FNV-1a 32-bit budget that collided on a real test corpus. Uses
- * expo-crypto so it is Hermes-safe in the React Native runtime.
+ * expo-crypto so it is Hermes-safe in the React Native runtime. cloud-agent
+ * hashes the same canonical string with node:crypto — only the hashing differs,
+ * which is why reminderOpIdCanonical is the part that is shared.
  */
 export async function deriveOpId(args: {
   characterId: string

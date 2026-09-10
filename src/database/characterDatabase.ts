@@ -470,3 +470,26 @@ export async function batchInsertCharacters(characters: LocalCharacter[]) {
     }
   })
 }
+
+/**
+ * Resolve a SERVER character UUID to the LOCAL `characters.id` that mirrors it.
+ *
+ * Proactive pushes and the proactive sync payload both key on the cloud id,
+ * while every local reader — the chat thread query, countUnreadProactive,
+ * markProactiveReadLocally, and the `/chat/<id>` route that useTabCharacterId
+ * validates against the set of local ids — keys on the local one. The two
+ * diverge for every locally-created-then-uploaded character (`char_<uuid>`
+ * local id, server UUID in `cloud_id`) and every imported character.
+ *
+ * Returns the input unchanged when no local row carries that `cloud_id`: the
+ * character has not synced down yet, and restoreFromCloud materialises such a
+ * row under the cloud id itself, so the id is still the best guess available.
+ */
+export async function resolveLocalCharacterId(cloudId: string): Promise<string> {
+  const db = await getDatabase()
+  const row = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM characters WHERE cloud_id = ? LIMIT 1',
+    [cloudId],
+  )
+  return row?.id ?? cloudId
+}

@@ -12,12 +12,14 @@ graph LR
   AvatarPicker --> characterImageSyncService
   AvatarPicker --> characterImageService
   CharacterCard --> useResolvedImage
+  CharacterCard --> useProactiveUnread
   ChatComposer --> useChatPhotoUpload
   ChatComposer --> useCharacterWiki
   ChatComposer --> documentMimeTypes
   ChatComposer --> apiClient
   ChatImageBubble --> useResolvedImage
   ChatImageBubble --> photoLibrarySaver
+  ChatView --> useMarkProactiveReadOnOpen
   ChatView --> usePowerBalance
   ChatView --> useAIChat
   ChatView --> useResolvedImage
@@ -49,4 +51,36 @@ graph LR
   ThemeProvider --> SettingsContext
   ConfirmationModal --> confirmationValidation
   UserActionPanel --> renewalDateValidation
+  AcceptTerms --> Logo
+  AcceptTerms --> Button
+  AvatarPicker --> Button
+  CharacterCard --> CharacterAvatar
+  ChatComposer --> Button
+  ChatInputBar --> ChatComposer
+  ChatInputBar --> SendButton
+  ChatView --> CharacterAvatar
+  ChatView --> LowPowerBanner
+  ChatView --> MessageList
+  ChatView --> ChatInputBar
+  CombinedSubscriptionButton --> SubscriptionInfoButton
+  CombinedSubscriptionButton --> SubscribeButton
+  ConfirmationModal --> Button
+  CreditsDisplay --> LoadingIndicator
+  CreditsDisplay --> Button
+  GroundingFooter --> GroundingHtml
+  HeroSection --> Button
+  HeroSection --> StyledText
+  index --> HeroSection
+  index --> VideoSection
+  index --> FeaturesSection
+  index --> LandingFooter
+  ManualDobPicker --> Button
+  MessageBubble --> MessageText
+  MessageBubble --> ChatImageBubble
+  MessageBubble --> GroundingFooter
+  MessageList --> MessageRow
+  MessageRow --> MessageBubble
+  SubscribeButton --> Button
+  SubscriptionInfoButton --> Button
+  UserActionPanel --> Button
 ```

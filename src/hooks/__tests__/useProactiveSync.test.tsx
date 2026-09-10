@@ -241,3 +241,39 @@ describe('useProactiveSync', () => {
     await waitFor(() => expect(mockFlush).toHaveBeenCalledWith(mockMarkReadCall))
   })
 })
+
+/**
+ * Regression: `inFlightRef` deduped by presence alone, not by user. On a
+ * logout->login while a sync was still running, the new user's cold-start
+ * effect saw the PREVIOUS user's promise and returned it, so the new user's
+ * first sync never started until an unrelated foreground or push event.
+ */
+describe('user switch while a sync is in flight', () => {
+  it('starts a sync for the new user instead of returning the old one', async () => {
+    let resolveFirst: ((v: string[]) => void) | undefined
+    mockSync.mockImplementationOnce(
+      () =>
+        new Promise<string[]>((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+
+    const { Wrapper } = createWrapper()
+    const { rerender } = renderHook(({ uid }: { uid: string }) => useProactiveSync(uid), {
+      wrapper: Wrapper,
+      initialProps: { uid: 'user-a' },
+    })
+
+    await waitFor(() => expect(mockSync).toHaveBeenCalledWith('user-a'))
+    expect(resolveFirst).toBeDefined()
+
+    // user-a's sync is still pending when user-b logs in.
+    rerender({ uid: 'user-b' })
+
+    await waitFor(() => expect(mockSync).toHaveBeenCalledWith('user-b'))
+
+    await act(async () => {
+      resolveFirst?.([])
+    })
+  })
+})

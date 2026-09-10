@@ -205,6 +205,22 @@ function RootLayoutNav() {
         .then(({ syncAllToCloud }) => syncAllToCloud())
         .then(() => characterService.send({ type: 'LOAD' }))
         .catch((err) => console.warn('Background sync failed:', err))
+
+      // Proactive read receipts are queued durably when the tap happens
+      // offline. Their only other flush points are foreground and the next
+      // sync, so a user who drops and regains network without ever
+      // backgrounding the app would strand them — and a dropped receipt makes
+      // the server suppress every future push from that character. Flushed
+      // independently of the character sync so one failing does not skip the
+      // other.
+      void Promise.all([
+        import('~/services/proactiveReadQueue'),
+        import('~/services/proactiveMarkReadService'),
+      ])
+        .then(([{ flushMarkReadQueue }, { markProactiveReadViaCallable }]) =>
+          flushMarkReadQueue(markProactiveReadViaCallable),
+        )
+        .catch((err) => console.warn('Mark-read flush on reconnect failed:', err))
     })
     return unsubscribe
   }, [characterService])

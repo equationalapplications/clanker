@@ -84,8 +84,9 @@ export async function syncProactiveMessages(userId: string): Promise<string[]> {
       return Array.from(touchedCharacterIds)
     }
 
+    let appliedLocalIds: string[] = []
     await db.withTransactionAsync(async () => {
-      await applyProactiveMessages(messages, userId, db)
+      appliedLocalIds = await applyProactiveMessages(messages, userId, db)
       // Cursor advance inside the same transaction as the inserts. A crash
       // mid-page rolls both back — no message is skipped, no cursor drift.
       // On a final page the server omits nextCursor, so advance to the last
@@ -102,8 +103,12 @@ export async function syncProactiveMessages(userId: string): Promise<string[]> {
 
     // Recorded only after the transaction commits, so a rolled-back page never
     // reports threads it did not actually write.
-    for (const msg of messages) {
-      touchedCharacterIds.add(msg.characterId)
+    // applyProactiveMessages resolves the wire payload's cloud character UUID
+    // to the LOCAL characters.id it actually wrote under. Adding msg.characterId
+    // here instead would invalidate cache keys that no query ever uses for any
+    // character whose local id diverges from its cloud_id.
+    for (const localId of appliedLocalIds) {
+      touchedCharacterIds.add(localId)
     }
 
     if (!nextCursor) {
