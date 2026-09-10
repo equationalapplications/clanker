@@ -1,0 +1,79 @@
+/**
+ * Web image-share seam.
+ *
+ * `navigator.share` can take real file bytes, but only when handed `File`
+ * objects — sharing the raw URL (what expo-sharing's web build does) just
+ * posts an expiring, tokenized Storage link to the target app. So the bytes
+ * are fetched first; when the browser cannot share files at all, the twin
+ * degrades to a plain download. Dismissing the native sheet rejects with
+ * `AbortError` — mapped to `cancelled`, not a failure notice.
+ */
+
+import type { ImageSharer, ImageShareResult } from './imageSharer.types'
+
+export type { ImageShareResult }
+
+function mimeTypeFor(uri: string): string {
+  switch (/\.([A-Za-z0-9]{2,5})(?=[?#]|$)/.exec(uri)?.[1]?.toLowerCase()) {
+    case 'png':
+      return 'image/png'
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    default:
+      return 'image/webp'
+  }
+}
+
+/** Last path segment, decoded (Storage URLs percent-encode `users%2F…`). */
+function filenameFor(uri: string): string {
+  try {
+    const segments = decodeURIComponent(new URL(uri).pathname).split('/')
+    const last = segments[segments.length - 1]
+    if (last && /\.[A-Za-z0-9]{2,5}$/.test(last)) return last
+  } catch {
+    // Fall through to the generic name for unparseable URIs.
+  }
+  return 'image.webp'
+}
+
+export async function shareImage(uri: string): Promise<ImageShareResult> {
+  let blob: Blob
+  try {
+    const response = await fetch(uri)
+    if (!response.ok) return 'failed'
+    blob = await response.blob()
+  } catch {
+    return 'failed'
+  }
+
+  const file = new File([blob], filenameFor(uri), { type: blob.type || mimeTypeFor(uri) })
+
+  if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] })
+      return 'shared'
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return 'cancelled'
+      return 'failed'
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  try {
+    anchor.href = url
+    anchor.download = filenameFor(uri)
+    document.body.appendChild(anchor)
+    anchor.click()
+  } finally {
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+  }
+  return 'downloaded'
+}
+
+// Compile-time guard: both platform twins must expose the same surface (same
+// pattern as localImageStore).
+const _typeCheck: ImageSharer = { shareImage }
+void _typeCheck
