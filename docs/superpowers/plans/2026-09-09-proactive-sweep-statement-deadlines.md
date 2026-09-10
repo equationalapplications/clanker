@@ -4,7 +4,12 @@
 
 **Goal:** Bound the proactive sweep's `claim` and `loadContext` (and a default for the other DB ops) with transaction-scoped `statement_timeout` deadlines so one hung statement aborts while the sweep still finishes its batch, with unit and integration regression tests proving it.
 
-**Architecture:** A `withStatementTimeout(db, deadlineMs, fn)` helper wraps each op's queries in a transaction that first runs `set_config('statement_timeout', ms, is_local => true)`. `is_local = true` reverts the setting at COMMIT/ROLLBACK, so the deadline never leaks onto the shared `getDb()` pool. Postgres cancels the offending statement server-side (SQLSTATE `57014`), the connection stays usable, and the error lands in the sweep's existing per-row catch — stranding semantics are unchanged; only the window shrinks.
+**Architecture:** A `withStatementTimeout(db, deadlineMs, fn)` helper wraps each op's queries in a transaction that first runs `set_config('statement_timeout', ms, is_local => true)`. `is_local = true` reverts the setting at COMMIT/ROLLBACK, so the deadline never leaks onto the shared `getDb()` pool. Postgres cancels the offending statement server-side (SQLSTATE `57014`) and the connection stays usable.
+
+The six sweep ops fall into two groups by WHERE the per-row try/catch sits:
+
+- `claim` and `loadContext` run INSIDE the per-row loop's try/catch — their 57014 lands in the per-row catch and strands the row (claimed, NULL `resolved_at`) for the reaper, exactly as the prior dead-letter behaviour.
+- `selectDue`, `reapStaleClaims`, and `deleteExpired` run OUTSIDE that loop (selectDue at the top of the sweep, the other two as the sweep's tail). They are still wrapped in `withStatementTimeout` with `SWEEP_STATEMENT_DEFAULT_MS`, so a hung statement is cancelled server-side, but their 57014 propagates to whatever wraps the sweep body — NOT into the per-row catch. That is intentional: the tail statements have no row to strand, and the per-sweep try/catch in `proactiveWakeupSweep.ts` is what bounds them. Stranding semantics are unchanged; only the window shrinks.
 
 **Tech Stack:** TypeScript, drizzle-orm (`node-postgres` driver, already a dependency), node:test for both unit and integration suites (this is the `functions` package convention — Jest syntax is DOA here).
 
@@ -135,9 +140,14 @@ In `functions/src/services/proactiveWakeupGuardrails.ts`, insert after the `SWEE
 export const CLAIM_DEADLINE_MS = 500
 
 /**
- * `loadContext` as a whole — all five SELECTs inside one transaction, which
- * also gives its reads a single snapshot: the spend/count rows it reads can no
- * longer shift underneath decideWakeup mid-row.
+ * `loadContext` — applied PER-STATEMENT, not per-call. All five SELECTs run
+ * inside one transaction, but Postgres' default READ COMMITTED isolation
+ * gives each its own statement snapshot, not one snapshot for the whole
+ * transaction — so the spend/count rows can shift between the first and last
+ * read. What the transaction DOES give them is atomicity: if a deadline
+ * cancels a later SELECT, the rolled-back transaction leaves the database
+ * untouched. The wall-clock budget for the worst case is 5 × 1500ms =
+ * 7500ms, which `SWEEP_RESERVE_MS` (derived below) already covers.
  */
 export const LOAD_CONTEXT_DEADLINE_MS = 1_500
 
@@ -147,7 +157,7 @@ export const SWEEP_STATEMENT_DEFAULT_MS = 2_000
 
 Also update one sentence in the `SWEEP_RESERVE_MS` doc comment (currently lines 68-71). Change:
 
-```
+```text
  * Pathological hangs in claim/loadContext are bounded by the
  * pool-wide statement_timeout in db/cloudSql.ts, not by this reserve: a hung
  * statement aborts, the row throws into the per-row catch, and the sweep
@@ -156,7 +166,7 @@ Also update one sentence in the `SWEEP_RESERVE_MS` doc comment (currently lines 
 
 to:
 
-```
+```text
  * Pathological hangs in claim/loadContext are bounded by the
  * per-op statement deadlines below (via withStatementTimeout), not by this
  * reserve: a hung statement aborts, the row throws into the per-row catch, and
@@ -652,6 +662,12 @@ Expected: PASS — the two new tests take ~0.5s (claim) and ~1.5s (loadContext) 
 
 Run: `cd functions && npm test`
 Expected: PASS — the whole functions suite, including both new/updated files.
+
+Run: `cd functions && npm run typecheck`
+Expected: no errors.
+
+Run: `cd functions && npm run lint`
+Expected: no errors.
 
 Run: `npx prettier --check functions/src/proactiveWakeupSweep.ts functions/src/proactiveWakeupSweep.test.ts functions/src/services/proactiveWakeupGuardrails.ts functions/src/integration/proactiveWakeupSweep.int.test.ts`
 Expected: clean. (If it flags files, format them in a formatting-only commit — never mixed with logic, per the CI-isolation rule.)

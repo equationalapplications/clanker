@@ -91,7 +91,7 @@ In BOTH `functions/src/db/schema.ts` and `cloud-agent/src/db/schema.ts`, inside 
 
 - [ ] **Step 4: Typecheck both packages**
 
-Run: `cd functions && npx tsc --noEmit && cd ../cloud-agent && npx tsc --noEmit`
+Run: `cd functions && npm run typecheck && cd ../cloud-agent && npm run typecheck`
 Expected: no errors.
 
 - [ ] **Step 5: Apply locally and verify the column** (requires the local docker Postgres running — see `docker-compose.local.yml`; if it is not running, start it first)
@@ -150,7 +150,8 @@ function buildDeps(overrides: Partial<ScheduleWakeupDeps> = {}): ScheduleWakeupD
     } as ScheduleWakeupDeps['userRepository'],
     characterOwnedBy: async (characterId) => characterId === 'char-owned',
     todaysProactiveSpend: async () => 0,
-    insertWakeup: async () => {},
+    insertWakeup: async () => true,
+    findWakeupDueAt: async () => null,
     ...overrides,
   }
 }
@@ -169,7 +170,12 @@ test('rejects unauthenticated calls', async () => {
 test('rejects a characterId the caller does not own', async () => {
   await assert.rejects(
     scheduleWakeupHandler(
-      authedRequest({ characterId: 'char-other', reason: 'r', remindAt: futureIso() }),
+      authedRequest({
+        characterId: 'char-other',
+        reason: 'r',
+        remindAt: futureIso(),
+        opId: 'op-test',
+      }),
       buildDeps(),
     ),
     (e: unknown) => e instanceof HttpsError && e.code === 'permission-denied',
@@ -179,7 +185,12 @@ test('rejects a characterId the caller does not own', async () => {
 test('rejects an unknown user', async () => {
   await assert.rejects(
     scheduleWakeupHandler(
-      authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
+      authedRequest({
+        characterId: 'char-owned',
+        reason: 'r',
+        remindAt: futureIso(),
+        opId: 'op-test',
+      }),
       buildDeps({ userRepository: { findUserByFirebaseUid: async () => null } as never }),
     ),
     (e: unknown) => e instanceof HttpsError && e.code === 'not-found',
@@ -188,7 +199,12 @@ test('rejects an unknown user', async () => {
 
 test('rejects an empty reason', async () => {
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: '   ', remindAt: futureIso() }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: '   ',
+      remindAt: futureIso(),
+      opId: 'op-test',
+    }),
     buildDeps(),
   )
   assert.equal(result.ok, false)
@@ -199,7 +215,12 @@ test('rejects remind_at in the past against the SERVER clock', async () => {
   // A client with a skewed clock must not be able to insert immediately-due rows.
   const skewedPast = new Date(Date.now() - 60_000).toISOString()
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: skewedPast }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: 'r',
+      remindAt: skewedPast,
+      opId: 'op-test',
+    }),
     buildDeps(),
   )
   assert.equal(result.ok, false)
@@ -208,21 +229,42 @@ test('rejects remind_at in the past against the SERVER clock', async () => {
 
 test('rejects an unparseable remind_at', async () => {
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: 'not-a-date' }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: 'r',
+      remindAt: 'not-a-date',
+      opId: 'op-test',
+    }),
     buildDeps(),
   )
   assert.equal(result.ok, false)
   assert.equal(result.message, 'Not scheduled: remind_at must be an ISO 8601 datetime.')
 })
 
+test('rejects a missing opId (required for retry dedupe)', async () => {
+  await assert.rejects(
+    scheduleWakeupHandler(
+      authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
+      buildDeps(),
+    ),
+    (e: unknown) => e instanceof HttpsError && e.code === 'invalid-argument',
+  )
+})
+
 test('returns the vague-limit refusal at the ceiling and inserts nothing', async () => {
   const inserted: unknown[] = []
   const result = await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: 'r',
+      remindAt: futureIso(),
+      opId: 'op-test',
+    }),
     buildDeps({
       todaysProactiveSpend: async () => 500,
       insertWakeup: async (row) => {
         inserted.push(row)
+        return false
       },
     }),
   )
@@ -233,19 +275,22 @@ test('returns the vague-limit refusal at the ceiling and inserts nothing', async
   assert.equal(inserted.length, 0)
 })
 
-test('success inserts a pending row with minted id/runKey and returns the due time', async () => {
+test('success inserts a pending row keyed by the supplied opId and returns the due time', async () => {
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   const due = futureIso()
+  const opId = 'op-test-stable-id'
   const result = await scheduleWakeupHandler(
     authedRequest({
       characterId: 'char-owned',
       reason: '  follow up  ',
       remindAt: due,
       priority: 3,
+      opId,
     }),
     buildDeps({
       insertWakeup: async (row) => {
         saved = row
+        return true
       },
     }),
   )
@@ -257,17 +302,47 @@ test('success inserts a pending row with minted id/runKey and returns the due ti
   assert.equal(saved!.reason, 'follow up') // trimmed
   assert.equal(saved!.priority, 3)
   assert.equal(saved!.status, 'pending')
-  assert.notEqual(saved!.id, saved!.runKey)
-  assert.notEqual(saved!.id, undefined)
+  // id and runKey are both the opId so a retry lands on the same row instead
+  // of minting a duplicate the sweep would double-fire.
+  assert.equal(saved!.id, opId)
+  assert.equal(saved!.runKey, opId)
+})
+
+test('returns the existing row dueAt when the opId already has a row (retry collapse)', async () => {
+  // A retry with the same opId hits ON CONFLICT DO NOTHING on the primary
+  // key. The handler reads back the original row's dueAt and returns it so
+  // the model sees a stable answer across retries.
+  const opId = 'op-already-exists'
+  const originalDue = new Date(Date.now() + 5 * 60_000).toISOString()
+  const result = await scheduleWakeupHandler(
+    authedRequest({
+      characterId: 'char-owned',
+      reason: 'r',
+      remindAt: originalDue,
+      opId,
+    }),
+    buildDeps({
+      insertWakeup: async () => false, // ON CONFLICT — the row already exists
+      findWakeupDueAt: async (id) => (id === opId ? new Date(originalDue) : null),
+    }),
+  )
+  assert.equal(result.ok, true)
+  assert.equal(result.dueAt, originalDue)
 })
 
 test('priority defaults to 0 when omitted', async () => {
   let saved: ReturnType<typeof buildWakeupInsert> | undefined
   await scheduleWakeupHandler(
-    authedRequest({ characterId: 'char-owned', reason: 'r', remindAt: futureIso() }),
+    authedRequest({
+      characterId: 'char-owned',
+      reason: 'r',
+      remindAt: futureIso(),
+      opId: 'op-test',
+    }),
     buildDeps({
       insertWakeup: async (row) => {
         saved = row
+        return true
       },
     }),
   )
@@ -302,25 +377,41 @@ export const WAKEUP_LIMIT_REFUSAL =
   'Not scheduled: this character has reached its background activity limit for today. Do not promise the user a follow-up for today.'
 
 // Mirrors buildWakeupInsert in cloud-agent/src/tools/reminders.ts (row shape,
-// minted id/run_key, status 'pending'). The packages cannot share code.
+// id/run_key, status 'pending'). The packages cannot share code.
+//
+// `opId` is a client-minted stable operation identifier — required so retries
+// from the same logical operation collapse onto the same row. The edge
+// executor (src/services/edgeToolExecutors.ts) and the cloud-agent
+// escalation path (cloud-agent/src/tools/reminders.ts) both derive opId via
+// SHA-256 over a shared canonical string:
+// `${characterId}|${reason.trim()}|${remindAt}|${priority ?? 0}`
+// (raw remindAt — NOT a parsed Date — because Date#toISOString() normalises
+// the offset to 'Z' while the edge input may carry '+02:00'). The formatter
+// is exported as `reminderOpIdCanonical` on both sides; kept identical by
+// hand since the packages cannot share a module. Both sides hash with
+// SHA-256 and lowercase hex output, so the same logical args produce
+// identical `op-` + 64-hex-char opIds. ON CONFLICT DO NOTHING on the
+// primary key then collapses retries across the edge↔escalation boundary
+// onto the same row.
 export interface WakeupInsertArgs {
   userId: string
   characterId: string
   reason: string
   dueAt: Date
   priority: number
+  opId: string
 }
 
 export function buildWakeupInsert(args: WakeupInsertArgs) {
   return {
-    id: crypto.randomUUID(),
+    id: args.opId,
     characterId: args.characterId,
     userId: args.userId,
     reason: args.reason,
     dueAt: args.dueAt,
     priority: args.priority,
     status: 'pending' as const,
-    runKey: crypto.randomUUID(),
+    runKey: args.opId,
   }
 }
 
@@ -334,7 +425,12 @@ export type ScheduleWakeupDeps = {
   // SUM of spent_amount over resolved wakeups. Ceiling gates spend; pendings
   // carry 0 (no pending-row cap on either path — accepted parity gap).
   todaysProactiveSpend: (characterId: string, now: Date) => Promise<number>
-  insertWakeup: (row: ReturnType<typeof buildWakeupInsert>) => Promise<void>
+  // Returns true when a new row was inserted, false when an existing row with
+  // the same opId was found and left untouched.
+  insertWakeup: (row: ReturnType<typeof buildWakeupInsert>) => Promise<boolean>
+  // Reads back an existing row's dueAt for the conflict-returned path. The
+  // caller passes the opId (the row's id).
+  findWakeupDueAt: (opId: string) => Promise<Date | null>
 }
 
 async function characterOwnedBy(characterId: string, userId: string): Promise<boolean> {
@@ -361,8 +457,27 @@ async function todaysProactiveSpend(characterId: string, now: Date): Promise<num
   return row?.spent ?? 0
 }
 
-async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<void> {
-  await getDb().insert(scheduledWakeups).values(row)
+async function insertWakeup(row: ReturnType<typeof buildWakeupInsert>): Promise<boolean> {
+  // ON CONFLICT DO NOTHING so a retry with the same opId (the row's primary
+  // key) leaves the existing row untouched. The sweep would otherwise see two
+  // pending rows for the same logical operation and POST twice.
+  const result = await (
+    await getDb()
+  )
+    .insert(scheduledWakeups)
+    .values(row)
+    .onConflictDoNothing({ target: scheduledWakeups.id })
+  return (result.rowCount ?? 0) === 1
+}
+
+async function findWakeupDueAt(opId: string): Promise<Date | null> {
+  const db = getDb()
+  const [row] = await db
+    .select({ dueAt: scheduledWakeups.dueAt })
+    .from(scheduledWakeups)
+    .where(eq(scheduledWakeups.id, opId))
+    .limit(1)
+  return row?.dueAt ?? null
 }
 
 const defaultDeps: ScheduleWakeupDeps = {
@@ -370,6 +485,7 @@ const defaultDeps: ScheduleWakeupDeps = {
   characterOwnedBy,
   todaysProactiveSpend,
   insertWakeup,
+  findWakeupDueAt,
 }
 
 type ScheduleWakeupData = {
@@ -377,6 +493,7 @@ type ScheduleWakeupData = {
   reason: string
   remindAt: string
   priority?: number
+  opId: string
 }
 
 function parsePayload(data: unknown): ScheduleWakeupData {
@@ -393,6 +510,12 @@ function parsePayload(data: unknown): ScheduleWakeupData {
   if (typeof d.remindAt !== 'string') {
     throw new HttpsError('invalid-argument', 'remindAt must be a string.')
   }
+  if (typeof d.opId !== 'string' || d.opId.length === 0) {
+    throw new HttpsError(
+      'invalid-argument',
+      'opId must be a non-empty stable operation identifier.',
+    )
+  }
   if (
     d.priority !== undefined &&
     (typeof d.priority !== 'number' ||
@@ -406,6 +529,7 @@ function parsePayload(data: unknown): ScheduleWakeupData {
     characterId: d.characterId,
     reason: d.reason,
     remindAt: d.remindAt,
+    opId: d.opId,
     priority: d.priority,
   }
 }
@@ -456,8 +580,22 @@ export async function scheduleWakeupHandler(
     reason,
     dueAt,
     priority: data.priority ?? 0,
+    opId: data.opId,
   })
-  await deps.insertWakeup(row)
+  const wasInserted = await deps.insertWakeup(row)
+  if (!wasInserted) {
+    // The opId already has a row — a retry from the same logical operation.
+    // Return that row's dueAt so the caller sees a stable answer across
+    // retries. If the row has since been deleted we report the originally
+    // requested dueAt: the caller's intent is still valid for that time.
+    const existingDueAt = await deps.findWakeupDueAt(data.opId)
+    const dueAtIso = (existingDueAt ?? dueAt).toISOString()
+    return {
+      ok: true,
+      message: `Scheduled. You will wake up at ${dueAtIso} to follow up on this.`,
+      dueAt: dueAtIso,
+    }
+  }
   return {
     ok: true,
     message: `Scheduled. You will wake up at ${dueAt.toISOString()} to follow up on this.`,
@@ -996,7 +1134,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Typecheck + Commit**
 
-Run: `npx tsc --noEmit`
+Run: `npm run typecheck`
 
 ```bash
 git add shared/agent-tools-spec.ts src/services/proactiveWakeupService.ts src/services/edgeToolExecutors.ts src/services/__tests__/edgeToolExecutors.test.ts src/hooks/useEdgeAgent.ts src/hooks/useAIChat.ts
@@ -1374,7 +1512,7 @@ useProactiveNotificationRouting({ triggerSync })
 
 - [ ] **Step 4: Run to green + typecheck**
 
-Run: `npx jest src/hooks/__tests__/useProactiveNotificationRouting.test.tsx && npx tsc --noEmit`
+Run: `npx jest src/hooks/__tests__/useProactiveNotificationRouting.test.tsx && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1753,7 +1891,7 @@ Web path (`registerWebPushToken`): add the same field to the `registerExpoPushTo
 
 - [ ] **Step 4: Run to green + typecheck**
 
-Run: `npx jest src/hooks/__tests__/useRegisterExpoPushToken.test.ts && npx tsc --noEmit`
+Run: `npx jest src/hooks/__tests__/useRegisterExpoPushToken.test.ts && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1789,7 +1927,7 @@ If any root suite hangs, re-run scoped (the 122-file unrigged-tree lesson does n
 - [ ] **Step 2: Typecheck + lint + format checks (read-only, CI parity)**
 
 ```bash
-npx tsc --noEmit && cd functions && npx tsc --noEmit && cd ../cloud-agent && npx tsc --noEmit
+npm run typecheck && cd functions && npm run typecheck && cd ../cloud-agent && npm run typecheck
 npm run lint:check 2>&1 | tail -3   # adjust to the repo's actual script names (CI gates are :check variants)
 npm run format:check 2>&1 | tail -3 # if this fails on files NOT in `git ls-files`, it is the known untracked-file noise — do not chase it
 ```
