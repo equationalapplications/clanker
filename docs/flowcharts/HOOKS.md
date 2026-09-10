@@ -16,6 +16,7 @@ graph LR
   useAIChat --> characterImageDatabase
   useAIChat --> characterImageService
   useAIChat --> messageDatabase
+  useAIChat --> messageService
   useAIChat --> syncMessage
   useAIChat --> usageSnapshot
   useAdminDashboard --> adminService
@@ -53,10 +54,22 @@ graph LR
   useLiveVoiceChat --> useLiveAudioIO
   useLiveVoiceChat --> liveVoiceMachine
   useLiveVoiceChat --> twoWayAudioAdapter
+  useMarkProactiveReadOnOpen --> messageDatabase
+  useMarkProactiveReadOnOpen --> index
+  useMarkProactiveReadOnOpen --> proactiveReadQueue
   useMessages --> useMachines
   useMessages --> messageService
   usePowerBalance --> useUserCredits
   usePowerBalance --> useAuthSnapshot
+  useProactiveNotificationRouting --> index
+  useProactiveNotificationRouting --> messageDatabase
+  useProactiveNotificationRouting --> proactiveReadQueue
+  useProactiveNotificationRouting --> useProactiveSync
+  useProactiveNotificationRouting --> characterDatabase
+  useProactiveSync --> proactiveSync
+  useProactiveSync --> proactiveReadQueue
+  useProactiveSync --> useMessages
+  useProactiveUnread --> messageDatabase
   useRegisterExpoPushToken --> devSandboxFlag
   useRegisterExpoPushToken --> googleSignin
   useResolvedImage --> characterImageDatabase
