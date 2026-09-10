@@ -203,6 +203,14 @@ async function mintDefaultCharacter() {
 beforeEach(() => {
   mockRows.length = 0
   jest.clearAllMocks()
+  // clearAllMocks keeps installed implementations, so a persistent mockImplementation
+  // (completeCloudSync) or an unconsumed mockRejectedValueOnce would leak across
+  // tests and make this suite order-dependent. Reset the sync mock to its
+  // module default each time. The mockDatabase stand-ins keep their inline
+  // implementations by design, so resetAllMocks would strip those instead.
+  const { syncAllToCloud } = jest.requireMock('../src/services/characterSyncService')
+  syncAllToCloud.mockReset()
+  syncAllToCloud.mockResolvedValue(undefined)
   mockUseSelector.mockReturnValue({ uid: USER_ID })
   mockUseCurrentPlan.mockReturnValue({ remainingCredits: 5000 })
   mockUseMachine.mockReturnValue([
