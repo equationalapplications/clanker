@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Alert, AppState } from 'react-native'
+import { AppState } from 'react-native'
 import { useMachine, useSelector } from '@xstate/react'
 import { router, type Href } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
 import type { Message } from '~/types/chat'
 import type { GroundingMetadata } from '@google/genai'
-import { useCharacter } from '~/hooks/useCharacters'
+import { useCharacter, useSyncCharacters } from '~/hooks/useCharacters'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
+import { showAlert } from '~/utilities/showAlert'
 import {
   liveVoiceMachine,
   type LiveVoiceEvent,
@@ -40,6 +41,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const currentUser = useSelector(authService, (s) => s.context.user)
   const { data: character } = useCharacter(characterId)
   const { remainingCredits } = useCurrentPlan()
+  const { sync: retryCloudSync } = useSyncCharacters()
   const navigation = useNavigation()
 
   const audioIO = useLiveAudioIO()
@@ -127,7 +129,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     if (!userId) return
 
     if (!character.voice) {
-      Alert.alert(
+      showAlert(
         'No Voice Set',
         'This character has no voice selected. Go to character settings to choose one.',
         [
@@ -139,7 +141,7 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     }
 
     if (typeof remainingCredits === 'number' && remainingCredits < MIN_CREDITS_FOR_CALL) {
-      Alert.alert('Not Enough Power', 'Live voice calls need more Power. Recharge to continue.', [
+      showAlert('Not Enough Power', 'Live voice calls need more Power. Recharge to continue.', [
         { text: 'Cancel' },
         { text: 'Get More', onPress: () => router.push('/subscribe') },
       ])
@@ -147,11 +149,11 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     }
 
     if (!character.save_to_cloud) {
-      Alert.alert(
+      showAlert(
         'Cloud Sync Required',
         'Live voice chat needs cloud sync enabled so your AI can access your memory. Enable it in character settings.',
         [
-          { text: 'Cancel' },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Enable Sync',
             onPress: () => router.push(`/characters/${characterId}/edit` as Href),
@@ -161,11 +163,33 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
       return
     }
 
+    // Talk reads the character's memory out of the cloud, so the real
+    // precondition is a COMPLETED sync — a confirmed `cloud_id` — not
+    // `save_to_cloud`, which only records that the user asked for one.
+    //
+    // Gating on the flag alone let a character whose first sync had failed start
+    // a call with no memory behind it and no way to tell. It also produced the
+    // inverse dead end: the only remedy offered was the edit screen, which
+    // showed a toggle that was already on. Toggling it off and back on appeared
+    // to "fix" Talk purely because saving re-triggers the sync — so retry the
+    // sync directly, which is what that workaround was really doing.
+    if (!character.cloud_id) {
+      showAlert(
+        'Finishing Cloud Sync',
+        "This character's memory hasn't finished syncing to the cloud yet. Retry the sync, then start your call.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry Sync', onPress: () => retryCloudSync() },
+        ],
+      )
+      return
+    }
+
     const started = await audioIO.startRecording()
     if (!started) return
 
     send({ type: 'START_CALL' })
-  }, [audioIO, character, characterId, remainingCredits, send, userId])
+  }, [audioIO, character, characterId, remainingCredits, retryCloudSync, send, userId])
 
   // Navigation blur → end call
   const endCallRef = useRef(endCall)
