@@ -227,7 +227,9 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
           })
           .from(scheduledWakeups)
           .innerJoin(users, eq(scheduledWakeups.userId, users.id))
-          .where(and(eq(scheduledWakeups.status, 'pending'), sql`${scheduledWakeups.dueAt} <= now()`))
+          .where(
+            and(eq(scheduledWakeups.status, 'pending'), sql`${scheduledWakeups.dueAt} <= now()`),
+          )
           .orderBy(desc(scheduledWakeups.priority), scheduledWakeups.dueAt)
           .limit(limit),
       )
@@ -284,23 +286,23 @@ export function buildSweepDeps(dbFactory: () => Promise<DbLike> = getDb): SweepD
             ),
           )
 
-      // Proactive messages are excluded: they are written with the owner's
-      // userId as sender (cloud-agent), exactly like user-authored rows, so the
-      // JSON marker is the only thing that tells them apart. Counting them here
-      // would let a wake-up re-arm the notify cooldown against itself — the
-      // sweep posts at T, reads its own row back as `lastUserMessageAt` at
-      // T+5min, and suppresses notify for the next cooldown window even though
-      // the user has done nothing. The spec defines this window against the
-      // user's last message.
-      // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
-      // result through messages.createdAt's own decoder, so it comes back as a
-      // Date. A raw sql<> select bypasses column decoding and returns the
-      // driver's text form, which then has to be parsed by hand — the trap this
-      // comment used to document at length. The guard below keeps a malformed
-      // decode loud: an Invalid Date is not null, so decideWakeup's null check
-      // would pass and NaN would silently disable the notify cooldown.
-      // Throwing strands one row for the reaper instead of un-muting a
-      // character for a whole cooldown window.
+        // Proactive messages are excluded: they are written with the owner's
+        // userId as sender (cloud-agent), exactly like user-authored rows, so the
+        // JSON marker is the only thing that tells them apart. Counting them here
+        // would let a wake-up re-arm the notify cooldown against itself — the
+        // sweep posts at T, reads its own row back as `lastUserMessageAt` at
+        // T+5min, and suppresses notify for the next cooldown window even though
+        // the user has done nothing. The spec defines this window against the
+        // user's last message.
+        // max() rather than a raw sql`MAX(...)`: the aggregate helper maps its
+        // result through messages.createdAt's own decoder, so it comes back as a
+        // Date. A raw sql<> select bypasses column decoding and returns the
+        // driver's text form, which then has to be parsed by hand — the trap this
+        // comment used to document at length. The guard below keeps a malformed
+        // decode loud: an Invalid Date is not null, so decideWakeup's null check
+        // would pass and NaN would silently disable the notify cooldown.
+        // Throwing strands one row for the reaper instead of un-muting a
+        // character for a whole cooldown window.
         const [lastMsgRow] = await tx
           .select({ lastAt: max(messages.createdAt) })
           .from(messages)

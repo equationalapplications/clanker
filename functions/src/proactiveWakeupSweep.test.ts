@@ -317,11 +317,7 @@ const MAGIC_ROW = {
 // failDeadline set, a select whose transaction's set_config deadline matches
 // rejects with a 57014-shaped error — the server-side cancellation the real
 // deadline produces.
-function makeFakeDb(
-  setConfigCalls: unknown[][],
-  failDeadline: string | null = null,
-  dueRows = 1,
-) {
+function makeFakeDb(setConfigCalls: unknown[][], failDeadline: string | null = null, dueRows = 1) {
   let selects = 0
   const makeChain = (kind: string, rejects: boolean): unknown => {
     const step: any = new Proxy(function () {} as never, {
@@ -339,7 +335,8 @@ function makeFakeDb(
           // loadContext's five reads — one MAGIC_ROW each.
           const resolveValue =
             kind === 'select'
-              ? (selects++, selects === 1 ? Array.from({ length: dueRows }, () => MAGIC_ROW) : [MAGIC_ROW])
+              ? (selects++,
+                selects === 1 ? Array.from({ length: dueRows }, () => MAGIC_ROW) : [MAGIC_ROW])
               : Object.assign([], { rowCount: 1 })
           return (resolve: (v: unknown) => void) => Promise.resolve(resolveValue).then(resolve)
         }
