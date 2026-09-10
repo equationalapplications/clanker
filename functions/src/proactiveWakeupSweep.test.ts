@@ -411,3 +411,26 @@ test('wraps every DB op in a transaction whose set_config carries the op deadlin
     assert.equal(params.length, 1, 'set_config must bind only the deadline value')
   }
 })
+
+test('a 57014 from loadContext leaves rows claimed — not skipped — and the sweep finishes its tail', async () => {
+  const setConfigCalls: unknown[][] = []
+  const savedUrl = process.env.CLOUD_AGENT_URL
+  delete process.env.CLOUD_AGENT_URL
+  try {
+    await proactiveWakeupSweepHandler(
+      buildSweepDeps(makeFakeDbFactory(setConfigCalls, { failDeadline: '1500', dueRows: 2 })),
+    )
+  } finally {
+    if (savedUrl !== undefined) process.env.CLOUD_AGENT_URL = savedUrl
+  }
+
+  // Two rows selected (the fake's first select returns two). Each row is
+  // claimed (500 passes) then killed at loadContext (1500 rejects). The
+  // decisive assertion is what is ABSENT: no resolveWakeup transaction —
+  // the rows must sit claimed with NULL resolved_at for the reaper, not be
+  // marked terminally skipped — and the reap/delete tail still ran.
+  assert.deepEqual(
+    setConfigCalls.map((params) => params[0]),
+    ['2000', '500', '1500', '500', '1500', '2000', '2000'],
+  )
+})
