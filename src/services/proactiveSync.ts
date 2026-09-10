@@ -11,32 +11,11 @@
  *   4. Loop while the server's `nextCursor` is non-null.
  */
 
-import { getApp } from '@react-native-firebase/app'
-import { getFunctions, httpsCallable } from '@react-native-firebase/functions'
-
-import type { ProactiveMessagePayload } from '~/database/messageDatabase'
 import { applyProactiveMessages } from '~/database/messageDatabase'
 import { getDatabase } from '~/database'
 import { PROACTIVE_SYNC_CURSOR_KEY } from '~/constants/proactive'
 import { getSyncCursor, setSyncCursor, type SyncCursor } from '~/database/syncState'
-
-interface FetchProactiveMessagesRequest {
-  sinceCreatedAt?: string
-  sinceMessageId?: string
-}
-
-interface FetchProactiveMessagesResponse {
-  messages: ProactiveMessagePayload[]
-  nextCursor: SyncCursor | null
-}
-
-// Thin wrapper around the server-side callable. Defined locally rather than in
-// firebaseConfig.ts so the orchestrator's only collaborator surface is this
-// file (the brief restricts edits to three files).
-const fetchProactiveMessages = httpsCallable<
-  FetchProactiveMessagesRequest,
-  FetchProactiveMessagesResponse
->(getFunctions(getApp(), 'us-central1'), 'fetchProactiveMessages')
+import { fetchProactiveMessagesFn } from '~/config/firebaseConfig'
 
 /**
  * Drain the proactive-message queue for the current user into local SQLite.
@@ -63,7 +42,7 @@ export async function syncProactiveMessages(userId: string): Promise<string[]> {
   let pagesProcessed = 0
 
   while (pagesProcessed < MAX_PAGES) {
-    const result = await fetchProactiveMessages({
+    const result = await fetchProactiveMessagesFn({
       sinceCreatedAt: cursor?.createdAt,
       sinceMessageId: cursor?.messageId,
     })
