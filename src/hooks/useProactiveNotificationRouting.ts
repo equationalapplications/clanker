@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -136,21 +137,34 @@ export function useProactiveNotificationRouting({
     return () => subscription.remove()
   }, [routeIfProactive])
 
-  // Cold start (and any post-mount tap on iOS): useLastNotificationResponse
-  // holds the response that launched the app. Clear it after routing so the
-  // same response isn't re-routed on the next render. The dedupe set above
-  // covers the (rare) case where both this hook and the listener fire for the
-  // same tap.
-  const lastResponse = Notifications.useLastNotificationResponse()
+  // Cold start: the response that launched the app predates the listener above,
+  // so it has to be read once on mount. Clear it after routing so the same
+  // response isn't re-routed. The dedupe set above covers the (rare) case where
+  // both this read and the listener see the same tap.
+  //
+  // This deliberately does NOT use `Notifications.useLastNotificationResponse()`.
+  // That hook reads `getLastNotificationResponse()` from a layout effect, and
+  // expo-notifications ships no web implementation of that method — it throws
+  // UnavailabilityError on mount, which (with no error boundary above this hook)
+  // unmounts the tree and renders a blank page. Being a hook, it also cannot be
+  // called behind a platform guard, so the read is inlined here where the guard
+  // can live. Only this cold-start read is native-only: the response listener
+  // above is emitter-based and still delivers web push taps.
   useEffect(() => {
-    if (!lastResponse) return
-    if (
-      routeIfProactive(
-        lastResponse.notification.request.content.data,
-        lastResponse.notification.request.identifier,
-      )
-    ) {
-      void Notifications.clearLastNotificationResponseAsync()
+    if (Platform.OS === 'web') return
+    try {
+      const lastResponse = Notifications.getLastNotificationResponse()
+      if (!lastResponse) return
+      if (
+        routeIfProactive(
+          lastResponse.notification.request.content.data,
+          lastResponse.notification.request.identifier,
+        )
+      ) {
+        void Notifications.clearLastNotificationResponseAsync()
+      }
+    } catch (error) {
+      console.warn('[proactiveNotification] cold-start response read failed:', error)
     }
-  }, [lastResponse, routeIfProactive])
+  }, [routeIfProactive])
 }
