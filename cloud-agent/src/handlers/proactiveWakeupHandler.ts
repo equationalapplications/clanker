@@ -86,19 +86,24 @@ export interface ProactiveWakeupDeps {
 }
 
 /**
- * TEMPORARY — remove with the lifecycle-sync fast-follow.
+ * Global push gate. Kept closed while the client-side proactive sync was
+ * unwired because a push would deeplink into a `/chat/<id>` route that
+ * reads local SQLite — and `syncProactiveMessages` had no callers, so the
+ * message the push advertised would not actually be on the device. Tapping
+ * the notification landed the user on an empty thread, which is worse than
+ * sending nothing.
  *
- * A push deeplinks to `/chat/{characterId}`, and that screen reads local
- * SQLite. Nothing currently pulls proactive messages onto the device:
- * `syncProactiveMessages` has no callers, and there is no general message
- * down-sync to land them incidentally. So a notify today produces a
- * notification the user can tap into an empty thread — worse than sending
- * nothing. The unread badge was severed from the UI for exactly this reason;
- * push depends on the same dead path and is gated for the same reason.
+ * The lifecycle-sync work (migration 0030, `users.proactive_push_ready`, and
+ * the client hooks in `useProactiveSync` / `useProactiveNotificationRouting`)
+ * makes the sync path real, so the gate can be opened. Per-user `pushReady`
+ * is the bound the open gate trusts — `registerExpoPushToken` only writes
+ * `true` when the client says `capabilities.proactivePush === true`, and the
+ * flag-false clamp stays in `resolveDeliveryMode` for the lifetime of older
+ * clients that have not re-registered.
  *
- * Un-gate in the same change that wires the sync triggers, not before.
+ * Module constant, not env var, for visibility. Re-deploy required to flip.
  */
-const PROACTIVE_PUSH_ENABLED = false
+const PROACTIVE_PUSH_ENABLED = true
 
 /**
  * The model proposes, the code disposes. The agent picks a delivery mode via the

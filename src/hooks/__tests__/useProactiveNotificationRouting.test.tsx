@@ -14,7 +14,7 @@ const mockClearLast = jest.fn(async () => {
   mockLastResponse = null
 })
 jest.mock('expo-notifications', () => ({
-  useLastNotificationResponse: () => mockLastResponse,
+  getLastNotificationResponse: () => mockLastResponse,
   addNotificationResponseReceivedListener: (cb: (r: unknown) => void) => {
     responseListener = cb
     return { remove: jest.fn() }

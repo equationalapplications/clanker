@@ -33,13 +33,10 @@ let mockStoredCursor: { createdAt: string; messageId: string } | null = null
 // boundaries, which is what invariant 1 is actually about.
 const mockTrace: string[] = []
 
-jest.mock('@react-native-firebase/app', () => ({ getApp: () => ({}) }))
-jest.mock('@react-native-firebase/functions', () => ({
-  getFunctions: () => ({}),
-  httpsCallable:
-    () =>
-    (...args: unknown[]) =>
-      mockCallable(...args),
+// The callable is built in firebaseConfig (the platform seam), so the mock
+// boundary is that module rather than the underlying Firebase SDK.
+jest.mock('~/config/firebaseConfig', () => ({
+  fetchProactiveMessagesFn: (...args: unknown[]) => mockCallable(...args),
 }))
 jest.mock('~/database/messageDatabase', () => ({
   applyProactiveMessages: (...args: unknown[]) => {
