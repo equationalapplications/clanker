@@ -32,11 +32,18 @@ export function useProactiveSync(userId: string | null | undefined): {
   triggerSync: () => Promise<void> | void
 } {
   const queryClient = useQueryClient()
-  const inFlightRef = useRef<Promise<void> | null>(null)
+  // Keyed by the user the run belongs to. Deduping on presence alone meant a
+  // logout->login while a sync was still running handed the NEW user the OLD
+  // user's promise, so their cold-start sync never ran and their proactive
+  // data stayed empty until an unrelated foreground or push event.
+  const inFlightRef = useRef<{ userId: string; runId: number; promise: Promise<void> } | null>(null)
+  const runIdRef = useRef(0)
 
   const triggerSync = useCallback((): Promise<void> | void => {
     if (!userId) return
-    if (inFlightRef.current) return inFlightRef.current
+    const pending = inFlightRef.current
+    if (pending && pending.userId === userId) return pending.promise
+    const runId = ++runIdRef.current
     const run = (async () => {
       try {
         // `null` means the pull failed — distinct from `[]` (pull succeeded,
@@ -73,10 +80,13 @@ export function useProactiveSync(userId: string | null | undefined): {
       } catch (error) {
         console.warn('[proactiveSync] sync run failed:', error)
       } finally {
-        inFlightRef.current = null
+        // Only clear the slot if it is still OUR run: a user switch may have
+        // already replaced it, and clearing that would un-dedupe the new
+        // user's in-flight sync.
+        if (inFlightRef.current?.runId === runId) inFlightRef.current = null
       }
     })()
-    inFlightRef.current = run
+    inFlightRef.current = { userId, runId, promise: run }
     return run
   }, [userId, queryClient])
 

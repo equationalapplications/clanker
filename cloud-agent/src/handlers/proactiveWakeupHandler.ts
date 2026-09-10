@@ -78,7 +78,11 @@ export interface ProactiveWakeupDeps {
   // the real exported `resolveDeliveryMode` keeps PROACTIVE_PUSH_ENABLED =
   // false (the global gate stays closed in this branch). Defaults to the real
   // export when the host wires up the handler.
-  resolveDeliveryMode?: (chosen: DeliveryMode, notifyAllowed: boolean) => DeliveryModeResolution
+  resolveDeliveryMode?: (
+    chosen: DeliveryMode,
+    notifyAllowed: boolean,
+    pushReady: boolean,
+  ) => DeliveryModeResolution
 }
 
 /**
@@ -124,16 +128,34 @@ const PROACTIVE_PUSH_ENABLED = false
  */
 export interface DeliveryModeResolution {
   mode: DeliveryMode
-  clampReason: 'guardrail' | 'gate' | null
+  clampReason: 'guardrail' | 'gate' | 'flag' | null
 }
 
+/**
+ * `pushReady` is the per-user `proactivePushReady` capability flag. It is
+ * resolved HERE rather than at the push call site for the same reason the gate
+ * is: a notify suppressed at the call site would still persist
+ * `delivery_mode = 'notify'`, and that column is what
+ * proactiveWakeupSweep.loadContext counts into `todaysPushCount` — so a user
+ * whose pushes are all flag-suppressed would burn the daily cap on pushes that
+ * never went out and suppress the real ones that follow.
+ *
+ * Ordering is deliberate and matches the clamp-reason contract above: guardrail
+ * first (the tunable signal), then the gate, then the flag. While
+ * PROACTIVE_PUSH_ENABLED is false the flag branch is unreachable, so this adds
+ * no new clamp reason to the shadow-phase telemetry; 'flag' only starts
+ * appearing once the un-gate lands, which is exactly when it becomes the
+ * distinct thing operators need to see.
+ */
 export function resolveDeliveryMode(
   chosen: DeliveryMode,
   notifyAllowed: boolean,
+  pushReady = true,
 ): DeliveryModeResolution {
   if (chosen !== 'notify') return { mode: chosen, clampReason: null }
   if (!notifyAllowed) return { mode: 'quiet', clampReason: 'guardrail' }
   if (!PROACTIVE_PUSH_ENABLED) return { mode: 'quiet', clampReason: 'gate' }
+  if (!pushReady) return { mode: 'quiet', clampReason: 'flag' }
   return { mode: 'notify', clampReason: null }
 }
 
@@ -288,6 +310,7 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
       const { mode, clampReason } = (deps.resolveDeliveryMode ?? resolveDeliveryMode)(
         result.deliveryMode,
         notifyAllowed,
+        character.proactivePushReady,
       )
 
       // 'silent' means the character decided there was nothing worth saying.
@@ -304,12 +327,11 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         })
       }
 
-      if (
-        mode === 'notify' &&
-        character.proactivePushReady &&
-        character.expoPushToken &&
-        messageId
-      ) {
+      // No proactivePushReady check here: resolveDeliveryMode already clamped a
+      // flag-false notify to quiet, so reaching 'notify' means the flag is set.
+      // Re-checking it at this call site is what let a suppressed push persist
+      // delivery_mode='notify' and inflate todaysPushCount.
+      if (mode === 'notify' && character.expoPushToken && messageId) {
         // Never let a push failure fail the wake-up: the message is already
         // persisted and will arrive on next sync regardless.
         await (deps.fcmDispatcher ?? defaultFcmDispatcher())

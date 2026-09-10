@@ -113,7 +113,7 @@ afterAll(() => {
 })
 
 beforeEach(() => {
-  mockDbOverride!.execSync('DELETE FROM messages;')
+  mockDbOverride!.execSync('DELETE FROM messages; DELETE FROM characters;')
   jest.clearAllMocks()
 })
 
@@ -244,5 +244,80 @@ describe('markProactiveReadLocally', () => {
     // Spot-check that the very last row (must be in the partial batch) is marked.
     const last = await getLocal(`big-${TOTAL - 1}`)
     expect(last?.read_at).not.toBeNull()
+  })
+})
+
+/**
+ * Regression: proactive rows arrive keyed by the SERVER's character UUID, but
+ * every local read path (countUnreadProactive, markProactiveReadLocally, the
+ * chat thread query) filters on the LOCAL `characters.id`. Those diverge for
+ * every locally-created-then-uploaded character (`char_<uuid>` local id, server
+ * UUID in `cloud_id`) and for every imported/shared character — they coincide
+ * only on a device that materialised the row via restoreFromCloud. Without the
+ * cloud->local resolve the rows are orphans no badge or thread ever sees, and
+ * `messages.character_id` has no FK so nothing rejects the bad insert.
+ */
+function insertCharacter(id: string, cloudId: string | null): void {
+  mockDbOverride!.runSync(
+    `INSERT INTO characters (id, user_id, name, created_at, updated_at, cloud_id, owner_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, USER_ID, 'C', 1, 1, cloudId, USER_ID],
+  )
+}
+
+describe('applyProactiveMessages cloud->local character mapping', () => {
+  it('stores the row under the LOCAL character id when it diverges from cloud_id', async () => {
+    insertCharacter('char_local1', 'cloud-uuid-1')
+
+    await applyProactiveMessages(
+      [payload({ messageId: 'p1', characterId: 'cloud-uuid-1' })],
+      USER_ID,
+    )
+
+    const row = await getLocal('p1')
+    expect(row?.character_id).toBe('char_local1')
+    // The badge queries by local id; this is the deliverable that was broken.
+    await expect(countUnreadProactive('char_local1', Date.now())).resolves.toBe(1)
+  })
+
+  it('keys sender_user_id to the local id too, so authorship still resolves', async () => {
+    insertCharacter('char_local2', 'cloud-uuid-2')
+
+    await applyProactiveMessages(
+      [payload({ messageId: 'p2', characterId: 'cloud-uuid-2' })],
+      USER_ID,
+    )
+
+    const row = await getLocal('p2')
+    expect(row?.sender_user_id).toBe('char_local2')
+  })
+
+  it('falls back to the server id when no local character row exists yet', async () => {
+    // Character has not synced down. Dropping the message would lose it, so the
+    // insert keeps the server id and the row becomes reachable once the
+    // character lands locally under that same id (restoreFromCloud path).
+    await applyProactiveMessages(
+      [payload({ messageId: 'p3', characterId: 'cloud-orphan' })],
+      USER_ID,
+    )
+
+    const row = await getLocal('p3')
+    expect(row?.character_id).toBe('cloud-orphan')
+  })
+
+  it('resolves each message independently within one batch', async () => {
+    insertCharacter('char_localA', 'cloud-A')
+    insertCharacter('char_localB', 'cloud-B')
+
+    await applyProactiveMessages(
+      [
+        payload({ messageId: 'pa', characterId: 'cloud-A' }),
+        payload({ messageId: 'pb', characterId: 'cloud-B' }),
+      ],
+      USER_ID,
+    )
+
+    expect((await getLocal('pa'))?.character_id).toBe('char_localA')
+    expect((await getLocal('pb'))?.character_id).toBe('char_localB')
   })
 })

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { reminderOpIdCanonical } from '../../../shared/reminderOpId.js'
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import { and, eq, gte, sql } from 'drizzle-orm'
@@ -26,28 +27,6 @@ export interface WakeupInsertArgs {
    * — it has no caller-driven opId supply.
    */
   opId: string
-}
-
-/**
- * Canonical string for a set_reminder operation. Mirrored exactly in
- * src/services/edgeToolExecutors.ts (exported as `reminderOpIdCanonical`):
- * both set_reminder entry points (escalation and edge) must hash identical
- * bytes here, so the opId they produce agrees across the two paths and the
- * server's ON CONFLICT DO NOTHING collapses them onto the same row.
- *
- * `remindAt` is the RAW ISO string from the model — NOT a parsed Date —
- * because Date#toISOString normalises the offset to "Z" while the edge input
- * may carry "+02:00", and the two would hash to different bytes for the same
- * wall-clock moment. The packages cannot share a module; keep the format
- * equal by hand.
- */
-export function reminderOpIdCanonical(args: {
-  characterId: string
-  reason: string
-  remindAt: string
-  priority?: number
-}): string {
-  return `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
 }
 
 /**
@@ -190,3 +169,5 @@ export function setReminderTool(
     },
   })
 }
+
+export { reminderOpIdCanonical }

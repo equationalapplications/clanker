@@ -565,18 +565,48 @@ export async function applyProactiveMessages(
   payload: ProactiveMessagePayload[],
   userId: string,
   db?: Awaited<ReturnType<typeof getDatabase>>,
-): Promise<void> {
+): Promise<string[]> {
   const database = db ?? (await getDatabase())
+  // Cloud id -> local id, memoised for the batch. The wire payload keys every
+  // message by the SERVER's character UUID, but every local reader
+  // (countUnreadProactive, markProactiveReadLocally, the chat thread query,
+  // and the /chat/<id> route) filters on the LOCAL `characters.id`. Those two
+  // diverge for every locally-created-then-uploaded character and every
+  // imported one -- they coincide only when restoreFromCloud materialised the
+  // row on a device that had none. Storing the server id unresolved leaves
+  // orphan rows no badge or thread ever selects, and `messages.character_id`
+  // carries no FK, so nothing rejects the bad insert.
+  const resolved = new Map<string, string>()
+  const touched: string[] = []
+
+  const resolveLocalId = async (cloudId: string): Promise<string> => {
+    const cached = resolved.get(cloudId)
+    if (cached !== undefined) return cached
+    const row = await database.getFirstAsync<{ id: string }>(
+      'SELECT id FROM characters WHERE cloud_id = ? LIMIT 1',
+      [cloudId],
+    )
+    // No local row yet: keep the server id rather than dropping the message.
+    // The row becomes reachable if the character later lands locally under
+    // that same id, which is exactly what restoreFromCloud does when it finds
+    // no prior mapping.
+    const localId = row?.id ?? cloudId
+    resolved.set(cloudId, localId)
+    if (!touched.includes(localId)) touched.push(localId)
+    return localId
+  }
+
   const runApply = async () => {
     for (const msg of payload) {
+      const characterId = await resolveLocalId(msg.characterId)
       await database.runAsync(
         `INSERT OR IGNORE INTO messages
          (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at, read_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 0, ?, ?)`,
         [
           msg.messageId,
-          msg.characterId,
-          msg.characterId,
+          characterId,
+          characterId,
           userId,
           msg.text,
           Date.parse(msg.createdAt),
@@ -600,6 +630,9 @@ export async function applyProactiveMessages(
   } else {
     await database.withTransactionAsync(runApply)
   }
+
+  // Local ids, so the caller invalidates the cache keys the UI actually uses.
+  return touched
 }
 
 /**

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { isProactivePushData } from '~/hooks/useProactiveSync'
 import { proactiveUnreadKeys } from '~/hooks/useProactiveUnread'
+import { resolveLocalCharacterId } from '~/database/characterDatabase'
 import { markProactiveReadLocally } from '~/database/messageDatabase'
 import { enqueueMarkRead } from '~/services/proactiveReadQueue'
 import { markProactiveReadViaCallable } from '~/services/proactiveMarkReadService'
@@ -82,19 +83,33 @@ export function useProactiveNotificationRouting({
       }
       // CHAT_DEEPLINK_PATTERN guarantees the segment after `/chat/` is a
       // single id-shaped token, so a fixed-offset slice is safe.
-      const characterId = deepLink.slice('/chat/'.length)
+      // The server builds the deepLink from the CLOUD character UUID, but
+      // `/chat/<id>` is matched against the local ids useTabCharacterId
+      // validates, and markProactiveReadLocally filters on the local id too.
+      // Resolve before doing either — see resolveLocalCharacterId.
+      const cloudCharacterId = deepLink.slice('/chat/'.length)
       // Push is a hint (Phase 2 Decision 5): sync fires non-blocking and
       // navigation never waits on the network. But the chat-mount mark-read
       // sees an unread count of zero BEFORE the sync inserts the new
       // messages, so those would stay unread on the server until the next
       // sync. Chain the post-sync mark-read behind triggerSync to close the
-      // gap. router.push happens immediately so the user lands in the chat
-      // while the data lands.
+      // gap. The only thing navigation now waits on is a single indexed local
+      // SQLite read, not the network.
       const syncPromise = triggerSync()
-      if (syncPromise && typeof syncPromise.then === 'function') {
-        void syncPromise.then(() => markThreadReadAfterSync(characterId))
-      }
-      router.push(deepLink as never)
+      void (async () => {
+        let characterId = cloudCharacterId
+        try {
+          characterId = await resolveLocalCharacterId(cloudCharacterId)
+        } catch (error) {
+          // A failed lookup must not strand the user on the notification.
+          console.warn('[proactiveNotification] local id resolve failed:', error)
+        }
+        router.push(`/chat/${characterId}` as never)
+        if (syncPromise && typeof syncPromise.then === 'function') {
+          await syncPromise
+          await markThreadReadAfterSync(characterId)
+        }
+      })()
       return true
     },
     [triggerSync, markThreadReadAfterSync],

@@ -310,14 +310,19 @@ test('a silent wake-up persists nothing', async () => {
   assert.equal(calls.insertedMessages.length, 0)
 })
 
-test('suppresses push for a notify on a flag-false user while still persisting mode=notify', async () => {
-  // Decision 1: per-device readiness flag bounds the eventual un-gate to
-  // clients that can sync/badge/deeplink. The global gate stays closed in this
-  // branch, so the real resolveDeliveryMode would clamp notify → quiet. We stub
-  // it to simulate the eventual un-gate (notify passes through) and assert the
-  // per-device flag still suppresses the push.
+test('still persists the message for a flag-false user, it just does not push', async () => {
+  // Decision 1: the per-user readiness flag bounds the eventual un-gate to
+  // clients that can sync/badge/deeplink. Suppressing the PUSH must never
+  // suppress the MESSAGE — it arrives on the next sync regardless. The clamp
+  // itself (and the delivery_mode column it writes) is asserted by the
+  // clamp=flag test below; this one pins the message-still-persisted half.
   let pushed = false
   const { app, calls } = buildApp({
+    runAgent: (async () => ({
+      reply: 'hi',
+      toolCalls: [],
+      deliveryMode: 'notify' as const,
+    })) as never,
     loadCharacter: (async () => ({
       id: 'char-1',
       name: 'Ada',
@@ -328,7 +333,6 @@ test('suppresses push for a notify on a flag-false user while still persisting m
       expoPushToken: 'ExponentPushToken[abc]',
       proactivePushReady: false,
     })) as never,
-    resolveDeliveryMode: (() => ({ mode: 'notify' as const, clampReason: null })) as never,
     fcmDispatcher: {
       sendCharacterProactive: async (): Promise<void> => {
         pushed = true
@@ -339,7 +343,6 @@ test('suppresses push for a notify on a flag-false user while still persisting m
     .post('/agent/proactive-wakeup')
     .send({ ...body, notifyAllowed: true })
   assert.equal(res.status, 200)
-  // Message is still persisted — the gate only suppresses the push.
   assert.equal(calls.insertedMessages.length, 1)
   assert.equal(pushed, false, 'flag-false user must not receive a push')
 })
@@ -510,4 +513,72 @@ test('does not double-refund when a later statement in the character_missing bra
   // outer catch must not have issued a second refund.
   assert.equal(calls.refund, 1)
   assert.equal(jsonCalls, 2)
+})
+
+/**
+ * A flag-false user must not merely skip the push — the persisted row has to
+ * say so. `delivery_mode` is the column proactiveWakeupSweep.loadContext reads
+ * to build `todaysPushCount`, so recording 'notify' for a push that never went
+ * out lets suppressed rows burn the daily cap and suppress later real pushes.
+ * This is the same invariant the gate clamp already protects (see the handler's
+ * "the row stays self-consistent" note); the readiness flag was the one
+ * suppression still applied at the push call site instead.
+ */
+test('a flag-false notify is recorded as quiet with clamp=flag, not as a push', async () => {
+  let pushed = false
+  const { app, calls } = buildApp({
+    runAgent: (async () => ({
+      reply: 'hi',
+      toolCalls: [],
+      deliveryMode: 'notify' as const,
+    })) as never,
+    loadCharacter: (async () => ({
+      id: 'char-1',
+      name: 'Ada',
+      appearance: null,
+      traits: null,
+      emotions: null,
+      context: null,
+      expoPushToken: 'ExponentPushToken[abc]',
+      proactivePushReady: false,
+    })) as never,
+    // Stub past the closed PROACTIVE_PUSH_ENABLED gate so this exercises the
+    // un-gate shape, where the flag is the only thing left suppressing.
+    resolveDeliveryMode: ((chosen: string, notifyAllowed: boolean, pushReady: boolean) =>
+      chosen === 'notify' && notifyAllowed && !pushReady
+        ? { mode: 'quiet' as const, clampReason: 'flag' as const }
+        : { mode: chosen, clampReason: null }) as never,
+    fcmDispatcher: {
+      sendCharacterProactive: async (): Promise<void> => {
+        pushed = true
+      },
+    } as never,
+  })
+
+  const res = await request(app)
+    .post('/agent/proactive-wakeup')
+    .send({ ...body, notifyAllowed: true })
+
+  assert.equal(res.status, 200)
+  assert.equal(pushed, false, 'flag-false user must not receive a push')
+  const resolved = calls.resolved[0] as { deliveryMode: string; outcome: string }
+  assert.equal(resolved.deliveryMode, 'quiet', 'a push that never went out must not count as one')
+  assert.match(resolved.outcome, /clamp=flag/)
+})
+
+test('resolveDeliveryMode clamps an un-gated notify for a flag-false user', () => {
+  // Guardrail stays the first-checked clamp so the tunable signal survives the
+  // shadow phase; the flag is only reachable once guardrails permit.
+  assert.deepEqual(resolveDeliveryMode('notify', false, false), {
+    mode: 'quiet',
+    clampReason: 'guardrail',
+  })
+  // While PROACTIVE_PUSH_ENABLED is false the gate still wins, so a flag-false
+  // user is indistinguishable from any other clamped notify today.
+  assert.deepEqual(resolveDeliveryMode('notify', true, false), {
+    mode: 'quiet',
+    clampReason: 'gate',
+  })
+  // A non-notify mode is never clamped regardless of readiness.
+  assert.deepEqual(resolveDeliveryMode('quiet', true, false), { mode: 'quiet', clampReason: null })
 })
