@@ -1,3 +1,33 @@
+# [33.2.0](https://github.com/equationalapplications/clanker/compare/v33.1.1...v33.2.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **lint:** resolve warnings — unused scheduleWakeupViaCallable, import order, Array<T> syntax ([3973186](https://github.com/equationalapplications/clanker/commit/3973186d9cc98e335355ad9b94caa347fb0d106a))
+* **proactive:** address CodeRabbit review findings on PR [#710](https://github.com/equationalapplications/clanker/issues/710) ([ebe87e9](https://github.com/equationalapplications/clanker/commit/ebe87e93251e35c076bf481a0b53d93b54dfd0e7))
+* **proactive:** address CodeRabbit review findings on release PR [#713](https://github.com/equationalapplications/clanker/issues/713) ([2e47b1c](https://github.com/equationalapplications/clanker/commit/2e47b1c8df76d3cc6ac4d5aab0045a1349d6b58c))
+* **proactive:** cold-start sync, unstranded mark-read flush, scoped invalidation ([c97a186](https://github.com/equationalapplications/clanker/commit/c97a1868a698f4bc6fa6b70d2ccbe5440454e0a4))
+* **proactive:** switch set_reminder opId to SHA-256 (256-bit) ([49aa631](https://github.com/equationalapplications/clanker/commit/49aa631135109a70f9769902e7fc627552e97cba))
+* **proactive:** unblock tsc 2556 spread of jest.Mock across test mocks ([f5421b8](https://github.com/equationalapplications/clanker/commit/f5421b8fdfb37d94df76b8bcb71bda0854de82a6))
+* **telemetry:** space-delimit and enumerate the clamp-reason pattern ([9af0c08](https://github.com/equationalapplications/clanker/commit/9af0c086f107b32f0ace6d24039a47b71264093b))
+
+
+### Features
+
+* **cloud-agent:** gate proactive push on users.proactive_push_ready ([53d7ae6](https://github.com/equationalapplications/clanker/commit/53d7ae621d95ca8767999ea473c65c84c5e6dd85))
+* **db:** add users.proactive_push_ready capability column (0030) ([44fd9d4](https://github.com/equationalapplications/clanker/commit/44fd9d4f079e0939972bda52bda5e09a1a670c2a))
+* **edge:** execute set_reminder locally via scheduleWakeup callable ([a226a45](https://github.com/equationalapplications/clanker/commit/a226a45e3bb56ebf1d4882db14e630712d1b1749))
+* **functions:** registerExpoPushToken writes proactive_push_ready both ways ([151cefa](https://github.com/equationalapplications/clanker/commit/151cefa52eef2ac9567c7fbc4ce0c3b42a418050))
+* **functions:** scheduleWakeup callable — edge-path wakeup producer ([4d7321a](https://github.com/equationalapplications/clanker/commit/4d7321a0c393205414f0920a69192a2b60903124))
+* **proactive:** add per-op statement deadline constants and withStatementTimeout helper ([3ce7f76](https://github.com/equationalapplications/clanker/commit/3ce7f76abf19f61caf3a19b379a68b53a45c6c06))
+* **proactive:** bound sweep DB ops with per-op statement deadlines ([498249a](https://github.com/equationalapplications/clanker/commit/498249a7c489f2e54fcd56a038b058f123564676))
+* **proactive:** notification-tap + cold-start deeplink routing ([3941258](https://github.com/equationalapplications/clanker/commit/394125859345aff5ee15c4ec7de634f3d55a83cc))
+* **proactive:** optimistic local mark-read on chat open ([3cd548f](https://github.com/equationalapplications/clanker/commit/3cd548fecb812a6e250b3896a6fddaa3644b06d7))
+* **proactive:** restore the character-list unread dot ([e1d627a](https://github.com/equationalapplications/clanker/commit/e1d627a2b1c0cb35de4c14ec913d0261f9500c10))
+* **proactive:** useProactiveSync hook + real markProactiveRead binding ([4e7df59](https://github.com/equationalapplications/clanker/commit/4e7df592a8a98ca000ee3152a456ffc9ec323059))
+* **push:** declare proactivePush capability at token registration ([8468c19](https://github.com/equationalapplications/clanker/commit/8468c19ca44c5e43a3ce04647af8e4bac1ab3ec8))
+* **scheduler:** record why a notify was clamped — gate or guardrail ([e764cb7](https://github.com/equationalapplications/clanker/commit/e764cb794a76157d8905e3feb5543b47d897f4aa))
+
 ## [33.1.1](https://github.com/equationalapplications/clanker/compare/v33.1.0...v33.1.1) (2026-09-09)
 
 
