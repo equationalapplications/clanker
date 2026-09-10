@@ -150,6 +150,14 @@ export function useProactiveNotificationRouting({
   // called behind a platform guard, so the read is inlined here where the guard
   // can live. Only this cold-start read is native-only: the response listener
   // above is emitter-based and still delivers web push taps.
+  //
+  // Deps are [routeIfProactive] alone — no subscription to the SDK's cached
+  // response exists, so there is nothing else to re-run on. That is safe
+  // because this effect and the listener effect above share the same dep:
+  // React runs the listener's destroy and create in one synchronous commit,
+  // so a re-subscribe never leaves a listener-less window, and this read
+  // re-runs on the same identity change (logout/login), picking up any
+  // response the SDK cached in the meantime.
   useEffect(() => {
     if (Platform.OS === 'web') return
     try {
@@ -161,7 +169,11 @@ export function useProactiveNotificationRouting({
           lastResponse.notification.request.identifier,
         )
       ) {
-        void Notifications.clearLastNotificationResponseAsync()
+        // Swallow rejections: the SDK-side cached response staying put is
+        // harmless here — the dedupe set above already prevents the same
+        // identifier from routing twice — but an unhandled rejection would
+        // crash dev builds and surface in error reporting.
+        void Notifications.clearLastNotificationResponseAsync().catch(() => {})
       }
     } catch (error) {
       console.warn('[proactiveNotification] cold-start response read failed:', error)

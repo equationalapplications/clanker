@@ -74,10 +74,10 @@ export interface ProactiveWakeupDeps {
     createdAt: Date
   }) => Promise<void>
   fcmDispatcher?: Pick<FcmDispatcher, 'sendCharacterProactive'>
-  // Injectable so the flag-gate tests can stub it to pass notify through while
-  // the real exported `resolveDeliveryMode` keeps PROACTIVE_PUSH_ENABLED =
-  // false (the global gate stays closed in this branch). Defaults to the real
-  // export when the host wires up the handler.
+  // Injectable so tests can drive specific clamp shapes (e.g. a
+  // guardrail-clamped notify) without going through the exported
+  // `resolveDeliveryMode`. Defaults to the real export when the host wires up
+  // the handler.
   resolveDeliveryMode?: (
     chosen: DeliveryMode,
     notifyAllowed: boolean,
@@ -117,18 +117,19 @@ const PROACTIVE_PUSH_ENABLED = true
  * agent's intent is not lost — `chosen_delivery_mode` still records notify, so
  * the "how often would a character have interrupted" telemetry is unaffected.
  *
- * The clamp REASON is recorded because the two clamps mean opposite things to
- * the Phase 2 rollout gate: a guardrail clamp (cooldown/cap/unread said no) is
- * the signal PROACTIVE_NOTIFY_COOLDOWN_MS and MAX_PROACTIVE_PUSHES_PER_DAY are
- * tuned against, while a gate clamp means the guardrails WOULD have permitted
- * the push and only the closed PROACTIVE_PUSH_ENABLED gate stopped it. Without
- * the reason the columns cannot tell them apart, and during the shadow phase
- * every chosen=notify is clamped — leaving clamped_pct permanently ambiguous.
- * The guardrail is checked FIRST so the tunable signal survives the shadow
- * phase: while the gate is closed, a notify the guardrails would have blocked
- * is labelled 'guardrail', and only guardrail-permitted notifies are labelled
- * 'gate'. The reason rides in the outcome string (`clamp=guardrail`/
- * `clamp=gate`); the 0028 backfill only parses rows with NULL columns, which
+ * The clamp REASON is recorded because the clamps mean different things to the
+ * Phase 2 rollout: a guardrail clamp (cooldown/cap/unread said no) is the
+ * signal PROACTIVE_NOTIFY_COOLDOWN_MS and MAX_PROACTIVE_PUSHES_PER_DAY are
+ * tuned against; a flag clamp means the guardrails DID permit the push and only
+ * the user's client capability stopped it; a gate clamp (only reachable if
+ * PROACTIVE_PUSH_ENABLED is flipped back to false, e.g. an incident rollback)
+ * means everything permitted it and the global switch alone stopped it. Without
+ * the reason the columns cannot tell them apart, leaving clamped_pct
+ * permanently ambiguous. The guardrail is checked FIRST so the tunable signal
+ * stays clean: a notify the guardrails blocked is labelled 'guardrail', and
+ * only guardrail-permitted notifies can be labelled 'gate' or 'flag'. The
+ * reason rides in the outcome string (`clamp=guardrail`/`clamp=gate`/
+ * `clamp=flag`); the 0028 backfill only parses rows with NULL columns, which
  * post-0028 writers never produce, so the suffix cannot confuse it.
  */
 export interface DeliveryModeResolution {
@@ -146,20 +147,23 @@ export interface DeliveryModeResolution {
  * never went out and suppress the real ones that follow.
  *
  * Ordering is deliberate and matches the clamp-reason contract above: guardrail
- * first (the tunable signal), then the gate, then the flag. While
- * PROACTIVE_PUSH_ENABLED is false the flag branch is unreachable, so this adds
- * no new clamp reason to the shadow-phase telemetry; 'flag' only starts
- * appearing once the un-gate lands, which is exactly when it becomes the
- * distinct thing operators need to see.
+ * first (the tunable signal), then the gate, then the flag. With the gate open
+ * the flag is the suppression operators actually see — it names the clients
+ * that have not re-registered a proactive-capable token yet.
+ *
+ * `pushEnabled` is a defaulted parameter rather than a closed-over constant so
+ * the closed-gate branch stays testable (the module constant is not
+ * injectable); production callers never pass it and get PROACTIVE_PUSH_ENABLED.
  */
 export function resolveDeliveryMode(
   chosen: DeliveryMode,
   notifyAllowed: boolean,
-  pushReady = true,
+  pushReady: boolean,
+  pushEnabled = PROACTIVE_PUSH_ENABLED,
 ): DeliveryModeResolution {
   if (chosen !== 'notify') return { mode: chosen, clampReason: null }
   if (!notifyAllowed) return { mode: 'quiet', clampReason: 'guardrail' }
-  if (!PROACTIVE_PUSH_ENABLED) return { mode: 'quiet', clampReason: 'gate' }
+  if (!pushEnabled) return { mode: 'quiet', clampReason: 'gate' }
   if (!pushReady) return { mode: 'quiet', clampReason: 'flag' }
   return { mode: 'notify', clampReason: null }
 }
@@ -351,8 +355,6 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
             console.warn('[proactive-wakeup] push failed:', err)
           })
       }
-      // point: it yields production data on how often characters WOULD have
-      // interrupted, before any user can be interrupted.
       await deps.resolveWakeup(wakeupId, {
         status: 'done',
         spentAmount,

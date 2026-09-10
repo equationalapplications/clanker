@@ -229,12 +229,12 @@ test('character_missing refund failure does not double-refund', async () => {
 })
 
 test('downgrades notify to quiet when the sweeper forbade notifying', () => {
-  assert.deepEqual(resolveDeliveryMode('notify', false), {
+  assert.deepEqual(resolveDeliveryMode('notify', false, true), {
     mode: 'quiet',
     clampReason: 'guardrail',
   })
-  assert.deepEqual(resolveDeliveryMode('quiet', true), { mode: 'quiet', clampReason: null })
-  assert.deepEqual(resolveDeliveryMode('silent', true), { mode: 'silent', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('quiet', true, true), { mode: 'quiet', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('silent', true, true), { mode: 'silent', clampReason: null })
 })
 
 // Paired with PROACTIVE_PUSH_ENABLED = true. Guardrail still wins when the
@@ -242,7 +242,33 @@ test('downgrades notify to quiet when the sweeper forbade notifying', () => {
 // sweeper permits, the open gate passes notify through unclamped and the
 // per-user flag is the only remaining suppression.
 test('passes notify through when the gate is open', () => {
-  assert.deepEqual(resolveDeliveryMode('notify', true), { mode: 'notify', clampReason: null })
+  assert.deepEqual(resolveDeliveryMode('notify', true, true), { mode: 'notify', clampReason: null })
+})
+
+// The gate is the documented incident-rollback lever ("Re-deploy required to
+// flip", see PROACTIVE_PUSH_ENABLED above), so its branch needs coverage even
+// while the gate is open in production — flipping the constant must not depend
+// on the branch never having been exercised since the un-gate. The injectable
+// fourth parameter exists for exactly this test; production callers never
+// pass it.
+test('clamps notify to quiet with clamp=gate when the gate is re-closed', () => {
+  // A flag-true, guardrail-permitted notify is suppressed by the gate alone.
+  assert.deepEqual(resolveDeliveryMode('notify', true, true, false), {
+    mode: 'quiet',
+    clampReason: 'gate',
+  })
+  // Guardrail still wins over the gate: a notify the sweeper forbade is
+  // labelled 'guardrail', keeping the tunable signal unambiguous even with
+  // the gate shut.
+  assert.deepEqual(resolveDeliveryMode('notify', false, true, false), {
+    mode: 'quiet',
+    clampReason: 'guardrail',
+  })
+  // Non-notify modes pass through a closed gate unclamped.
+  assert.deepEqual(resolveDeliveryMode('quiet', true, true, false), {
+    mode: 'quiet',
+    clampReason: null,
+  })
 })
 
 test('resolve records effective and chosen delivery modes as columns', async () => {

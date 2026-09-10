@@ -443,7 +443,9 @@ export default function RootLayout() {
             set" during render and the app mounted a blank page on every
             platform. queryClient and kvStorePersister are module singletons
             (src/config/), so nothing here depends on global state being set up
-            first.
+            first. Enforced by
+            app/__tests__/layoutProviderOrder.test.ts — new providers that call
+            useQueryClient() belong INSIDE this wrapper, not beside it.
           */}
           <PersistQueryClientProvider
             client={queryClient}
