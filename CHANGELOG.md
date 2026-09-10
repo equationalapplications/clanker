@@ -1,3 +1,12 @@
+## [33.2.1](https://github.com/equationalapplications/clanker/compare/v33.2.0...v33.2.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **deps:** clear csv-parse Dependabot alert; drop dead adm-zip override ([c952a61](https://github.com/equationalapplications/clanker/commit/c952a615c20cb342ca3b196880c2e5dd46bc0526)), closes [#698](https://github.com/equationalapplications/clanker/issues/698)
+* **proactive:** fall back to /chat index when local id resolve throws ([0ecd847](https://github.com/equationalapplications/clanker/commit/0ecd847cb913a5c728feecdde18c0bf179bfa7e8))
+* **proactive:** key proactive messages to local character ids ([c1c53c8](https://github.com/equationalapplications/clanker/commit/c1c53c8d37a4e0a02b33c91113a102b5c49ca226))
+
 # [33.2.0](https://github.com/equationalapplications/clanker/compare/v33.1.1...v33.2.0) (2026-09-10)
 
 
