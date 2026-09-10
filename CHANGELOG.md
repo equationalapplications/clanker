@@ -1,3 +1,18 @@
+# [33.3.0](https://github.com/equationalapplications/clanker/compare/v33.2.1...v33.3.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **layout:** hoist the query provider above GlobalStateProvider ([aef82cd](https://github.com/equationalapplications/clanker/commit/aef82cd92347faef902b148e6e1bb1179d6e795f)), closes [#710](https://github.com/equationalapplications/clanker/issues/710)
+* **proactive:** address PR [#719](https://github.com/equationalapplications/clanker/issues/719) review findings ([5af4bda](https://github.com/equationalapplications/clanker/commit/5af4bdae676d0bde8934a7d17ad36c9a40c237ca))
+* **proactive:** keep the cold-start notification read off web ([69c824c](https://github.com/equationalapplications/clanker/commit/69c824ce1b3e07acb94ee0f9fa7de4768e31ad06))
+* **proactive:** route proactive callables through the platform seam ([31bbcfb](https://github.com/equationalapplications/clanker/commit/31bbcfbf797154d61395a4c317b92eb8dc5de158))
+
+
+### Features
+
+* **proactive:** un-gate PROACTIVE_PUSH_ENABLED now that client sync is wired ([094851b](https://github.com/equationalapplications/clanker/commit/094851b4099bb2c1342f9b350852e18b652110ce))
+
 ## [33.2.1](https://github.com/equationalapplications/clanker/compare/v33.2.0...v33.2.1) (2026-09-10)
 
 
