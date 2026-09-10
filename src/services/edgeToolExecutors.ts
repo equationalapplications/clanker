@@ -10,11 +10,54 @@ import {
 import type { LocalTask } from '~/database/taskDatabase'
 import { formatGraphContext } from '@equationalapplications/core-llm-wiki'
 import { generateImageViaCallable } from './imageGenerationService'
+import type { ScheduleWakeupRequest, ScheduleWakeupResponse } from './proactiveWakeupService'
 import { saveCharacterImage } from './characterImageService'
 import { generateSecureUuid } from '~/utilities/generateSecureUuid'
 import { MASTER_DIMENSION } from './imageVariants'
+import * as Crypto from 'expo-crypto'
 
 export type ToolExecutor = (args: Record<string, unknown>) => unknown | Promise<unknown>
+
+/**
+ * Canonical string for a set_reminder operation. Both the edge executor and
+ * the cloud-agent's escalated set_reminder produce identical bytes here, so the
+ * opId they hash agrees across the two paths. `remindAt` is the raw ISO string
+ * from the model — NOT a parsed Date — because Date#toISOString normalises the
+ * offset to "Z" while the edge input may carry "+02:00", and the two would hash
+ * to different bytes for the same wall-clock moment.
+ *
+ * Mirrored in cloud-agent/src/tools/reminders.ts (kept identical by hand; the
+ * two packages do not share code).
+ */
+export function reminderOpIdCanonical(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): string {
+  return `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
+}
+
+/**
+ * Deterministic operation id: same (character, reason, remindAt, priority) →
+ * same opId, so a network retry lands on the same server row (the callable's
+ * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
+ * double-fire. SHA-256 over the canonical string — 256 bits of entropy, well
+ * above the FNV-1a 32-bit budget that collided on a real test corpus. Uses
+ * expo-crypto so it is Hermes-safe in the React Native runtime.
+ */
+export async function deriveOpId(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): Promise<string> {
+  const hex = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    reminderOpIdCanonical(args),
+  )
+  return `op-${hex}`
+}
 
 /**
  * Deps for the local `generate_image` executor, supplied only for characters
@@ -28,6 +71,18 @@ export interface EdgeImageToolDeps {
   messageId: string
   /** Reports the saved row id so the turn can persist it as the render hint. */
   onImageSaved: (imageId: string) => void
+}
+
+/**
+ * Deps for the local `set_reminder` executor, supplied for cloud-synced
+ * characters via the useEdgeAgent `cloudAgentCharacterId` option. The
+ * characterId is the CLOUD UUID (Postgres `characters.id`) — the callable
+ * verifies ownership against characters.user_id, so the edge executor must
+ * never let the model name its own target.
+ */
+export interface EdgeReminderToolDeps {
+  characterId: string
+  scheduleWakeup: (request: ScheduleWakeupRequest) => Promise<ScheduleWakeupResponse>
 }
 
 export const edgeToolExecutors: Record<string, ToolExecutor> = {
@@ -47,6 +102,7 @@ export function createEdgeToolExecutors(
   characterId: string,
   wiki: Wiki | null,
   image?: EdgeImageToolDeps,
+  reminder?: EdgeReminderToolDeps,
 ): Record<string, ToolExecutor> {
   // Run-scoped cap, mirroring cloud-agent's generate_image tool: the model gets
   // up to MAX_ITERATIONS turns of the loop, and without this a second call would
@@ -113,6 +169,57 @@ export function createEdgeToolExecutors(
               // (the callable threw) leaves generatedThisTurn false, so the model
               // may retry within the turn.
               generationInFlight = false
+            }
+          },
+        }
+      : {}),
+    // set_reminder is offered to the edge model as a stub the local executor
+    // handles (Decision 0) — the producer used to live behind escalation that
+    // production chat almost never took. Only wired in when a cloud character
+    // row exists to schedule against; a local-only character has no Postgres
+    // row, so the tool is not offered there at all (see getSchemasForEdge).
+    ...(reminder
+      ? {
+          set_reminder: async (args: Record<string, unknown>) => {
+            const reason = typeof args.reason === 'string' ? args.reason : ''
+            const remindAt = typeof args.remind_at === 'string' ? args.remind_at : ''
+            const priority =
+              typeof args.priority === 'number' &&
+              Number.isInteger(args.priority) &&
+              args.priority >= 0 &&
+              args.priority <= 10
+                ? args.priority
+                : undefined
+            // Deterministic opId: same logical args → same opId → same server
+            // row on retry. A network retry of this turn (or a replay of the
+            // same call from a model that produced the same args twice) hits
+            // ON CONFLICT DO NOTHING on the row's primary key and returns the
+            // existing dueAt, instead of inserting a duplicate that the sweep
+            // would later double-fire. SHA-256 (256-bit) over the canonical
+            // string — see deriveOpId for the entropy rationale.
+            const opId = await deriveOpId({
+              characterId: reminder.characterId,
+              reason,
+              remindAt,
+              priority,
+            })
+            try {
+              // characterId comes from useEdgeAgent (cloud UUID), never from the
+              // model — the callable verifies ownership against characters.user_id.
+              const result = await reminder.scheduleWakeup({
+                characterId: reminder.characterId,
+                reason,
+                remindAt,
+                ...(priority !== undefined ? { priority } : {}),
+                opId,
+              })
+              // Surfaces both success and semantic refusal (ceiling, malformed
+              // remind_at, etc.) verbatim — the server strings are model-safe.
+              return result.message
+            } catch (error) {
+              console.error('[EdgeAgent] set_reminder failed:', error)
+              // Same catch-all string cloud-agent's set_reminder returns.
+              return 'Not scheduled: an internal error occurred.'
             }
           },
         }

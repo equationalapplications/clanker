@@ -25,6 +25,11 @@ export interface ProactiveCharacter {
   traits: string | null
   emotions: string | null
   context: string | null
+  // Decision 1: per-device readiness flag. Bounds the eventual un-gate to
+  // clients that can sync/badge/deeplink; mirrors `users.proactive_push_ready`.
+  // The handler reads this on the notify branch alongside expoPushToken and
+  // messageId — the flag-true user is the only one that ever sees a push.
+  proactivePushReady: boolean
 }
 
 /**
@@ -69,6 +74,11 @@ export interface ProactiveWakeupDeps {
     createdAt: Date
   }) => Promise<void>
   fcmDispatcher?: Pick<FcmDispatcher, 'sendCharacterProactive'>
+  // Injectable so the flag-gate tests can stub it to pass notify through while
+  // the real exported `resolveDeliveryMode` keeps PROACTIVE_PUSH_ENABLED =
+  // false (the global gate stays closed in this branch). Defaults to the real
+  // export when the host wires up the handler.
+  resolveDeliveryMode?: (chosen: DeliveryMode, notifyAllowed: boolean) => DeliveryModeResolution
 }
 
 /**
@@ -97,11 +107,34 @@ const PROACTIVE_PUSH_ENABLED = false
  * from counting a push that never went out and suppressing later real ones. The
  * agent's intent is not lost — `chosen_delivery_mode` still records notify, so
  * the "how often would a character have interrupted" telemetry is unaffected.
+ *
+ * The clamp REASON is recorded because the two clamps mean opposite things to
+ * the Phase 2 rollout gate: a guardrail clamp (cooldown/cap/unread said no) is
+ * the signal PROACTIVE_NOTIFY_COOLDOWN_MS and MAX_PROACTIVE_PUSHES_PER_DAY are
+ * tuned against, while a gate clamp means the guardrails WOULD have permitted
+ * the push and only the closed PROACTIVE_PUSH_ENABLED gate stopped it. Without
+ * the reason the columns cannot tell them apart, and during the shadow phase
+ * every chosen=notify is clamped — leaving clamped_pct permanently ambiguous.
+ * The guardrail is checked FIRST so the tunable signal survives the shadow
+ * phase: while the gate is closed, a notify the guardrails would have blocked
+ * is labelled 'guardrail', and only guardrail-permitted notifies are labelled
+ * 'gate'. The reason rides in the outcome string (`clamp=guardrail`/
+ * `clamp=gate`); the 0028 backfill only parses rows with NULL columns, which
+ * post-0028 writers never produce, so the suffix cannot confuse it.
  */
-export function resolveDeliveryMode(chosen: DeliveryMode, notifyAllowed: boolean): DeliveryMode {
-  if (chosen === 'notify' && !PROACTIVE_PUSH_ENABLED) return 'quiet'
-  if (chosen === 'notify' && !notifyAllowed) return 'quiet'
-  return chosen
+export interface DeliveryModeResolution {
+  mode: DeliveryMode
+  clampReason: 'guardrail' | 'gate' | null
+}
+
+export function resolveDeliveryMode(
+  chosen: DeliveryMode,
+  notifyAllowed: boolean,
+): DeliveryModeResolution {
+  if (chosen !== 'notify') return { mode: chosen, clampReason: null }
+  if (!notifyAllowed) return { mode: 'quiet', clampReason: 'guardrail' }
+  if (!PROACTIVE_PUSH_ENABLED) return { mode: 'quiet', clampReason: 'gate' }
+  return { mode: 'notify', clampReason: null }
 }
 
 export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
@@ -252,7 +285,10 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         character,
         reason,
       })
-      const mode = resolveDeliveryMode(result.deliveryMode, notifyAllowed)
+      const { mode, clampReason } = (deps.resolveDeliveryMode ?? resolveDeliveryMode)(
+        result.deliveryMode,
+        notifyAllowed,
+      )
 
       // 'silent' means the character decided there was nothing worth saying.
       // Persisting an empty row would badge the user for nothing.
@@ -268,7 +304,12 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         })
       }
 
-      if (mode === 'notify' && character.expoPushToken && messageId) {
+      if (
+        mode === 'notify' &&
+        character.proactivePushReady &&
+        character.expoPushToken &&
+        messageId
+      ) {
         // Never let a push failure fail the wake-up: the message is already
         // persisted and will arrive on next sync regardless.
         await (deps.fcmDispatcher ?? defaultFcmDispatcher())
@@ -290,7 +331,12 @@ export function createProactiveWakeupHandler(deps: ProactiveWakeupDeps) {
         spentAmount,
         // outcome is kept as-is: it is the human-readable audit trail and the
         // source the 0028 backfill parses. The columns are what code reads.
-        outcome: `mode=${mode} chosen=${result.deliveryMode}`,
+        // The clamp reason suffix is the one deliberate exception: it is the
+        // only place the gate/guardrail split exists, and the telemetry
+        // script's clamp-reason query parses exactly this field.
+        outcome: `mode=${mode} chosen=${result.deliveryMode}${
+          clampReason ? ` clamp=${clampReason}` : ''
+        }`,
         deliveryMode: mode,
         chosenDeliveryMode: result.deliveryMode,
       })

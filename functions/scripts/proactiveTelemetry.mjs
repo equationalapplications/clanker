@@ -91,15 +91,14 @@ const QUERIES = [
     'CLAMP RATE — how often a chosen notify was downgraded (see gate warning)',
     // WARNING — while PROACTIVE_PUSH_ENABLED is false in cloud-agent's
     // proactiveWakeupHandler, EVERY chosen=notify lands as quiet: the push
-    // gate clamps before the guardrails and is recorded byte-identically to a
-    // guardrail clamp (delivery_mode='quiet', chosen_delivery_mode='notify'),
-    // so clamped_pct reads ~100 and measures the gate, not the guardrails. A
-    // saturated clamp rate here is NOT evidence that
-    // PROACTIVE_NOTIFY_COOLDOWN_MS or MAX_PROACTIVE_PUSHES_PER_DAY are too
-    // tight — do not tune them from this number while push is gated. It only
-    // becomes the guardrail metric in a build where push can actually fire;
-    // distinguishing gate-clamps from guardrail-clamps in the data needs
-    // writer support and is a recorded follow-up.
+    // gate clamps and is recorded identically to a guardrail clamp in these
+    // columns (delivery_mode='quiet', chosen_delivery_mode='notify'), so
+    // clamped_pct reads ~100 and mixes both kinds. Do NOT tune
+    // PROACTIVE_NOTIFY_COOLDOWN_MS or MAX_PROACTIVE_PUSHES_PER_DAY from this
+    // number alone — split it with the clamp-reason query below, which reads
+    // the clamp=<reason> suffix the handler records in outcome. Rows written
+    // before that suffix existed (and any rollback/lag window) fall into its
+    // 'unlabelled' bucket and cannot be split after the fact.
     //
     // clamped_pct = clamped / resolved notify wishes: rows whose chosen mode
     // was notify but whose turn never resolved to an effective mode (failures,
@@ -124,6 +123,34 @@ const QUERIES = [
             ) AS chosen_notify_unresolved
        FROM scheduled_wakeups
       WHERE chosen_delivery_mode IS NOT NULL`,
+  ],
+  [
+    'CLAMP REASONS — gate vs guardrail split of the clamped notifies above',
+    // The columns cannot distinguish the two clamps, so this query reads the
+    // clamp=<reason> suffix the handler appends to outcome. It parses exactly
+    // that one deliberately-written field — not a reintroduction of the
+    // outcome-LIKE parsing 0028 removed, which guessed delivery semantics
+    // from prose. The pattern is space-delimited and enumerates the only two
+    // reasons the handler can write (a loose 'clamp=' match would bucket
+    // hypothetical text like 'unclamp=able' as a reason instead of leaving it
+    // unlabelled). 'guardrail' is the signal the rollout gate tunes
+    // PROACTIVE_NOTIFY_COOLDOWN_MS / MAX_PROACTIVE_PUSHES_PER_DAY against:
+    // the guardrails blocked a notify the push gate would have allowed.
+    // 'gate' means the guardrails WOULD have permitted the push. 'unlabelled'
+    // covers rows written before the suffix existed, a future third reason
+    // this query predates, or a rollback/lag window — those are ambiguous,
+    // which is why this landed before the gate opens.
+    `SELECT coalesce(
+              substring(outcome from ' clamp=(gate|guardrail)'),
+              'unlabelled'
+            ) AS clamp_reason,
+            count(*)
+       FROM scheduled_wakeups
+      WHERE chosen_delivery_mode = 'notify'
+        AND delivery_mode IS NOT NULL
+        AND delivery_mode <> 'notify'
+      GROUP BY 1
+      ORDER BY 2 DESC`,
   ],
   [
     'skip reasons — are the guardrails too tight?',

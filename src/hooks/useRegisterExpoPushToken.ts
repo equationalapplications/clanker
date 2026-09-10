@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import * as Notifications from 'expo-notifications'
@@ -68,12 +68,44 @@ async function registerWebPushToken(projectId: string, applicationId: string): P
     projectId,
     applicationId,
     deviceId: getWebPushInstallationId(),
+    capabilities: { proactivePush: true },
   })
 }
 
 export function useRegisterExpoPushToken({ enabled, projectId }: Options): void {
+  // Track the previous enabled value so the true→false transition can fire a
+  // capability-only downgrade (no token, just `proactivePush: false`). The
+  // server then clears the flag without overwriting expo_push_token, which
+  // may belong to another device or to the same device after re-enable. A
+  // single render of `enabled=false` (mount with no prior true) skips the
+  // downgrade.
+  const wasEnabledRef = useRef(enabled)
   useEffect(() => {
-    if (!enabled) return
+    const wasEnabled = wasEnabledRef.current
+    wasEnabledRef.current = enabled
+
+    if (!enabled) {
+      // True→false transition: clear the server flag. Skip on the very first
+      // render when there's nothing to downgrade, and skip in the dev sandbox
+      // where every callable fails.
+      if (!wasEnabled || isDevSandboxEnabled()) return
+      void (async () => {
+        try {
+          if (!getCurrentUser()) return
+          await appCheckReady
+          // Capability-only shape: no token in the payload. The server sees
+          // the empty token + webDevicePushToken shape and routes to a flag-
+          // only update that leaves expo_push_token untouched.
+          await registerExpoPushTokenFn({
+            capabilities: { proactivePush: false },
+          })
+        } catch (error) {
+          console.error('Failed to clear proactivePushReady on disable', error)
+        }
+      })()
+      return
+    }
+
     // The mock-auth sandbox has no real Firebase identity, so the callable
     // rejects with "Authentication required" — registering can never succeed.
     if (isDevSandboxEnabled()) return
@@ -101,7 +133,10 @@ export function useRegisterExpoPushToken({ enabled, projectId }: Options): void 
         }
 
         const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync({ projectId })
-        await registerExpoPushTokenFn({ expoPushToken })
+        await registerExpoPushTokenFn({
+          expoPushToken,
+          capabilities: { proactivePush: true },
+        })
       } catch (error) {
         console.error('Failed to register Expo push token', error)
       }

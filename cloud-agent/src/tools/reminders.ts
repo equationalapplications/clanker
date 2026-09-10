@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { FunctionTool } from '@google/adk'
 import { z } from 'zod'
 import { and, eq, gte, sql } from 'drizzle-orm'
@@ -17,18 +18,66 @@ export interface WakeupInsertArgs {
   reason: string
   dueAt: Date
   priority: number
+  /**
+   * Stable operation identifier. Same logical args → same opId → same row,
+   * so a retry (or a duplicate call from the model) hits ON CONFLICT DO
+   * NOTHING on the primary key instead of inserting a duplicate the sweep
+   * would double-fire. The escalation path is responsible for deriving this
+   * — it has no caller-driven opId supply.
+   */
+  opId: string
+}
+
+/**
+ * Canonical string for a set_reminder operation. Mirrored exactly in
+ * src/services/edgeToolExecutors.ts (exported as `reminderOpIdCanonical`):
+ * both set_reminder entry points (escalation and edge) must hash identical
+ * bytes here, so the opId they produce agrees across the two paths and the
+ * server's ON CONFLICT DO NOTHING collapses them onto the same row.
+ *
+ * `remindAt` is the RAW ISO string from the model — NOT a parsed Date —
+ * because Date#toISOString normalises the offset to "Z" while the edge input
+ * may carry "+02:00", and the two would hash to different bytes for the same
+ * wall-clock moment. The packages cannot share a module; keep the format
+ * equal by hand.
+ */
+export function reminderOpIdCanonical(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): string {
+  return `${args.characterId}|${args.reason.trim()}|${args.remindAt}|${args.priority ?? 0}`
+}
+
+/**
+ * Deterministic operation id: same (character, reason, remindAt, priority) →
+ * same opId, so a network retry lands on the same server row (the insert's
+ * ON CONFLICT DO NOTHING) instead of inserting a duplicate the sweep would
+ * double-fire. SHA-256 (256-bit) over the canonical string — 256 bits of
+ * entropy, well above the FNV-1a 32-bit budget that collided on a real test
+ * corpus. Mirrors the same helper in src/services/edgeToolExecutors.ts.
+ */
+export async function deriveOpId(args: {
+  characterId: string
+  reason: string
+  remindAt: string
+  priority?: number
+}): Promise<string> {
+  const hex = createHash('sha256').update(reminderOpIdCanonical(args), 'utf8').digest('hex')
+  return `op-${hex}`
 }
 
 export function buildWakeupInsert(args: WakeupInsertArgs) {
   return {
-    id: crypto.randomUUID(),
+    id: args.opId,
     characterId: args.characterId,
     userId: args.userId,
     reason: args.reason,
     dueAt: args.dueAt,
     priority: args.priority,
     status: 'pending' as const,
-    runKey: crypto.randomUUID(),
+    runKey: args.opId,
   }
 }
 
@@ -107,15 +156,32 @@ export function setReminderTool(
           return formatReminderResult({ scheduled: false, reason: 'daily_ceiling' })
         }
 
-        await db.insert(scheduledWakeups).values(
-          buildWakeupInsert({
-            userId,
-            characterId,
-            reason: reason.trim(),
-            dueAt,
-            priority: priority ?? 0,
-          }),
-        )
+        // Canonical-string input uses the RAW `remind_at` (not
+        // `dueAt.toISOString()`) so the SHA-256 bytes match the edge side's
+        // bytes for the same wall-clock moment — see reminderOpIdCanonical.
+        const opId = await deriveOpId({
+          characterId,
+          reason: reason.trim(),
+          remindAt: remind_at,
+          priority: priority ?? 0,
+        })
+        // ON CONFLICT DO NOTHING so a retry from the same logical call lands
+        // on the existing row instead of inserting a duplicate the sweep
+        // would double-fire. The cloud-agent path has no client-driven opId
+        // supply, so the deterministic hash is what collapses retries.
+        await db
+          .insert(scheduledWakeups)
+          .values(
+            buildWakeupInsert({
+              userId,
+              characterId,
+              reason: reason.trim(),
+              dueAt,
+              priority: priority ?? 0,
+              opId,
+            }),
+          )
+          .onConflictDoNothing({ target: scheduledWakeups.id })
         return formatReminderResult({ scheduled: true, dueAt: dueAt.toISOString() })
       } catch (error) {
         console.error('[CloudAgent] set_reminder failed:', error)

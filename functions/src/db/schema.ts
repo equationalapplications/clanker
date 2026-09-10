@@ -28,6 +28,7 @@ export const users = pgTable('users', {
   email: text('email').unique().notNull(),
   displayName: text('display_name'),
   expoPushToken: text('expo_push_token'),
+  proactivePushReady: boolean('proactive_push_ready').notNull().default(false),
   avatarUrl: text('avatar_url'),
   isProfilePublic: boolean('is_profile_public').notNull().default(false),
   defaultCharacterId: uuid('default_character_id'),

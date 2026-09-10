@@ -60,6 +60,9 @@ jest.mock('react-native-paper', () => {
 })
 
 import { CharacterCard } from '~/components/CharacterCard'
+import { useProactiveUnread } from '~/hooks/useProactiveUnread'
+
+const mockUseProactiveUnread = useProactiveUnread as jest.Mock
 
 describe('CharacterCard accessibility', () => {
   const defaultProps = {
@@ -130,5 +133,39 @@ describe('CharacterCard accessibility', () => {
     })
     const touchables = tree.root.findAllByType('TouchableOpacity')
     expect(touchables[1].props.accessibilityHint).toBe('Opens character editor')
+  })
+})
+
+describe('CharacterCard unread dot', () => {
+  const defaultProps = {
+    id: 'char-1',
+    name: 'Frodo',
+    appearance: 'A brave hobbit',
+  }
+
+  const findDotViews = (tree: any) =>
+    tree.root.findAllByType('View').filter((v: any) => {
+      const style = v.props.style
+      if (!style) return false
+      const styles = Array.isArray(style) ? style : [style]
+      return styles.some((s: any) => s && s.position === 'absolute' && s.top === -2)
+    })
+
+  it('renders the unread dot when the character has unread proactive messages', () => {
+    mockUseProactiveUnread.mockReturnValue({ hasUnread: true })
+    let tree: any
+    act(() => {
+      tree = create(<CharacterCard {...defaultProps} />)
+    })
+    expect(findDotViews(tree).length).toBe(1)
+  })
+
+  it('renders no dot when there is nothing unread', () => {
+    mockUseProactiveUnread.mockReturnValue({ hasUnread: false })
+    let tree: any
+    act(() => {
+      tree = create(<CharacterCard {...defaultProps} />)
+    })
+    expect(findDotViews(tree).length).toBe(0)
   })
 })

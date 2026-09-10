@@ -9,6 +9,7 @@
  * real SQLite handle so the queue logic is testable without a database.
  */
 
+import { waitFor } from '@testing-library/react-native'
 import { PROACTIVE_READ_QUEUE_KEY } from '~/constants/proactive'
 import { enqueueMarkRead, flushMarkReadQueue } from '../proactiveReadQueue'
 
@@ -83,5 +84,32 @@ describe('proactive read queue', () => {
 
     const remaining = JSON.parse(mockStore[PROACTIVE_READ_QUEUE_KEY]!) as string[]
     expect(remaining).toEqual(['m2'])
+  })
+
+  it('enqueueMarkRead with a call kicks a fire-and-forget flush', async () => {
+    // The queue module references flushMarkReadQueue by its lexical binding
+    // inside the same file, so jest.spyOn cannot intercept it. Let the real
+    // flush run and observe via the MarkReadCall mock — the call is the
+    // observable side-effect of a successful kick.
+    const call = jest.fn(async () => ({ updated: 1 }))
+    await enqueueMarkRead(['m1', 'm2'], call)
+
+    await waitFor(() => expect(call).toHaveBeenCalledWith({ messageIds: ['m1', 'm2'] }))
+  })
+
+  it('enqueueMarkRead does not kick a flush when call is omitted', async () => {
+    // Provide a sentinel call on the persisted queue from a previous enqueue,
+    // then perform a call-less enqueue. If the kick were triggered
+    // unconditionally, the sentinel would be flushed — we assert it stays put.
+    mockStore[PROACTIVE_READ_QUEUE_KEY] = JSON.stringify(['sentinel'])
+
+    const call = jest.fn(async () => ({ updated: 1 }))
+    await enqueueMarkRead(['sentinel']) // dedupe no-op; no call provided
+    // Drain microtasks/macrotasks to surface any kicked flush.
+    await new Promise((res) => setTimeout(res, 10))
+
+    expect(call).not.toHaveBeenCalled()
+    const remaining = JSON.parse(mockStore[PROACTIVE_READ_QUEUE_KEY]!) as string[]
+    expect(remaining).toEqual(['sentinel'])
   })
 })

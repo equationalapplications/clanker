@@ -9,7 +9,12 @@
 
 import { createExpoSqliteBetterSqlite3Mock } from '../../../__tests__/helpers/expoSqliteBetterSqlite3Mock'
 import { UNREAD_STALENESS_ESCAPE_MS } from '../../constants/proactive'
-import { applyProactiveMessages, countUnreadProactive, type LocalMessage } from '../messageDatabase'
+import {
+  applyProactiveMessages,
+  countUnreadProactive,
+  markProactiveReadLocally,
+  type LocalMessage,
+} from '../messageDatabase'
 import { CREATE_TABLES } from '../schema'
 
 type BetterSqliteDb = ReturnType<
@@ -183,5 +188,61 @@ describe('countUnreadProactive', () => {
     await insertLocal({ id: 'new', read_at: null, created_at: now - 1000 })
 
     expect(await countUnreadProactive('char-1', now)).toBe(1)
+  })
+})
+
+describe('markProactiveReadLocally', () => {
+  it("writes read_at for ALL of the character's unread proactive rows and returns their ids", async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await insertLocal({ id: 'p2', character_id: 'c1' })
+    await insertLocal({
+      id: 'regular',
+      character_id: 'c1',
+      message_data: JSON.stringify({ proactive: false }),
+    }) // not proactive
+    await insertLocal({ id: 'p3', character_id: 'c2' }) // other character
+    const ids = await markProactiveReadLocally('c1')
+    expect(ids.sort()).toEqual(['p1', 'p2'])
+    const row = await getLocal('p1')
+    expect(row?.read_at).not.toBeNull()
+  })
+
+  it('is a no-op when there is nothing unread (second open)', async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await markProactiveReadLocally('c1')
+    const ids = await markProactiveReadLocally('c1')
+    expect(ids).toEqual([])
+  })
+
+  it('leaves already-read rows out of the returned ids', async () => {
+    await insertLocal({ id: 'p1', character_id: 'c1' })
+    await markProactiveReadLocally('c1')
+    await markProactiveReadLocally('c1') // both calls
+    expect(await countUnreadProactive('c1', Date.now())).toBe(0)
+  })
+
+  // SQLite's SQLITE_MAX_VARIABLE_NUMBER is 999 by default; an UPDATE with
+  // that many IN-placeholders is rejected during prepare, before any row
+  // changes. Seed 250 rows (forces 3 batches at the 100-batch ceiling) and
+  // verify the whole backlog still gets read_at — and that the row is updated
+  // in multiple transaction-internal UPDATE calls, not one oversize one.
+  it("batches the ID-based UPDATE so a backlog above SQLite's host-parameter ceiling still marks locally", async () => {
+    const TOTAL = 250
+    for (let i = 0; i < TOTAL; i++) {
+      await insertLocal({ id: `big-${i}`, character_id: 'c-bulk' })
+    }
+    const runSpy = jest.spyOn(mockDbOverride!, 'runAsync')
+    const ids = await markProactiveReadLocally('c-bulk')
+    expect(ids.length).toBe(TOTAL)
+    // Batched updates: 100 + 100 + 50 = 3 UPDATE calls (not the single oversize
+    // call that would fail prepare on real devices with large backlogs).
+    const updateCalls = runSpy.mock.calls.filter(([sql]) =>
+      String(sql).trimStart().toUpperCase().startsWith('UPDATE'),
+    )
+    expect(updateCalls.length).toBe(3)
+    runSpy.mockRestore()
+    // Spot-check that the very last row (must be in the partial batch) is marked.
+    const last = await getLocal(`big-${TOTAL - 1}`)
+    expect(last?.read_at).not.toBeNull()
   })
 })

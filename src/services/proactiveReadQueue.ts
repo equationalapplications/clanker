@@ -8,8 +8,12 @@
  * in the `sync_state` table (Task 9 storage) and every flush retries until it
  * succeeds or the retry budget is exhausted.
  *
- * Flush wiring (calling this on app foreground and after each successful sync)
- * is intentionally left to a future task — T11 only exposes the two functions.
+ * Flush wiring: `enqueueMarkRead` with a `call` both persists the intent AND
+ * kicks a fire-and-forget flush, so opening a chat reaches the server promptly
+ * without waiting for the next foreground event. The hook layer (`useProactiveSync`)
+ * also flushes after each successful `syncProactiveMessages` run; foreground
+ * flushes via `AppState` cover the case where the app comes back from the
+ * background while ids are still queued.
  *
  * Concurrency: getSyncJson and setSyncJson are separate awaits, so two
  * enqueues can interleave (enqueue A reads, enqueue B reads, A writes, B
@@ -23,12 +27,14 @@
 
 import { PROACTIVE_READ_QUEUE_KEY } from '~/constants/proactive'
 import { getSyncJson, setSyncJson } from '~/database/syncState'
+import type { SQLiteDatabase } from 'expo-sqlite'
 
 /**
  * Wire shape for the server-side callable. Matches the request/response types
  * declared in functions/src/proactiveMessages.ts. The `call` parameter is
- * injected so tests can substitute a mock — wiring the real
- * `httpsCallable('markProactiveRead')` happens in a future task.
+ * injected so tests can substitute a mock — the real binding
+ * (`markProactiveReadViaCallable`) lives in `proactiveMarkReadService.ts` and
+ * is shared by `useProactiveSync` and the chat-open enqueue (Task 8).
  */
 export type MarkReadCall = (request: { messageIds: string[] }) => Promise<{ updated: number }>
 
@@ -42,24 +48,24 @@ let queueLock: Promise<unknown> = Promise.resolve()
 async function withQueueLock<T>(fn: () => Promise<T>): Promise<T> {
   const prev = queueLock
   let release: () => void = () => {}
-  let abort: (err: unknown) => void = () => {}
-  queueLock = new Promise<void>((res, rej) => {
+  const current = new Promise<void>((res) => {
     release = res
-    abort = rej
   })
+  queueLock = current
   try {
-    await prev
+    // Wait for the previous holder either way: a rejected `prev` must not skip
+    // our turn, and it is already owned by whoever threw it.
+    await prev.catch(() => {})
     return await fn()
   } finally {
+    // Always resolves — the chain never carries a rejection, so the next
+    // holder's `await prev` cannot be poisoned by our caller's error.
     release()
-    // Swallow late rejections from previous holders so the chain stays healthy
-    // even if a thrown error reaches here after the holder already caught it.
-    queueLock.catch(abort)
   }
 }
 
-async function readQueue(): Promise<string[]> {
-  return (await getSyncJson<string[]>(PROACTIVE_READ_QUEUE_KEY)) ?? []
+async function readQueue(db?: SQLiteDatabase): Promise<string[]> {
+  return (await getSyncJson<string[]>(PROACTIVE_READ_QUEUE_KEY, db)) ?? []
 }
 
 /**
@@ -68,13 +74,26 @@ async function readQueue(): Promise<string[]> {
  * re-opens (each generating a mark-read intent) cannot double-count server
  * updates on flush.
  *
- * The `_call` parameter is accepted for symmetry with `flushMarkReadQueue` and
- * for the future wiring that will both enqueue AND kick a flush; today it is
- * unused.
+ * When a `call` is provided, an enqueue both persists the intent AND kicks a
+ * flush, so a chat open reaches the server promptly. The flush is
+ * fire-and-forget — flush failures stay queued (retry budget + foreground
+ * flushes cover them).
+ *
+ * `txDb` is the optional transaction-scoped handle for atomic joins with the
+ * caller (see `enqueueMarkReadWithLocalMark`). When supplied, the read-modify-
+ * write of the queue joins the caller's transaction so a mid-transaction
+ * failure cannot strand ids whose `read_at` was already written on the
+ * `messages` table. The lock is still acquired — SQLite serializes writers,
+ * but the JS-side lock keeps the read-modify-write consistent across multiple
+ * queued enqueues, and the caller's transaction wraps the locked write.
  */
-export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall): Promise<void> {
+export async function enqueueMarkRead(
+  messageIds: string[],
+  call?: MarkReadCall,
+  txDb?: SQLiteDatabase,
+): Promise<void> {
   await withQueueLock(async () => {
-    const current = await readQueue()
+    const current = await readQueue(txDb)
     const seen = new Set(current)
     const merged = current.slice()
     let appended = false
@@ -86,9 +105,16 @@ export async function enqueueMarkRead(messageIds: string[], _call?: MarkReadCall
       }
     }
     if (appended) {
-      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged)
+      await setSyncJson(PROACTIVE_READ_QUEUE_KEY, merged, txDb)
     }
   })
+  // The wiring this docstring anticipated: an enqueue with a call both persists
+  // the intent AND kicks a flush, so a chat open reaches the server promptly.
+  // Fire-and-forget — flush failures stay queued (retry budget + foreground
+  // flushes cover them).
+  if (call && messageIds.length > 0) {
+    void flushMarkReadQueue(call).catch(() => {})
+  }
 }
 
 /**

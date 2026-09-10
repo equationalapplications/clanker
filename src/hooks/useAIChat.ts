@@ -95,6 +95,7 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
     priorMessages: messages,
     isCloudSynced: isCloudSynced || devSandbox,
     wiki,
+    cloudAgentCharacterId,
   })
 
   /**
