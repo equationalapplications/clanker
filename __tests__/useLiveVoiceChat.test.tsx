@@ -28,8 +28,10 @@ jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockRoute
 jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({ addListener: jest.fn().mockReturnValue(jest.fn()) }),
 }))
+const mockRetrySync = jest.fn()
 jest.mock('~/hooks/useCharacters', () => ({
   useCharacter: (...a: unknown[]) => mockUseCharacter(...a),
+  useSyncCharacters: () => ({ sync: mockRetrySync, isCloudSyncing: false, error: null }),
 }))
 jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: () => ({ send: mockAuthSend }) }))
 jest.mock('~/hooks/useCurrentPlan', () => ({
@@ -58,6 +60,8 @@ jest.mock('react-native', () => ({
 }))
 
 import { useLiveVoiceChat } from '~/hooks/useLiveVoiceChat'
+
+const CLOUD_ID = '33333333-3333-4333-8333-333333333333'
 import { liveVoiceMachine } from '~/machines/liveVoiceMachine'
 
 function makeIdleSnapshot() {
@@ -93,7 +97,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('startCall shows alert if character has no voice', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: null, save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: null, save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
@@ -116,7 +122,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('startCall shows alert when remaining Power is below the start-call gate', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 1 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
@@ -142,7 +150,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('startCall shows alert if credits are below the new gate of 500', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 499 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
@@ -168,7 +178,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('startCall shows alert if save_to_cloud is disabled', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 0 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 0, cloud_id: null },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
 
     let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
@@ -194,7 +206,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('startCall sends START_CALL to machine when all checks pass', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
     mockStartRecording.mockResolvedValue(true)
 
@@ -218,7 +232,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('AppState background → sends END_CALL to machine when live', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     const liveSnapshot = {
@@ -256,7 +272,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('derived state: isLive true when machine in session.live', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     const liveSnapshot = {
@@ -298,7 +316,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('does not dispatch USAGE_SNAPSHOT_RECEIVED on initial seed', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     await act(async () => {
@@ -309,7 +329,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('dispatches USAGE_SNAPSHOT_RECEIVED when live remainingCredits changes', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     let root: ReturnType<typeof create>
@@ -349,7 +371,9 @@ describe('useLiveVoiceChat', () => {
   })
 
   test('does not re-dispatch when remainingCredits is unchanged across renders', async () => {
-    mockUseCharacter.mockReturnValue({ data: { id: 'char1', voice: 'en-US', save_to_cloud: 1 } })
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: CLOUD_ID },
+    })
     mockUseCurrentPlan.mockReturnValue({ remainingCredits: 10 })
 
     let root: ReturnType<typeof create>
