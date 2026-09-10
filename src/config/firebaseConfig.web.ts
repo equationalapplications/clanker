@@ -10,6 +10,14 @@ import {
 } from 'firebase/auth'
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions'
 import { reportError } from '~/utilities/reportError'
+import type {
+  FetchProactiveMessagesRequest,
+  FetchProactiveMessagesResponse,
+  MarkProactiveReadRequest,
+  MarkProactiveReadResponse,
+  ScheduleWakeupRequest,
+  ScheduleWakeupResponse,
+} from '~/services/proactiveCallableTypes'
 
 declare global {
   // Firebase docs use the global FIREBASE_APPCHECK_DEBUG_TOKEN marker on web.
@@ -165,6 +173,25 @@ const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentT
 })
 const registerExpoPushTokenFn = httpsCallable(functionsInstance, 'registerExpoPushToken')
 
+// Proactive-scheduler callables — the web half of the seam. The services that
+// use these previously built them from '@react-native-firebase/app', whose
+// `getApp()` throws here ("No Firebase App '[DEFAULT]' has been created") because
+// the native registry is empty on web and is separate from the web SDK's.
+const fetchProactiveMessagesFn = httpsCallable<
+  FetchProactiveMessagesRequest,
+  FetchProactiveMessagesResponse
+>(functionsInstance, 'fetchProactiveMessages')
+
+const markProactiveReadFn = httpsCallable<MarkProactiveReadRequest, MarkProactiveReadResponse>(
+  functionsInstance,
+  'markProactiveRead',
+)
+
+const scheduleWakeupFn = httpsCallable<ScheduleWakeupRequest, ScheduleWakeupResponse>(
+  functionsInstance,
+  'scheduleWakeup',
+)
+
 export type FirebaseUser = User
 export { appCheckReady }
 
@@ -198,4 +225,7 @@ export {
   generateEmbeddingFn,
   convertDocumentTextFn,
   registerExpoPushTokenFn,
+  fetchProactiveMessagesFn,
+  markProactiveReadFn,
+  scheduleWakeupFn,
 }
