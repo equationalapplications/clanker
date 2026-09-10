@@ -64,9 +64,7 @@ export async function deriveOpId(args: {
   remindAt: string
   priority?: number
 }): Promise<string> {
-  const hex = createHash('sha256')
-    .update(reminderOpIdCanonical(args), 'utf8')
-    .digest('hex')
+  const hex = createHash('sha256').update(reminderOpIdCanonical(args), 'utf8').digest('hex')
   return `op-${hex}`
 }
 

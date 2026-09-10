@@ -100,10 +100,7 @@ test('deriveOpId produces distinct ids for distinct inputs', async () => {
   const baseOpId = await deriveOpId(base)
 
   // A different reason must change the hash.
-  assert.notEqual(
-    await deriveOpId({ ...base, reason: 'check in' }),
-    baseOpId,
-  )
+  assert.notEqual(await deriveOpId({ ...base, reason: 'check in' }), baseOpId)
   // A different remindAt must change the hash. Critical: a different offset
   // (e.g. "+02:00" instead of "Z") at the same wall-clock moment MUST hash
   // differently too — that is why the canonical string uses the raw ISO.
@@ -112,15 +109,9 @@ test('deriveOpId produces distinct ids for distinct inputs', async () => {
     baseOpId,
   )
   // A different priority must change the hash.
-  assert.notEqual(
-    await deriveOpId({ ...base, priority: 1 }),
-    baseOpId,
-  )
+  assert.notEqual(await deriveOpId({ ...base, priority: 1 }), baseOpId)
   // A different character must change the hash.
-  assert.notEqual(
-    await deriveOpId({ ...base, characterId: 'char-2' }),
-    baseOpId,
-  )
+  assert.notEqual(await deriveOpId({ ...base, characterId: 'char-2' }), baseOpId)
 })
 
 test('deriveOpId hashes the canonical string with SHA-256 and matches the edge contract', async () => {
@@ -135,9 +126,7 @@ test('deriveOpId hashes the canonical string with SHA-256 and matches the edge c
     remindAt: '2026-09-10T09:00:00.000Z',
     priority: 2,
   }
-  const expectedHex = createHash('sha256')
-    .update(reminderOpIdCanonical(args), 'utf8')
-    .digest('hex')
+  const expectedHex = createHash('sha256').update(reminderOpIdCanonical(args), 'utf8').digest('hex')
   assert.equal(await deriveOpId(args), `op-${expectedHex}`)
 })
 
