@@ -38,12 +38,17 @@ jest.mock('~/database/index', () => ({
 }))
 
 jest.mock('~/database/messageDatabase', () => ({
-  countUnreadProactive: (...a: unknown[]) => mockCount(...a),
-  markProactiveReadLocally: (...a: unknown[]) => mockMarkLocally(...a),
+  // Cast the spread so TypeScript treats the jest.Mock as a tuple-typed
+  // function: jest.fn() returns jest.Mock<any, any>, and spreading a Mock
+  // into a call site without a tuple hits TS2556. The mock is still the
+  // same identity that the test assertions read after the fact.
+  countUnreadProactive: (...a: unknown[]) => (mockCount as (...args: unknown[]) => unknown)(...a),
+  markProactiveReadLocally: (...a: unknown[]) =>
+    (mockMarkLocally as (...args: unknown[]) => unknown)(...a),
 }))
 jest.mock('~/services/proactiveReadQueue', () => ({
-  enqueueMarkRead: (...a: unknown[]) => mockEnqueue(...a),
-  flushMarkReadQueue: (...a: unknown[]) => mockFlush(...a),
+  enqueueMarkRead: (...a: unknown[]) => (mockEnqueue as (...args: unknown[]) => unknown)(...a),
+  flushMarkReadQueue: (...a: unknown[]) => (mockFlush as (...args: unknown[]) => unknown)(...a),
 }))
 jest.mock('~/services/proactiveMarkReadService', () => ({
   markProactiveReadViaCallable: jest.fn(),

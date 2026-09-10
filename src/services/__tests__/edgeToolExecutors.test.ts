@@ -45,19 +45,18 @@ jest.mock('../characterImageService', () => ({
 // expo-crypto SHA-256 of the canonical reminder string. Mocked so the test
 // produces a deterministic hex digest and avoids a real Hermes crypto call.
 // The fake mirrors the real API: SHA-256 hex of the input.
-const mockDigest = jest.fn(async (_alg: unknown, data: string) => {
-  // Minimal SHA-256-ish stub: produce a stable 64-char hex from the input.
-  // The actual hash value isn't tested — only that opId starts with "op-"
-  // and is stable across identical inputs.
-  let out = ''
-  for (let i = 0; i < 64; i++) {
-    out += ((data.charCodeAt(i % data.length) + i) & 0xf).toString(16)
-  }
-  return out
-})
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-  digestStringAsync: (...a: unknown[]) => mockDigest(...a),
+  digestStringAsync: jest.fn(async (_alg: unknown, data: string) => {
+    // Minimal SHA-256-ish stub: produce a stable 64-char hex from the input.
+    // The actual hash value isn't tested — only that opId starts with "op-"
+    // and is stable across identical inputs.
+    let out = ''
+    for (let i = 0; i < 64; i++) {
+      out += ((data.charCodeAt(i % data.length) + i) & 0xf).toString(16)
+    }
+    return out
+  }),
 }))
 
 const mockReadFromWiki = readFromWiki as jest.Mock
