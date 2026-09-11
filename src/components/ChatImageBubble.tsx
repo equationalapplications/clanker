@@ -35,7 +35,10 @@ const SAVE_NOTICE: Record<PhotoSaveResult, string> = {
 
 const SHARE_NOTICE: Record<ImageShareResult, string | null> = {
   shared: null,
-  downloaded: 'Image downloaded',
+  // The web fallback kicks off the browser download via `anchor.click()`,
+  // which only initiates it — the copy must claim "started", not "done",
+  // so a user who catches the download bar mid-flight isn't misled.
+  downloaded: 'Image download started',
   cancelled: null,
   unavailable: 'Sharing is not available here',
   failed: "Couldn't share this image",
@@ -94,8 +97,10 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
     try {
       // The seam stages remote masters and maps every outcome (share, silent
       // cancel, unavailability, bridge failure) to a result instead of rejecting.
-      const notice = SHARE_NOTICE[await shareImage(masterUri)]
-      if (notice) setNotice(notice)
+      // Assign directly so a `null` (shared / cancelled) clears any stale
+      // notice from an earlier failure — otherwise a successful retry still
+      // surfaces the previous "Couldn't share this image" copy.
+      setNotice(SHARE_NOTICE[await shareImage(masterUri)])
     } finally {
       shareInFlightRef.current = false
     }

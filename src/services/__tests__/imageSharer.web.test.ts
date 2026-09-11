@@ -23,13 +23,12 @@ type FakeShareFile = { name: string; type: string }
 // Minimal stand-ins for the react-native test environment's missing browser
 // globals. `FakeFileConstructor` records what the twin tried to share; it
 // mirrors the real File signature `new File(parts, name, options)`.
-const mockFileConstructor = jest.fn(
-  (parts: unknown[], name: string, options?: { type?: string }) => ({
-    parts,
-    name,
-    type: options?.type,
-  }),
-)
+const defaultFileImpl = (parts: unknown[], name: string, options?: { type?: string }) => ({
+  parts,
+  name,
+  type: options?.type,
+})
+const mockFileConstructor = jest.fn(defaultFileImpl)
 
 const mockFetch = jest.fn(async () => ({ ok: true, blob: async () => ({ type: 'image/webp' }) }))
 
@@ -40,6 +39,11 @@ const mockFetch = jest.fn(async () => ({ ok: true, blob: async () => ({ type: 'i
 const realUrl = globalThis.URL as unknown as Record<string, unknown>
 beforeEach(() => {
   jest.clearAllMocks()
+  // `jest.clearAllMocks()` resets call records but leaves implementations
+  // intact, so the "File constructor throws" test would leak a throwing impl
+  // into any later test that needs the default File fallback. Restore the
+  // default here so each test starts from the production branch.
+  mockFileConstructor.mockImplementation(defaultFileImpl)
   const g = globalThis as Record<string, unknown>
   g.File = mockFileConstructor
   realUrl.createObjectURL = mockCreateObjectURL
