@@ -310,15 +310,35 @@ export async function syncAllToCloud(userId?: string): Promise<void> {
   const localUserId = userId || getCurrentUser()?.uid
   if (!localUserId) return
 
+  // Per-character upload failures are collected instead of thrown mid-loop so
+  // one bad character never starves the others' image/wiki sync stages — but
+  // the failure MUST still escape this function. Callers (the sync machine's
+  // cloudSyncActor and the Talk gate's Retry Sync) treat a resolved promise as
+  // "sync complete": swallowing it left characters without cloud_id while the
+  // gate's retry resolved "successfully" every time.
+  const uploadFailures: { characterId: string; error: unknown }[] = []
   try {
-    await Promise.all([syncUnsyncedToCloud(localUserId), syncDeletionsToCloud(localUserId)])
+    await Promise.all([
+      syncUnsyncedToCloud(localUserId, uploadFailures),
+      syncDeletionsToCloud(localUserId),
+    ])
     // Sequential, NOT inside the Promise.all above: a character has no cloud
     // id until its first successful sync, and the image storage path is built
     // from that id. Racing them would leave every first-sync image pending.
     await syncCharacterImages(localUserId)
     await syncWikiForCloud(localUserId)
-    await setLastSyncTime()
+    if (uploadFailures.length === 0) {
+      await setLastSyncTime()
+    }
   } catch (error) {
+    reportError(error, 'characterSync')
+    throw error
+  }
+  if (uploadFailures.length > 0) {
+    const error = new Error(
+      `${uploadFailures.length} character(s) failed to sync to cloud: ` +
+        uploadFailures.map((f) => f.characterId).join(', '),
+    )
     reportError(error, 'characterSync')
     throw error
   }
@@ -437,7 +457,10 @@ export async function restoreFromCloud(userId?: string): Promise<void> {
   }
 }
 
-async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
+async function syncUnsyncedToCloud(
+  localUserId: string,
+  uploadFailures: { characterId: string; error: unknown }[] = [],
+): Promise<void> {
   const unsynced = await getUnsyncedCharacters(localUserId)
   if (unsynced.length === 0) return
 
@@ -474,11 +497,24 @@ async function syncUnsyncedToCloud(localUserId: string): Promise<void> {
 
       const data = result.data
 
-      if (data?.id) {
-        await markCharacterSynced(char.id, data.id)
+      // A resolved response without a character id means the callable
+      // returned an OK envelope but the server never persisted the row.
+      // `markCharacterSynced` was the only branch that advanced the
+      // character out of pending_cloud_id, and `result.data` does not
+      // enter `uploadFailures` — so a missing id would otherwise look
+      // like a successful sync to the Talk gate and to any caller that
+      // awaits `syncAllToCloud`. Throw so the existing failure handling
+      // records the failure and preserves `pending_cloud_id` for retry.
+      if (!data?.id) {
+        throw new Error('Character cloud sync returned without a character id')
       }
+      await markCharacterSynced(char.id, data.id)
     } catch (error: any) {
       reportWikiOpForCharacter(error, 'characterSync:upload', char.id, 'Character cloud sync')
+      // Recorded for syncAllToCloud to rethrow after the remaining stages —
+      // every character is still attempted, then the caller learns the sync
+      // did not fully succeed.
+      uploadFailures.push({ characterId: char.id, error })
     }
   }
 }

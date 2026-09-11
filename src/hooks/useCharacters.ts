@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useSelector } from '@xstate/react'
 import { useCharacterMachine } from '~/hooks/useMachines'
 import type { CharacterInsert, CharacterUpdate } from '~/services/characterService'
@@ -61,9 +62,9 @@ export function useSyncCharacters() {
   const isCloudSyncing = useSelector(characterService, (s) => s.matches('cloudSyncing'))
   const error = useSelector(characterService, (s) => s.context.cloudSyncError)
 
-  const sync = () => {
+  const sync = useCallback(() => {
     characterService.send({ type: 'CLOUD_SYNC' })
-  }
+  }, [characterService])
 
   return { sync, isCloudSyncing, error }
 }
