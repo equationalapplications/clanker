@@ -497,9 +497,18 @@ async function syncUnsyncedToCloud(
 
       const data = result.data
 
-      if (data?.id) {
-        await markCharacterSynced(char.id, data.id)
+      // A resolved response without a character id means the callable
+      // returned an OK envelope but the server never persisted the row.
+      // `markCharacterSynced` was the only branch that advanced the
+      // character out of pending_cloud_id, and `result.data` does not
+      // enter `uploadFailures` — so a missing id would otherwise look
+      // like a successful sync to the Talk gate and to any caller that
+      // awaits `syncAllToCloud`. Throw so the existing failure handling
+      // records the failure and preserves `pending_cloud_id` for retry.
+      if (!data?.id) {
+        throw new Error('Character cloud sync returned without a character id')
       }
+      await markCharacterSynced(char.id, data.id)
     } catch (error: any) {
       reportWikiOpForCharacter(error, 'characterSync:upload', char.id, 'Character cloud sync')
       // Recorded for syncAllToCloud to rethrow after the remaining stages —

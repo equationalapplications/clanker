@@ -79,9 +79,12 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
 
   it('generates and persists a pending_cloud_id, then sends it as the upload id', async () => {
     mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar()])
-    mockSyncCharacterFn.mockResolvedValue({ data: null }) // simulate a dropped/failed response
+    // A resolved response with no character id is the dropped/failed envelope
+    // — sync must still mint a pending id, send it, and reject so the Talk
+    // gate's Retry Sync does not treat this as a successful round.
+    mockSyncCharacterFn.mockResolvedValue({ data: null })
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
 
     expect(mockSetPendingCloudIdIfMissing).toHaveBeenCalledTimes(1)
     const [charId, generatedId] = mockSetPendingCloudIdIfMissing.mock.calls[0]
@@ -98,14 +101,14 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
     mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar({ pending_cloud_id: pendingId })])
     mockSyncCharacterFn.mockResolvedValue({ data: null })
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
 
     // Already had a pending id — no new one generated or persisted.
     expect(mockSetPendingCloudIdIfMissing).not.toHaveBeenCalled()
     expect(mockSyncCharacterFn).toHaveBeenCalledTimes(1)
     expect(mockSyncCharacterFn.mock.calls[0][0].character.id).toBe(pendingId)
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
     expect(mockSyncCharacterFn).toHaveBeenCalledTimes(2)
     expect(mockSyncCharacterFn.mock.calls[1][0].character.id).toBe(pendingId)
   })
