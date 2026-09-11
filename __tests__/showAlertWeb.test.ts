@@ -66,4 +66,23 @@ describe('showAlert (web)', () => {
     expect(window.alert).toHaveBeenCalled()
     expect(window.confirm).not.toHaveBeenCalled()
   })
+
+  it('runs the cancel callback for a cancel-only action list (native parity)', () => {
+    // The native Alert.alert path invokes the cancel action's onPress when
+    // the dialog is dismissed. The web twin was previously returning after
+    // window.alert without firing the callback, so callers that close over
+    // an "acknowledge" flag appeared to no-op on web — this regression
+    // guards the symmetry.
+    window.alert = jest.fn()
+    window.confirm = jest.fn()
+    const onCancel = jest.fn()
+
+    showAlert('Heads up', 'Something happened.', [
+      { text: 'Dismiss', style: 'cancel', onPress: onCancel },
+    ])
+
+    expect(window.alert).toHaveBeenCalled()
+    expect(window.confirm).not.toHaveBeenCalled()
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
 })

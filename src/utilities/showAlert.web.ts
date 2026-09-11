@@ -20,6 +20,12 @@ export function showAlert(title: string, message: string, actions?: AlertAction[
 
   if (!confirmAction) {
     window.alert(body)
+    // A cancel-only action list (or a confirm-less one) reaches this branch.
+    // The native `Alert.alert` path invokes the cancel callback when the user
+    // dismisses the dialog; the web twin must mirror that, otherwise the
+    // cancel action's `onPress` never fires and callers that close over it
+    // (e.g. an "acknowledge" flag) appear to no-op on web.
+    actions?.find((action) => action.style === 'cancel')?.onPress?.()
     return
   }
 
