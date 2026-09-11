@@ -1,3 +1,18 @@
+## [33.3.1](https://github.com/equationalapplications/clanker/compare/v33.3.0...v33.3.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **alert:** invoke cancel onPress on the web alert fallback ([f2f4f45](https://github.com/equationalapplications/clanker/commit/f2f4f45d32ccdb271ab57f2261b6519e802df698))
+* **chat:** clear stale share notice and label web download as started ([2767ada](https://github.com/equationalapplications/clanker/commit/2767ada3e4101efaa25c7aa5537cd092e7b9f124))
+* **chat:** guard web seam download stages and tighten share-seam tests ([d84ae9b](https://github.com/equationalapplications/clanker/commit/d84ae9b1cbec6aae5e1e235731270bb312823455))
+* **chat:** keep staged share files alive for lazy target reads ([1b8e497](https://github.com/equationalapplications/clanker/commit/1b8e497571a18655cd3cb4148c814e8e0bcf9ce7))
+* **chat:** share image bytes, not remote URLs, from the chat image viewer ([cb2677a](https://github.com/equationalapplications/clanker/commit/cb2677ada5681ccb368d831a6230497d02f6b013))
+* **review:** reset sync mock per-test and stabilize useSyncCharacters identity ([a82f6a8](https://github.com/equationalapplications/clanker/commit/a82f6a8eb9892afa9bab5960b606c5378f6033ea))
+* **sync:** surface failed uploads and reload after sync errors ([8fa33f3](https://github.com/equationalapplications/clanker/commit/8fa33f379877d99c44f181e8c4cff27a39f542dc))
+* **sync:** treat a missing data.id from character upload as a failure ([a7e782c](https://github.com/equationalapplications/clanker/commit/a7e782ca1a250677e4cab4989e62a9ca654b2700))
+* **talk:** gate live voice on a completed sync, not the intent flag ([bbf9467](https://github.com/equationalapplications/clanker/commit/bbf946767163e06248aeb71b75e4a0f38866129c))
+
 # [33.3.0](https://github.com/equationalapplications/clanker/compare/v33.2.1...v33.3.0) (2026-09-10)
 
 
