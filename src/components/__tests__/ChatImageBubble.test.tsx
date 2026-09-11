@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import ChatImageBubble from '../ChatImageBubble'
 // The photo-save seam imports the package's `legacy` subpath (the main entry's
 // saveToLibraryAsync is a throw-on-call deprecation shim), so the mock and the
@@ -33,15 +33,14 @@ jest.mock('expo-sharing', () => ({
 jest.mock('expo-file-system', () => {
   class FakeFile {
     uri: string
-    static readonly deleteCalls = jest.fn()
+    readonly delete = jest.fn()
+    static readonly instances: FakeFile[] = []
     constructor(_dir: unknown, name: string) {
       // Real File instances always carry the file:// scheme — the fake must
       // too, since the Android share bridge rejects anything else.
       this.uri = `file:///cache/photo-share/${name}`
       void _dir
-    }
-    async delete(): Promise<void> {
-      FakeFile.deleteCalls()
+      FakeFile.instances.push(this)
     }
   }
   return {
@@ -49,6 +48,9 @@ jest.mock('expo-file-system', () => {
     Directory: class {
       exists = false
       create(): void {}
+      list(): unknown[] {
+        return FakeFile.instances
+      }
     },
     File: Object.assign(FakeFile, { downloadFileAsync: jest.fn(async () => undefined) }),
   }
@@ -56,7 +58,7 @@ jest.mock('expo-file-system', () => {
 
 const fakeShareFs = File as unknown as typeof File & {
   downloadFileAsync: jest.Mock
-  deleteCalls: jest.Mock
+  instances: { uri: string; delete: jest.Mock }[]
 }
 
 const message = {
@@ -82,6 +84,7 @@ describe('ChatImageBubble viewer actions', () => {
     // staging-failure test's mockRejectedValue on the download.
     ;(Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true)
     fakeShareFs.downloadFileAsync.mockReset().mockResolvedValue(undefined)
+    fakeShareFs.instances.length = 0
   })
 
   it('saves the resolved master to the photo library after an add-only grant', async () => {
@@ -132,6 +135,30 @@ describe('ChatImageBubble viewer actions', () => {
     )
   })
 
+  it('ignores a second Share tap while one share is in flight', async () => {
+    // The Android bridge throws SharingInProgressException for concurrent
+    // share calls, which would surface as "Couldn't share this image" right
+    // after the first share succeeded.
+    let resolveShare!: () => void
+    ;(Sharing.shareAsync as jest.Mock).mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveShare = resolve
+      }),
+    )
+    const screen = openViewer()
+
+    fireEvent.press(screen.getByLabelText('Share photo'))
+    // The first press is mid-flight once the sheet is up; the second must be
+    // a no-op rather than a second bridge call.
+    await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalledTimes(1))
+    fireEvent.press(screen.getByLabelText('Share photo'))
+
+    await act(async () => {
+      resolveShare()
+    })
+    expect(Sharing.shareAsync).toHaveBeenCalledTimes(1)
+  })
+
   it('shows a notice when sharing fails', async () => {
     ;(Sharing.shareAsync as jest.Mock).mockRejectedValue(new Error('no share sheet'))
     const screen = openViewer()
@@ -164,7 +191,6 @@ describe('ChatImageBubble viewer actions', () => {
     })
 
     it('Share stages the remote master locally and never shares the raw URL', async () => {
-      fakeShareFs.deleteCalls.mockClear()
       const screen = openViewer()
 
       fireEvent.press(screen.getByLabelText('Share photo'))
@@ -176,10 +202,16 @@ describe('ChatImageBubble viewer actions', () => {
       // absence of http(s).
       expect(sharedUri).toMatch(/^file:\/\//)
       expect(sharedUri).toMatch(/share_.*\.webp$/)
-      expect(fakeShareFs.downloadFileAsync).toHaveBeenCalledWith(expect.stringMatching(/^https:/), {
-        uri: sharedUri,
-      })
-      expect(fakeShareFs.deleteCalls).toHaveBeenCalled()
+      expect(fakeShareFs.downloadFileAsync).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:/),
+        // A File instance, not a plain {uri} object — match on the uri only.
+        expect.objectContaining({ uri: sharedUri }),
+      )
+      // The staged file must survive the share: the Android bridge resolves
+      // the promise before the target app has necessarily read the URI.
+      const staged = fakeShareFs.instances.find((f) => f.uri === sharedUri)
+      expect(staged).toBeDefined()
+      expect(staged!.delete).not.toHaveBeenCalled()
     })
 
     it('Share shows the failure notice when staging the download fails', async () => {

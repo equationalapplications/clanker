@@ -46,8 +46,11 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
   const [viewerOpen, setViewerOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   // Save is a fire-once action: a double-tap must not write the photo into
-  // the OS library twice.
+  // the OS library twice. Share needs the same guard: a second concurrent
+  // shareImage makes the Android bridge throw SharingInProgressException,
+  // surfacing "Couldn't share this image" right after a successful share.
   const saveInFlightRef = useRef(false)
+  const shareInFlightRef = useRef(false)
 
   // `useResolvedImage` returns null both while the lookup is in flight and
   // after a completed lookup that found no row (see `useResolvedImage.ts`).
@@ -86,10 +89,16 @@ export default function ChatImageBubble({ currentMessage }: { currentMessage?: P
 
   const handleShare = async (): Promise<void> => {
     if (!guardMasterReady() || !masterUri) return
-    // The seam stages remote masters and maps every outcome (share, silent
-    // cancel, unavailability, bridge failure) to a result instead of rejecting.
-    const notice = SHARE_NOTICE[await shareImage(masterUri)]
-    if (notice) setNotice(notice)
+    if (shareInFlightRef.current) return
+    shareInFlightRef.current = true
+    try {
+      // The seam stages remote masters and maps every outcome (share, silent
+      // cancel, unavailability, bridge failure) to a result instead of rejecting.
+      const notice = SHARE_NOTICE[await shareImage(masterUri)]
+      if (notice) setNotice(notice)
+    } finally {
+      shareInFlightRef.current = false
+    }
   }
 
   if (!thumbUri) {

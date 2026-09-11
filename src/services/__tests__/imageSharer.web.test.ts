@@ -110,6 +110,31 @@ describe('shareImage (web twin)', () => {
     expect(mockAnchorClick).not.toHaveBeenCalled()
   })
 
+  it('falls back to a download when the File constructor throws', async () => {
+    // The seam's contract is never-rejects: some embedded browsers throw on
+    // `new File(...)`, and the bytes are still in hand, so degrade to the
+    // download instead of surfacing an unhandled rejection.
+    mockFileConstructor.mockImplementation(() => {
+      throw new TypeError('File constructor unavailable')
+    })
+
+    await expect(shareImage('https://example.com/master.webp')).resolves.toBe('downloaded')
+
+    expect(mockShare).not.toHaveBeenCalled()
+    expect(mockAnchorClick).toHaveBeenCalled()
+  })
+
+  it('falls back to a download when the canShare probe throws', async () => {
+    mockCanShare.mockImplementation(() => {
+      throw new Error('canShare failed')
+    })
+
+    await expect(shareImage('https://example.com/master.webp')).resolves.toBe('downloaded')
+
+    expect(mockShare).not.toHaveBeenCalled()
+    expect(mockAnchorClick).toHaveBeenCalled()
+  })
+
   it('maps a download-fallback failure to failed instead of rejecting', async () => {
     mockCanShare.mockReturnValue(false)
     mockCreateObjectURL.mockImplementation(() => {

@@ -47,9 +47,23 @@ export async function shareImage(uri: string): Promise<ImageShareResult> {
     return 'failed'
   }
 
-  const file = new File([blob], filenameFor(uri), { type: blob.type || mimeTypeFor(uri) })
+  // The seam must never reject (its consumer renders the outcome from a
+  // notice map), so the File construction and the canShare probe are guarded
+  // just like the fetch above: the File constructor throws in some embedded
+  // browsers, and canShare has been observed throwing on hostile probe
+  // objects. When either fails the bytes are still in hand, so degrade to the
+  // plain download instead of failing.
+  let file: File | null = null
+  let canShareFiles = false
+  try {
+    file = new File([blob], filenameFor(uri), { type: blob.type || mimeTypeFor(uri) })
+    canShareFiles =
+      typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] }) === true
+  } catch {
+    file = null
+  }
 
-  if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
+  if (file && canShareFiles) {
     try {
       await navigator.share({ files: [file] })
       return 'shared'
@@ -59,8 +73,6 @@ export async function shareImage(uri: string): Promise<ImageShareResult> {
     }
   }
 
-  // The seam must never reject (its consumer renders the outcome from a
-  // notice map), so the download stage is guarded just like the fetch above.
   try {
     const url = URL.createObjectURL(blob)
     try {
