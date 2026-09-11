@@ -29,9 +29,14 @@ jest.mock('expo-router/react-navigation', () => ({
   useNavigation: () => ({ addListener: jest.fn().mockReturnValue(jest.fn()) }),
 }))
 const mockRetrySync = jest.fn()
+const mockUseSyncCharacters = jest.fn()
 jest.mock('~/hooks/useCharacters', () => ({
   useCharacter: (...a: unknown[]) => mockUseCharacter(...a),
-  useSyncCharacters: () => ({ sync: mockRetrySync, isCloudSyncing: false, error: null }),
+  useSyncCharacters: (...a: unknown[]) => mockUseSyncCharacters(...a),
+}))
+const mockIsDevSandboxEnabled = jest.fn((): boolean => false)
+jest.mock('~/auth/devSandboxFlag', () => ({
+  isDevSandboxEnabled: () => mockIsDevSandboxEnabled(),
 }))
 jest.mock('~/hooks/useMachines', () => ({ useAuthMachine: () => ({ send: mockAuthSend }) }))
 jest.mock('~/hooks/useCurrentPlan', () => ({
@@ -94,6 +99,12 @@ describe('useLiveVoiceChat', () => {
     ])
     mockUseSelector.mockReturnValue({ uid: 'user1' })
     mockAddEventListener.mockReturnValue({ remove: jest.fn() })
+    mockUseSyncCharacters.mockReturnValue({
+      sync: mockRetrySync,
+      isCloudSyncing: false,
+      error: null,
+    })
+    mockIsDevSandboxEnabled.mockReturnValue(false)
   })
 
   test('startCall shows alert if character has no voice', async () => {
@@ -203,6 +214,105 @@ describe('useLiveVoiceChat', () => {
       expect.any(String),
       expect.any(Array),
     )
+  })
+
+  test('startCall reports an in-flight sync instead of offering a dead Retry button', async () => {
+    // While the machine is cloudSyncing (or loading after a retry), a
+    // CLOUD_SYNC send is silently dropped — Retry would visibly do nothing.
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: null },
+    })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
+    mockUseSyncCharacters.mockReturnValue({
+      sync: mockRetrySync,
+      isCloudSyncing: true,
+      error: null,
+    })
+    mockStartRecording.mockResolvedValue(true)
+
+    let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
+    await act(async () => {
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
+    })
+
+    await act(async () => {
+      await hookRef!.startCall()
+    })
+
+    expect(Alert.alert).toHaveBeenCalledWith('Finishing Cloud Sync', expect.any(String), [
+      { text: 'OK', style: 'cancel' },
+    ])
+    // No Retry Sync action: the sync is already running.
+    const actions = (Alert.alert as jest.Mock).mock.calls[0][2] as { text: string }[]
+    expect(actions.some((a) => a.text === 'Retry Sync')).toBe(false)
+    expect(mockRetrySync).not.toHaveBeenCalled()
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  test('startCall appends the last sync failure to the retry prompt', async () => {
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: null },
+    })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
+    mockUseSyncCharacters.mockReturnValue({
+      sync: mockRetrySync,
+      isCloudSyncing: false,
+      error: new Error('app-check rejected'),
+    })
+
+    let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
+    await act(async () => {
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
+    })
+
+    await act(async () => {
+      await hookRef!.startCall()
+    })
+
+    const message = (Alert.alert as jest.Mock).mock.calls[0][1] as string
+    expect(message).toContain('app-check rejected')
+    expect(message).toContain('Retry the sync')
+  })
+
+  test('startCall skips the cloud_id gate in the dev sandbox', async () => {
+    // Mock auth has no sync pipeline and only the seeded character gets a
+    // cloud_id — the gate would block every other dev character forever.
+    mockUseCharacter.mockReturnValue({
+      data: { id: 'char1', voice: 'en-US', save_to_cloud: 1, cloud_id: null },
+    })
+    mockUseCurrentPlan.mockReturnValue({ remainingCredits: 500 })
+    mockIsDevSandboxEnabled.mockReturnValue(true)
+    mockStartRecording.mockResolvedValue(true)
+
+    let hookRef: ReturnType<typeof useLiveVoiceChat> | null = null
+    await act(async () => {
+      create(
+        <TestHarness
+          onMount={(h) => {
+            hookRef = h
+          }}
+        />,
+      )
+    })
+
+    await act(async () => {
+      await hookRef!.startCall()
+    })
+
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(mockSend).toHaveBeenCalledWith({ type: 'START_CALL' })
   })
 
   test('startCall sends START_CALL to machine when all checks pass', async () => {

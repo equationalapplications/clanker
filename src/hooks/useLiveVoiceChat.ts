@@ -6,6 +6,7 @@ import { useNavigation } from 'expo-router/react-navigation'
 import type { Message } from '~/types/chat'
 import type { GroundingMetadata } from '@google/genai'
 import { useCharacter, useSyncCharacters } from '~/hooks/useCharacters'
+import { isDevSandboxEnabled } from '~/auth/devSandboxFlag'
 import { useAuthMachine } from '~/hooks/useMachines'
 import { useCurrentPlan } from '~/hooks/useCurrentPlan'
 import { useLiveAudioIO } from '~/hooks/useLiveAudioIO'
@@ -39,9 +40,9 @@ const MIN_CREDITS_FOR_CALL = 500
 export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
   const authService = useAuthMachine()
   const currentUser = useSelector(authService, (s) => s.context.user)
-  const { data: character } = useCharacter(characterId)
+  const { data: character, isLoading: isCharactersLoading } = useCharacter(characterId)
   const { remainingCredits } = useCurrentPlan()
-  const { sync: retryCloudSync } = useSyncCharacters()
+  const { sync: retryCloudSync, isCloudSyncing, error: cloudSyncError } = useSyncCharacters()
   const navigation = useNavigation()
 
   const audioIO = useLiveAudioIO()
@@ -173,10 +174,30 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     // showed a toggle that was already on. Toggling it off and back on appeared
     // to "fix" Talk purely because saving re-triggers the sync — so retry the
     // sync directly, which is what that workaround was really doing.
-    if (!character.cloud_id) {
+    // Dev sandbox (mock auth) is exempt: syncAllToCloud early-returns there
+    // and ensureDevSandboxCharacter links exactly one local character to a
+    // cloud_id, so this gate would block every other dev character with a
+    // Retry button that can never succeed. The sandbox talks to the local
+    // cloud-agent directly, so keep the pre-gate dev behavior.
+    if (!character.cloud_id && !isDevSandboxEnabled()) {
+      // A sync is already in flight (startup sync, or the reload right after
+      // a previous retry): offering Retry now would send CLOUD_SYNC, which the
+      // machine drops while cloudSyncing/loading — a button that visibly does
+      // nothing. Say the sync is running and let it land.
+      if (isCloudSyncing || isCharactersLoading) {
+        showAlert(
+          'Finishing Cloud Sync',
+          "This character's memory is syncing to the cloud right now. Try starting your call again in a few seconds.",
+          [{ text: 'OK', style: 'cancel' }],
+        )
+        return
+      }
+      const detail =
+        cloudSyncError instanceof Error ? ` Last attempt failed: ${cloudSyncError.message}` : ''
       showAlert(
         'Finishing Cloud Sync',
-        "This character's memory hasn't finished syncing to the cloud yet. Retry the sync, then start your call.",
+        "This character's memory hasn't finished syncing to the cloud yet. Retry the sync, then start your call." +
+          detail,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Retry Sync', onPress: () => retryCloudSync() },
@@ -189,7 +210,18 @@ export function useLiveVoiceChat(characterId: string): UseLiveVoiceChatReturn {
     if (!started) return
 
     send({ type: 'START_CALL' })
-  }, [audioIO, character, characterId, remainingCredits, retryCloudSync, send, userId])
+  }, [
+    audioIO,
+    character,
+    characterId,
+    cloudSyncError,
+    isCharactersLoading,
+    isCloudSyncing,
+    remainingCredits,
+    retryCloudSync,
+    send,
+    userId,
+  ])
 
   // Navigation blur → end call
   const endCallRef = useRef(endCall)
