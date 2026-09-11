@@ -21,7 +21,12 @@ const REACT_NATIVE_FIREBASE_PATTERN = {
 }
 
 const EXPO_SHARING_PATTERN = {
-  group: ['expo-sharing'],
+  // The bare name and the recursive subpath pattern are both required:
+  // `no-restricted-imports` patterns use gitignore-style globs and a bare
+  // module name like `expo-sharing` only matches the package root. A
+  // subpath like `expo-sharing/build/Sharing` would otherwise slip past
+  // the guard and reach the web bundle with the same raw-URL shape.
+  group: ['expo-sharing', 'expo-sharing/**'],
   message:
     "expo-sharing's web build posts the raw URL instead of file bytes, so sharing a Storage URL from shared code hands the target an expiring, tokenized link. Share image bytes through ~/services/imageSharer (the platform seam); okfSave.ts is the other exempted native-path consumer.",
 }
