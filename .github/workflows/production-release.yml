@@ -58,19 +58,35 @@ jobs:
               );
             };
 
+            // A thrown API error (transient 5xx, secondary rate limit) must
+            // feed the retry loop, not propagate out of the first call and
+            // fail the step with zero retries — the exact blocked-release
+            // outcome this retry exists to prevent.
+            const findValidPrSafe = async () => {
+              try {
+                return await findValidPr();
+              } catch (err) {
+                const status = err?.status ?? 'no status';
+                core.warning(
+                  `PR association query for ${sha} failed (${status}); will retry.`
+                );
+                return null;
+              }
+            };
+
             // The commit -> PR association is eventually-consistent: a query in
             // the first seconds after a merge can come back empty for the merge
             // commit (seen 2026-09-10 on PR #719 — blocked ~8s after the merge,
             // passed on rerun). Retry with backoff before failing so a fast
             // webhook does not block a legitimate release.
-            let validPr = await findValidPr();
+            let validPr = await findValidPrSafe();
             for (let attempt = 1; !validPr && attempt <= 5; attempt++) {
               core.info(
                 `No qualifying PR associated with ${sha} yet (attempt ${attempt} of 5); ` +
                   'waiting for the commit -> PR association to index...'
               );
               await new Promise((resolve) => setTimeout(resolve, attempt * 10_000));
-              validPr = await findValidPr();
+              validPr = await findValidPrSafe();
             }
 
             if (!validPr) {
@@ -110,7 +126,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: "npm"
+          cache: 'npm'
 
       - name: 📦 Install dependencies
         run: npm ci
