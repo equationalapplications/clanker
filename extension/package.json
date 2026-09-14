@@ -8,7 +8,7 @@
     "test": "node --import tsx/esm --test \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "firebase": "^12.18.0"
+    "firebase": "^12.19.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.9",
