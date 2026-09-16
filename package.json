@@ -144,7 +144,8 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "decode-uri-component": "^0.5.0"
   },
   "license": "MIT",
   "expo": {
