@@ -1,3 +1,13 @@
+## [33.3.2](https://github.com/equationalapplications/clanker/compare/v33.3.1...v33.3.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **android:** enable R8 minification and resource shrinking in release builds ([c1d322c](https://github.com/equationalapplications/clanker/commit/c1d322c242b6db00a79ae368a0a89da66f714709))
+* **deeplinks:** allow credential sharing via get_login_creds in assetlinks.json ([299feed](https://github.com/equationalapplications/clanker/commit/299feed90593eb0c551d887a5d9c7b68ff0b85df))
+* **deps:** align expo sdk 57 packages to latest patch versions ([a38e291](https://github.com/equationalapplications/clanker/commit/a38e2910a99ab523977730bc560c8ed36c403f45))
+* **deps:** close Dependabot alerts via package.json overrides ([da0563f](https://github.com/equationalapplications/clanker/commit/da0563f790b11ab77fd10fa140c5fec97e1adf01))
+
 ## [33.3.1](https://github.com/equationalapplications/clanker/compare/v33.3.0...v33.3.1) (2026-09-11)
 
 
