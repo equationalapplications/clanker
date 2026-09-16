@@ -27,7 +27,7 @@ Neither property is ever set. The `expo-build-properties` entry in
 `app.config.ts` has only an `ios` block, so release AABs ship all DEX code
 unshrunk and unobfuscated.
 
-`expo-build-properties` (`~57.0.17`) renamed `enableProguardInReleaseBuilds` to
+`expo-build-properties` (`~57.0.20`) renamed `enableProguardInReleaseBuilds` to
 `enableMinifyInReleaseBuilds`. The old name still works: `pluginConfig.js`
 converts it. This spec uses the current name.
 

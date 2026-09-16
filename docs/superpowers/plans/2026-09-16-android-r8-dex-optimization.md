@@ -6,7 +6,7 @@
 
 **Architecture:** The only source change is the `android` block of the existing `expo-build-properties` entry in `app.config.ts`. A Jest regression test pins the flags. Everything else is verification of generated artifacts and real builds: prebuild output, a local release APK, a Play internal-track install, and a Crashlytics deobfuscation check. Keep rules, if needed, go through `android.extraProguardRules`.
 
-**Tech Stack:** Expo SDK 57 (CNG, `android/` gitignored), `expo-build-properties ~57.0.17`, R8/AGP, EAS Build/Submit, RNFB Crashlytics gradle plugin, Jest (root).
+**Tech Stack:** Expo SDK 57 (CNG, `android/` gitignored), `expo-build-properties ~57.0.20`, R8/AGP, EAS Build/Submit, RNFB Crashlytics gradle plugin, Jest (root).
 
 **Spec:** `docs/superpowers/specs/2026-09-16-android-r8-dex-optimization-design.md`
 
