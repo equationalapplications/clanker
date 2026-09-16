@@ -209,6 +209,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-build-properties',
       {
+        android: {
+          // R8 minify/obfuscate + resource shrinking for release builds only.
+          // Play Console DEX optimization threshold (Obfuscation ≥ 25%); see
+          // docs/superpowers/specs/2026-09-16-android-r8-dex-optimization-design.md.
+          // Keep rules, if ever needed, go in `extraProguardRules` — android/ is regenerated.
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
         ios: {
           useFrameworks: 'static',
           forceStaticLinking: [
