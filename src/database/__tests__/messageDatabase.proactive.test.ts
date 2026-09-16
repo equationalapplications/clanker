@@ -277,7 +277,11 @@ describe('applyProactiveMessages cloud->local character mapping', () => {
     const row = await getLocal('p1')
     expect(row?.character_id).toBe('char_local1')
     // The badge queries by local id; this is the deliverable that was broken.
-    await expect(countUnreadProactive('char_local1', Date.now())).resolves.toBe(1)
+    // Count as of the fixture's createdAt, not the wall clock: the unread
+    // window is 7 days, so Date.now() turns this into a time bomb.
+    await expect(
+      countUnreadProactive('char_local1', Date.parse(payload().createdAt)),
+    ).resolves.toBe(1)
   })
 
   it('keys sender_user_id to the local id too, so authorship still resolves', async () => {
