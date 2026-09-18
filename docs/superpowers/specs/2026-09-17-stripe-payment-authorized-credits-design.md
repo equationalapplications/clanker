@@ -195,9 +195,25 @@ shape. Sequence:
 
 1. **Ship this PR's implementation.** Accessors handle both shapes; grants become payment-authorized.
    Safe under `2022-11-15` and under dahlia. No Stripe configuration change.
-2. **Verify**, then flip the destination's API version in the Dashboard to the SDK's version. Confirm
-   with a real event in Workbench (or a `subscription_cycle` invoice) that grants still land.
-3. **Follow-up PR** removes the legacy branch from the accessors once step 2 is confirmed in production.
+2. **Replace the destination.** `api_version` is **not** an updatable field — the Update webhook
+   endpoint API accepts only `description`, `disabled`, `enabled_events`, `metadata` and `url`. The
+   version can only be set at creation. So moving off `2022-11-15` means creating a _new_ destination at
+   the same URL with `api_version` set explicitly, then retiring `we_1SCVd4DTb0norRA0K5dqQ3Pu`.
+
+   Each destination has its **own signing secret**, and the handler reads a single
+   `STRIPE_WEBHOOK_SECRET` (`stripeWebhook.ts:392`), so a naive swap makes in-flight deliveries fail
+   signature verification. This PR's implementation therefore also accepts an optional
+   `STRIPE_WEBHOOK_SECRET_NEXT` and tries each in turn in `constructEvent`, making the cutover
+   non-breaking and reversible:
+
+   1. Create the new destination with the target `api_version` and the same five events.
+   2. Add its signing secret as `STRIPE_WEBHOOK_SECRET_NEXT`; deploy; confirm both destinations verify.
+   3. Disable (do not delete) the old destination. Both receive the same event ids, and the existing
+      event dedupe drops the duplicate, so no double grant during overlap.
+   4. Promote the new secret to `STRIPE_WEBHOOK_SECRET`, drop `_NEXT`, delete the old destination.
+
+3. **Follow-up PR** removes the legacy branch from the accessors and adds the explicit `apiVersion` pin
+   (open question 3), once step 2 is confirmed in production.
 
 Step 2 is a live Stripe configuration change and is performed by the account owner, not by CI or an agent.
 
@@ -244,12 +260,13 @@ Version contract:
 
 ## Risks
 
-| Risk                                                                                              | Mitigation                                                                        |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Double grant on deploy from a changed period key                                                  | §3 dual-key probe; ledger audit in the pre-deploy checklist                       |
-| Credit delivery stops during the endpoint flip                                                    | §4 tolerant readers deployed first; flip is reversible                            |
-| `subscription_create` path was never exercised, so initial-purchase grants are newly written code | Explicit fixtures for both billing reasons; step-2 verification with a real event |
-| A future Stripe version drifts the shape again                                                    | Accessors return `null` and log distinctly rather than silently skipping          |
+| Risk                                                                                              | Mitigation                                                                                            |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Double grant on deploy from a changed period key                                                  | §3 dual-key probe; ledger audit in the pre-deploy checklist                                           |
+| Credit delivery stops during the destination cutover                                              | §4 tolerant readers deployed first; dual signing secret; old destination disabled rather than deleted |
+| Duplicate deliveries while both destinations are live                                             | Same event id to both; existing event dedupe drops the second                                         |
+| `subscription_create` path was never exercised, so initial-purchase grants are newly written code | Explicit fixtures for both billing reasons; step-2 verification with a real event                     |
+| A future Stripe version drifts the shape again                                                    | Accessors return `null` and log distinctly rather than silently skipping                              |
 
 ## Open questions
 
