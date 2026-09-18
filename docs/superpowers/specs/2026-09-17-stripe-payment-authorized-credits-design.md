@@ -115,7 +115,16 @@ and only because of the legacy pin.
   consumers are admin filters, `usageSnapshot` passthrough, and the cross-provider duplicate-purchase
   guard at `purchasePackageStripe.ts:145`).
 - **Historical clawback.** No automatic reversal of credits already granted under the old logic.
-- RevenueCat, credit packs, refund handling, and all client code are untouched.
+- **Clawback on future refunds and disputes.** Also out of scope, and worth stating precisely because
+  the current behavior is asymmetric. `handleChargeRefunded` deducts credits for a refunded **credit
+  pack**, pro-rated by refund amount and idempotent across partial refunds. For a refunded
+  **subscription** charge it takes the other branch: it cancels the subscription (`planTier: 'free'`,
+  `planStatus: 'cancelled'`) and emits the GA4 refund event, but **never deducts the cycle's 30,000
+  credits**, which remain spendable. There is no `charge.dispute.created` handler at all, and disputes
+  are not among the destination's five enabled events, so a chargeback revokes nothing and does not
+  even reach the service. Once grants are payment-authorized, these become the remaining path to
+  credits without net payment. Tracked as a follow-up, not fixed here.
+- RevenueCat, credit packs, and all client code are untouched.
 - No package upgrades. `stripe`, `firebase-admin` and `firebase-functions` are all on current majors;
   the stale value is the endpoint's API-version setting, not a dependency.
 
@@ -208,7 +217,9 @@ Authorization:
 - Paid `subscription_create` invoice: exactly one grant.
 - Paid `subscription_cycle` invoice: exactly one grant.
 - Unpaid / `amount_paid: 0` invoice: no grant.
-- Unknown price id: no grant.
+- Unknown price id: no grant, **and** a warning is logged identifying the unrecognized price, so a
+  tier added in Stripe but not in `StripePriceIds` is visible in logs instead of silently
+  dropping a paying customer's credits.
 
 Idempotency and ordering:
 
@@ -244,5 +255,10 @@ Version contract:
 
 1. Should credits already granted for unpaid periods be reconciled? Default per non-goals: no.
 2. Trial credit policy — deferred, see non-goals.
-3. Pin `apiVersion` explicitly at client construction after step 3, so SDK upgrades can never silently
-   move the payload shape again?
+3. ~~Pin `apiVersion` explicitly at client construction?~~ **Decided: yes.** After step 3, construct the
+   client as `new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia' })`. Implicit SDK versioning is the
+   direct cause of Defect 2; an explicit pin turns a payload-shape change into a deliberate, reviewable
+   edit rather than a side effect of a Dependabot bump. Note the literal includes the `.dahlia` suffix —
+   the SDK's `ApiVersion` constant and its TypeScript types expect the full string, and a bare
+   `'2026-07-29'` will not typecheck. The pin must name the same version the destination is set to, so
+   step 2 and this change move together.
