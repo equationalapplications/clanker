@@ -11,7 +11,7 @@
     "firebase": "^12.18.0"
   },
   "devDependencies": {
-    "@types/chrome": "^0.2.9",
+    "@types/chrome": "^0.3.0",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
     "tsx": "^4.23.13",
