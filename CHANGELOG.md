@@ -1,3 +1,15 @@
+## [33.3.3](https://github.com/equationalapplications/clanker/compare/v33.3.2...v33.3.3) (2026-10-02)
+
+
+### Bug Fixes
+
+* **age:** require DOB when Declared Age Range reports non-regulated region ([11d2418](https://github.com/equationalapplications/clanker/commit/11d2418bc39f1818bce2cc3c73c6cc7b12eb7b7c))
+* **ci:** allowlist unpatched node-forge advisory in root audit gate ([c6d74da](https://github.com/equationalapplications/clanker/commit/c6d74da3877d76f61383b6c1b9432538537fd606)), closes [PKCS#1](https://github.com/PKCS/issues/1)
+* **ci:** fail audit gate closed on npm audit error payloads ([fc9d91b](https://github.com/equationalapplications/clanker/commit/fc9d91b50cc6d37d702b48d4648da250cbae7bd9))
+* **deps:** align root dependencies with Expo SDK 57 matrix ([ebd5120](https://github.com/equationalapplications/clanker/commit/ebd51207001d784f79b637a9b03cb2b9487302b7))
+* **deps:** override grpc-js and brace-expansion for advisory drop ([e38967a](https://github.com/equationalapplications/clanker/commit/e38967a5ebb332861cfa65d7eb22b7e0639b2a4a)), closes [hi#severity](https://github.com/hi/issues/severity)
+* **extension:** override @grpc/grpc-js to ^1.14.5 ([3af253b](https://github.com/equationalapplications/clanker/commit/3af253b6c10336f89190392a72f6d876bd33330f))
+
 ## [33.3.2](https://github.com/equationalapplications/clanker/compare/v33.3.1...v33.3.2) (2026-09-16)
 
 
