@@ -107,9 +107,11 @@ and only because of the legacy pin.
 
 ## Non-goals
 
-- **Trial policy.** `trialing` currently maps to `'active'` and mints a full grant. This spec
-  deliberately preserves that behavior. Whether trials should receive credits is a product decision and
-  a separate follow-up.
+- **Trial credit policy.** Under this spec a `trialing` subscription receives **no** grant: a trial
+  has no paid invoice, and the paid invoice is the sole grant path (§2). Today the legacy
+  `customer.subscription.updated` path mints one — that accidental grant is removed, not preserved.
+  Whether trials should receive credits is a product decision and a separate follow-up (open
+  question 2).
 - **Grace-period / access policy.** How a `past_due` subscriber's _access_ behaves is unchanged; only
   credit authorization moves. `planStatus` remains display and telemetry only (verified: its sole other
   consumers are admin filters, `usageSnapshot` passthrough, and the cross-provider duplicate-purchase
@@ -188,6 +190,19 @@ Rules:
 - A grant whose period end is in the past (a replayed or late invoice) is logged and skipped, never
   written, so it cannot expire a newer pool.
 
+Residual hazard — **deploy overlap**: 2nd-gen Cloud Functions runs on Cloud Run, so a deploy routes new
+requests to the new revision while in-flight requests finish on the old one. An old-revision
+`customer.subscription.updated` grant can therefore interleave with a new-revision invoice grant for the
+same cycle. The dual-key probe above is check-then-act: both handlers can probe, both miss (each under
+its own key), and both grant, because `renewSubscriptionCredits`'s uniqueness guard covers only the exact
+`reference_id`. The implementation must close this window one of two ways — decide at implementation
+time and cover it with a test:
+
+- serialize the legacy-key lookup and grant behind a per-subscription-cycle lock (e.g. a row lock on the
+  subscription inside the grant transaction), or
+- define one canonical cycle key that both the legacy and invoice paths derive identically, chosen to
+  match existing legacy ledger rows.
+
 ### 4. Rollout order
 
 The endpoint flip and the deploy cannot be simultaneous, and the currently-working path reads the old
@@ -263,6 +278,7 @@ Version contract:
 | Risk                                                                                              | Mitigation                                                                                            |
 | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Double grant on deploy from a changed period key                                                  | §3 dual-key probe; ledger audit in the pre-deploy checklist                                           |
+| Double grant from old/new revision overlap during deploy (probe is check-then-act across keys)    | §3 residual hazard: cycle lock or canonical key, decided and tested at implementation                 |
 | Credit delivery stops during the destination cutover                                              | §4 tolerant readers deployed first; dual signing secret; old destination disabled rather than deleted |
 | Duplicate deliveries while both destinations are live                                             | Same event id to both; existing event dedupe drops the second                                         |
 | `subscription_create` path was never exercised, so initial-purchase grants are newly written code | Explicit fixtures for both billing reasons; step-2 verification with a real event                     |
