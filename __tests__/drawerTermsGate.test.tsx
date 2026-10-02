@@ -69,6 +69,33 @@ jest.mock('~/components/AcceptTerms', () => ({
   },
 }))
 
+let mockLastDobPickerProps: { onComplete: (isAdult: boolean) => void } | null = null
+
+jest.mock('~/components/ManualDobPicker', () => ({
+  ManualDobPicker: (props: { onComplete: (isAdult: boolean) => void }) => {
+    mockLastDobPickerProps = props
+    return null
+  },
+}))
+
+const mockShowAlert = jest.fn()
+
+jest.mock('~/utilities/showAlert', () => ({
+  showAlert: (...args: unknown[]) => mockShowAlert(...args),
+}))
+
+// The real useAgeVerification hook runs; only the native age-range module is mocked.
+const mockRequestAgeRange = jest.fn()
+const mockIsEligible = jest.fn()
+
+jest.mock('expo-age-range', () => ({
+  requestAgeRangeAsync: (...args: unknown[]) => mockRequestAgeRange(...args),
+  isEligibleForAgeFeaturesAsync: (...args: unknown[]) => mockIsEligible(...args),
+  requestAgeSignalsAccessAsync: (...args: unknown[]) => mockRequestSignalsAccess(...args),
+}))
+
+const mockRequestSignalsAccess = jest.fn()
+
 const mockUseSelector = jest.fn()
 
 jest.mock('@xstate/react', () => ({
@@ -107,6 +134,7 @@ describe('drawer terms gate', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockLastAcceptTermsProps = null
+    mockLastDobPickerProps = null
   })
 
   it('maps (tabs) route to Chat labels in drawer screenOptions', () => {
@@ -214,5 +242,116 @@ describe('drawer terms gate', () => {
 
     // Verify screenOptions apply hidden styles to gated routes
     expect(mockDrawerScreenOptions).toHaveBeenCalled()
+  })
+})
+
+describe('drawer terms gate age verification', () => {
+  const blockingSnapshot = (isUpdate: boolean): TermsSnapshot => ({
+    accepted: false,
+    blocking: true,
+    loading: false,
+    isUpdate,
+    accepting: false,
+    error: null,
+  })
+
+  const acceptTermsCalls = () =>
+    mockTermsService.send.mock.calls.filter(([event]) => event?.type === 'ACCEPT_TERMS')
+
+  function renderLayout() {
+    const AppLayout = require('../app/(drawer)/_layout').default
+    renderer.act(() => {
+      renderer.create(<AppLayout />)
+    })
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockLastAcceptTermsProps = null
+    mockLastDobPickerProps = null
+    __setJestPlatformOS('android')
+    mockRequestSignalsAccess.mockResolvedValue('SHARED')
+  })
+
+  afterEach(() => {
+    __resetJestPlatformOS()
+  })
+
+  it('does not send ACCEPT_TERMS for a new account until the age check verifies the user', async () => {
+    let resolveAgeRange!: (value: { lowerBound: number | null; upperBound: null }) => void
+    mockRequestAgeRange.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAgeRange = resolve
+      }),
+    )
+    setTermsSnapshot(blockingSnapshot(false))
+    renderLayout()
+
+    const onAccepted = mockLastAcceptTermsProps?.onAccepted as () => Promise<void>
+    let pending!: Promise<void>
+    await renderer.act(async () => {
+      pending = onAccepted()
+    })
+
+    expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
+    expect(acceptTermsCalls()).toHaveLength(0)
+    expect(mockLastAcceptTermsProps).toMatchObject({ accepting: true })
+
+    await renderer.act(async () => {
+      resolveAgeRange({ lowerBound: 18, upperBound: null })
+      await pending
+    })
+
+    expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: false }]])
+  })
+
+  it('signs out an under-18 new account without sending ACCEPT_TERMS', async () => {
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 13, upperBound: 17 })
+    setTermsSnapshot(blockingSnapshot(false))
+    renderLayout()
+
+    await renderer.act(async () => {
+      await (mockLastAcceptTermsProps?.onAccepted as () => Promise<void>)()
+    })
+
+    expect(acceptTermsCalls()).toHaveLength(0)
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      'Age Restriction',
+      'This app is for users 18 and older.',
+    )
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+  })
+
+  it('routes a new account through the DOB picker when no age signal is available', async () => {
+    mockRequestSignalsAccess.mockResolvedValue('NOT_SHARED')
+    setTermsSnapshot(blockingSnapshot(false))
+    renderLayout()
+
+    await renderer.act(async () => {
+      await (mockLastAcceptTermsProps?.onAccepted as () => Promise<void>)()
+    })
+
+    expect(mockLastDobPickerProps).toBeTruthy()
+    expect(acceptTermsCalls()).toHaveLength(0)
+
+    renderer.act(() => {
+      mockLastDobPickerProps?.onComplete(true)
+    })
+
+    expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: false }]])
+  })
+
+  it('skips the age check when an already-accepted account re-accepts updated terms', () => {
+    setTermsSnapshot(blockingSnapshot(true))
+    renderLayout()
+
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onAccepted as () => void)()
+    })
+
+    expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: true }]])
+    expect(mockRequestSignalsAccess).not.toHaveBeenCalled()
+    expect(mockRequestAgeRange).not.toHaveBeenCalled()
+    expect(mockLastDobPickerProps).toBeNull()
   })
 })

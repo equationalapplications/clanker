@@ -43,6 +43,23 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
         }
       }
 
+      if (Platform.OS === 'android') {
+        try {
+          // Play Age Signals only reports an age range once sharing status is 'SHARED';
+          // 'NOT_SHARED', 'VERIFICATION_REQUIRED', and null all yield an all-null response,
+          // so go straight to the manual DOB check. expo-age-range exposes no Play Store
+          // resolution launcher for 'VERIFICATION_REQUIRED'.
+          const status = await AgeRange.requestAgeSignalsAccessAsync()
+          if (status !== 'SHARED') {
+            setIsVerifying(false)
+            setShowDobPicker(true)
+            return
+          }
+        } catch {
+          // requestAgeSignalsAccessAsync threw — treat as unknown, fall through
+        }
+      }
+
       const ageRange = await AgeRange.requestAgeRangeAsync({ threshold1: 18 })
 
       setIsVerifying(false)

@@ -6,10 +6,12 @@ import { useAgeVerification } from '../useAgeVerification'
 jest.mock('expo-age-range', () => ({
   requestAgeRangeAsync: jest.fn(),
   isEligibleForAgeFeaturesAsync: jest.fn(),
+  requestAgeSignalsAccessAsync: jest.fn(),
 }))
 
 const mockRequestAgeRange = AgeRange.requestAgeRangeAsync as jest.Mock
 const mockIsEligible = AgeRange.isEligibleForAgeFeaturesAsync as jest.Mock
+const mockRequestSignalsAccess = AgeRange.requestAgeSignalsAccessAsync as jest.Mock
 
 function setup() {
   const onVerified = jest.fn()
@@ -161,7 +163,10 @@ describe('iOS >= 26', () => {
 })
 
 describe('Android', () => {
-  beforeEach(() => __setJestPlatformOS('android'))
+  beforeEach(() => {
+    __setJestPlatformOS('android')
+    mockRequestSignalsAccess.mockResolvedValue('SHARED')
+  })
 
   it('calls onVerified when lowerBound >= 18', async () => {
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
@@ -170,6 +175,44 @@ describe('Android', () => {
     expect(onVerified).toHaveBeenCalledTimes(1)
     expect(mockIsEligible).not.toHaveBeenCalled()
     expect(result.current.isVerifying).toBe(false)
+  })
+
+  it('requests age signals access before requesting the age range', async () => {
+    const calls: string[] = []
+    mockRequestSignalsAccess.mockImplementation(async () => {
+      calls.push('access')
+      return 'SHARED'
+    })
+    mockRequestAgeRange.mockImplementation(async () => {
+      calls.push('range')
+      return { lowerBound: 18, upperBound: null }
+    })
+    const { result } = setup()
+    await act(() => result.current.verifyAge())
+    expect(calls).toEqual(['access', 'range'])
+  })
+
+  it.each(['NOT_SHARED', 'VERIFICATION_REQUIRED', null])(
+    'shows DOB picker without requesting the age range when access status is %p',
+    async (status) => {
+      mockRequestSignalsAccess.mockResolvedValue(status)
+      const { result, onVerified, onRejected } = setup()
+      await act(() => result.current.verifyAge())
+      expect(result.current.showDobPicker).toBe(true)
+      expect(result.current.isVerifying).toBe(false)
+      expect(mockRequestAgeRange).not.toHaveBeenCalled()
+      expect(onVerified).not.toHaveBeenCalled()
+      expect(onRejected).not.toHaveBeenCalled()
+    },
+  )
+
+  it('falls through to requestAgeRangeAsync when requestAgeSignalsAccessAsync throws', async () => {
+    mockRequestSignalsAccess.mockRejectedValue(new Error('play services error'))
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
+    const { result, onVerified } = setup()
+    await act(() => result.current.verifyAge())
+    expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
+    expect(onVerified).toHaveBeenCalledTimes(1)
   })
 
   it('calls onRejected when lowerBound < 18', async () => {
