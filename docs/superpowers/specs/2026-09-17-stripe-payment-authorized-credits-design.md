@@ -110,12 +110,17 @@ and only because of the legacy pin.
 - **Trial credit policy.** Under this spec a `trialing` subscription receives **no** grant: a trial
   has no paid invoice, and the paid invoice is the sole grant path (§2). Today the legacy
   `customer.subscription.updated` path mints one — that accidental grant is removed, not preserved.
-  Whether trials should receive credits is a product decision and a separate follow-up (open
-  question 2).
+  A converting trial's first paid invoice grants normally. Whether trials should receive credits is a
+  product decision and a separate follow-up (open question 2).
 - **Grace-period / access policy.** How a `past_due` subscriber's _access_ behaves is unchanged; only
-  credit authorization moves. `planStatus` remains display and telemetry only (verified: its sole other
-  consumers are admin filters, `usageSnapshot` passthrough, and the cross-provider duplicate-purchase
-  guard at `purchasePackageStripe.ts:145`).
+  credit authorization moves. `planStatus` remains display and telemetry only, with one **pre-existing**
+  exception: it also gates the billing-provider-collision warnings at `revenueCatWebhook.ts:595` and
+  `:675`, where `existingSubscription.planStatus === 'active'` (which `past_due`/`unpaid`/`incomplete`
+  still map to) triggers the warning before a RevenueCat subscription overwrites the Stripe row. That
+  behavior exists today and is unchanged by this spec (the mapping is kept, §2); it is noted so nobody
+  reads "delinquent Stripe subscribers no longer get credits" as "they can no longer trip the collision
+  warning." The remaining consumers are admin filters, `usageSnapshot` passthrough, and the
+  cross-provider duplicate-purchase guard at `purchasePackageStripe.ts:145`.
 - **Historical clawback.** No automatic reversal of credits already granted under the old logic.
 - **Clawback on future refunds and disputes.** Also out of scope, and worth stating precisely because
   the current behavior is asymmetric. `handleChargeRefunded` deducts credits for a refunded **credit
@@ -222,9 +227,15 @@ shape. Sequence:
    non-breaking and reversible:
 
    1. Create the new destination with the target `api_version` and the same five events.
-   2. Add its signing secret as `STRIPE_WEBHOOK_SECRET_NEXT`; deploy; confirm both destinations verify.
-   3. Disable (do not delete) the old destination. Both receive the same event ids, and the existing
-      event dedupe drops the duplicate, so no double grant during overlap.
+   2. Add its signing secret as `STRIPE_WEBHOOK_SECRET_NEXT` **in two places**: create the secret (with
+      a version) in Secret Manager, and add the name to the `secrets: [...]` array in
+      `functions/src/stripeWebhook.ts` — Firebase Functions only injects secrets listed there, and the
+      deploy fails outright if the Secret Manager version does not exist yet. Deploy; confirm both
+      destinations verify.
+   3. While both destinations are enabled — from step 2 until this step — both deliver the same event
+      ids and the existing event dedupe drops the duplicate, so no double grant during the overlap.
+      Then disable (do not delete) the old destination; a disabled destination delivers nothing, which
+      is what ends the overlap.
    4. Promote the new secret to `STRIPE_WEBHOOK_SECRET`, drop `_NEXT`, delete the old destination.
 
 3. **Follow-up PR** removes the legacy branch from the accessors and adds the explicit `apiVersion` pin
@@ -234,8 +245,15 @@ Step 2 is a live Stripe configuration change and is performed by the account own
 
 ## Test plan
 
-`functions/` uses Jest. Run scoped: `npx jest src/__tests__/stripeWebhook` (bare `npm test -- <path>`
-does not filter in this repo).
+`functions/` uses `node --test` over compiled `lib/` output (see `functions/package.json`), with tests
+co-located at `src/stripeWebhook.test.ts` and `src/stripeWebhook.int.test.ts` — there is no
+`src/__tests__/` directory and no Jest in this package. Run scoped:
+
+```
+cd functions && NODE_ENV=test npm run build && NODE_ENV=test node --test lib/stripeWebhook.test.js
+```
+
+(bare `npm test -- <path>` does not filter in this repo).
 
 Fixtures must exist in **both** payload shapes — the current fixtures are synthetic top-level-period
 shapes only, which is why Defect 2 was invisible to CI.
@@ -247,7 +265,7 @@ Authorization:
 - `checkout.session.completed` for a subscription price: no subscription credit row.
 - Paid `subscription_create` invoice: exactly one grant.
 - Paid `subscription_cycle` invoice: exactly one grant.
-- Unpaid / `amount_paid: 0` invoice: no grant.
+- Unpaid / `amount_paid: 0` invoice: no grant. (This is also the trial-start case — see non-goals.)
 - Unknown price id: no grant, **and** a warning is logged identifying the unrecognized price, so a
   tier added in Stripe but not in `StripePriceIds` is visible in logs instead of silently
   dropping a paying customer's credits.
