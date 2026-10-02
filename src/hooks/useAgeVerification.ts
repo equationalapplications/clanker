@@ -29,8 +29,12 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
         try {
           const isEligible = await AgeRange.isEligibleForAgeFeaturesAsync()
           if (isEligible === false) {
+            // `false` means Apple confirms Declared Age Range regulation does NOT apply
+            // in this region/configuration — NOT that the user is an adult. No verified
+            // age signal exists here, so fall back to the manual DOB check rather than
+            // waving the user through (ToS A6 promises an age check at sign-up).
             setIsVerifying(false)
-            onVerified()
+            setShowDobPicker(true)
             return
           }
           // null or true: fall through to requestAgeRangeAsync
