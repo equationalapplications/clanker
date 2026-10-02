@@ -43,9 +43,11 @@ jobs:
       # Gate (read-only): `npm audit` queries npm's advisory service for the
       # installed lockfile tree. `--omit=dev` ignores tooling that never ships
       # in the app; `--audit-level=high` keeps moderate ReDoS-style noise from
-      # blocking staging (tighten later if wanted). Verified passing 2026-08-26.
+      # blocking staging (tighten later if wanted). The gate script adds a
+      # reason-tracked allowlist for advisories npm has no fix for (see
+      # scripts/audit-gate.mjs); every other high/critical still fails the run.
       - name: 🚨 Audit root dependencies
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --json | node scripts/audit-gate.mjs
 
       # Gate (read-only): the Expo SDK chooses the versions of the native
       # packages pinned exactly/by tilde in package.json (react-native-*,
