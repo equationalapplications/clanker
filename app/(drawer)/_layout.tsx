@@ -76,14 +76,20 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
-  const { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification, retryPlayVerification } =
-    useAgeVerification({
-      onVerified: acceptTerms,
-      onRejected: () => {
-        showAlert('Age Restriction', 'This app is for users 18 and older.')
-        authService.send({ type: 'SIGN_OUT' })
-      },
-    })
+  const {
+    verifyAge,
+    isVerifying,
+    showDobPicker,
+    handleDobResult,
+    needsPlayVerification,
+    retryPlayVerification,
+  } = useAgeVerification({
+    onVerified: acceptTerms,
+    onRejected: () => {
+      showAlert('Age Restriction', 'This app is for users 18 and older.')
+      authService.send({ type: 'SIGN_OUT' })
+    },
+  })
 
   // Re-acceptance skip rule: there is no dedicated age-verification record, so a previously
   // accepted Terms version (termsMachine `isUpdate`, derived from subscription.termsVersion)

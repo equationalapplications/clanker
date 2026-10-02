@@ -98,5 +98,12 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
     }
   }
 
-  return { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification, retryPlayVerification }
+  return {
+    verifyAge,
+    isVerifying,
+    showDobPicker,
+    handleDobResult,
+    needsPlayVerification,
+    retryPlayVerification,
+  }
 }
