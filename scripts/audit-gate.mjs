@@ -49,7 +49,14 @@ try {
   process.exit(1)
 }
 
-const vulnerabilities = report.vulnerabilities ?? {}
+// npm audit can exit non-zero with a parseable error payload (registry or
+// network failure) that carries no vulnerability data at all. Treating a
+// missing key as "no findings" would let a broken audit pass the gate.
+const vulnerabilities = report.vulnerabilities
+if (!vulnerabilities || typeof vulnerabilities !== 'object') {
+  console.error('audit-gate: npm audit produced no vulnerability data — failing closed')
+  process.exit(1)
+}
 const offenders = new Map()
 const tolerated = new Set()
 
