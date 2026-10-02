@@ -192,7 +192,7 @@ describe('Android', () => {
     expect(calls).toEqual(['access', 'range'])
   })
 
-  it.each(['NOT_SHARED', 'VERIFICATION_REQUIRED', null])(
+  it.each(['NOT_SHARED', null])(
     'shows DOB picker without requesting the age range when access status is %p',
     async (status) => {
       mockRequestSignalsAccess.mockResolvedValue(status)
@@ -205,6 +205,32 @@ describe('Android', () => {
       expect(onRejected).not.toHaveBeenCalled()
     },
   )
+
+  it('flags VERIFICATION_REQUIRED as needing Play Store resolution instead of offering the DOB picker', async () => {
+    mockRequestSignalsAccess.mockResolvedValue('VERIFICATION_REQUIRED')
+    const { result, onVerified, onRejected } = setup()
+    await act(() => result.current.verifyAge())
+    expect(result.current.needsPlayVerification).toBe(true)
+    expect(result.current.showDobPicker).toBe(false)
+    expect(result.current.isVerifying).toBe(false)
+    expect(mockRequestAgeRange).not.toHaveBeenCalled()
+    expect(onVerified).not.toHaveBeenCalled()
+    expect(onRejected).not.toHaveBeenCalled()
+  })
+
+  it('retryPlayVerification clears the flag and re-runs the age check', async () => {
+    mockRequestSignalsAccess
+      .mockResolvedValueOnce('VERIFICATION_REQUIRED')
+      .mockResolvedValueOnce('SHARED')
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 21, upperBound: null })
+    const { result, onVerified } = setup()
+    await act(() => result.current.verifyAge())
+    expect(result.current.needsPlayVerification).toBe(true)
+    await act(() => result.current.retryPlayVerification())
+    expect(result.current.needsPlayVerification).toBe(false)
+    expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
+    expect(onVerified).toHaveBeenCalledTimes(1)
+  })
 
   it('falls through to requestAgeRangeAsync when requestAgeSignalsAccessAsync throws', async () => {
     mockRequestSignalsAccess.mockRejectedValue(new Error('play services error'))

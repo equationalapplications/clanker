@@ -76,13 +76,14 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
-  const { verifyAge, isVerifying, showDobPicker, handleDobResult } = useAgeVerification({
-    onVerified: acceptTerms,
-    onRejected: () => {
-      showAlert('Age Restriction', 'This app is for users 18 and older.')
-      authService.send({ type: 'SIGN_OUT' })
-    },
-  })
+  const { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification, retryPlayVerification } =
+    useAgeVerification({
+      onVerified: acceptTerms,
+      onRejected: () => {
+        showAlert('Age Restriction', 'This app is for users 18 and older.')
+        authService.send({ type: 'SIGN_OUT' })
+      },
+    })
 
   // Re-acceptance skip rule: there is no dedicated age-verification record, so a previously
   // accepted Terms version (termsMachine `isUpdate`, derived from subscription.termsVersion)
@@ -104,6 +105,23 @@ const AppLayout = () => {
   }
 
   if (termsBlocking || accepting) {
+    if (needsPlayVerification) {
+      return (
+        <View style={styles.blockingContainer}>
+          <AcceptTerms
+            onAccepted={retryPlayVerification}
+            onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
+            isUpdate={isUpdate}
+            accepting={isVerifying}
+            error={
+              'Google Play requires age verification for your account before you can continue. ' +
+              'Open the Google Play Store, complete the age verification it shows you, then tap Accept to retry.'
+            }
+          />
+        </View>
+      )
+    }
+
     if (showDobPicker) {
       return (
         <View style={styles.blockingContainer}>

@@ -10,6 +10,12 @@ interface UseAgeVerificationProps {
 export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificationProps) {
   const [isVerifying, setIsVerifying] = useState(false)
   const [showDobPicker, setShowDobPicker] = useState(false)
+  const [needsPlayVerification, setNeedsPlayVerification] = useState(false)
+
+  const retryPlayVerification = () => {
+    setNeedsPlayVerification(false)
+    void verifyAge()
+  }
 
   const verifyAge = async () => {
     setIsVerifying(true)
@@ -45,11 +51,18 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
 
       if (Platform.OS === 'android') {
         try {
-          // Play Age Signals only reports an age range once sharing status is 'SHARED';
-          // 'NOT_SHARED', 'VERIFICATION_REQUIRED', and null all yield an all-null response,
-          // so go straight to the manual DOB check. expo-age-range exposes no Play Store
-          // resolution launcher for 'VERIFICATION_REQUIRED'.
+          // Play Age Signals only reports an age range once sharing status is 'SHARED'.
+          // 'NOT_SHARED' and null mean no signal is available — fall back to the manual
+          // DOB check. 'VERIFICATION_REQUIRED' means Play mandates identity verification
+          // (age unknown in a mandatory-verification region): acceptance must stay
+          // blocked until the user resolves it in the Play Store. Self-attested DOB must
+          // NOT stand in for a mandatory Play verification (CodeRabbit round on PR #783).
           const status = await AgeRange.requestAgeSignalsAccessAsync()
+          if (status === 'VERIFICATION_REQUIRED') {
+            setIsVerifying(false)
+            setNeedsPlayVerification(true)
+            return
+          }
           if (status !== 'SHARED') {
             setIsVerifying(false)
             setShowDobPicker(true)
@@ -85,5 +98,5 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
     }
   }
 
-  return { verifyAge, isVerifying, showDobPicker, handleDobResult }
+  return { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification, retryPlayVerification }
 }
