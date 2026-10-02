@@ -1,0 +1,51 @@
+name: Restore staging branch
+
+# GitHub's "delete head branch on merge" setting has no branch exception
+# list. The staging→main release PR has staging as its HEAD branch, so every
+# release merge deletes staging — taking out the base branch that the entire
+# feature → staging → main flow (enforce-branch-policy.yml) depends on.
+# This workflow recreates staging from main the moment that happens.
+
+on:
+    pull_request:
+        types: [closed]
+
+permissions:
+    contents: write
+
+jobs:
+    restore-staging:
+        # Only when a merge actually happened and the head branch was staging
+        # (the release PR) or any other merge that left staging missing.
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check whether staging still exists
+              id: check
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  if git ls-remote --exit-code --heads origin staging >/dev/null 2>&1; then
+                      echo "staging exists — nothing to do"
+                      echo "missing=false" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "staging was deleted by the merge"
+                      echo "missing=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Recreate staging from the merge commit
+              if: steps.check.outputs.missing == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  SHA="${{ github.event.pull_request.merge_commit_sha }}"
+                  echo "Recreating staging at $SHA (merge commit of #${{ github.event.pull_request.number }})"
+                  gh api -X POST repos/${{ github.repository }}/git/refs \
+                    -f ref="refs/heads/staging" -f sha="$SHA"
+                  echo "✅ staging restored at $SHA"
+
+            - name: Report
+              if: steps.check.outputs.missing == 'true'
+              run: |
+                  echo "staging was recreated from ${{ github.event.pull_request.merge_commit_sha }}."
+                  echo "Open PRs targeting staging (if any were retargeted during the gap) should be checked."
