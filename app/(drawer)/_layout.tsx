@@ -10,6 +10,9 @@ import { Pressable, StyleSheet, View, ColorValue } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
 import { AcceptTerms } from '~/components/AcceptTerms'
+import { ManualDobPicker } from '~/components/ManualDobPicker'
+import { useAgeVerification } from '~/hooks/useAgeVerification'
+import { showAlert } from '~/utilities/showAlert'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
@@ -71,18 +74,75 @@ const AppLayout = () => {
     previousTermsAccepted.current = termsAccepted
   }, [termsAccepted, authService])
 
+  const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
+
+  const {
+    verifyAge,
+    isVerifying,
+    showDobPicker,
+    handleDobResult,
+    needsPlayVerification,
+    retryPlayVerification,
+  } = useAgeVerification({
+    onVerified: acceptTerms,
+    onRejected: () => {
+      showAlert('Age Restriction', 'This app is for users 18 and older.')
+      authService.send({ type: 'SIGN_OUT' })
+    },
+  })
+
+  // Re-acceptance skip rule: there is no dedicated age-verification record, so a previously
+  // accepted Terms version (termsMachine `isUpdate`, derived from subscription.termsVersion)
+  // is the "already verified" signal. New accounts must complete the age flow first.
+  const handleAccepted = isUpdate ? acceptTerms : verifyAge
+
+  // The DOB picker replaces AcceptTerms, which would otherwise surface the error inline.
+  useEffect(() => {
+    if (showDobPicker && error) {
+      showAlert(
+        'Error',
+        `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
+      )
+    }
+  }, [showDobPicker, error])
+
   if (termsLoading) {
     return <LoadingIndicator disabled={false} />
   }
 
   if (termsBlocking || accepting) {
+    if (needsPlayVerification) {
+      return (
+        <View style={styles.blockingContainer}>
+          <AcceptTerms
+            onAccepted={retryPlayVerification}
+            onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
+            isUpdate={isUpdate}
+            accepting={isVerifying}
+            error={
+              'Google Play requires age verification for your account before you can continue. ' +
+              'Open the Google Play Store, complete the age verification it shows you, then tap Accept to retry.'
+            }
+          />
+        </View>
+      )
+    }
+
+    if (showDobPicker) {
+      return (
+        <View style={styles.blockingContainer}>
+          <ManualDobPicker onComplete={handleDobResult} loading={accepting} />
+        </View>
+      )
+    }
+
     return (
       <View style={styles.blockingContainer}>
         <AcceptTerms
-          onAccepted={() => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })}
+          onAccepted={handleAccepted}
           onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
           isUpdate={isUpdate}
-          accepting={accepting}
+          accepting={accepting || isVerifying}
           error={error?.message}
         />
       </View>
