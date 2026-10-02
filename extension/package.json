@@ -16,5 +16,8 @@
     "jsdom": "^30.0.1",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.5"
   }
 }
