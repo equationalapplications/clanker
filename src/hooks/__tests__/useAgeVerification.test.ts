@@ -88,11 +88,14 @@ describe('iOS >= 26', () => {
     setVersion('26.0')
   })
 
-  it('calls onVerified when isEligible is false (unregulated region)', async () => {
+  it('shows the DOB picker when isEligible is false (no verified age signal available)', async () => {
     mockIsEligible.mockResolvedValue(false)
     const { result, onVerified } = setup()
     await act(() => result.current.verifyAge())
-    expect(onVerified).toHaveBeenCalledTimes(1)
+    // `false` = regulation does not apply in this region, NOT "user is an adult".
+    // No verified age signal exists, so the manual DOB check is required.
+    expect(result.current.showDobPicker).toBe(true)
+    expect(onVerified).not.toHaveBeenCalled()
     expect(mockRequestAgeRange).not.toHaveBeenCalled()
     expect(result.current.isVerifying).toBe(false)
   })
