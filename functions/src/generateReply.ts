@@ -28,7 +28,10 @@ const MAX_PROMPT_LENGTH = 12_000
 const MAX_OUTPUT_TOKENS = 1_024
 const MAX_STRUCTURED_PAYLOAD_SIZE = 12_000
 
-// Mirrors the 'both' + 'edge-only' tier tool names from shared/agent-tools-spec.ts.
+// Mirrors the tool names of every tier in shared/agent-tools-spec.ts. Cloud-only
+// names are accepted because the edge agent is offered them as escalation stubs
+// (it calls one, useEdgeAgent intercepts and routes the turn to the cloud agent);
+// an unlisted name is a hard reject below, which would fail the whole turn.
 // Hardcoded rather than imported: functions/'s tsconfig.json has rootDir: "src" and
 // cannot reach the repo-root shared/ directory without restructuring its build. The
 // client already builds the schema array itself via getSchemasForEdge() and sends it
@@ -46,6 +49,8 @@ const ALLOWED_TOOL_NAMES = new Set([
   'escalate_to_cloud_agent',
   'wiki_get_ontology',
   'wiki_traverse_graph',
+  'set_reminder',
+  'generate_image',
 ])
 
 interface ToolDeclaration {

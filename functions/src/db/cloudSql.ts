@@ -75,6 +75,15 @@ async function createDb(): Promise<DbClient> {
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    // Bounds every statement on this pool. Without it a query that stalls on a
+    // row lock or a Cloud SQL failover hangs until the function's own timeout,
+    // which for the proactive sweep means the platform kill lands mid-POST and
+    // strands the claimed row. Every statement here is single-row OLTP or an
+    // indexed scan that completes in well under a second, so 10s is an order of
+    // magnitude of headroom — a statement that hits it was already an incident,
+    // and aborting converts a silent hang into a logged error the sweep's
+    // per-row catch and telemetry can see.
+    statement_timeout: 10_000,
   })
 
   registerShutdownHandlers()

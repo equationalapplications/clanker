@@ -172,6 +172,13 @@ jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
+// ChatView calls `useMarkProactiveReadOnOpen`, which depends on
+// QueryClientProvider — mock it so this keyboard-avoidance suite is not
+// coupled to react-query test scaffolding.
+jest.mock('~/hooks/useMarkProactiveReadOnOpen', () => ({
+  useMarkProactiveReadOnOpen: jest.fn(),
+}))
+
 jest.mock('~/components/CharacterAvatar', () => ({
   __esModule: true,
   default: () => null,

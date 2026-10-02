@@ -1,1 +1,7 @@
-export { getSchemasForEdge, getSchemasForCloud, agentToolSpec } from '../../shared/agent-tools-spec'
+export {
+  getSchemasForEdge,
+  getSchemasForCloud,
+  agentToolSpec,
+  isCloudOnlyToolName,
+  isLocallyExecutableCloudTool,
+} from '../../shared/agent-tools-spec'

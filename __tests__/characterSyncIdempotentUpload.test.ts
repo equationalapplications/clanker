@@ -4,6 +4,7 @@ const mockGetAllCharactersIncludingDeleted = jest.fn().mockResolvedValue([])
 const mockMarkCharacterSynced = jest.fn()
 const mockSetPendingCloudIdIfMissing = jest.fn()
 const mockSyncCharacterFn = jest.fn()
+const mockSyncCharacterImages = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('~/config/firebaseConfig', () => ({
   getCurrentUser: jest.fn(() => ({ uid: 'user-1' })),
@@ -32,7 +33,9 @@ jest.mock('~/auth/devSandboxFlag', () => ({
 }))
 jest.mock('~/services/wikiService', () => ({ getWiki: jest.fn(() => null) }))
 jest.mock('~/services/wikiOrchestrator', () => ({ wikiOrchestrator: { syncAll: jest.fn() } }))
-jest.mock('~/services/characterImageSyncService', () => ({ syncCharacterImages: jest.fn() }))
+jest.mock('~/services/characterImageSyncService', () => ({
+  syncCharacterImages: (...args: unknown[]) => mockSyncCharacterImages(...args),
+}))
 jest.mock('~/services/characterImageService', () => ({ saveCharacterImage: jest.fn() }))
 jest.mock('~/services/apiClient', () => ({
   syncCharacterFn: (...args: unknown[]) => mockSyncCharacterFn(...args),
@@ -71,13 +74,17 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
     jest.clearAllMocks()
     mockGetSoftDeletedCharacters.mockResolvedValue([])
     mockGetAllCharactersIncludingDeleted.mockResolvedValue([])
+    mockSyncCharacterImages.mockResolvedValue(undefined)
   })
 
   it('generates and persists a pending_cloud_id, then sends it as the upload id', async () => {
     mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar()])
-    mockSyncCharacterFn.mockResolvedValue({ data: null }) // simulate a dropped/failed response
+    // A resolved response with no character id is the dropped/failed envelope
+    // — sync must still mint a pending id, send it, and reject so the Talk
+    // gate's Retry Sync does not treat this as a successful round.
+    mockSyncCharacterFn.mockResolvedValue({ data: null })
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
 
     expect(mockSetPendingCloudIdIfMissing).toHaveBeenCalledTimes(1)
     const [charId, generatedId] = mockSetPendingCloudIdIfMissing.mock.calls[0]
@@ -94,14 +101,14 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
     mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar({ pending_cloud_id: pendingId })])
     mockSyncCharacterFn.mockResolvedValue({ data: null })
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
 
     // Already had a pending id — no new one generated or persisted.
     expect(mockSetPendingCloudIdIfMissing).not.toHaveBeenCalled()
     expect(mockSyncCharacterFn).toHaveBeenCalledTimes(1)
     expect(mockSyncCharacterFn.mock.calls[0][0].character.id).toBe(pendingId)
 
-    await syncAllToCloud('user-1')
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
     expect(mockSyncCharacterFn).toHaveBeenCalledTimes(2)
     expect(mockSyncCharacterFn.mock.calls[1][0].character.id).toBe(pendingId)
   })
@@ -121,5 +128,54 @@ describe('syncUnsyncedToCloud idempotent upload id', () => {
 
     expect(mockSyncCharacterFn.mock.calls[0][0].character.id).toBe(cloudId)
     expect(mockMarkCharacterSynced).toHaveBeenCalledWith('char-local-1', cloudId)
+  })
+})
+
+describe('syncAllToCloud surfaces per-character upload failures', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockGetSoftDeletedCharacters.mockResolvedValue([])
+    mockGetAllCharactersIncludingDeleted.mockResolvedValue([])
+    mockSyncCharacterImages.mockResolvedValue(undefined)
+  })
+
+  it('rejects when a character upload fails, instead of resolving as success', async () => {
+    // The Talk gate's Retry Sync treats a resolved syncAllToCloud as "sync
+    // complete" — swallowing per-character failures left the gate retrying
+    // forever with no error and no progress.
+    mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar()])
+    mockSyncCharacterFn.mockRejectedValue(new Error('app-check rejected'))
+
+    await expect(syncAllToCloud('user-1')).rejects.toThrow('failed to sync to cloud')
+  })
+
+  it('still runs the image stage and skips the last-sync stamp when an upload failed', async () => {
+    mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar()])
+    mockSyncCharacterFn.mockRejectedValue(new Error('app-check rejected'))
+    const { Storage } = jest.requireMock('~/utilities/kvStorage')
+
+    await expect(syncAllToCloud('user-1')).rejects.toThrow()
+
+    // One bad character must not starve the others' image sync, and a failed
+    // round must not record itself as a successful sync time.
+    expect(mockSyncCharacterImages).toHaveBeenCalledWith('user-1')
+    expect(Storage.setItem).not.toHaveBeenCalled()
+  })
+
+  it('still uploads every character when an earlier one fails', async () => {
+    const second = makeUnsyncedChar({ id: 'char-local-2' })
+    mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar(), second])
+    mockSyncCharacterFn.mockRejectedValueOnce(new Error('first fails'))
+
+    await expect(syncAllToCloud('user-1')).rejects.toThrow()
+
+    expect(mockSyncCharacterFn).toHaveBeenCalledTimes(2)
+  })
+
+  it('resolves when no character upload fails', async () => {
+    mockGetUnsyncedCharacters.mockResolvedValue([makeUnsyncedChar()])
+    mockSyncCharacterFn.mockResolvedValue({ data: { id: '22222222-2222-4222-8222-222222222222' } })
+
+    await expect(syncAllToCloud('user-1')).resolves.toBeUndefined()
   })
 })

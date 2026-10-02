@@ -6,7 +6,7 @@
     <title>AI Images in Chat — Charts, Diagrams &amp; Selfies — Clanker AI</title>
     <meta
       name="description"
-      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image."
     />
     <meta
       name="keywords"
@@ -20,7 +20,7 @@
     <meta property="og:title" content="AI Images in Chat — Charts, Diagrams & Selfies — Clanker AI" />
     <meta
       property="og:description"
-      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image."
     />
     <meta property="og:image" content="https://clanker-ai.com/og-image.png" />
     <meta property="og:image:width" content="1024" />
@@ -30,7 +30,7 @@
     <meta name="twitter:title" content="AI Images in Chat — Charts, Diagrams & Selfies — Clanker AI" />
     <meta
       name="twitter:description"
-      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits."
+      content="Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image."
     />
     <meta name="twitter:image" content="https://clanker-ai.com/og-image.png" />
 
@@ -41,7 +41,7 @@
           {
             "@type": "WebPage",
             "name": "Clanker AI — Image Generation in Chat",
-            "description": "Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image — each image costs 200 credits.",
+            "description": "Your AI characters generate images mid-chat: charts, diagrams, and mockups for work, selfies for fun. Save or share any image.",
             "url": "https://clanker-ai.com/image-generation",
             "isPartOf": {
               "@type": "WebSite",
@@ -52,7 +52,7 @@
           {
             "@type": "FAQPage",
             "name": "Clanker AI — Image Generation FAQ",
-            "description": "Frequently asked questions about in-chat image generation: cost, triggers, limits, save and share, and chat-mode availability.",
+            "description": "Frequently asked questions about in-chat image generation: triggers, limits, and saving or sharing.",
             "url": "https://clanker-ai.com/image-generation",
             "isPartOf": {
               "@type": "WebSite",
@@ -60,14 +60,6 @@
               "url": "https://clanker-ai.com/"
             },
             "mainEntity": [
-              {
-                "@type": "Question",
-                "name": "How much does an image cost?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Each image costs 200 credits."
-                }
-              },
               {
                 "@type": "Question",
                 "name": "When does my character make an image?",
@@ -89,15 +81,7 @@
                 "name": "Can I save or share what it makes?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes — Save to Photos and Share are built into the image viewer. Every generated image is also saved to that character's image gallery."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Does it work in every chat?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Cloud-powered conversations only. The lightweight, text-only basic chat mode does not generate images."
+                  "text": "Yes — Share is built into the image viewer on every platform, and Save to Photos is available in the native app. Every generated image is also saved to that character's image gallery."
                 }
               }
             ]
@@ -235,6 +219,12 @@
         font-size: clamp(1.5rem, 4vw, 2rem);
         margin: 2rem 0 16px;
         font-weight: 700;
+      }
+
+      /* The FAQ prose section follows another prose section whose bottom
+         padding already provides the gap; drop the h2's own top margin. */
+      .prose h2.tight-top {
+        margin-top: 0;
       }
 
       .prose h3 {
@@ -396,8 +386,9 @@
           </li>
           <li>
             <strong>Save or share from the viewer.</strong>
-            Tap the image to open the viewer, then save it to Photos or share it out. The image
-            also lands in that character's gallery.
+            Tap the image to open the viewer, then share it or save it to your camera roll
+            (Save to Photos is available in the native app). The image also lands in that
+            character's gallery.
           </li>
         </ol>
       </section>
@@ -466,32 +457,20 @@
         </div>
       </section>
 
-      <section class="prose" aria-labelledby="credits-heading">
-        <h2 id="credits-heading">Credits &amp; availability</h2>
-        <p>
-          Image generation consumes credits — <strong>each image costs 200 credits</strong>.
-          Available on <strong>cloud-powered conversations</strong>: the lightweight, text-only
-          basic chat mode does not generate images. See
-          <a href="/support">how credits and subscriptions work</a>.
-        </p>
-      </section>
-
       <section class="prose" aria-labelledby="save-share-heading">
         <h2 id="save-share-heading">Save it, share it, keep it</h2>
         <p>
-          Save to Photos and Share are built into the image viewer, so anything your character
-          draws is one tap away from your camera roll or your group chat. Every generated image
-          is also saved to <strong>that character's image gallery</strong>, so nothing gets lost in
-          scrollback. Whatever your character builds stays with it —
+          Share is built into the image viewer on every platform, and Save to Photos is built in
+          for the native app, so anything your character draws is one tap away from your group
+          chat or (in the native app) your camera roll. Every generated image is also saved to
+          <strong>that character's image gallery</strong>, so nothing gets lost in scrollback.
+          Whatever your character builds stays with it —
           <a href="/advanced-memory">see how memory works</a>.
         </p>
       </section>
 
       <section class="prose" aria-labelledby="faq-heading">
-        <h2 id="faq-heading">Frequently Asked Questions</h2>
-
-        <h3>How much does an image cost?</h3>
-        <p>Each image costs 200 credits.</p>
+        <h2 id="faq-heading" class="tight-top">Frequently Asked Questions</h2>
 
         <h3>When does my character make an image?</h3>
         <p>
@@ -504,14 +483,9 @@
 
         <h3>Can I save or share what it makes?</h3>
         <p>
-          Yes — Save to Photos and Share are built into the image viewer. Every generated image is
-          also saved to that character's image gallery.
-        </p>
-
-        <h3>Does it work in every chat?</h3>
-        <p>
-          Cloud-powered conversations only. The lightweight, text-only basic chat mode does not
-          generate images.
+          Yes — Share is built into the image viewer on every platform, and Save to Photos is
+          available in the native app. Every generated image is also saved to that character's
+          image gallery.
         </p>
       </section>
 

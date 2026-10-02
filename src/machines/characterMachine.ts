@@ -435,7 +435,13 @@ export const characterMachine = createMachine(
             }),
           },
           onError: {
-            target: 'idle',
+            // Reload rather than sit in idle: a failed sync may still have
+            // written cloud_id to SQLite before the failing step (upload
+            // succeeds, restoreFromCloud throws), and idle would keep serving
+            // the stale in-memory copy — e.g. the Talk gate blocking a
+            // character that is actually synced. Note the reload's onDone
+            // clears `error`; `cloudSyncError` is what survives for the UI.
+            target: 'loading',
             actions: assign({
               error: ({ event }) => event.error as Error | null,
               cloudSyncError: ({ event }) => event.error as Error | null,

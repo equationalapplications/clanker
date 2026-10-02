@@ -152,6 +152,13 @@ jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: () => ({ uri: null, isResolved: true }),
 }))
 
+// ChatView calls `useMarkProactiveReadOnOpen`, which depends on
+// QueryClientProvider — mock it so this accessibility suite is not coupled
+// to react-query test scaffolding.
+jest.mock('~/hooks/useMarkProactiveReadOnOpen', () => ({
+  useMarkProactiveReadOnOpen: jest.fn(),
+}))
+
 // ── Child components / services ───────────────────────────────────────────────
 const capturedCharacterAvatarProps: any[] = []
 jest.mock('~/components/CharacterAvatar', () => ({

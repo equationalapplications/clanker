@@ -25,6 +25,10 @@ export class CharacterPromptBuilder {
       `- Respond naturally and conversationally`,
       `- Keep responses concise (1-3 sentences) unless depth is needed`,
       `- If the user asks for current events or other information that requires a web search, call escalate_to_cloud_agent immediately (if available) rather than answering from memory`,
+      // The edge agent has no generate_image tool — that tool is cloud-only. Without
+      // this rule the model answers "I can't make images" and the turn never reaches
+      // the cloud agent that can (spec 2026-08-23-agent-image-generation-design §5).
+      `- If the user asks you to create, draw, or generate an image (a picture, a selfie of yourself, a chart, a diagram), call escalate_to_cloud_agent immediately (if available); never reply that you are unable to make images`,
     ]
 
     if (character.context) {

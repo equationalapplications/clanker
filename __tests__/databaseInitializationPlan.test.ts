@@ -35,8 +35,26 @@ describe('applyInitializationPlan against a real SQLite engine', () => {
     // except character_images, stripped back to its pre-migration-24 column list
     // (migration 22 shape, no message_id) — this is what every real returning
     // web user's local DB actually looked like before this release.
-    const legacySchema = CREATE_TABLES.replace(/,\s*message_id\s+TEXT\s*\n(\s*\);)/, '\n$1')
-    expect(legacySchema).not.toContain('message_id')
+    const legacySchema = CREATE_TABLES
+      // Strip character_images.message_id (migration 24). The \b boundaries
+      // keep sync_state.cursor_message_id intact — that column exists in the
+      // current CREATE_TABLES block but must NOT be stripped here.
+      .replace(/,\s*\bmessage_id\b\s+TEXT\s*\n(\s*\);)/, '\n$1')
+      // Strip messages.read_at (migration 25). CREATE_TABLES now carries the
+      // column directly, but a pre-migration-24 legacy DB never had it.
+      .replace(/,\s*\bread_at\b\s+INTEGER\s*\n(\s*\);)/, '\n$1')
+      // Drop the sync_state table block (migration 26). It did not exist on
+      // pre-migration-24 legacy DBs and would shadow migration 26's CREATE
+      // TABLE IF NOT EXISTS anyway, so it's harmless — but the cleaner
+      // simulation removes it to mirror the real shape.
+      .replace(
+        /\n  -- Sync cursor storage[^\n]*\n  CREATE TABLE IF NOT EXISTS sync_state \([\s\S]*?\n  \);/,
+        '',
+      )
+    // Sanity-check: character_images no longer has message_id as a column.
+    const characterImagesBlock =
+      legacySchema.match(/CREATE TABLE IF NOT EXISTS character_images \([\s\S]*?\n  \);/)?.[0] ?? ''
+    expect(characterImagesBlock).not.toMatch(/\bmessage_id\b/)
     db.exec(legacySchema)
     db.exec('INSERT INTO schema_version (version, updated_at) VALUES (23, 0);')
 

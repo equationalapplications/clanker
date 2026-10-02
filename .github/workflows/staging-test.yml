@@ -40,6 +40,23 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      # Gate (read-only): `npm audit` queries npm's advisory service for the
+      # installed lockfile tree. `--omit=dev` ignores tooling that never ships
+      # in the app; `--audit-level=high` keeps moderate ReDoS-style noise from
+      # blocking staging (tighten later if wanted). Verified passing 2026-08-26.
+      - name: 🚨 Audit root dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Gate (read-only): the Expo SDK chooses the versions of the native
+      # packages pinned exactly/by tilde in package.json (react-native-*,
+      # @react-native-community/netinfo). Nothing else here can see a drift off
+      # that matrix — gesture-handler 3.2.1 passes npm ci, lint, typecheck and
+      # all 163 Jest suites while being wrong for SDK 57 (#661). `--check` only
+      # reads package.json and exits non-zero on a mismatch; `--fix` would
+      # rewrite the tree and must never be used in CI.
+      - name: 📐 Check Expo SDK dependency matrix
+        run: npx expo install --check
+
       - name: 🎨 Check formatting
         run: npm run format:check
 
@@ -58,6 +75,11 @@ jobs:
       - name: 📦 Install cloud-agent dependencies
         run: cd cloud-agent && npm ci
 
+      # Same gate as root — cloud-agent ships its own deployed runtime, so a
+      # vuln in its lockfile would ship if the root gate were the only check.
+      - name: 🚨 Audit cloud-agent dependencies
+        run: cd cloud-agent && npm audit --omit=dev --audit-level=high
+
       - name: 🧠 Typecheck cloud-agent
         run: cd cloud-agent && npm run typecheck
 
@@ -73,6 +95,11 @@ jobs:
       - name: 📦 Install functions dependencies
         run: cd functions && npm ci
 
+      # Same gate as root — functions is a deployed subproject with its own
+      # lockfile (Cloud Functions runtime); vulns there would ship otherwise.
+      - name: 🚨 Audit functions dependencies
+        run: cd functions && npm audit --omit=dev --audit-level=high
+
       - name: 🔍 Lint functions
         run: cd functions && npm run lint
 
@@ -84,6 +111,18 @@ jobs:
 
       - name: 🧪 Test Desktop Bridge extension
         run: cd extension && npm ci && npm test
+
+      # The extension's suite runs through tsx, which strips types without
+      # checking them, so a types-only change (a @types/* bump) passes the
+      # tests while never being typechecked at all — the gap that left
+      # @types/chrome 0.0.268 -> 0.2.7 (#649) ungated.
+      - name: 🧠 Typecheck Desktop Bridge extension
+        run: cd extension && npm run typecheck
+
+      # Same gate as root — the Chrome extension ships from its own lockfile;
+      # a vuln there would publish via the Chrome Web Store pipeline.
+      - name: 🚨 Audit extension dependencies
+        run: cd extension && npm audit --omit=dev --audit-level=high
 
 # Not run here, by design:
 #   - src/services/__tests__/edgeAgentEvals.int.test.ts — live edge-agent evals.

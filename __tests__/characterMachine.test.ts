@@ -647,7 +647,7 @@ describe('CLOUD_SYNC', () => {
     actor.stop()
   })
 
-  it('sets context.error when cloud sync fails', async () => {
+  it('records a cloud sync failure in cloudSyncError and reloads from the database', async () => {
     const char = makeCharacter()
     const actor = await bootWithUser([char])
 
@@ -656,7 +656,36 @@ describe('CLOUD_SYNC', () => {
     actor.send({ type: 'CLOUD_SYNC' })
     await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
 
-    expect(actor.getSnapshot().context.error).toBeInstanceOf(Error)
+    // The onError -> loading reload clears `error` on its onDone, so
+    // `cloudSyncError` is the field that must survive for the UI/gate.
+    expect(actor.getSnapshot().context.cloudSyncError).toBeInstanceOf(Error)
+    expect(mockDb.getUserCharacters).toHaveBeenCalled()
+    actor.stop()
+  })
+
+  it('reloads characters after a failed sync so a landed cloud_id is not masked', async () => {
+    // upload succeeds (markCharacterSynced writes cloud_id to SQLite), then a
+    // later step throws — the machine must not keep serving the stale
+    // in-memory copy that still says cloud_id: null (the Talk gate reads it).
+    const char = makeCharacter()
+    const syncedChar = makeCharacter({
+      cloud_id: '00000000-0000-4000-8000-000000000001',
+      synced_to_cloud: true,
+    })
+    const actor = await bootWithUser([char])
+
+    mockSyncService.syncAllToCloud.mockImplementation(async () => {
+      mockDb.getUserCharacters.mockResolvedValue([syncedChar])
+      throw new Error('restore blip')
+    })
+
+    actor.send({ type: 'CLOUD_SYNC' })
+    await waitFor(actor, (s) => s.matches('idle'), WAIT_OPTS)
+
+    expect(actor.getSnapshot().context.characters[0].cloud_id).toBe(
+      '00000000-0000-4000-8000-000000000001',
+    )
+    expect(actor.getSnapshot().context.cloudSyncError).toBeInstanceOf(Error)
     actor.stop()
   })
 

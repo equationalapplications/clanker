@@ -4,7 +4,6 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 
 ```mermaid
 graph LR
-  useAgeVerification.test --> useAgeVerification
   useAIChat --> useMachines
   useAIChat --> useMessages
   useAIChat --> useCharacterWiki
@@ -14,11 +13,12 @@ graph LR
   useAIChat --> CharacterPromptBuilder
   useAIChat --> taskDatabase
   useAIChat --> cloudAgentService
-  useAIChat --> messageDatabase
-  useAIChat --> syncMessage
-  useAIChat --> usageSnapshot
   useAIChat --> characterImageDatabase
   useAIChat --> characterImageService
+  useAIChat --> messageDatabase
+  useAIChat --> messageService
+  useAIChat --> syncMessage
+  useAIChat --> usageSnapshot
   useAdminDashboard --> adminService
   useAuthSnapshot --> useMachines
   useAvatarUpload --> useMachines
@@ -54,10 +54,22 @@ graph LR
   useLiveVoiceChat --> useLiveAudioIO
   useLiveVoiceChat --> liveVoiceMachine
   useLiveVoiceChat --> twoWayAudioAdapter
+  useMarkProactiveReadOnOpen --> messageDatabase
+  useMarkProactiveReadOnOpen --> index
+  useMarkProactiveReadOnOpen --> proactiveReadQueue
   useMessages --> useMachines
   useMessages --> messageService
   usePowerBalance --> useUserCredits
   usePowerBalance --> useAuthSnapshot
+  useProactiveNotificationRouting --> index
+  useProactiveNotificationRouting --> messageDatabase
+  useProactiveNotificationRouting --> proactiveReadQueue
+  useProactiveNotificationRouting --> useProactiveSync
+  useProactiveNotificationRouting --> characterDatabase
+  useProactiveSync --> proactiveSync
+  useProactiveSync --> proactiveReadQueue
+  useProactiveSync --> useMessages
+  useProactiveUnread --> messageDatabase
   useRegisterExpoPushToken --> devSandboxFlag
   useRegisterExpoPushToken --> googleSignin
   useResolvedImage --> characterImageDatabase

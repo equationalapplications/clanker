@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai'
 import { IMAGE_GENERATION_COST } from '../constants/credits.js'
 import { CHAT_IMAGE_MODEL_ID, CHAT_IMAGE_REGION } from '../constants/images.js'
 import type { CreditService, CreditSpendAllocation } from '../services/creditService.js'
+import { resolveProjectId } from '../utils/projectId.js'
 
 /** One generated image riding this agent_run's turn response to the client. */
 export interface GeneratedImage {
@@ -23,7 +24,7 @@ let vertexClient: GoogleGenAI | undefined
 
 function getVertexClient(): GoogleGenAI {
   if (!vertexClient) {
-    const project = (process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? '').trim()
+    const project = resolveProjectId()
     if (!project) {
       throw new Error('MISSING_GCP_PROJECT')
     }

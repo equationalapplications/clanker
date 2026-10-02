@@ -7,8 +7,8 @@ import {
 } from '../src/database/schema'
 
 describe('character_images schema', () => {
-  it('bumps SCHEMA_VERSION to 24', () => {
-    expect(SCHEMA_VERSION).toBe(24)
+  it('bumps SCHEMA_VERSION to 26', () => {
+    expect(SCHEMA_VERSION).toBe(26)
   })
 
   it('migration 22 creates the character_images table and its indexes', () => {
@@ -103,5 +103,24 @@ describe('migration 24 — chat photo linkage', () => {
   // every entry in the constant by construction.
   it('covers every required column on every table the bootstrap checks', () => {
     expect(LATEST_SCHEMA_REQUIRED_COLUMNS.character_images).toContain('message_id')
+  })
+})
+
+describe('migration 25 — messages.read_at', () => {
+  it('adds read_at as a nullable INTEGER column on messages', () => {
+    expect(MIGRATIONS[25]).toContain('ALTER TABLE messages ADD COLUMN read_at INTEGER')
+  })
+
+  // applyMigrations updates schema_version only after every migration runs. If
+  // 25 succeeds but the version update is lost (crash, kill -9, SQLite write
+  // race), the next launch retries the ALTER TABLE and SQLite rejects the
+  // duplicate column, failing initialization. The skip guard makes that retry
+  // succeed by no-opping when the column already exists.
+  it('is skipped when the column already exists (restart-safe)', () => {
+    expect(MIGRATION_SKIP_GUARDS[25]).toEqual([{ table: 'messages', column: 'read_at' }])
+  })
+
+  it('fresh installs get the column without running the migration', () => {
+    expect(CREATE_TABLES).toContain('read_at INTEGER')
   })
 })

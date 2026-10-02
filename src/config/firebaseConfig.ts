@@ -9,6 +9,14 @@ import { getApp } from '@react-native-firebase/app'
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions'
 import { initializeAppCheck } from '@react-native-firebase/app-check'
 import { reportError } from '~/utilities/reportError'
+import type {
+  FetchProactiveMessagesRequest,
+  FetchProactiveMessagesResponse,
+  MarkProactiveReadRequest,
+  MarkProactiveReadResponse,
+  ScheduleWakeupRequest,
+  ScheduleWakeupResponse,
+} from '~/services/proactiveCallableTypes'
 
 const firebaseApp = getApp()
 
@@ -111,6 +119,27 @@ const convertDocumentTextFn = httpsCallable(functionsInstance, 'convertDocumentT
 })
 const registerExpoPushTokenFn = httpsCallable(functionsInstance, 'registerExpoPushToken')
 
+// Proactive-scheduler callables. They belong here, with the other callables,
+// rather than next to the services that use them: building one requires an app
+// handle, and `getApp()` from '@react-native-firebase/app' throws in the web
+// bundle because the native app registry is empty there. This module is the
+// platform seam (see firebaseConfig.web.ts), so binding them here is what keeps
+// the web build alive.
+const fetchProactiveMessagesFn = httpsCallable<
+  FetchProactiveMessagesRequest,
+  FetchProactiveMessagesResponse
+>(functionsInstance, 'fetchProactiveMessages')
+
+const markProactiveReadFn = httpsCallable<MarkProactiveReadRequest, MarkProactiveReadResponse>(
+  functionsInstance,
+  'markProactiveRead',
+)
+
+const scheduleWakeupFn = httpsCallable<ScheduleWakeupRequest, ScheduleWakeupResponse>(
+  functionsInstance,
+  'scheduleWakeup',
+)
+
 export type FirebaseUser = User
 
 export {
@@ -143,4 +172,7 @@ export {
   wikiLlmFn,
   wikiSyncFn,
   generateEmbeddingFn,
+  fetchProactiveMessagesFn,
+  markProactiveReadFn,
+  scheduleWakeupFn,
 }

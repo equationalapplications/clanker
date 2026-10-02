@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 
+import { resolveProjectId } from '../utils/projectId.js'
+
 const EMBEDDING_MODEL = 'text-embedding-004'
 
 export function isRetryable(err: unknown): boolean {
@@ -11,13 +13,7 @@ let genAIClient: GoogleGenAI | undefined
 
 function getGenAIClient(): GoogleGenAI {
   if (genAIClient) return genAIClient
-  const project = [
-    process.env.GCLOUD_PROJECT,
-    process.env.GCP_PROJECT,
-    process.env.GOOGLE_CLOUD_PROJECT,
-  ]
-    .map((v) => v?.trim())
-    .find((v): v is string => Boolean(v))
+  const project = resolveProjectId()
   if (!project) {
     throw new Error(
       'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI embeddings',

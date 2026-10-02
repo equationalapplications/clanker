@@ -114,6 +114,7 @@ Fixed snake_case tokens; free-form column, documented registry:
 | `browser_action`     | `browserAction.ts:101`                                                                                                    |
 | `live_voice`         | `wsLiveAgentHandler.ts:478` (per-session wall-clock billing timer)                                                        |
 | `scheduled_trigger`  | `schedulerTriggerHandler.ts:187` (one spend per scheduler-triggered agent run)                                            |
+| `proactive_wakeup`   | `proactiveWakeupHandler.ts` (one spend per proactive turn)                                                                |
 | `memory_action`      | `memoryFunctions.ts:1531`, `memoryFunctions.ts:1609`                                                                      |
 | `document_convert`   | `convertDocumentText.ts:157`                                                                                              |
 | `character_generate` | `characterFunctions.ts:438`                                                                                               |

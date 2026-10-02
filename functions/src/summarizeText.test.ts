@@ -35,6 +35,7 @@ function makeOptions(
         email: 'test@example.com',
         displayName: null,
         expoPushToken: null,
+        proactivePushReady: false,
         avatarUrl: null,
         isProfilePublic: false,
         defaultCharacterId: null,

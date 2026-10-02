@@ -6,6 +6,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth'
 import { userRepository } from './services/userRepository.js'
 import { creditService } from './services/creditService.js'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
+import { resolveProjectId } from './services/projectId.js'
 
 const DEFAULT_REGION = 'us-central1'
 const MODEL_ID = 'text-embedding-004'
@@ -85,9 +86,12 @@ export interface EmbeddingOptions {
 }
 
 async function defaultEmbedder(text: string, taskType: string): Promise<number[]> {
-  const project = process.env.GCLOUD_PROJECT ?? process.env.GOOGLE_CLOUD_PROJECT
+  const project = resolveProjectId()
   if (!project) {
-    throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for Vertex AI.')
+    throw new HttpsError(
+      'failed-precondition',
+      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for Vertex AI.',
+    )
   }
 
   if (!_appCredential) {

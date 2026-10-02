@@ -4,7 +4,9 @@
  */
 
 import type { Message } from '~/types/chat'
+import type { SQLiteDatabase } from 'expo-sqlite'
 import { getDatabase } from './index'
+import { UNREAD_STALENESS_ESCAPE_MS } from '~/constants/proactive'
 
 export interface LocalMessage {
   id: string
@@ -19,6 +21,19 @@ export interface LocalMessage {
   error: number // 0 or 1
   edited: number // 0 or 1
   synced_at: number | null // null = not synced to cloud
+  read_at: number | null
+}
+
+// Wire shape produced by the server-side `fetchProactiveMessages` callable (Task 7).
+// Mirrors `functions/src/proactiveMessages.ts` ProactiveMessagePayload; kept
+// local rather than imported across the functions/ boundary because the
+// functions/ tree is a separate package.
+export interface ProactiveMessagePayload {
+  messageId: string
+  characterId: string
+  text: string
+  createdAt: string
+  readAt: string | null
 }
 
 /**
@@ -514,4 +529,184 @@ export async function markMessagesAsSynced(messageIds: string[]): Promise<void> 
     now,
     ...messageIds,
   ])
+}
+
+/**
+ * Two-phase local apply for proactive messages pushed by the server.
+ *
+ * Phase 1: INSERT OR IGNORE keyed by the server's `messageId` (which is the
+ * shared primary key). The sync can never overwrite a row this device already
+ * authored or received another way — OR REPLACE would silently reset
+ * pending/sent/error and clobber locally-edited text on every re-sync.
+ *
+ * Phase 2: A targeted read_at update that ONLY fires when read_at IS NULL.
+ * Server-issued read state has to be one-directional — an out-of-order page
+ * (a stale cursor replayed after a user has cleared the badge) cannot resurrect
+ * a read receipt that was cleared on another device.
+ *
+ * `userId` is a parameter because proactive messages carry no userId on the
+ * wire, and the columns cannot be faked. A proactive message is a character ->
+ * user message, so it takes the mirror of the user-authored shape written by
+ * insertMessage (sender = user, recipient = character): sender is the
+ * character, recipient is the user. Both halves are load-bearing. Every read
+ * path here — getMessages, getMessage, getLastMessage, getMessageCount,
+ * searchMessages — filters `(sender_user_id = ? OR recipient_user_id = ?)`
+ * against the user, so a row naming only the character is invisible to all of
+ * them; and toGiftedChatMessage decides authorship with
+ * `sender_user_id === currentUserId`, so naming the user as sender would render
+ * the character's own message as the user's.
+ *
+ * When `db` is omitted the function opens its own transaction. When `db` is
+ * provided (Task 10 orchestrator pattern) the caller is already inside a
+ * transaction — the inserts join it so a cursor advance that follows can land
+ * in the same transaction and a crash mid-page rolls both back atomically.
+ */
+export async function applyProactiveMessages(
+  payload: ProactiveMessagePayload[],
+  userId: string,
+  db?: Awaited<ReturnType<typeof getDatabase>>,
+): Promise<string[]> {
+  const database = db ?? (await getDatabase())
+  // Cloud id -> local id, memoised for the batch. The wire payload keys every
+  // message by the SERVER's character UUID, but every local reader
+  // (countUnreadProactive, markProactiveReadLocally, the chat thread query,
+  // and the /chat/<id> route) filters on the LOCAL `characters.id`. Those two
+  // diverge for every locally-created-then-uploaded character and every
+  // imported one -- they coincide only when restoreFromCloud materialised the
+  // row on a device that had none. Storing the server id unresolved leaves
+  // orphan rows no badge or thread ever selects, and `messages.character_id`
+  // carries no FK, so nothing rejects the bad insert.
+  const resolved = new Map<string, string>()
+  const touched: string[] = []
+
+  const resolveLocalId = async (cloudId: string): Promise<string> => {
+    const cached = resolved.get(cloudId)
+    if (cached !== undefined) return cached
+    const row = await database.getFirstAsync<{ id: string }>(
+      'SELECT id FROM characters WHERE cloud_id = ? LIMIT 1',
+      [cloudId],
+    )
+    // No local row yet: keep the server id rather than dropping the message.
+    // The row becomes reachable if the character later lands locally under
+    // that same id, which is exactly what restoreFromCloud does when it finds
+    // no prior mapping.
+    const localId = row?.id ?? cloudId
+    resolved.set(cloudId, localId)
+    if (!touched.includes(localId)) touched.push(localId)
+    return localId
+  }
+
+  const runApply = async () => {
+    for (const msg of payload) {
+      const characterId = await resolveLocalId(msg.characterId)
+      await database.runAsync(
+        `INSERT OR IGNORE INTO messages
+         (id, character_id, sender_user_id, recipient_user_id, text, created_at, message_data, pending, sent, error, edited, synced_at, read_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 0, ?, ?)`,
+        [
+          msg.messageId,
+          characterId,
+          characterId,
+          userId,
+          msg.text,
+          Date.parse(msg.createdAt),
+          JSON.stringify({ proactive: true }),
+          Date.parse(msg.createdAt),
+          msg.readAt ? Date.parse(msg.readAt) : null,
+        ],
+      )
+
+      if (msg.readAt) {
+        await database.runAsync(
+          `UPDATE messages SET read_at = ? WHERE id = ? AND read_at IS NULL`,
+          [Date.parse(msg.readAt), msg.messageId],
+        )
+      }
+    }
+  }
+
+  if (db) {
+    await runApply()
+  } else {
+    await database.withTransactionAsync(runApply)
+  }
+
+  // Local ids, so the caller invalidates the cache keys the UI actually uses.
+  return touched
+}
+
+/**
+ * Count proactive messages for a character that are unread and still inside
+ * the staleness escape. Mirrors the server's `UNREAD_STALENESS_ESCAPE_MS`
+ * guardrail so the client badge and the server's push-decision agree about
+ * which messages still count. `message_data` is a JSON-encoded string on the
+ * client; `json_extract` returns the integer `1` for `true`.
+ */
+export async function countUnreadProactive(characterId: string, nowMs: number): Promise<number> {
+  const db = await getDatabase()
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM messages
+      WHERE character_id = ? AND read_at IS NULL AND created_at >= ?
+        AND json_extract(message_data, '$.proactive') = 1`,
+    [characterId, nowMs - UNREAD_STALENESS_ESCAPE_MS],
+  )
+  return row?.count ?? 0
+}
+
+/**
+ * Decision 4 step 1: optimistic local read receipt. Marks ALL of the
+ * character's unread proactive rows — reading the chat means reading the
+ * thread; the server guardrail's 7-day escape makes the distinction invisible
+ * to the push decision. Returns the ids marked so the caller can enqueue them
+ * for the durable server retry.
+ *
+ * The optional `db` handle lets the caller join a transaction that ALSO writes
+ * the durable receipt queue (see proactiveReadQueue's enqueueMarkRead). Without
+ * it, a queue persistence failure between this function and the enqueue
+ * silently strands the ids: the rows are already marked read locally, so the
+ * next open finds zero unread and cannot reconstruct what still needs the
+ * server receipt.
+ */
+// SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999, and a character's
+// proactive backlog can outgrow that comfortably once pushes are live. A
+// single UPDATE with thousands of IN-placeholders is rejected during prepare
+// — before any row changes — so we batch the IDs well below the host-parameter
+// ceiling and run all batches in one transaction so a mid-batch failure
+// leaves the local read_at state consistent.
+const MARKDOWN_BATCH_SIZE = 100
+
+export async function markProactiveReadLocally(
+  characterId: string,
+  db?: SQLiteDatabase,
+): Promise<string[]> {
+  const database = db ?? (await getDatabase())
+  const rows = await database.getAllAsync<{ id: string }>(
+    `SELECT id FROM messages
+      WHERE character_id = ? AND read_at IS NULL
+        AND json_extract(message_data, '$.proactive') = 1`,
+    [characterId],
+  )
+  const ids = rows.map((row) => row.id)
+  if (ids.length === 0) return []
+  const now = Date.now()
+  // When called without an external db handle, run our own transaction. When
+  // called from a transaction owner (see useMarkProactiveReadOnOpen + the
+  // proactiveReadQueue's enqueueMarkRead atomic wrapper), the UPDATE joins
+  // that transaction and SQLite groups everything into one atomic commit.
+  const runUpdates = async () => {
+    for (let i = 0; i < ids.length; i += MARKDOWN_BATCH_SIZE) {
+      const batch = ids.slice(i, i + MARKDOWN_BATCH_SIZE)
+      const placeholders = batch.map(() => '?').join(',')
+      await database.runAsync(
+        `UPDATE messages SET read_at = ? WHERE id IN (${placeholders}) AND read_at IS NULL`,
+        [now, ...batch],
+      )
+    }
+  }
+  if (db) {
+    await runUpdates()
+  } else {
+    await database.withTransactionAsync(runUpdates)
+  }
+  return ids
 }

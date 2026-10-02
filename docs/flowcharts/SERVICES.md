@@ -4,10 +4,9 @@ _Auto-generated. Run `npm run docs:charts` to regenerate._
 
 ```mermaid
 graph LR
-  edgeAgentEvals.int.test --> CharacterPromptBuilder
   aiChatService --> devSandboxFlag
-  aiChatService --> messageDatabase
   aiChatService --> characterDatabase
+  aiChatService --> messageDatabase
   aiChatService --> CharacterPromptBuilder
   aiChatService --> summarizeTextService
   aiChatService --> messageService
@@ -41,6 +40,8 @@ graph LR
   chatReplyService --> groundingMetadata
   cloudAgentService --> googleSignin
   cloudAgentService --> groundingMetadata
+  edgeToolExecutors --> imageGenerationService
+  edgeToolExecutors --> characterImageService
   edgeToolExecutors --> wikiService
   edgeToolExecutors --> taskDatabase
   imageModelBytes --> characterImageDatabase
@@ -52,6 +53,10 @@ graph LR
   localImageStore.web --> storageService.web
   messageService --> messageDatabase
   messageService --> analyticsService
+  proactiveReadQueue --> syncState
+  proactiveSync --> syncState
+  proactiveSync --> index
+  proactiveSync --> messageDatabase
   userService --> bootstrapSession
   userService --> apiClient
   wikiLlmProvider --> devSandboxFlag

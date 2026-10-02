@@ -40,6 +40,8 @@ import {
 } from '~/hooks/useMachines'
 import { useRegisterExpoPushToken } from '~/hooks/useRegisterExpoPushToken'
 import { useBrowserActionApproval } from '~/hooks/useBrowserActionApproval'
+import { useProactiveSync } from '~/hooks/useProactiveSync'
+import { useProactiveNotificationRouting } from '~/hooks/useProactiveNotificationRouting'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import Constants from 'expo-constants'
 
@@ -148,12 +150,17 @@ function AppOrchestrator({ children }: { children: React.ReactNode }) {
 
   const isSignedIn = useSelector(authService, (state) => state.matches('signedIn'))
   const { settings } = useSettings()
+  const currentUserId = useSelector(authService, (state) => state.context.user?.uid ?? null)
   useRegisterExpoPushToken({
     enabled: isSignedIn && settings.notifications,
     projectId:
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId ?? '',
   })
   useBrowserActionApproval()
+  // Proactive lifecycle-sync wiring (spec Decisions 2+3): foreground/receipt
+  // sync with in-flight guard; notification taps reuse the same guarded run.
+  const { triggerSync } = useProactiveSync(currentUserId)
+  useProactiveNotificationRouting({ triggerSync })
 
   return <>{children}</>
 }
@@ -198,6 +205,22 @@ function RootLayoutNav() {
         .then(({ syncAllToCloud }) => syncAllToCloud())
         .then(() => characterService.send({ type: 'LOAD' }))
         .catch((err) => console.warn('Background sync failed:', err))
+
+      // Proactive read receipts are queued durably when the tap happens
+      // offline. Their only other flush points are foreground and the next
+      // sync, so a user who drops and regains network without ever
+      // backgrounding the app would strand them — and a dropped receipt makes
+      // the server suppress every future push from that character. Flushed
+      // independently of the character sync so one failing does not skip the
+      // other.
+      void Promise.all([
+        import('~/services/proactiveReadQueue'),
+        import('~/services/proactiveMarkReadService'),
+      ])
+        .then(([{ flushMarkReadQueue }, { markProactiveReadViaCallable }]) =>
+          flushMarkReadQueue(markProactiveReadViaCallable),
+        )
+        .catch((err) => console.warn('Mark-read flush on reconnect failed:', err))
     })
     return unsubscribe
   }, [characterService])
@@ -412,14 +435,26 @@ export default function RootLayout() {
     <CookieConsentProvider>
       <SettingsProvider>
         <ThemeProvider>
-          <GlobalStateProvider>
-            <PersistQueryClientProvider
-              client={queryClient}
-              persistOptions={{
-                persister: kvStorePersister,
-                maxAge: 1000 * 60 * 60 * 24,
-              }}
-            >
+          {/*
+            PersistQueryClientProvider MUST stay above GlobalStateProvider.
+            GlobalStateProvider renders AppOrchestrator, whose useProactiveSync
+            and useProactiveNotificationRouting both call useQueryClient(); with
+            the query provider nested inside, those hooks threw "No QueryClient
+            set" during render and the app mounted a blank page on every
+            platform. queryClient and kvStorePersister are module singletons
+            (src/config/), so nothing here depends on global state being set up
+            first. Enforced by
+            app/__tests__/layoutProviderOrder.test.ts — new providers that call
+            useQueryClient() belong INSIDE this wrapper, not beside it.
+          */}
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister: kvStorePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            }}
+          >
+            <GlobalStateProvider>
               <SafeAreaProvider initialMetrics={initialWindowMetrics}>
                 <KeyboardProvider>
                   <StatusBar style="auto" />
@@ -428,8 +463,8 @@ export default function RootLayout() {
                   <CookiePreferencesModal />
                 </KeyboardProvider>
               </SafeAreaProvider>
-            </PersistQueryClientProvider>
-          </GlobalStateProvider>
+            </GlobalStateProvider>
+          </PersistQueryClientProvider>
         </ThemeProvider>
       </SettingsProvider>
     </CookieConsentProvider>

@@ -9,6 +9,7 @@ import { creditService, type CreditSpendAllocation } from './services/creditServ
 import { buildUsageSnapshotForUser } from './usageSnapshot.js'
 import { CLOUD_SQL_SECRETS } from './cloudSqlSecrets.js'
 import { IMAGE_GENERATION_COST } from './constants/credits.js'
+import { resolveProjectId } from './services/projectId.js'
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-image'
 const DEFAULT_REGION = 'us-central1'
@@ -95,12 +96,6 @@ function isVertexIamPermissionDenied(error: unknown): boolean {
   return (code === 403 || status === 'PERMISSION_DENIED') && detailSignals
 }
 
-function getProjectId(): string | undefined {
-  const fromEnv = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT
-  const value = fromEnv?.trim()
-  return value ? value : undefined
-}
-
 function parseInput(data: unknown): { prompt: string } {
   const payload = data as GenerateImageData | undefined
   const promptValue = payload?.prompt
@@ -152,9 +147,12 @@ function getGenAIClient(): GoogleGenAI {
     return genAIClient
   }
 
-  const project = getProjectId()
+  const project = resolveProjectId()
   if (!project) {
-    throw new HttpsError('failed-precondition', 'Missing GCLOUD_PROJECT for image generation.')
+    throw new HttpsError(
+      'failed-precondition',
+      'Missing project env (GCLOUD_PROJECT, GCP_PROJECT, or GOOGLE_CLOUD_PROJECT) for image generation.',
+    )
   }
 
   genAIClient = new GoogleGenAI({ vertexai: true, project, location: DEFAULT_REGION })

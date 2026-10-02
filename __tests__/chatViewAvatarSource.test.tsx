@@ -166,6 +166,13 @@ jest.mock('~/hooks/useResolvedImage', () => ({
   useResolvedImage: (...args: any[]) => mockUseResolvedImage(...args),
 }))
 
+// ChatView calls `useMarkProactiveReadOnOpen`, which depends on
+// QueryClientProvider — mock it so this avatar-source suite is not coupled
+// to react-query test scaffolding.
+jest.mock('~/hooks/useMarkProactiveReadOnOpen', () => ({
+  useMarkProactiveReadOnOpen: jest.fn(),
+}))
+
 // ── Child components ──────────────────────────────────────────────────────────
 const capturedAvatarProps: any[] = []
 jest.mock('~/components/CharacterAvatar', () => ({
