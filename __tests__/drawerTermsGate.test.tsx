@@ -109,6 +109,8 @@ type TermsSnapshot = {
   isUpdate: boolean
   accepting: boolean
   error: Error | null
+  // subscription.termsVersion: the previously accepted Terms version (null for new accounts)
+  termsVersion?: string | null
 }
 
 function setTermsSnapshot(snapshot: TermsSnapshot) {
@@ -124,6 +126,8 @@ function setTermsSnapshot(snapshot: TermsSnapshot) {
       context: {
         isUpdate: snapshot.isUpdate,
         error: snapshot.error,
+        subscription:
+          snapshot.termsVersion === undefined ? null : { termsVersion: snapshot.termsVersion },
       },
     }
     return selector(state)
@@ -196,6 +200,7 @@ describe('drawer terms gate', () => {
       isUpdate: true,
       accepting: false,
       error: null,
+      termsVersion: '2.5',
     })
 
     const AppLayout = require('../app/(drawer)/_layout').default
@@ -246,13 +251,14 @@ describe('drawer terms gate', () => {
 })
 
 describe('drawer terms gate age verification', () => {
-  const blockingSnapshot = (isUpdate: boolean): TermsSnapshot => ({
+  const blockingSnapshot = (isUpdate: boolean, termsVersion?: string | null): TermsSnapshot => ({
     accepted: false,
     blocking: true,
     loading: false,
     isUpdate,
     accepting: false,
     error: null,
+    termsVersion,
   })
 
   const acceptTermsCalls = () =>
@@ -341,17 +347,63 @@ describe('drawer terms gate age verification', () => {
     expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: false }]])
   })
 
-  it('skips the age check when an already-accepted account re-accepts updated terms', () => {
-    setTermsSnapshot(blockingSnapshot(true))
+  it.each(['2.5', '2.10', '3.0'])(
+    'skips the age check when an account that accepted age-gated terms %s re-accepts',
+    (termsVersion) => {
+      setTermsSnapshot(blockingSnapshot(true, termsVersion))
+      renderLayout()
+
+      renderer.act(() => {
+        ;(mockLastAcceptTermsProps?.onAccepted as () => void)()
+      })
+
+      expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: true }]])
+      expect(mockRequestSignalsAccess).not.toHaveBeenCalled()
+      expect(mockRequestAgeRange).not.toHaveBeenCalled()
+      expect(mockLastDobPickerProps).toBeNull()
+    },
+  )
+
+  it.each(['2.4', '1.9', 'garbage'])(
+    'runs the age check before ACCEPT_TERMS for a legacy account that accepted terms %s',
+    async (termsVersion) => {
+      let resolveAgeRange!: (value: { lowerBound: number | null; upperBound: null }) => void
+      mockRequestAgeRange.mockReturnValue(
+        new Promise((resolve) => {
+          resolveAgeRange = resolve
+        }),
+      )
+      setTermsSnapshot(blockingSnapshot(true, termsVersion))
+      renderLayout()
+
+      const onAccepted = mockLastAcceptTermsProps?.onAccepted as () => Promise<void>
+      let pending!: Promise<void>
+      await renderer.act(async () => {
+        pending = onAccepted()
+      })
+
+      expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
+      expect(acceptTermsCalls()).toHaveLength(0)
+
+      await renderer.act(async () => {
+        resolveAgeRange({ lowerBound: 18, upperBound: null })
+        await pending
+      })
+
+      expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: true }]])
+    },
+  )
+
+  it('signs out an under-18 legacy account on re-acceptance without sending ACCEPT_TERMS', async () => {
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 13, upperBound: 17 })
+    setTermsSnapshot(blockingSnapshot(true, '2.4'))
     renderLayout()
 
-    renderer.act(() => {
-      ;(mockLastAcceptTermsProps?.onAccepted as () => void)()
+    await renderer.act(async () => {
+      await (mockLastAcceptTermsProps?.onAccepted as () => Promise<void>)()
     })
 
-    expect(acceptTermsCalls()).toEqual([[{ type: 'ACCEPT_TERMS', isUpdate: true }]])
-    expect(mockRequestSignalsAccess).not.toHaveBeenCalled()
-    expect(mockRequestAgeRange).not.toHaveBeenCalled()
-    expect(mockLastDobPickerProps).toBeNull()
+    expect(acceptTermsCalls()).toHaveLength(0)
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
   })
 })

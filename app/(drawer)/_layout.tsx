@@ -30,6 +30,23 @@ const HIDDEN_DRAWER_SCREEN_OPTIONS = {
   drawerItemStyle: { display: 'none' as const },
 }
 
+// First Terms version shipped WITH the age gate. Must stay in sync with the TERMS.version
+// (termsConfig.ts) of the release that first carries the age gate: accounts that accepted an
+// earlier version never passed the age check and must run it on re-acceptance.
+const FIRST_AGE_GATED_TERMS_VERSION = '2.5'
+
+// Compares [major, minor] numerically. Malformed versions return false (fail closed: age check).
+function isAtLeastVersion(version: string | null | undefined, minimum: string): boolean {
+  const parse = (v: string) => {
+    const match = /^(\d+)\.(\d+)/.exec(v)
+    return match ? [Number(match[1]), Number(match[2])] : null
+  }
+  const actual = version ? parse(version) : null
+  const required = parse(minimum)
+  if (!actual || !required) return false
+  return actual[0] !== required[0] ? actual[0] > required[0] : actual[1] >= required[1]
+}
+
 function DrawerToggleButton({ tintColor }: { tintColor?: ColorValue }) {
   const navigation = useNavigation()
   return (
@@ -49,17 +66,23 @@ const AppLayout = () => {
   const theme = useTheme()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
-  const { termsAccepted, termsBlocking, termsLoading, isUpdate, accepting, error } = useSelector(
-    termsService,
-    (state) => ({
-      termsAccepted: state.matches('accepted'),
-      termsBlocking: state.matches('acceptanceRequired'),
-      termsLoading: state.matches('idle') || state.matches('checking'),
-      isUpdate: state.context.isUpdate,
-      accepting: state.matches('accepting'),
-      error: state.context.error,
-    }),
-  )
+  const {
+    termsAccepted,
+    termsBlocking,
+    termsLoading,
+    isUpdate,
+    previousTermsVersion,
+    accepting,
+    error,
+  } = useSelector(termsService, (state) => ({
+    termsAccepted: state.matches('accepted'),
+    termsBlocking: state.matches('acceptanceRequired'),
+    termsLoading: state.matches('idle') || state.matches('checking'),
+    isUpdate: state.context.isUpdate,
+    previousTermsVersion: state.context.subscription?.termsVersion ?? null,
+    accepting: state.matches('accepting'),
+    error: state.context.error,
+  }))
 
   const previousTermsAccepted = useRef<boolean>(termsAccepted)
 
@@ -91,10 +114,14 @@ const AppLayout = () => {
     },
   })
 
-  // Re-acceptance skip rule: there is no dedicated age-verification record, so a previously
-  // accepted Terms version (termsMachine `isUpdate`, derived from subscription.termsVersion)
-  // is the "already verified" signal. New accounts must complete the age flow first.
-  const handleAccepted = isUpdate ? acceptTerms : verifyAge
+  // Re-acceptance skip rule: there is no dedicated age-verification record, so the age check is
+  // skipped ONLY when this is a re-acceptance (termsMachine `isUpdate`) AND the previously
+  // accepted version (subscription.termsVersion) is >= FIRST_AGE_GATED_TERMS_VERSION, i.e. it
+  // was accepted through the age gate. Legacy accounts (accepted before the gate existed) and
+  // new accounts must complete the age flow first.
+  const ageAlreadyVerified =
+    isUpdate && isAtLeastVersion(previousTermsVersion, FIRST_AGE_GATED_TERMS_VERSION)
+  const handleAccepted = ageAlreadyVerified ? acceptTerms : verifyAge
 
   // The DOB picker replaces AcceptTerms, which would otherwise surface the error inline.
   useEffect(() => {
