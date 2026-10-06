@@ -34,14 +34,19 @@ jobs:
                   # Query the API instead of `git ls-remote ... origin`: this job
                   # never checks out the repo, so `origin` is not configured and
                   # the git-based check would always report "missing". Treat only
-                  # a 404 (branch truly absent) as missing; any other failure
-                  # would also be reported as missing and surface in the job log.
-                  if gh api "repos/${{ github.repository }}/git/ref/heads/staging" >/dev/null 2>&1; then
+                  # a 404 (branch truly absent) as missing; any other API or
+                  # permission failure fails the job rather than recreating a
+                  # branch that may still exist.
+                  if OUT=$(gh api "repos/${{ github.repository }}/git/ref/heads/staging" 2>&1); then
                       echo "staging exists — nothing to do"
                       echo "missing=false" >> "$GITHUB_OUTPUT"
-                  else
+                  elif echo "$OUT" | grep -q "HTTP 404"; then
                       echo "staging was deleted by the merge"
                       echo "missing=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "::error::Could not determine whether staging exists."
+                      echo "$OUT"
+                      exit 1
                   fi
 
             - name: Recreate staging from the current main tip
