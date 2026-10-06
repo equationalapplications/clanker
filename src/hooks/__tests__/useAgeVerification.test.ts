@@ -232,6 +232,41 @@ describe('Android', () => {
     expect(onVerified).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the Play gate on when retryPlayVerification is followed by a thrown requestAgeSignalsAccessAsync', async () => {
+    mockRequestSignalsAccess
+      .mockResolvedValueOnce('VERIFICATION_REQUIRED')
+      .mockRejectedValueOnce(new Error('play services error'))
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
+    const { result, onVerified, onRejected } = setup()
+    await act(() => result.current.verifyAge())
+    expect(result.current.needsPlayVerification).toBe(true)
+    await act(() => result.current.retryPlayVerification())
+    // Gate must stay on, picker must NOT appear, range must NOT be called, and no
+    // accept/reject callback may fire — Play verification never returned SHARED.
+    expect(result.current.needsPlayVerification).toBe(true)
+    expect(result.current.showDobPicker).toBe(false)
+    expect(mockRequestAgeRange).not.toHaveBeenCalled()
+    expect(onVerified).not.toHaveBeenCalled()
+    expect(onRejected).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Play gate on when retryPlayVerification returns NOT_SHARED', async () => {
+    mockRequestSignalsAccess
+      .mockResolvedValueOnce('VERIFICATION_REQUIRED')
+      .mockResolvedValueOnce('NOT_SHARED')
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
+    const { result, onVerified, onRejected } = setup()
+    await act(() => result.current.verifyAge())
+    expect(result.current.needsPlayVerification).toBe(true)
+    await act(() => result.current.retryPlayVerification())
+    // Gate must stay on because Play has not confirmed SHARED this round.
+    expect(result.current.needsPlayVerification).toBe(true)
+    expect(result.current.showDobPicker).toBe(false)
+    expect(mockRequestAgeRange).not.toHaveBeenCalled()
+    expect(onVerified).not.toHaveBeenCalled()
+    expect(onRejected).not.toHaveBeenCalled()
+  })
+
   it('falls through to requestAgeRangeAsync when requestAgeSignalsAccessAsync throws', async () => {
     mockRequestSignalsAccess.mockRejectedValue(new Error('play services error'))
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
