@@ -26,16 +26,16 @@
   "main": "lib/index.js",
   "type": "module",
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^7.1.0",
+    "@equationalapplications/core-llm-tools": "^7.9.0",
     "@google-cloud/cloud-sql-connector": "^1.12.0",
     "@google/adk": "^2.1.0",
-    "@google/genai": "^2.21.0",
+    "@google/genai": "^2.26.0",
     "drizzle-orm": "^0.45.2",
     "firebase-admin": "^14.3.0",
     "firebase-functions": "^7.4.0",
     "mammoth": "^1.12.0",
     "pg": "^8.20.0",
-    "stripe": "^22.0.2"
+    "stripe": "^23.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -45,10 +45,11 @@
     "eslint": "^10.10.0",
     "firebase-tools": "^15.29.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.69.0"
+    "typescript-eslint": "^8.71.0"
   },
   "overrides": {
     "@grpc/grpc-js": "^1.14.5",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "brace-expansion@1.1.18": "^1.1.21",
     "brace-expansion@2.1.4": "^2.1.7",
     "brace-expansion@5.0.9": "^5.0.12",
@@ -66,7 +67,8 @@
     "fast-uri": "^3.1.7",
     "qs": "^6.16.0",
     "esbuild": "^0.25.0",
-    "stream-json": "^3.5.0"
+    "stream-json": "^3.5.0",
+    "proxy-addr": "^2.0.8"
   },
   "private": true
 }

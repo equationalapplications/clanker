@@ -12,14 +12,16 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Enforce staging → main only
-              if: github.base_ref == 'main' && github.head_ref != 'staging'
+              if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref != 'staging'
+              env:
+                  PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
               run: |
                   echo "❌ PRs into 'main' are only allowed from 'staging'."
-                  echo "   This PR is from '${{ github.head_ref }}' — not allowed."
+                  echo "   This PR is from '$PR_HEAD_REF' — not allowed."
                   exit 1
 
             - name: Enforce no main → staging
-              if: github.base_ref == 'staging' && github.head_ref == 'main'
+              if: github.event.pull_request.base.ref == 'staging' && github.event.pull_request.head.ref == 'main'
               run: |
                   echo "❌ PRs from 'main' into 'staging' are not allowed."
                   exit 1

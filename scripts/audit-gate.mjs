@@ -26,6 +26,16 @@ const ALLOWLIST = {
     reason: 'no patched release exists; build-time only path',
     added: '2026-10-02',
   },
+  // braces <=3.0.3 — stack-exhaustion DoS via deeply nested patterns
+  // (micromatch/glob consumers). No patched release exists (advisory range
+  // caps at 3.0.3 = latest). Reached via dev/build tooling chains only; no
+  // untrusted pattern input is expanded at app runtime. Remove when a fixed
+  // braces release publishes (watch upstream micromatch/braces).
+  'GHSA-vfj7-8cjw-p6xm': {
+    package: 'braces',
+    reason: 'no patched release exists; dev/build toolchain path only, no untrusted patterns at runtime',
+    added: '2026-10-03',
+  },
 }
 
 const GITHUB_ADVISORY_URL = /GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}/i

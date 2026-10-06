@@ -5,11 +5,14 @@ import {
 } from 'expo-router/build/react-navigation/drawer'
 import { router, useNavigation, type Href } from 'expo-router'
 import { Drawer } from 'expo-router/drawer'
-import { useTheme, Icon } from 'react-native-paper'
+import { Text, useTheme, Icon } from 'react-native-paper'
 import { Pressable, StyleSheet, View, ColorValue } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useAuthMachine, useTermsMachine } from '~/hooks/useMachines'
 import { AcceptTerms } from '~/components/AcceptTerms'
+import { ManualDobPicker } from '~/components/ManualDobPicker'
+import { useAgeVerification } from '~/hooks/useAgeVerification'
+import { showAlert } from '~/utilities/showAlert'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
@@ -25,6 +28,28 @@ const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
 const HIDDEN_DRAWER_SCREEN_OPTIONS = {
   headerShown: false,
   drawerItemStyle: { display: 'none' as const },
+}
+
+// First Terms version that can only have been accepted through the age gate. The gate shipped
+// while TERMS.version (termsConfig.ts) was '2.4', and 2.4 was also accepted by pre-gate accounts,
+// so the next bump ('2.5') is the first trusted version. Deliberately NOT bumped here: forcing
+// every account to re-accept is a product/legal call. Until the next Terms bump, 2.4 accounts stay
+// accepted; on that bump they run the age check (post-gate 2.4 signups are re-checked too, which
+// is redundant but fail-safe).
+const FIRST_AGE_GATED_TERMS_VERSION = '2.5'
+
+// Compares [major, minor] numerically. Accepts only complete, recognized terms-version
+// values (e.g. "2.5", "2.10"); malformed strings such as "2.5-beta" or "2.5garbage"
+// fail closed (force age check) rather than silently matching the "2.5" prefix.
+function isAtLeastVersion(version: string | null | undefined, minimum: string): boolean {
+  const parse = (v: string) => {
+    const match = /^(\d+)\.(\d+)$/.exec(v)
+    return match ? [Number(match[1]), Number(match[2])] : null
+  }
+  const actual = version ? parse(version) : null
+  const required = parse(minimum)
+  if (!actual || !required) return false
+  return actual[0] !== required[0] ? actual[0] > required[0] : actual[1] >= required[1]
 }
 
 function DrawerToggleButton({ tintColor }: { tintColor?: ColorValue }) {
@@ -46,17 +71,23 @@ const AppLayout = () => {
   const theme = useTheme()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
-  const { termsAccepted, termsBlocking, termsLoading, isUpdate, accepting, error } = useSelector(
-    termsService,
-    (state) => ({
-      termsAccepted: state.matches('accepted'),
-      termsBlocking: state.matches('acceptanceRequired'),
-      termsLoading: state.matches('idle') || state.matches('checking'),
-      isUpdate: state.context.isUpdate,
-      accepting: state.matches('accepting'),
-      error: state.context.error,
-    }),
-  )
+  const {
+    termsAccepted,
+    termsBlocking,
+    termsLoading,
+    isUpdate,
+    previousTermsVersion,
+    accepting,
+    error,
+  } = useSelector(termsService, (state) => ({
+    termsAccepted: state.matches('accepted'),
+    termsBlocking: state.matches('acceptanceRequired'),
+    termsLoading: state.matches('idle') || state.matches('checking'),
+    isUpdate: state.context.isUpdate,
+    previousTermsVersion: state.context.subscription?.termsVersion ?? null,
+    accepting: state.matches('accepting'),
+    error: state.context.error,
+  }))
 
   const previousTermsAccepted = useRef<boolean>(termsAccepted)
 
@@ -71,18 +102,91 @@ const AppLayout = () => {
     previousTermsAccepted.current = termsAccepted
   }, [termsAccepted, authService])
 
+  const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
+
+  const {
+    verifyAge,
+    isVerifying,
+    showDobPicker,
+    handleDobResult,
+    needsPlayVerification,
+    retryPlayVerification,
+  } = useAgeVerification({
+    onVerified: acceptTerms,
+    onRejected: () => {
+      showAlert('Age Restriction', 'This app is for users 18 and older.')
+      authService.send({ type: 'SIGN_OUT' })
+    },
+  })
+
+  // Re-acceptance skip rule: there is no dedicated age-verification record, so the age check is
+  // skipped ONLY when this is a re-acceptance (termsMachine `isUpdate`) AND the previously
+  // accepted version (subscription.termsVersion) is >= FIRST_AGE_GATED_TERMS_VERSION, i.e. it
+  // was accepted through the age gate. Legacy accounts (accepted before the gate existed) and
+  // new accounts must complete the age flow first.
+  const ageAlreadyVerified =
+    isUpdate && isAtLeastVersion(previousTermsVersion, FIRST_AGE_GATED_TERMS_VERSION)
+  const handleAccepted = ageAlreadyVerified ? acceptTerms : verifyAge
+
+  // The DOB picker replaces AcceptTerms, which would otherwise surface the error inline.
+  useEffect(() => {
+    if (showDobPicker && error) {
+      showAlert(
+        'Error',
+        `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
+      )
+    }
+  }, [showDobPicker, error])
+
   if (termsLoading) {
     return <LoadingIndicator disabled={false} />
   }
 
   if (termsBlocking || accepting) {
+    if (needsPlayVerification) {
+      // Persistent guidance: Play returns VERIFICATION_REQUIRED, which means
+      // the user must complete age verification in the Play Store before we
+      // can read any age signal. Routing this through AcceptTerms' `error`
+      // prop would surface it as an acceptance-failure alert that disappears
+      // on dismiss — instead, show it as a persistent banner above the
+      // AcceptTerms retry surface (the Accept button re-runs verification).
+      return (
+        <View style={styles.blockingContainer}>
+          <View style={styles.playVerificationBanner}>
+            <Text variant="titleSmall" style={styles.playVerificationTitle}>
+              Age Verification Required
+            </Text>
+            <Text variant="bodySmall" style={styles.playVerificationText}>
+              Google Play requires age verification for your account before you can continue. Open
+              the Google Play Store, complete the age verification it shows you, then tap Accept to
+              retry.
+            </Text>
+          </View>
+          <AcceptTerms
+            onAccepted={retryPlayVerification}
+            onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
+            isUpdate={isUpdate}
+            accepting={isVerifying}
+          />
+        </View>
+      )
+    }
+
+    if (showDobPicker) {
+      return (
+        <View style={styles.blockingContainer}>
+          <ManualDobPicker onComplete={handleDobResult} loading={accepting} />
+        </View>
+      )
+    }
+
     return (
       <View style={styles.blockingContainer}>
         <AcceptTerms
-          onAccepted={() => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })}
+          onAccepted={handleAccepted}
           onCanceled={() => authService.send({ type: 'SIGN_OUT' })}
           isUpdate={isUpdate}
-          accepting={accepting}
+          accepting={accepting || isVerifying}
           error={error?.message}
         />
       </View>
@@ -162,6 +266,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'stretch',
+  },
+  playVerificationBanner: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFF4E5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0CDA8',
+  },
+  playVerificationTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  playVerificationText: {
+    lineHeight: 18,
   },
 })
 

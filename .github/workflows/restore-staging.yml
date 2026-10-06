@@ -1,0 +1,87 @@
+name: Restore staging branch
+
+# GitHub's "delete head branch on merge" setting has no branch exception
+# list. The staging→main release PR has staging as its HEAD branch, so every
+# release merge deletes staging — taking out the base branch that the entire
+# feature → staging → main flow (enforce-branch-policy.yml) depends on.
+# This workflow recreates staging from main the moment that happens.
+
+on:
+    pull_request:
+        types: [closed]
+
+permissions:
+    contents: write
+
+# Serialize runs: several PRs merging at once would otherwise all see staging
+# missing and race to recreate it (the losers' POST returns 422).
+concurrency:
+    group: restore-staging
+    cancel-in-progress: false
+
+jobs:
+    restore-staging:
+        # Only when a merge actually happened and the head branch was staging
+        # (the release PR) or any other merge that left staging missing.
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check whether staging still exists
+              id: check
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  # Query the API instead of `git ls-remote ... origin`: this job
+                  # never checks out the repo, so `origin` is not configured and
+                  # the git-based check would always report "missing". Treat only
+                  # a 404 (branch truly absent) as missing; any other API or
+                  # permission failure fails the job rather than recreating a
+                  # branch that may still exist.
+                  if OUT=$(gh api "repos/${{ github.repository }}/git/ref/heads/staging" 2>&1); then
+                      echo "staging exists — nothing to do"
+                      echo "missing=false" >> "$GITHUB_OUTPUT"
+                  elif echo "$OUT" | grep -q "HTTP 404"; then
+                      echo "staging was deleted by the merge"
+                      echo "missing=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "::error::Could not determine whether staging exists."
+                      echo "$OUT"
+                      exit 1
+                  fi
+
+            - name: Recreate staging from the current main tip
+              if: steps.check.outputs.missing == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  # Resolve main's current tip when the job runs. The previous
+                  # implementation recreated staging from the triggering PR's
+                  # merge_commit_sha (or head SHA as a fallback), which is wrong:
+                  # this workflow runs after every merged PR, and a feature-to-
+                  # staging merge could recreate staging without the released
+                  # main history. Always restore staging from the current main.
+                  MAIN_SHA=$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')
+                  if [ -z "$MAIN_SHA" ] || [ "$MAIN_SHA" = "null" ]; then
+                      echo "::error::Could not resolve current main tip — cannot restore staging."
+                      exit 1
+                  fi
+                  echo "Recreating staging at $MAIN_SHA (PR #${{ github.event.pull_request.number }})"
+                  # Belt-and-braces with the concurrency group: if staging was
+                  # recreated between the check and this POST, GitHub answers 422
+                  # "Reference already exists" — that is success, not a failure.
+                  if ! OUT=$(gh api -X POST repos/${{ github.repository }}/git/refs \
+                    -f ref="refs/heads/staging" -f sha="$MAIN_SHA" 2>&1); then
+                      if echo "$OUT" | grep -q "Reference already exists"; then
+                          echo "staging was recreated concurrently — nothing to do"
+                          exit 0
+                      fi
+                      echo "$OUT"
+                      exit 1
+                  fi
+                  echo "✅ staging restored at $MAIN_SHA"
+
+            - name: Report
+              if: steps.check.outputs.missing == 'true'
+              run: |
+                  echo "staging was recreated from the current main tip."
+                  echo "Open PRs targeting staging (if any were retargeted during the gap) should be checked."

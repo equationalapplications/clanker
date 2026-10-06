@@ -10,6 +10,7 @@ interface UseAgeVerificationProps {
 export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificationProps) {
   const [isVerifying, setIsVerifying] = useState(false)
   const [showDobPicker, setShowDobPicker] = useState(false)
+  const [needsPlayVerification, setNeedsPlayVerification] = useState(false)
 
   const verifyAge = async () => {
     setIsVerifying(true)
@@ -43,6 +44,47 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
         }
       }
 
+      if (Platform.OS === 'android') {
+        try {
+          // Play Age Signals only reports an age range once sharing status is 'SHARED'.
+          // 'NOT_SHARED' and null mean no signal is available — fall back to the manual
+          // DOB check. 'VERIFICATION_REQUIRED' means Play mandates identity verification
+          // (age unknown in a mandatory-verification region): acceptance must stay
+          // blocked until the user resolves it in the Play Store. Self-attested DOB must
+          // NOT stand in for a mandatory Play verification (CodeRabbit round on PR #783).
+          //
+          // The gate (`needsPlayVerification`) is sticky until Play confirms 'SHARED' on a
+          // later retry: clearing it optimistically in retryPlayVerification would let a
+          // failed or non-SHARED retry fall through to requestAgeRangeAsync and expose the
+          // manual DOB picker even though Play verification never resolved (CodeRabbit
+          // round on PR #803).
+          const status = await AgeRange.requestAgeSignalsAccessAsync()
+          if (status === 'VERIFICATION_REQUIRED') {
+            setIsVerifying(false)
+            setNeedsPlayVerification(true)
+            return
+          }
+          if (status !== 'SHARED') {
+            setIsVerifying(false)
+            // Stay gated: a previous attempt required Play verification and we have not
+            // yet seen SHARED, so do not expose the manual picker.
+            if (!needsPlayVerification) setShowDobPicker(true)
+            return
+          }
+          // Clear the gate ONLY once Play confirms SHARED — at no other point.
+          setNeedsPlayVerification(false)
+          setShowDobPicker(false)
+        } catch {
+          // requestAgeSignalsAccessAsync threw — treat as unknown, fall through.
+          // If the gate is still on from a prior VERIFICATION_REQUIRED, bail out instead
+          // of exposing the manual picker on a verification that never resolved.
+          if (needsPlayVerification) {
+            setIsVerifying(false)
+            return
+          }
+        }
+      }
+
       const ageRange = await AgeRange.requestAgeRangeAsync({ threshold1: 18 })
 
       setIsVerifying(false)
@@ -60,6 +102,14 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
     }
   }
 
+  const retryPlayVerification = () => {
+    // Do NOT clear needsPlayVerification here — verifyAge clears it only when Play
+    // confirms 'SHARED'. Clearing it upfront would let a failed retry fall through
+    // to the manual DOB picker before Play verification has actually resolved
+    // (CodeRabbit round on PR #803).
+    void verifyAge()
+  }
+
   const handleDobResult = (isAdult: boolean) => {
     if (isAdult) {
       onVerified()
@@ -68,5 +118,12 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
     }
   }
 
-  return { verifyAge, isVerifying, showDobPicker, handleDobResult }
+  return {
+    verifyAge,
+    isVerifying,
+    showDobPicker,
+    handleDobResult,
+    needsPlayVerification,
+    retryPlayVerification,
+  }
 }
