@@ -86,8 +86,8 @@ unset SK
 # find the session for your test customer, then:
 
 curl -s --netrc-file "$NETRC" "https://api.stripe.com/v1/checkout/sessions/<cs_id>" \
-     | python3 -c 'import sys,json;s=json.load(sys.stdin);print("mode:",s["mode"],"subscription:",s.get("subscription"))'
-   rm -f "$NETRC"
+| python3 -c 'import sys,json;s=json.load(sys.stdin);print("mode:",s["mode"],"subscription:",s.get("subscription"))'
+rm -f "$NETRC"
 
 ```
 Expect `mode: payment`, `subscription: None`.

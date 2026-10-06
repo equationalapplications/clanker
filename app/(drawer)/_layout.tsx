@@ -154,9 +154,9 @@ const AppLayout = () => {
               Age Verification Required
             </Text>
             <Text variant="bodySmall" style={styles.playVerificationText}>
-              Google Play requires age verification for your account before you can
-              continue. Open the Google Play Store, complete the age verification it
-              shows you, then tap Accept to retry.
+              Google Play requires age verification for your account before you can continue. Open
+              the Google Play Store, complete the age verification it shows you, then tap Accept to
+              retry.
             </Text>
           </View>
           <AcceptTerms
