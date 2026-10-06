@@ -1,3 +1,25 @@
+## [33.3.4](https://github.com/equationalapplications/clanker/compare/v33.3.3...v33.3.4) (2026-10-06)
+
+
+### Bug Fixes
+
+* **age-gate:** keep Play gate sticky across failed retries ([8a472cd](https://github.com/equationalapplications/clanker/commit/8a472cd2de7e1799fb3263216a4de47e4a5cc5d4))
+* **age:** block acceptance on Play VERIFICATION_REQUIRED instead of DOB fallback ([a87052d](https://github.com/equationalapplications/clanker/commit/a87052dc42f7c9b2885eaea74d24581a53a09f32))
+* **age:** require age check on re-acceptance for accounts that predate the age gate ([5273c2f](https://github.com/equationalapplications/clanker/commit/5273c2f98a47bc02a9497b71e2a009b9f348d513))
+* **ci,age-gate:** address PR [#803](https://github.com/equationalapplications/clanker/issues/803) review feedback ([ad16dc1](https://github.com/equationalapplications/clanker/commit/ad16dc1d1ad594e2e1d419c361ca5cba0769bca7))
+* **ci,age-gate:** address second PR [#803](https://github.com/equationalapplications/clanker/issues/803) review round ([d07ba10](https://github.com/equationalapplications/clanker/commit/d07ba10af3a659b54d84be30672f495e61f2efaf))
+* **ci:** fall back to head SHA if merge_commit_sha is missing ([d6461f4](https://github.com/equationalapplications/clanker/commit/d6461f44f0947978f4ec141fecdfeab3964b856d))
+* **ci:** only treat HTTP 404 as a missing staging branch ([f2cae62](https://github.com/equationalapplications/clanker/commit/f2cae62ad1e073721cddf80a32a144b12b7867de))
+* **ci:** read base/head ref from event payload in branch-policy check ([332ccef](https://github.com/equationalapplications/clanker/commit/332ccefb54ba75156a73c9c8523034482ce5e32c))
+* **ci:** tolerate unpatched braces advisory in root audit gate ([ea94ff2](https://github.com/equationalapplications/clanker/commit/ea94ff25b28eed1a119c7b36a76006616e944488))
+* **deps:** align Expo SDK 57 patch versions with hosted matrix ([ae57a54](https://github.com/equationalapplications/clanker/commit/ae57a546ed38bcde24381711600a62f943986e04))
+* **deps:** override @modelcontextprotocol/sdk for GHSA-6qxp-vccf-f47h ([023e64b](https://github.com/equationalapplications/clanker/commit/023e64b24f3fb26e60de894f0d3594371c0c3cab))
+* **deps:** override proxy-addr for GHSA-jqcg-44mw-7w3h ([769c989](https://github.com/equationalapplications/clanker/commit/769c9893d354f21c30fdcede29797f5a955dc5e8))
+* **deps:** override proxy-addr for GHSA-jqcg-44mw-7w3h ([26a2aef](https://github.com/equationalapplications/clanker/commit/26a2aef35f410105ddb5f9f808994b8204300a1c))
+* **deps:** override shell-quote for GHSA-pqg4-j6r4-53mv ([ff7c909](https://github.com/equationalapplications/clanker/commit/ff7c909fe3e3c0692cb88804d7daf57c4c4235a3))
+* **deps:** resolve rebase conflict in extension lockfile ([ca44610](https://github.com/equationalapplications/clanker/commit/ca446101829bc583ec4bf1fe68598e0faa669ae2))
+* **terms:** route live terms acceptance through the age gate ([f094678](https://github.com/equationalapplications/clanker/commit/f09467877a9789d3e7d6a6e8713b41f4fdb48f8b))
+
 ## [33.3.3](https://github.com/equationalapplications/clanker/compare/v33.3.2...v33.3.3) (2026-10-02)
 
 
