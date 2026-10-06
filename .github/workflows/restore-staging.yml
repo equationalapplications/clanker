@@ -25,7 +25,12 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
-                  if git ls-remote --exit-code --heads origin staging >/dev/null 2>&1; then
+                  # Query the API instead of `git ls-remote ... origin`: this job
+                  # never checks out the repo, so `origin` is not configured and
+                  # the git-based check would always report "missing". Treat only
+                  # a 404 (branch truly absent) as missing; any other failure
+                  # would also be reported as missing and surface in the job log.
+                  if gh api "repos/${{ github.repository }}/git/ref/heads/staging" >/dev/null 2>&1; then
                       echo "staging exists — nothing to do"
                       echo "missing=false" >> "$GITHUB_OUTPUT"
                   else
@@ -33,36 +38,29 @@ jobs:
                       echo "missing=true" >> "$GITHUB_OUTPUT"
                   fi
 
-            - name: Recreate staging from the merge commit
+            - name: Recreate staging from the current main tip
               if: steps.check.outputs.missing == 'true'
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
-                  # github.event.pull_request.merge_commit_sha is populated for
-                  # closed/merged PRs but is not guaranteed by the API contract;
-                  # fall back to the head SHA so the workflow still produces a
-                  # valid staging tip if merge_commit_sha is missing.
-                  MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
-                  HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-                  if [ -z "$MERGE_SHA" ] || [ "$MERGE_SHA" = "null" ]; then
-                      SHA="$HEAD_SHA"
-                      echo "merge_commit_sha unavailable — falling back to head SHA $HEAD_SHA"
-                  else
-                      SHA="$MERGE_SHA"
+                  # Resolve main's current tip when the job runs. The previous
+                  # implementation recreated staging from the triggering PR's
+                  # merge_commit_sha (or head SHA as a fallback), which is wrong:
+                  # this workflow runs after every merged PR, and a feature-to-
+                  # staging merge could recreate staging without the released
+                  # main history. Always restore staging from the current main.
+                  MAIN_SHA=$(gh api "repos/${{ github.repository }}/git/ref/heads/main" --jq '.object.sha')
+                  if [ -z "$MAIN_SHA" ] || [ "$MAIN_SHA" = "null" ]; then
+                      echo "::error::Could not resolve current main tip — cannot restore staging."
+                      exit 1
                   fi
-                  echo "Recreating staging at $SHA (PR #${{ github.event.pull_request.number }})"
+                  echo "Recreating staging at $MAIN_SHA (PR #${{ github.event.pull_request.number }})"
                   gh api -X POST repos/${{ github.repository }}/git/refs \
-                    -f ref="refs/heads/staging" -f sha="$SHA"
-                  echo "✅ staging restored at $SHA"
+                    -f ref="refs/heads/staging" -f sha="$MAIN_SHA"
+                  echo "✅ staging restored at $MAIN_SHA"
 
             - name: Report
               if: steps.check.outputs.missing == 'true'
-              env:
-                  MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
               run: |
-                  if [ -z "$MERGE_SHA" ] || [ "$MERGE_SHA" = "null" ]; then
-                      echo "staging was recreated from the head SHA (merge_commit_sha unavailable)."
-                  else
-                      echo "staging was recreated from $MERGE_SHA."
-                  fi
+                  echo "staging was recreated from the current main tip."
                   echo "Open PRs targeting staging (if any were retargeted during the gap) should be checked."

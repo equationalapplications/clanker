@@ -364,7 +364,7 @@ describe('drawer terms gate age verification', () => {
     },
   )
 
-  it.each(['2.4', '1.9', 'garbage'])(
+  it.each(['2.4', '1.9', 'garbage', '2.5-beta', '2.5garbage'])(
     'runs the age check before ACCEPT_TERMS for a legacy account that accepted terms %s',
     async (termsVersion) => {
       let resolveAgeRange!: (value: { lowerBound: number | null; upperBound: null }) => void
