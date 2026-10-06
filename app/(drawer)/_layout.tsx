@@ -30,9 +30,12 @@ const HIDDEN_DRAWER_SCREEN_OPTIONS = {
   drawerItemStyle: { display: 'none' as const },
 }
 
-// First Terms version shipped WITH the age gate. Must stay in sync with the TERMS.version
-// (termsConfig.ts) of the release that first carries the age gate: accounts that accepted an
-// earlier version never passed the age check and must run it on re-acceptance.
+// First Terms version that can only have been accepted through the age gate. The gate shipped
+// while TERMS.version (termsConfig.ts) was '2.4', and 2.4 was also accepted by pre-gate accounts,
+// so the next bump ('2.5') is the first trusted version. Deliberately NOT bumped here: forcing
+// every account to re-accept is a product/legal call. Until the next Terms bump, 2.4 accounts stay
+// accepted; on that bump they run the age check (post-gate 2.4 signups are re-checked too, which
+// is redundant but fail-safe).
 const FIRST_AGE_GATED_TERMS_VERSION = '2.5'
 
 // Compares [major, minor] numerically. Accepts only complete, recognized terms-version

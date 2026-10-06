@@ -12,11 +12,6 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
   const [showDobPicker, setShowDobPicker] = useState(false)
   const [needsPlayVerification, setNeedsPlayVerification] = useState(false)
 
-  const retryPlayVerification = () => {
-    setNeedsPlayVerification(false)
-    void verifyAge()
-  }
-
   const verifyAge = async () => {
     setIsVerifying(true)
 
@@ -88,6 +83,11 @@ export function useAgeVerification({ onVerified, onRejected }: UseAgeVerificatio
       setIsVerifying(false)
       setShowDobPicker(true)
     }
+  }
+
+  const retryPlayVerification = () => {
+    setNeedsPlayVerification(false)
+    void verifyAge()
   }
 
   const handleDobResult = (isAdult: boolean) => {
