@@ -40,7 +40,7 @@ export default function Support() {
         Clanker Support
       </Text>
       <Text variant="bodyMedium" style={styles.subtitle}>
-        Need help with your account, credits, or subscription? Contact our support team and we will
+        Need help with your account, Power, or subscription? Contact our support team and we will
         respond as quickly as possible.
       </Text>
 
@@ -65,51 +65,53 @@ export default function Support() {
           </Text>
 
           <Text variant="titleSmall" style={styles.question}>
-            How do credits and subscriptions work?
+            How does Power work?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Chat replies, image generation, voice replies, cloud character saves/sync, document
-            ingestion, and memory writes/heals consume credits. Subscriptions give a monthly credit
-            allowance, and one-time packs grant temporary credits that expire after 31 days.
+            Power is what you use in Clanker. Chat replies, image generation, live voice, cloud
+            character saves/sync, document ingestion, and memory writes/heals all use Power. The
+            Power meter at the top of the app shows how much you have left. The monthly plan refills
+            your Power every billing cycle, and one-time packs add Power that lasts 31 days.
           </Text>
 
           <Text variant="titleSmall" style={styles.question}>
-            How do I get more credits?
+            How do I get more Power?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             Two options:
-            {'\n'}• Monthly subscription ($20/month): 300 credits per billing cycle, renewed
-            automatically
-            {'\n'}• One-time pack ($10): 100 credits, valid for 31 days
+            {'\n'}• Monthly plan ($20/month): 30,000 Power, refills automatically every billing
+            cycle
+            {'\n'}• One-time pack ($10): 10,000 Power, valid for 31 days
             {'\n'}Purchase from the Subscribe screen in the app.
           </Text>
 
           <Text variant="titleSmall" style={styles.question}>
-            Do credits expire?
+            Does Power expire?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            • Free signup credits (50 credits): never expire
-            {'\n'}• Monthly subscription credits: expire at the end of each billing cycle
-            {'\n'}• One-time credit pack credits: expire 31 days after purchase
-            {'\n'}Your credit balance and next expiry date are shown in the Credits section.
+            • Free signup Power (5,000 Power): never expires
+            {'\n'}• Monthly plan Power: expires at the end of each billing cycle, when it refills
+            {'\n'}• One-time pack Power: expires 31 days after purchase
+            {'\n'}Your current Power is shown on the Subscribe screen.
           </Text>
 
           <Text variant="titleSmall" style={styles.question}>
-            What happened to unlimited credits?
+            What happened to the unlimited plan?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            The unlimited credits plan has been retired. Monthly subscribers now receive 300 credits
-            per billing cycle. Your existing credits remain unaffected.
+            The unlimited plan has been retired. Monthly subscribers now receive 30,000 Power per
+            billing cycle. Your existing Power is unaffected.
           </Text>
 
           <Divider style={styles.divider} />
 
           <Text variant="titleSmall" style={styles.question}>
-            How do chat and voice work and what do they cost?
+            How much Power do chat, voice, and images use?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            Text chat in the Chat tab costs 1 credit per reply. Live real-time voice in the Talk tab
-            costs 5 credits per minute.{' '}
+            A text chat reply in the Chat tab uses 100–300 Power. Live real-time voice in the Talk
+            tab uses 500 Power to connect plus 500 Power per minute. Generating an image uses 200
+            Power.{' '}
             <Text style={styles.inlineLink} onPress={onPressRealTimeVoice}>
               See how live voice works in action
             </Text>
