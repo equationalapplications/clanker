@@ -225,7 +225,34 @@ the refund handling that exists today.
   through the `firebase_uid` metadata set at customer creation (`purchasePackageStripe.ts:71`), and a
   retry covers the cases where it doesn't. The existing `unmarkEventProcessed` path already makes a
   retried event reprocess. An **unknown price** does not throw (a retry cannot fix it). It logs at
-  error level and skips, as in the test plan.
+  error level and skips, as in the test plan. Recovery for the affected invoice is an operator task;
+  see §2.1.
+
+#### 2.1 Operator recovery for unknown-price invoices
+
+Stripe considers an event delivered on the first 2xx response and does not redeliver a previously
+acknowledged event id, so fixing the price mapping later does not auto-claim the original grant.
+The event dedupe also keeps the event marked processed. The customer's invoice is therefore uncredited
+until an operator acts.
+
+Recovery procedure:
+
+1. The error log (price id + `event.id` + customer id, if available) identifies the invoice. Pull the
+   affected invoice from Stripe, confirm `status === 'paid'` and `amount_paid > 0`, and confirm the
+   missing tier is now in `StripePriceIds`.
+2. Grant the missing credits through the **admin dashboard's additive grant path**, with reason
+   `admin_manual` (distinct from `subscription` / `stripe_topup` so it is filterable in the ledger and
+   does not interact with the idempotency keys in §3). The additive action must **not** read-modify-write
+   the user's active balance: it inserts a ledger row, leaving other active credits (signup grant, prior
+   ad-hoc grants, paid packs) in place.
+3. `adminSetUserCredits` (functions/src/adminFunctions.ts:320) **is not** a safe recovery tool — it
+   replaces the active balance. It may only be used on accounts the operator has first backed up, or
+   on accounts with no live credits outside the change being made. Add a sibling additive action as
+   part of this work; do not reuse `adminSetUserCredits`.
+
+The integration suite covers (b) directly: an unknown-price event produces no ledger row, an additive
+admin grant produces exactly one `admin_manual` row, and other rows on the same user are untouched.
+
 - The GA4 purchase emission in the same handler (`:805-831`) is unchanged.
 
 `mapStripeSubscriptionStatus` keeps its current mapping — it now feeds only display state — but gains a
@@ -308,8 +335,8 @@ Step 2 is a live Stripe configuration change and is performed by the account own
 `lib-integration/`. Run scoped:
 
 ```
-cd functions && NODE_ENV=test npm run build && NODE_ENV=test node --test lib/stripeWebhook.test.js
-cd functions && npm run test:integration
+(cd functions && NODE_ENV=test npm run build && NODE_ENV=test node --test lib/stripeWebhook.test.js)
+(cd functions && npm run test:integration)
 ```
 
 (bare `npm test -- <path>` does not filter in this repo).
@@ -328,6 +355,10 @@ Authorization:
 - Unknown price id: no grant, **and** an error is logged identifying the unrecognized price, so a
   tier added in Stripe but not in `StripePriceIds` is visible in logs instead of silently
   dropping a paying customer's credits. The handler does not throw (a retry cannot fix it).
+- Operator recovery (§2.1): after an unknown-price event has been logged for `event.id` _E_, calling
+  the dashboard's additive grant action for the affected user inserts exactly one ledger row with
+  reason `admin_manual`, leaves every prior row on that user untouched, and does not re-process _E_
+  (the dedupe service still reports _E_ as processed).
 - Paid subscription invoice whose customer resolves to no user: the handler throws, the event is
   unmarked, and the response is 500. A redelivery after the user becomes resolvable grants exactly once.
 - Paid `subscription_create` invoice delivered **before** `checkout.session.completed`, for a customer
