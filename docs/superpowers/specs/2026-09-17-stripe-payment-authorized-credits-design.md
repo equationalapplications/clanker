@@ -4,7 +4,8 @@
 **Status:** Draft
 **Resolves:** Security review finding on `main` (`functions/src/stripeWebhook.ts:701`) — subscription
 credits granted for unpaid subscription states; plus two dead grant paths discovered while validating it.
-**Scope:** `functions/` only. No client or RevenueCat changes. Credit-pack _grant_ logic is unchanged;
+**Scope:** `functions/`, plus one admin-dashboard wrapper in `src/services/adminService.ts` for the §2.1
+recovery action. No user-facing client or RevenueCat changes. Credit-pack _grant_ logic is unchanged;
 credit-pack _refund_ lookup is in scope only as far as the endpoint version flip requires (§1).
 
 ## Revision 2026-10-06
@@ -27,6 +28,9 @@ Re-verified against staging `f162964b`. Changes from the 2026-09-17 draft:
 - New open question 4 (100%-discount invoices). Line references refreshed.
 - Open questions 2 (trials) and 4 (100% discounts) decided by the product owner. Both keep the
   `amount_paid > 0` guard.
+- §2.1 now names the additive admin recovery action (`adminGrantUserCredits`) as a step-1 deliverable,
+  including the `addCredits` reason override it needs to stay inside the `transaction_type` CHECK
+  constraint without a migration.
 
 ## Problem
 
@@ -245,10 +249,36 @@ Recovery procedure:
    does not interact with the idempotency keys in §3). The additive action must **not** read-modify-write
    the user's active balance: it inserts a ledger row, leaving other active credits (signup grant, prior
    ad-hoc grants, paid packs) in place.
-3. `adminSetUserCredits` (functions/src/adminFunctions.ts:320) **is not** a safe recovery tool — it
-   replaces the active balance. It may only be used on accounts the operator has first backed up, or
-   on accounts with no live credits outside the change being made. Add a sibling additive action as
-   part of this work; do not reuse `adminSetUserCredits`.
+3. `adminSetUserCredits` (functions/src/adminFunctions.ts:328) **is not** a safe recovery tool — it
+   calls `creditService.setCredits`, which replaces the active balance. It may only be used on accounts
+   the operator has first backed up, or on accounts with no live credits outside the change being
+   made. Do not reuse it, and do not add an insert to its handler: `setCredits` would still run first.
+
+The additive grant path does not exist yet. It ships **in the same implementation PR** (rollout step 1),
+so recovery is available before any unknown-price event can be acknowledged:
+
+- **Callable:** `adminGrantUserCredits` in `functions/src/adminFunctions.ts`, a sibling of
+  `adminSetUserCreditsHandler`, with the same admin-claim check and the same audit log entry shape
+  (`action: 'adminGrantUserCredits'`). Inputs: `userId`, `amount` (positive integer), `expiresAt`,
+  and the Stripe invoice id as `referenceId`. Export it from `functions/src/index.ts` and add a client
+  wrapper in `src/services/adminService.ts` beside the existing set-credits call.
+- **Service:** it writes through `creditService.addCredits` (insert-only, never touches other rows).
+  `addCredits` currently writes the `transactionType` argument into **both** `reason` and
+  `transaction_type`, and `credit_transactions_transaction_type_check` only allows
+  `'signup' | 'subscription' | 'one_time' | 'legacy'`, so passing `'admin_manual'` as the type would
+  fail at insert time. Add an optional `reason` override to `addCredits` (default: the type, which keeps
+  every current caller the same). Recovery grants then insert `reason: 'admin_manual'` with the
+  `transaction_type` of the grant that was missed (`'subscription'` or `'one_time'`), so expiry and
+  balance logic treat the row like the grant it replaces. **No migration:** `reason` is unconstrained
+  text, and `transaction_type` stays inside the existing CHECK set.
+- **Idempotency:** `referenceId` = the Stripe invoice id. The existing
+  `(user_id, reason, reference_id)` unique index makes a repeated click a no-op instead of a second
+  grant, and the `admin_manual` reason keeps the key out of the §3 subscription key space.
+- **Expiry:** the operator supplies the expiry the missed grant would have had: the matching invoice
+  line's period end for a subscription, payment time + 31 days for a pack. The handler rejects an
+  `expiresAt` in the past.
+- **Docs:** add the procedure to `docs/admin-operations.md` next to the `adminSetUserCredits` entry,
+  with the warning from item 3.
 
 The integration suite covers (b) directly: an unknown-price event produces no ledger row, an additive
 admin grant produces exactly one `admin_manual` row, and other rows on the same user are untouched.
@@ -297,6 +327,7 @@ shape. Sequence:
    Both clients get an explicit `apiVersion` pin set to the version the SDK already sends (open question 3),
    so the pin changes no behavior. Safe under `2022-11-15` and under the SDK version. No Stripe
    configuration change.
+   The `adminGrantUserCredits` recovery action from §2.1 ships in this same step.
 2. **Replace the destination.** `api_version` is **not** an updatable field — the Update webhook
    endpoint API accepts only `description`, `disabled`, `enabled_events`, `metadata` and `url`. The
    version can only be set at creation. So moving off `2022-11-15` means creating a _new_ destination at
