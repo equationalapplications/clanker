@@ -357,7 +357,7 @@ function generateTerms() {
     pageTitle: 'Terms and Conditions — Clanker',
     h1: 'Terms and Conditions',
     description:
-      'The terms and conditions governing your use of Clanker by Equational Applications LLC, including AI characters, billing, credits, and legal terms.',
+      'The terms and conditions governing your use of Clanker by Equational Applications LLC, including AI characters, billing, Power, and legal terms.',
     version: TERMS.version,
     lastUpdated: TERMS.lastUpdated,
     bodyHtml: textToHtml(TERMS.terms),
