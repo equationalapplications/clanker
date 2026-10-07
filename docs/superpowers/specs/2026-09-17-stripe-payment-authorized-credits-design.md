@@ -245,12 +245,15 @@ Step 2 is a live Stripe configuration change and is performed by the account own
 
 ## Test plan
 
-`functions/` uses `node --test` over compiled `lib/` output (see `functions/package.json`), with tests
-co-located at `src/stripeWebhook.test.ts` and `src/stripeWebhook.int.test.ts` — there is no
-`src/__tests__/` directory and no Jest in this package. Run scoped:
+`functions/` uses `node --test` over compiled output (see `functions/package.json`) — there is no
+`src/__tests__/` directory and no Jest in this package. Unit tests are co-located at
+`src/stripeWebhook.test.ts` and compile to `lib/`; the integration suite lives at
+`src/integration/stripeWebhook.int.test.ts` and compiles separately (`tsconfig.int.json`) to
+`lib-integration/`. Run scoped:
 
 ```
 cd functions && NODE_ENV=test npm run build && NODE_ENV=test node --test lib/stripeWebhook.test.js
+cd functions && npm run test:integration
 ```
 
 (bare `npm test -- <path>` does not filter in this repo).
