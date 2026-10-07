@@ -25,6 +25,8 @@ Re-verified against staging `f162964b`. Changes from the 2026-09-17 draft:
 - **A paid invoice whose user cannot be resolved must be retried, not dropped** (§2).
 - **Both `new Stripe(...)` sites need the pin**, not only the webhook's (open question 3).
 - New open question 4 (100%-discount invoices). Line references refreshed.
+- Open questions 2 (trials) and 4 (100% discounts) decided by the product owner. Both keep the
+  `amount_paid > 0` guard.
 
 ## Problem
 
@@ -133,8 +135,8 @@ and only because of the legacy pin.
 - **Trial credit policy.** Under this spec a `trialing` subscription receives **no** grant: a trial
   has no paid invoice, and the paid invoice is the sole grant path (§2). Today the legacy
   `customer.subscription.updated` path mints one — that accidental grant is removed, not preserved.
-  A converting trial's first paid invoice grants normally. Whether trials should receive credits is a
-  product decision and a separate follow-up (open question 2).
+  A converting trial's first paid invoice grants normally. **Decided (2026-10-06): trials receive no
+  subscription grant** (open question 2).
 - **Grace-period / access policy.** How a `past_due` subscriber's _access_ behaves is unchanged; only
   credit authorization moves. `planStatus` remains display and telemetry only, with one **pre-existing**
   exception: it also gates the billing-provider-collision warnings at `revenueCatWebhook.ts:595` and
@@ -208,7 +210,7 @@ the refund handling that exists today.
 - `handleInvoicePaymentSucceeded` becomes the **sole** subscription grant path, handling both
   `billing_reason === 'subscription_create'` (initial purchase — today it only emits the GA4 purchase
   event and grants nothing) and `'subscription_cycle'` (renewal), and asserting before granting:
-  - `invoice.status === 'paid'` (and `amount_paid > 0`; see open question 4). Use `status`, not the
+  - `invoice.status === 'paid'` and `amount_paid > 0` (open questions 2 and 4). Use `status`, not the
     boolean `invoice.paid`, which basil removed;
   - the subscription's price resolves to a known tier via `getTierByPriceId`;
   - the customer resolves to a user through the existing `resolveUserForStripeCustomer` path, not
@@ -377,7 +379,12 @@ Version contract:
 ## Open questions
 
 1. Should credits already granted for unpaid periods be reconciled? Default per non-goals: no.
-2. Trial credit policy — deferred, see non-goals.
+2. ~~Trial credit policy?~~ **Decided (2026-10-06): no grant during a trial.** The 30,000-Power
+   subscription grant waits for the first paid invoice. New accounts already receive the 5,000-Power
+   signup grant, which never expires (`getOrCreateDefaultSubscription`; amounts per
+   `2026-07-07-power-meter-credit-inflation-design.md`). That grant is the intended way to try the app.
+   Granting at trial start would let anyone who repeatedly opens and cancels trials collect 30,000 Power
+   each time without paying. With the paid invoice as the only grant path, no trial-specific code is needed.
 3. ~~Pin `apiVersion` explicitly at client construction?~~ **Decided: yes, in step 1** (revised
    2026-10-06; the original draft deferred it to the follow-up PR). The drift this guards against already
    happened once during review: #788 moved the SDK from dahlia to endive with no code change. Construct
@@ -390,7 +397,14 @@ Version contract:
    match whatever the lockfile resolves at implementation time; if the SDK has moved again by then, check
    its changelog for subscription, invoice, or charge shape changes first. The step-2 destination uses the
    same string.
-4. **100%-discount invoices.** The `amount_paid > 0` guard means a subscriber whose invoice is paid but
-   fully discounted (a 100% coupon or promotion code) receives no credits. That is correct if such
-   coupons are never issued, and wrong if they are used for comps or press access. Product decision.
-   Default: keep the guard, since trial-start invoices are also `$0` and must not grant (non-goals).
+4. ~~100%-discount invoices?~~ **Decided (2026-10-06): keep the `amount_paid > 0` guard; comps go
+   through the admin dashboard.** A subscriber on a fully discounted invoice (100% coupon or promotion
+   code) receives no automatic subscription grant. Comps for press and partners are issued as manual
+   grants from the admin dashboard, which needs no Stripe coupon and no webhook logic. We considered
+   exempting invoices that carry a 100% discount (detecting it from `invoice.discounts` and
+   `total_discount_amounts`) and rejected it for now. It would add a second grant condition to the
+   payment-authorization path this spec exists to simplify. It also creates a new free-credit path:
+   anyone holding a leaked or shared 100% code could collect 30,000 Power every cycle with no payment.
+   **Operational rule:** do not issue 100%-off Stripe promotion codes expecting them to carry Power. If
+   comps ever need to run through Stripe at volume, revisit this with an allowlist of specific coupon
+   ids, not "any 100% discount."
