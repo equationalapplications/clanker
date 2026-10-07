@@ -89,7 +89,7 @@ export default function Support() {
             Does Power expire?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
-            • Free signup Power (5,000 Power): never expires
+            • Free signup Power (5,000): never expires
             {'\n'}• Monthly plan Power: expires at the end of each billing cycle, when it refills
             {'\n'}• One-time pack Power: expires 31 days after purchase
             {'\n'}Your current Power is shown on the Subscribe screen.
@@ -106,12 +106,13 @@ export default function Support() {
           <Divider style={styles.divider} />
 
           <Text variant="titleSmall" style={styles.question}>
-            How much Power do chat, voice, and images use?
+            How much Power does each action use?
           </Text>
           <Text variant="bodyMedium" style={styles.bodyText}>
             A text chat reply in the Chat tab uses 100–300 Power. Live real-time voice in the Talk
             tab uses 500 Power to connect plus 500 Power per minute. Generating an image uses 200
-            Power.{' '}
+            Power, converting a document uses 200 Power, and each agent turn uses 100 Power per
+            loop.{' '}
             <Text style={styles.inlineLink} onPress={onPressRealTimeVoice}>
               See how live voice works in action
             </Text>
