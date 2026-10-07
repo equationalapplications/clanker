@@ -1,3 +1,12 @@
+## [33.3.5](https://github.com/equationalapplications/clanker/compare/v33.3.4...v33.3.5) (2026-10-07)
+
+
+### Bug Fixes
+
+* **seo:** use Power in Terms page meta descriptions ([72c3f39](https://github.com/equationalapplications/clanker/commit/72c3f396b4145848e057a1d2c3f21be3d934bb08))
+* **support:** list every Power cost in the support FAQ ([01c4d9d](https://github.com/equationalapplications/clanker/commit/01c4d9d49aae4c4fb7bca29b746dc5c9eeccd03b))
+* **support:** update FAQ to Power units and current pricing ([147a7e4](https://github.com/equationalapplications/clanker/commit/147a7e4f66a68871ddae6bbdb9b11e6515e8e298))
+
 ## [33.3.4](https://github.com/equationalapplications/clanker/compare/v33.3.3...v33.3.4) (2026-10-06)
 
 
