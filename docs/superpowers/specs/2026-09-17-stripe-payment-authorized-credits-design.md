@@ -1,10 +1,36 @@
 # Stripe Payment-Authorized Credits & Payload-Version Contract — Design
 
-**Date:** 2026-09-17
+**Date:** 2026-09-17 (revised 2026-10-06 — see "Revision 2026-10-06" below)
 **Status:** Draft
 **Resolves:** Security review finding on `main` (`functions/src/stripeWebhook.ts:701`) — subscription
 credits granted for unpaid subscription states; plus two dead grant paths discovered while validating it.
-**Scope:** `functions/` only. No client, RevenueCat, or credit-pack changes.
+**Scope:** `functions/`, plus one admin-dashboard wrapper in `src/services/adminService.ts` for the §2.1
+recovery action. No user-facing client or RevenueCat changes. Credit-pack _grant_ logic is unchanged;
+credit-pack _refund_ lookup is in scope only as far as the endpoint version flip requires (§1).
+
+## Revision 2026-10-06
+
+Re-verified against staging `f162964b`. Changes from the 2026-09-17 draft:
+
+- **The SDK version moved under this spec.** PR #788 bumped `stripe` 22.5.0 → **23.0.0**, which pins
+  **`2026-09-30.endive`**, not `2026-07-29.dahlia`. This is the silent drift open question 3 warned
+  about, and it already happened once. Endive changes no field this spec reads — both dahlia and endive
+  are in the `basil`-and-later family (periods on subscription items, invoice subscription under
+  `invoice.parent`) — so the Defect 2 analysis holds. Version references below now say "SDK version
+  (basil-family)" instead of naming dahlia, and the explicit pin moves from the follow-up PR into step 1
+  (open question 3).
+- **The version flip breaks `charge.refunded`.** Missed in the original draft: `basil` also removed
+  `Charge.invoice`. The refund handler reads it from the event payload, so after the endpoint flip it
+  can no longer detect subscription refunds, or find credit-pack quantities via the invoice. Added a
+  fourth accessor (§1), tests, and a risk row.
+- **A paid invoice whose user cannot be resolved must be retried, not dropped** (§2).
+- **Both `new Stripe(...)` sites need the pin**, not only the webhook's (open question 3).
+- New open question 4 (100%-discount invoices). Line references refreshed.
+- Open questions 2 (trials) and 4 (100% discounts) decided by the product owner. Both keep the
+  `amount_paid > 0` guard.
+- §2.1 now names the additive admin recovery action (`adminGrantUserCredits`) as a step-1 deliverable,
+  including the `addCredits` reason override it needs to stay inside the `transaction_type` CHECK
+  constraint without a migration.
 
 ## Problem
 
@@ -60,25 +86,28 @@ exhausted every retry.
 ### Defect 2 — two of three grant paths are dead (correctness)
 
 The webhook destination `we_1SCVd4DTb0norRA0K5dqQ3Pu` is pinned to API version **`2022-11-15`**
-(verified in the Dashboard, 2026-09-17). The installed SDK — `stripe@22.5.0` — pins
-**`2026-07-29.dahlia`** (`node_modules/stripe/cjs/apiVersion.js`) and sends that version on every API
-call it makes, regardless of the endpoint's pin. `new Stripe(secretKey)` (`stripeWebhook.ts:250`) passes
-no `apiVersion` override.
+(verified in the Dashboard, 2026-09-17). The SDK sends its own pinned version on every API call it
+makes, regardless of the endpoint's pin, and `new Stripe(secretKey)` (`stripeWebhook.ts:251`) passes no
+`apiVersion` override. When this spec was drafted that was `stripe@22.5.0` → **`2026-07-29.dahlia`**;
+since PR #788 (2026-10-06) the lockfile resolves `stripe@23.0.0` → **`2026-09-30.endive`**
+(`node_modules/stripe/cjs/apiVersion.js`). Which of the two the _deployed_ function sends depends on
+when `functions/` was last deployed; both are basil-family and behave identically for every field below.
+"SDK version" in the rest of this document means whichever basil-family version the SDK pins.
 
 So the three grant sites read _different payload shapes_:
 
-| Grant site                             | Subscription object from   | Version in effect | Grants today                  |
-| -------------------------------------- | -------------------------- | ----------------- | ----------------------------- |
-| `customer.subscription.updated` `:702` | webhook event payload      | `2022-11-15`      | **Yes** — the vulnerable path |
-| `checkout.session.completed` `:569`    | `subscriptions.retrieve()` | `dahlia`          | **No**                        |
-| `invoice.payment_succeeded` `:785`     | `subscriptions.retrieve()` | `dahlia`          | **No**                        |
+| Grant site                             | Subscription object from   | Version in effect  | Grants today                  |
+| -------------------------------------- | -------------------------- | ------------------ | ----------------------------- |
+| `customer.subscription.updated` `:702` | webhook event payload      | `2022-11-15`       | **Yes** — the vulnerable path |
+| `checkout.session.completed` `:569`    | `subscriptions.retrieve()` | SDK (basil-family) | **No**                        |
+| `invoice.payment_succeeded` `:785`     | `subscriptions.retrieve()` | SDK (basil-family) | **No**                        |
 
 API version `2025-03-31.basil` moved `current_period_start` / `current_period_end` off the subscription
-onto its items, so under dahlia the retrieved object has no top-level `current_period_end`; both sites
+onto its items, so under the SDK version the retrieved object has no top-level `current_period_end`; both sites
 fall through to `logger.warn('... missing or invalid current_period_end')` and grant nothing.
 
 `handleInvoicePaymentSucceeded` is dead twice over. It locates the subscription via a **basil-and-later**
-field (`stripeWebhook.ts:775`, added 2026-05-22 in `d923a1da`):
+field (`stripeWebhook.ts:777`, added 2026-05-22 in `d923a1da`):
 
 ```ts
 const subscriptionId = getStripeId(invoice.parent?.subscription_details?.subscription as ...)
@@ -110,12 +139,17 @@ and only because of the legacy pin.
 - **Trial credit policy.** Under this spec a `trialing` subscription receives **no** grant: a trial
   has no paid invoice, and the paid invoice is the sole grant path (§2). Today the legacy
   `customer.subscription.updated` path mints one — that accidental grant is removed, not preserved.
-  Whether trials should receive credits is a product decision and a separate follow-up (open
-  question 2).
+  A converting trial's first paid invoice grants normally. **Decided (2026-10-06): trials receive no
+  subscription grant** (open question 2).
 - **Grace-period / access policy.** How a `past_due` subscriber's _access_ behaves is unchanged; only
-  credit authorization moves. `planStatus` remains display and telemetry only (verified: its sole other
-  consumers are admin filters, `usageSnapshot` passthrough, and the cross-provider duplicate-purchase
-  guard at `purchasePackageStripe.ts:145`).
+  credit authorization moves. `planStatus` remains display and telemetry only, with one **pre-existing**
+  exception: it also gates the billing-provider-collision warnings at `revenueCatWebhook.ts:595` and
+  `:675`, where `existingSubscription.planStatus === 'active'` (which `past_due`/`unpaid`/`incomplete`
+  still map to) triggers the warning before a RevenueCat subscription overwrites the Stripe row. That
+  behavior exists today and is unchanged by this spec (the mapping is kept, §2); it is noted so nobody
+  reads "delinquent Stripe subscribers no longer get credits" as "they can no longer trip the collision
+  warning." The remaining consumers are admin filters, `usageSnapshot` passthrough, and the
+  cross-provider duplicate-purchase guard at `purchasePackageStripe.ts:145`.
 - **Historical clawback.** No automatic reversal of credits already granted under the old logic.
 - **Clawback on future refunds and disputes.** Also out of scope, and worth stating precisely because
   the current behavior is asymmetric. `handleChargeRefunded` deducts credits for a refunded **credit
@@ -148,27 +182,108 @@ export function getInvoiceSubscriptionId(invoice: unknown): string | null
 //   >= basil : invoice.parent.subscription_details.subscription
 
 export function getInvoiceLinePeriodEnd(invoice: unknown, subscriptionId: string): number | null
+
+export async function getChargeInvoiceId(stripe: Stripe, charge: unknown): Promise<string | null>
+//   <= basil : charge.invoice  (event payload on the 2022-11-15 endpoint)
+//   >= basil : Charge.invoice was removed; resolve through the InvoicePayment that links them:
+//              stripe.invoicePayments.list({ payment: { type: 'payment_intent',
+//                                                       payment_intent: charge.payment_intent } })
 ```
 
 These replace `StripeSubRuntime` (`:178`) and the three cast sites. Each returns `null` rather than
 guessing, and callers log a distinguishable warning on `null` so a future version drift is visible in
 logs instead of silent.
 
+`getChargeInvoiceId` exists because the endpoint flip in §4 affects more than the grant paths.
+`handleChargeRefunded` (`:861`) reads `charge.invoice` from the event payload (`:879`) to decide whether a
+refund belongs to a subscription (which cancels it) and how many credit packs a refunded invoice held.
+`2025-03-31.basil` removed `invoice` from `Charge`. Without the accessor, after step 2 every refund looks
+like a non-invoice charge: subscription refunds stop cancelling the subscription, and credit-pack refunds
+fall back to `charge.metadata` only. The invoice it returns is fetched with `stripe.invoices.retrieve`, so
+it is already in the SDK shape, and the existing `invoice.parent?.subscription_details` check (`:884`)
+keeps working. This adds no new clawback behavior (see non-goals); it only stops the flip from breaking
+the refund handling that exists today.
+
 ### 2. Payment-authorized grants
 
 - `handleSubscriptionUpdated` becomes **metadata-only**: it keeps `upsertSubscription` and its logging
   and no longer grants credits. The `if (planStatus === 'active')` block at `:701-717` is deleted.
-- `handleCheckoutSessionCompleted` likewise stops granting subscription credits (`:560-590`). Checkout
+- `handleCheckoutCompleted` likewise stops granting subscription credits (`:560-590`). Checkout
   completion is not proof of a paid invoice for every payment method. Credit-pack handling in the same
   function is unchanged.
 - `handleInvoicePaymentSucceeded` becomes the **sole** subscription grant path, handling both
-  `billing_reason === 'subscription_create'` (initial purchase — not currently handled at all) and
-  `'subscription_cycle'` (renewal), and asserting before granting:
-  - `invoice.status === 'paid'` (and `amount_paid > 0`);
+  `billing_reason === 'subscription_create'` (initial purchase — today it only emits the GA4 purchase
+  event and grants nothing) and `'subscription_cycle'` (renewal), and asserting before granting:
+  - `invoice.status === 'paid'` and `amount_paid > 0` (open questions 2 and 4). Use `status`, not the
+    boolean `invoice.paid`, which basil removed;
   - the subscription's price resolves to a known tier via `getTierByPriceId`;
   - the customer resolves to a user through the existing `resolveUserForStripeCustomer` path, not
     `customer_email` alone (today's handler at `:770-773` uses email only, which is weaker than the
     resolution used everywhere else).
+- **A paid subscription invoice whose user cannot be resolved throws**, so the handler returns 500 and
+  Stripe retries. Today the handler returns silently (`:771-773`), and the event is then marked
+  processed, so the grant is lost for good. Once the invoice is the only grant path, that silent return
+  would drop a paying customer's credits. Ordering makes this realistic: Stripe does not order
+  `invoice.payment_succeeded` (`subscription_create`) relative to `checkout.session.completed`, so the
+  invoice can arrive before checkout has stored the customer id. Resolution usually still succeeds
+  through the `firebase_uid` metadata set at customer creation (`purchasePackageStripe.ts:71`), and a
+  retry covers the cases where it doesn't. The existing `unmarkEventProcessed` path already makes a
+  retried event reprocess. An **unknown price** does not throw (a retry cannot fix it). It logs at
+  error level and skips, as in the test plan. Recovery for the affected invoice is an operator task;
+  see §2.1.
+
+#### 2.1 Operator recovery for unknown-price invoices
+
+Stripe considers an event delivered on the first 2xx response and does not redeliver a previously
+acknowledged event id, so fixing the price mapping later does not auto-claim the original grant.
+The event dedupe also keeps the event marked processed. The customer's invoice is therefore uncredited
+until an operator acts.
+
+Recovery procedure:
+
+1. The error log (price id + `event.id` + customer id, if available) identifies the invoice. Pull the
+   affected invoice from Stripe, confirm `status === 'paid'` and `amount_paid > 0`, and confirm the
+   missing tier is now in `StripePriceIds`.
+2. Grant the missing credits through the **admin dashboard's additive grant path**, with reason
+   `admin_manual` (distinct from `subscription` / `stripe_topup` so it is filterable in the ledger and
+   does not interact with the idempotency keys in §3). The additive action must **not** read-modify-write
+   the user's active balance: it inserts a ledger row, leaving other active credits (signup grant, prior
+   ad-hoc grants, paid packs) in place.
+3. `adminSetUserCredits` (functions/src/adminFunctions.ts:328) **is not** a safe recovery tool — it
+   calls `creditService.setCredits`, which replaces the active balance. It may only be used on accounts
+   the operator has first backed up, or on accounts with no live credits outside the change being
+   made. Do not reuse it, and do not add an insert to its handler: `setCredits` would still run first.
+
+The additive grant path does not exist yet. It ships **in the same implementation PR** (rollout step 1),
+so recovery is available before any unknown-price event can be acknowledged:
+
+- **Callable:** `adminGrantUserCredits` in `functions/src/adminFunctions.ts`, a sibling of
+  `adminSetUserCreditsHandler`, with the same admin-claim check and the same audit log entry shape
+  (`action: 'adminGrantUserCredits'`). Inputs: `userId`, `amount` (positive integer), `expiresAt`,
+  and the Stripe invoice id as `referenceId`. Export it from `functions/src/index.ts` and add a client
+  wrapper in `src/services/adminService.ts` beside the existing set-credits call.
+- **Service:** it writes through `creditService.addCredits` (insert-only, never touches other rows).
+  `addCredits` currently writes the `transactionType` argument into **both** `reason` and
+  `transaction_type`, and `credit_transactions_transaction_type_check` only allows
+  `'signup' | 'subscription' | 'one_time' | 'legacy'`, so passing `'admin_manual'` as the type would
+  fail at insert time. Add an optional `reason` override to `addCredits` (default: the type, which keeps
+  every current caller the same). Recovery grants then insert `reason: 'admin_manual'` with the
+  `transaction_type` of the grant that was missed (`'subscription'` or `'one_time'`), so expiry and
+  balance logic treat the row like the grant it replaces. **No migration:** `reason` is unconstrained
+  text, and `transaction_type` stays inside the existing CHECK set.
+- **Idempotency:** `referenceId` = the Stripe invoice id. The existing
+  `(user_id, reason, reference_id)` unique index makes a repeated click a no-op instead of a second
+  grant, and the `admin_manual` reason keeps the key out of the §3 subscription key space.
+- **Expiry:** the operator supplies the expiry the missed grant would have had: the matching invoice
+  line's period end for a subscription, payment time + 31 days for a pack. The handler rejects an
+  `expiresAt` in the past.
+- **Docs:** add the procedure to `docs/admin-operations.md` next to the `adminSetUserCredits` entry,
+  with the warning from item 3.
+
+The integration suite covers (b) directly: an unknown-price event produces no ledger row, an additive
+admin grant produces exactly one `admin_manual` row, and other rows on the same user are untouched.
+
+- The GA4 purchase emission in the same handler (`:805-831`) is unchanged.
 
 `mapStripeSubscriptionStatus` keeps its current mapping — it now feeds only display state — but gains a
 comment stating that it is **not** an authorization signal, so the coupling cannot silently return.
@@ -209,7 +324,10 @@ The endpoint flip and the deploy cannot be simultaneous, and the currently-worki
 shape. Sequence:
 
 1. **Ship this PR's implementation.** Accessors handle both shapes; grants become payment-authorized.
-   Safe under `2022-11-15` and under dahlia. No Stripe configuration change.
+   Both clients get an explicit `apiVersion` pin set to the version the SDK already sends (open question 3),
+   so the pin changes no behavior. Safe under `2022-11-15` and under the SDK version. No Stripe
+   configuration change.
+   The `adminGrantUserCredits` recovery action from §2.1 ships in this same step.
 2. **Replace the destination.** `api_version` is **not** an updatable field — the Update webhook
    endpoint API accepts only `description`, `disabled`, `enabled_events`, `metadata` and `url`. The
    version can only be set at creation. So moving off `2022-11-15` means creating a _new_ destination at
@@ -221,21 +339,38 @@ shape. Sequence:
    `STRIPE_WEBHOOK_SECRET_NEXT` and tries each in turn in `constructEvent`, making the cutover
    non-breaking and reversible:
 
-   1. Create the new destination with the target `api_version` and the same five events.
-   2. Add its signing secret as `STRIPE_WEBHOOK_SECRET_NEXT`; deploy; confirm both destinations verify.
-   3. Disable (do not delete) the old destination. Both receive the same event ids, and the existing
-      event dedupe drops the duplicate, so no double grant during overlap.
+   1. Create the new destination with `api_version` equal to the pinned client version from step 1 (as
+      of this revision, `2026-09-30.endive`) and the same five events.
+   2. Add its signing secret as `STRIPE_WEBHOOK_SECRET_NEXT` **in two places**: create the secret (with
+      a version) in Secret Manager, and add the name to the `secrets: [...]` array in
+      `functions/src/stripeWebhook.ts` — Firebase Functions only injects secrets listed there, and the
+      deploy fails outright if the Secret Manager version does not exist yet. Deploy; confirm both
+      destinations verify.
+   3. While both destinations are enabled — from step 2 until this step — both deliver the same event
+      ids and the existing event dedupe drops the duplicate, so no double grant during the overlap.
+      Then disable (do not delete) the old destination; a disabled destination delivers nothing, which
+      is what ends the overlap.
    4. Promote the new secret to `STRIPE_WEBHOOK_SECRET`, drop `_NEXT`, delete the old destination.
 
-3. **Follow-up PR** removes the legacy branch from the accessors and adds the explicit `apiVersion` pin
-   (open question 3), once step 2 is confirmed in production.
+3. **Follow-up PR** removes the legacy (`2022-11-15`) branch from the accessors once step 2 is confirmed in
+   production. The pin is already in place from step 1.
 
 Step 2 is a live Stripe configuration change and is performed by the account owner, not by CI or an agent.
 
 ## Test plan
 
-`functions/` uses Jest. Run scoped: `npx jest src/__tests__/stripeWebhook` (bare `npm test -- <path>`
-does not filter in this repo).
+`functions/` uses `node --test` over compiled output (see `functions/package.json`) — there is no
+`src/__tests__/` directory and no Jest in this package. Unit tests are co-located at
+`src/stripeWebhook.test.ts` and compile to `lib/`; the integration suite lives at
+`src/integration/stripeWebhook.int.test.ts` and compiles separately (`tsconfig.int.json`) to
+`lib-integration/`. Run scoped:
+
+```
+(cd functions && NODE_ENV=test npm run build && NODE_ENV=test node --test lib/stripeWebhook.test.js)
+(cd functions && npm run test:integration)
+```
+
+(bare `npm test -- <path>` does not filter in this repo).
 
 Fixtures must exist in **both** payload shapes — the current fixtures are synthetic top-level-period
 shapes only, which is why Defect 2 was invisible to CI.
@@ -247,10 +382,19 @@ Authorization:
 - `checkout.session.completed` for a subscription price: no subscription credit row.
 - Paid `subscription_create` invoice: exactly one grant.
 - Paid `subscription_cycle` invoice: exactly one grant.
-- Unpaid / `amount_paid: 0` invoice: no grant.
-- Unknown price id: no grant, **and** a warning is logged identifying the unrecognized price, so a
+- Unpaid / `amount_paid: 0` invoice: no grant. (This is also the trial-start case — see non-goals.)
+- Unknown price id: no grant, **and** an error is logged identifying the unrecognized price, so a
   tier added in Stripe but not in `StripePriceIds` is visible in logs instead of silently
-  dropping a paying customer's credits.
+  dropping a paying customer's credits. The handler does not throw (a retry cannot fix it).
+- Operator recovery (§2.1): after an unknown-price event has been logged for `event.id` _E_, calling
+  the dashboard's additive grant action for the affected user inserts exactly one ledger row with
+  reason `admin_manual`, leaves every prior row on that user untouched, and does not re-process _E_
+  (the dedupe service still reports _E_ as processed).
+- Paid subscription invoice whose customer resolves to no user: the handler throws, the event is
+  unmarked, and the response is 500. A redelivery after the user becomes resolvable grants exactly once.
+- Paid `subscription_create` invoice delivered **before** `checkout.session.completed`, for a customer
+  with only `metadata.firebase_uid` (no stored customer id yet): resolves and grants once; the later
+  checkout event grants nothing.
 
 Idempotency and ordering:
 
@@ -260,9 +404,13 @@ Idempotency and ordering:
 
 Version contract:
 
-- Every accessor, against a `2022-11-15` fixture and a dahlia fixture.
+- Every accessor, against a `2022-11-15` fixture and a basil-family (endive) fixture.
 - A regression test asserting a paid initial purchase and a paid renewal each produce exactly one grant
   in **both** shapes — the guard that would have caught Defect 2.
+- `charge.refunded` for a subscription invoice in **both** shapes: a legacy charge carrying `invoice`,
+  and a basil-family charge without it, resolved through `invoicePayments.list`. Both must detect the
+  subscription refund and cancel the subscription, as today. Same for a credit-pack invoice refund (both
+  shapes deduct the same pro-rated amount).
 
 ## Verification before deploy
 
@@ -270,28 +418,55 @@ Version contract:
       2026-09-17: all five enabled events match the handler switch exactly.)
 - [ ] Query the ledger for `reason = 'subscription'` rows and their `reference_id` values, to size the
       migration hazard in §3 against real data before deploying.
+- [ ] Confirm the installed SDK's pinned version (`functions/node_modules/stripe/cjs/apiVersion.js`, after
+      `npm ci`) matches the `apiVersion` literal in both clients. Typecheck enforces this, but the step-2
+      destination must use the same string.
 - [ ] After deploy, confirm the new revision actually took traffic before trusting any log evidence.
-- [ ] After the step-2 flip, confirm a real event produces a grant.
+- [ ] After the step-2 flip, confirm a real event produces a grant, and a test-mode refund of a
+      subscription charge still cancels the subscription.
 
 ## Risks
 
-| Risk                                                                                              | Mitigation                                                                                            |
-| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Double grant on deploy from a changed period key                                                  | §3 dual-key probe; ledger audit in the pre-deploy checklist                                           |
-| Double grant from old/new revision overlap during deploy (probe is check-then-act across keys)    | §3 residual hazard: cycle lock or canonical key, decided and tested at implementation                 |
-| Credit delivery stops during the destination cutover                                              | §4 tolerant readers deployed first; dual signing secret; old destination disabled rather than deleted |
-| Duplicate deliveries while both destinations are live                                             | Same event id to both; existing event dedupe drops the second                                         |
-| `subscription_create` path was never exercised, so initial-purchase grants are newly written code | Explicit fixtures for both billing reasons; step-2 verification with a real event                     |
-| A future Stripe version drifts the shape again                                                    | Accessors return `null` and log distinctly rather than silently skipping                              |
+| Risk                                                                                              | Mitigation                                                                                                                  |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Double grant on deploy from a changed period key                                                  | §3 dual-key probe; ledger audit in the pre-deploy checklist                                                                 |
+| Double grant from old/new revision overlap during deploy (probe is check-then-act across keys)    | §3 residual hazard: cycle lock or canonical key, decided and tested at implementation                                       |
+| Credit delivery stops during the destination cutover                                              | §4 tolerant readers deployed first; dual signing secret; old destination disabled rather than deleted                       |
+| Duplicate deliveries while both destinations are live                                             | Same event id to both; existing event dedupe drops the second                                                               |
+| `subscription_create` path was never exercised, so initial-purchase grants are newly written code | Explicit fixtures for both billing reasons; step-2 verification with a real event                                           |
+| A future Stripe version drifts the shape again                                                    | Accessors return `null` and log distinctly rather than silently skipping; explicit pin fails typecheck on an SDK major bump |
+| Endpoint flip breaks refund handling (`Charge.invoice` removed in basil)                          | §1 `getChargeInvoiceId`; dual-shape refund tests; post-flip test-mode refund check                                          |
+| Paid invoice arrives before the user is resolvable and the grant is lost                          | §2 throw → 500 → Stripe retry; existing unmark-on-error path                                                                |
 
 ## Open questions
 
 1. Should credits already granted for unpaid periods be reconciled? Default per non-goals: no.
-2. Trial credit policy — deferred, see non-goals.
-3. ~~Pin `apiVersion` explicitly at client construction?~~ **Decided: yes.** After step 3, construct the
-   client as `new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia' })`. Implicit SDK versioning is the
-   direct cause of Defect 2; an explicit pin turns a payload-shape change into a deliberate, reviewable
-   edit rather than a side effect of a Dependabot bump. Note the literal includes the `.dahlia` suffix —
-   the SDK's `ApiVersion` constant and its TypeScript types expect the full string, and a bare
-   `'2026-07-29'` will not typecheck. The pin must name the same version the destination is set to, so
-   step 2 and this change move together.
+2. ~~Trial credit policy?~~ **Decided (2026-10-06): no grant during a trial.** The 30,000-Power
+   subscription grant waits for the first paid invoice. New accounts already receive the 5,000-Power
+   signup grant, which never expires (`getOrCreateDefaultSubscription`; amounts per
+   `2026-07-07-power-meter-credit-inflation-design.md`). That grant is the intended way to try the app.
+   Granting at trial start would let anyone who repeatedly opens and cancels trials collect 30,000 Power
+   each time without paying. With the paid invoice as the only grant path, no trial-specific code is needed.
+3. ~~Pin `apiVersion` explicitly at client construction?~~ **Decided: yes, in step 1** (revised
+   2026-10-06; the original draft deferred it to the follow-up PR). The drift this guards against already
+   happened once during review: #788 moved the SDK from dahlia to endive with no code change. Construct
+   **both** clients — `stripeWebhook.ts:251` and `purchasePackageStripe.ts:28` — with
+   `new Stripe(secretKey, { apiVersion: '2026-09-30.endive' })`, ideally through one shared factory so the
+   literal exists in one place. The literal must include the `.endive` suffix: `StripeConfig.apiVersion`
+   is typed as `LatestApiVersion`, the SDK's exact current version string. That typing is also the
+   tripwire. The next major SDK bump changes `LatestApiVersion`, the pinned literal stops typechecking,
+   and the Dependabot PR fails CI until someone deliberately re-reads this contract. Write the string to
+   match whatever the lockfile resolves at implementation time; if the SDK has moved again by then, check
+   its changelog for subscription, invoice, or charge shape changes first. The step-2 destination uses the
+   same string.
+4. ~~100%-discount invoices?~~ **Decided (2026-10-06): keep the `amount_paid > 0` guard; comps go
+   through the admin dashboard.** A subscriber on a fully discounted invoice (100% coupon or promotion
+   code) receives no automatic subscription grant. Comps for press and partners are issued as manual
+   grants from the admin dashboard, which needs no Stripe coupon and no webhook logic. We considered
+   exempting invoices that carry a 100% discount (detecting it from `invoice.discounts` and
+   `total_discount_amounts`) and rejected it for now. It would add a second grant condition to the
+   payment-authorization path this spec exists to simplify. It also creates a new free-credit path:
+   anyone holding a leaked or shared 100% code could collect 30,000 Power every cycle with no payment.
+   **Operational rule:** do not issue 100%-off Stripe promotion codes expecting them to carry Power. If
+   comps ever need to run through Stripe at volume, revisit this with an allowlist of specific coupon
+   ids, not "any 100% discount."
