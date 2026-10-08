@@ -295,7 +295,10 @@ describe('drawer terms gate decline (issue #810)', () => {
 
     expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
     expect(mockRecordTermsDecline).toHaveBeenCalledTimes(1)
-    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'DECLINE_TERMS' })
+    expect(mockTermsService.send).toHaveBeenCalledWith({
+      type: 'DECLINE_TERMS',
+      windowEnd: expect.any(String),
+    })
     expect(mockShowAlert).toHaveBeenCalledWith(
       'Terms declined',
       expect.stringContaining('keep using Clanker under the previous Terms'),

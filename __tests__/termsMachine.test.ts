@@ -163,11 +163,12 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
 
-    actor.send({ type: 'DECLINE_TERMS' })
+    const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
 
     // Not blocked anymore, but NOT accepted either
     expect(actor.getSnapshot().matches('accepted')).toBe(true)
-    expect(actor.getSnapshot().context.declined).toBe(true)
+    expect(actor.getSnapshot().context.declinedUntil).toBe(windowEnd)
     // Decline records no acceptance with the backend
     expect(mockAcceptTermsFn).not.toHaveBeenCalled()
     // Stored termsVersion stays stale — enforcement relies on it at next check
@@ -192,7 +193,8 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     } as any)
 
     await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
-    expect(actor.getSnapshot().context.declined).toBe(true)
+    // Suppression came from the persisted record, not a session decline
+    expect(actor.getSnapshot().context.declinedUntil).toBeNull()
     actor.stop()
   })
 
@@ -234,6 +236,57 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     } as any)
 
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    actor.stop()
+  })
+
+  it('an in-session decline keeps suppressing re-checks even when the KV record is missing', async () => {
+    // Simulates a failed recordTermsDecline persistence: storage has no record, so only
+    // the session window (declinedUntil) can suppress.
+    mockStorageGetItemSync.mockReturnValue(null)
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    const staleAuthState = signedInAuthState('u1', {
+      termsVersion: '2.3',
+      termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+    })
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
+    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+
+    // A later in-session re-check (auth snapshot change) stays suppressed until the window ends
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    actor.stop()
+  })
+
+  it('resumes blocking at an in-session re-check once the decline window has expired', async () => {
+    // Regression (review finding on PR #811): a session decline flag that never expires
+    // kept the app unblocked until restart; enforcement must resume without a relaunch.
+    mockStorageGetItemSync.mockReturnValue(null)
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    const staleAuthState = signedInAuthState('u1', {
+      termsVersion: '2.3',
+      termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+    })
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    const expiredWindow = new Date(Date.now() - 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd: expiredWindow } as any)
+    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+
+    // Next re-check after the window: blocking resumes in the same session
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.isUpdate).toBe(true)
     actor.stop()
   })
 })

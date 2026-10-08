@@ -9,23 +9,26 @@ export interface TermsMachineContext {
   subscription: SubscriptionSnapshot | null
   isUpdate: boolean
   error: Error | null
-  declined: boolean
+  // Session fallback for a decline whose KV record could not be persisted: the window end
+  // carried by DECLINE_TERMS. Unlike a bare boolean it expires with the window, so an
+  // in-session re-check after the window resumes blocking without an app restart.
+  declinedUntil: string | null
 }
 
 export type TermsMachineEvents =
   | { type: 'AUTH_STATE_CHANGED'; authState: any }
   | { type: 'ACCEPT_TERMS'; isUpdate?: boolean }
-  | { type: 'DECLINE_TERMS' }
+  | { type: 'DECLINE_TERMS'; windowEnd: string }
   | { type: 'REJECT_TERMS' }
 
 // Terms declined (ToS §12.19 option [B], notice-then-enforce): a declining user keeps access
 // under the previously accepted Terms until the end of the period they already paid for. The
 // decline record is deliberately NOT an acceptance — subscription.termsVersion stays stale, so
 // once the suppression window ends the normal version check re-prompts and accepting is required
-// to renew. The caller derives the window from subscription.nextExpiryDate when billing provides
-// one, else a 24h fallback from decline (documented approximation — see issue #810). The fallback
-// window constant lives with the decline-notice callers in app/(drawer)/_layout.tsx and
-// app/(drawer)/accept-terms.tsx.
+// to renew. The window is derived from subscription.nextExpiryDate when billing provides one,
+// else a 24h fallback from decline (documented approximation — see issue #810). The shared
+// decline-notice helper (window derivation, record, event, notice copy) lives in
+// src/utilities/termsDecline.ts, used by both decline-notice callers.
 const TERMS_DECLINE_KEY = 'terms:declined'
 
 interface TermsDeclineRecord {
@@ -53,6 +56,11 @@ function hasActiveDecline(): boolean {
   }
 }
 
+// Session-only fallback window (see TermsMachineContext.declinedUntil). NaN parses fail closed.
+function hasActiveSessionDecline(context: TermsMachineContext): boolean {
+  return context.declinedUntil !== null && Date.parse(context.declinedUntil) > Date.now()
+}
+
 export const termsMachine = createMachine(
   {
     id: 'termsMachine',
@@ -65,7 +73,7 @@ export const termsMachine = createMachine(
       subscription: null,
       isUpdate: false,
       error: null,
-      declined: false,
+      declinedUntil: null,
     } as TermsMachineContext,
     on: {
       AUTH_STATE_CHANGED: [
@@ -78,7 +86,12 @@ export const termsMachine = createMachine(
         },
         {
           target: '.idle',
-          actions: assign({ subscription: null, isUpdate: false, error: null, declined: false }),
+          actions: assign({
+            subscription: null,
+            isUpdate: false,
+            error: null,
+            declinedUntil: null,
+          }),
         },
       ],
     },
@@ -94,15 +107,17 @@ export const termsMachine = createMachine(
                 sub !== null && sub.termsVersion === TERMS.version && sub.termsAcceptedAt !== null
               )
             },
-            actions: assign({ isUpdate: false, error: null, declined: false }),
+            actions: assign({ isUpdate: false, error: null, declinedUntil: null }),
           },
           {
             target: 'accepted',
             // Declined-not-accepted: suppress the blocking surface while the active decline
-            // window runs (paid period end, or the 24h fallback). The stored termsVersion
-            // stays stale, so the next check after the window resumes blocking.
-            guard: ({ context }) => context.declined || hasActiveDecline(),
-            actions: assign({ isUpdate: false, error: null, declined: true }),
+            // window runs (paid period end, or the 24h fallback) — either the persisted
+            // record or the session fallback window governs, and both expire with the
+            // window. The stored termsVersion stays stale, so the next check after the
+            // window resumes blocking without an app restart.
+            guard: ({ context }) => hasActiveDecline() || hasActiveSessionDecline(context),
+            actions: assign({ isUpdate: false, error: null }),
           },
           {
             target: 'acceptanceRequired',
@@ -130,8 +145,9 @@ export const termsMachine = createMachine(
             // 'accepted' here means "not blocked right now" — the decline record keeps
             // subscription.termsVersion untouched (still the stale prior version), so
             // enforcement resumes at the next acceptance check after the window ends.
+            // windowEnd seeds the session fallback in case the KV record failed to persist.
             actions: assign({
-              declined: true,
+              declinedUntil: ({ event }) => event.windowEnd,
               error: null,
             }),
           },
@@ -143,7 +159,8 @@ export const termsMachine = createMachine(
           src: 'recordTermsAcceptance',
           onDone: {
             target: 'accepted',
-            actions: 'logTermsAccepted',
+            // A real acceptance supersedes any session decline window.
+            actions: [assign({ declinedUntil: null }), 'logTermsAccepted'],
           },
           onError: {
             target: 'acceptanceRequired',
@@ -180,10 +197,7 @@ export const termsMachine = createMachine(
  * at this moment and until when the blocking surface should stay suppressed. windowEnd comes
  * from the subscription's current period end when billing provides one, else 24h from now.
  */
-export function recordTermsDecline(
-  windowEnd: string,
-  declinedAt: Date = new Date(),
-): void {
+export function recordTermsDecline(windowEnd: string, declinedAt: Date = new Date()): void {
   try {
     const record: TermsDeclineRecord = {
       termsVersion: TERMS.version,
@@ -192,8 +206,9 @@ export function recordTermsDecline(
     }
     Storage.setItemSync(TERMS_DECLINE_KEY, JSON.stringify(record))
   } catch {
-    // Best-effort: if persistence fails, decline behaves like a session-only grace
-    // (blocking resumes on next launch) rather than an error the user must handle.
+    // Best-effort: if persistence fails, decline behaves like a session-only grace — the
+    // in-memory declinedUntil window still suppresses until it expires, and blocking resumes
+    // at the next acceptance check after that (or on next launch) rather than erroring.
   }
 }
 

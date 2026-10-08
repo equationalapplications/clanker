@@ -16,10 +16,8 @@ import { showAlert } from '~/utilities/showAlert'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
-import {
-  recordTermsDecline,
-  clearTermsDecline,
-} from '~/machines/termsMachine'
+import { clearTermsDecline } from '~/machines/termsMachine'
+import { handleTermsDecline } from '~/utilities/termsDecline'
 import { PowerMeter } from '~/components/PowerMeter'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -110,26 +108,10 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
-  // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): the user is NOT signed
-  // out and keeps access under the previously accepted Terms. We record declined-not-accepted
-  // (subscription.termsVersion is untouched) so the blocking surface resumes at the next
-  // acceptance check after the paid period ends (24h fallback when billing gives no period end).
-  const handleDeclined = () => {
-    const subscription = termsService.getSnapshot().context.subscription
-    const periodEnd = subscription?.nextExpiryDate ?? null
-    const now = new Date()
-    const parsed = periodEnd ? Date.parse(periodEnd) : NaN
-    const windowEnd =
-      !Number.isNaN(parsed) && parsed > now.getTime()
-        ? periodEnd as string
-        : new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
-    recordTermsDecline(windowEnd, now)
-    termsService.send({ type: 'DECLINE_TERMS' })
-    showAlert(
-      'Terms declined',
-      "You can keep using Clanker under the previous Terms until the end of the period you've already paid for. Your next renewal requires accepting the updated Terms — you can also cancel before renewal in your account or store settings.",
-    )
-  }
+  // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): no sign-out, keep
+  // paid access until the decline window ends. Shared with the accept-terms screen in
+  // src/utilities/termsDecline.ts so the window rule and notice copy cannot drift.
+  const handleDeclined = () => handleTermsDecline(termsService)
 
   const {
     verifyAge,

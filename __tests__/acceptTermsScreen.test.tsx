@@ -34,7 +34,10 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockUseLocalSearchParams(),
 }))
 
-const mockTermsService = { send: jest.fn(), getSnapshot: jest.fn(() => ({ context: { subscription: null } })) }
+const mockTermsService = {
+  send: jest.fn(),
+  getSnapshot: jest.fn(() => ({ context: { subscription: null } })),
+}
 const mockAuthService = { send: jest.fn() }
 
 jest.mock('~/hooks/useMachines', () => ({
@@ -166,7 +169,10 @@ describe('accept-terms screen', () => {
 
     // Decline keeps paid access (issue #810): no SIGN_OUT; DECLINE_TERMS + notice instead
     expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
-    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'DECLINE_TERMS' })
+    expect(mockTermsService.send).toHaveBeenCalledWith({
+      type: 'DECLINE_TERMS',
+      windowEnd: expect.any(String),
+    })
     expect(mockShowAlert).toHaveBeenCalledWith(
       'Terms declined',
       expect.stringContaining('keep using Clanker under the previous Terms'),
