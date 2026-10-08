@@ -411,6 +411,59 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     actor.stop()
   })
 
+  it('a real acceptance clears the persisted decline record', async () => {
+    // Review thread on PR #811 (concurrency hazard): a record left behind after a later
+    // acceptance must never suppress — or resurrect blocking at — a subsequent check.
+    // The machine clears it on onDone, independent of the layout effect. (The record here
+    // is already expired — an active one would have suppressed the prompt — but onDone
+    // must wipe whatever is on disk.)
+    mockAcceptTermsFn.mockResolvedValue({ data: { success: true } })
+    const past = new Date(Date.now() - 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: past }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'ACCEPT_TERMS' })
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+
+    expect(mockStorageSetItemSync).toHaveBeenCalledWith('terms:declined', '')
+    actor.stop()
+  })
+
+  it('a genuine acceptance wins over a still-active decline record at the next check', async () => {
+    // Review thread on PR #811: even if the record clear is missed (best-effort KV write),
+    // the accepted-guard runs before the decline-guard, so a server-recorded acceptance is
+    // never re-blocked by a stale record.
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: future }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: TERMS.version,
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    actor.stop()
+  })
+
   it('a DECLINE_TERMS arriving during the acceptance write is consumed, not acted on', async () => {
     // Regression (review finding on PR #811): the cancel button is disabled while
     // accepting, but a non-UI sender could still deliver DECLINE_TERMS mid-write.

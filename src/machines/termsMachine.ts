@@ -220,8 +220,10 @@ export const termsMachine = createMachine(
           src: 'recordTermsAcceptance',
           onDone: {
             target: 'accepted',
-            // A real acceptance supersedes any session decline window.
-            actions: [assign({ declinedUntil: null }), 'logTermsAccepted'],
+            // A real acceptance supersedes any decline window AND record — cleared here at
+            // the machine level (not only via the layout effect) so a stale record can
+            // never suppress re-blocking after acceptance (review thread on PR #811).
+            actions: [assign({ declinedUntil: null }), 'clearDeclineRecord', 'logTermsAccepted'],
           },
           onError: {
             target: 'acceptanceRequired',
