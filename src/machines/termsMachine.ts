@@ -88,7 +88,10 @@ export const termsMachine = createMachine(
           target: '.idle',
           // Sign-out also drops the persisted decline record: it must not leak the
           // suppression window to a different account on the same device.
-          actions: [assign({ subscription: null, isUpdate: false, error: null, declinedUntil: null }), 'clearDeclineRecord'],
+          actions: [
+            assign({ subscription: null, isUpdate: false, error: null, declinedUntil: null }),
+            'clearDeclineRecord',
+          ],
         },
       ],
     },
