@@ -1,3 +1,19 @@
+## [33.3.6](https://github.com/equationalapplications/clanker/compare/v33.3.5...v33.3.6) (2026-10-08)
+
+
+### Bug Fixes
+
+* **terms:** cap decline re-check timer; route legacy cancels through the age gate ([5195d23](https://github.com/equationalapplications/clanker/commit/5195d230b6149e13602b5a396e1b4764453dba5f)), closes [#812](https://github.com/equationalapplications/clanker/issues/812)
+* **terms:** clear the decline record when an acceptance lands ([bacd62c](https://github.com/equationalapplications/clanker/commit/bacd62c63d33bb7bb90f28fb46b132b8fe6c5f7c)), closes [#811](https://github.com/equationalapplications/clanker/issues/811)
+* **terms:** consume DECLINE_TERMS in-place during the acceptance write ([ee3192a](https://github.com/equationalapplications/clanker/commit/ee3192a48cc6f308cdb4b67c9abf0044e972b7f3))
+* **terms:** decline keeps paid access, notice-then-enforce (issue [#810](https://github.com/equationalapplications/clanker/issues/810)) ([6d57c00](https://github.com/equationalapplications/clanker/commit/6d57c00a9191a4db21ed3ed4c9447843c7cfda0a))
+* **terms:** decline rests in distinct state, never records acceptance ([d0c0e46](https://github.com/equationalapplications/clanker/commit/d0c0e46dce382dcb5344102459078b684a2b5d89)), closes [#811](https://github.com/equationalapplications/clanker/issues/811)
+* **terms:** decline window expires in-session; extract shared decline helper ([c0cd805](https://github.com/equationalapplications/clanker/commit/c0cd805003948822d84e40dff046985d410fa184)), closes [#811](https://github.com/equationalapplications/clanker/issues/811)
+* **terms:** keep declined users in the drawer; share one cancel policy ([03e1c3c](https://github.com/equationalapplications/clanker/commit/03e1c3ca2131c4fc9491d53174e801d4f6bc5c84)), closes [#811](https://github.com/equationalapplications/clanker/issues/811)
+* **terms:** keep the decline record across launches; decline never becomes acceptance ([3c28351](https://github.com/equationalapplications/clanker/commit/3c2835114c1903e7796564d1ba9bc76bb901adce))
+* **terms:** route terms dialogs through showAlert (Alert no-ops on web) ([648dc81](https://github.com/equationalapplications/clanker/commit/648dc810cb0e9cedf9b015603874dce19f10f9a7))
+* **terms:** scope declines to the account; expire the window in-session ([b9ec264](https://github.com/equationalapplications/clanker/commit/b9ec2641bd0b3342eb9998571b94dfa3c1bd8b5c)), closes [#811](https://github.com/equationalapplications/clanker/issues/811)
+
 ## [33.3.5](https://github.com/equationalapplications/clanker/compare/v33.3.4...v33.3.5) (2026-10-07)
 
 
