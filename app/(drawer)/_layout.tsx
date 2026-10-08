@@ -17,7 +17,7 @@ import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
 import { clearTermsDecline } from '~/machines/termsMachine'
-import { handleTermsDecline } from '~/utilities/termsDecline'
+import { handleTermsCanceled } from '~/utilities/termsDecline'
 import { PowerMeter } from '~/components/PowerMeter'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -77,6 +77,7 @@ const AppLayout = () => {
     termsAccepted,
     termsBlocking,
     termsLoading,
+    termsDeclined,
     isUpdate,
     previousTermsVersion,
     accepting,
@@ -85,6 +86,10 @@ const AppLayout = () => {
     termsAccepted: state.matches('accepted'),
     termsBlocking: state.matches('acceptanceRequired'),
     termsLoading: state.matches('idle') || state.matches('checking'),
+    // Resting in 'declined' (notice-then-enforce) keeps the app unblocked: the user still
+    // uses Clanker, so drawer navigation — including Subscribe to renew and re-accept —
+    // must stay visible (issue #810).
+    termsDeclined: state.matches('declined'),
     isUpdate: state.context.isUpdate,
     previousTermsVersion: state.context.subscription?.termsVersion ?? null,
     accepting: state.matches('accepting'),
@@ -108,18 +113,9 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
-  // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): no sign-out, keep
-  // paid access until the decline window ends. Shared with the accept-terms screen in
-  // src/utilities/termsDecline.ts so the window rule and notice copy cannot drift.
-  // First-time acceptances (isUpdate=false) have no "previously accepted Terms" to fall
-  // back on, so declining there still signs the user out.
-  const handleDeclined = () => {
-    if (isUpdate) {
-      handleTermsDecline(termsService)
-    } else {
-      authService.send({ type: 'SIGN_OUT' })
-    }
-  }
+  // Decline vs sign-out policy shared with the accept-terms screen in
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers.
+  const handleDeclined = () => handleTermsCanceled(termsService, authService)
 
   const {
     verifyAge,
@@ -183,7 +179,9 @@ const AppLayout = () => {
             onAccepted={retryPlayVerification}
             onCanceled={handleDeclined}
             isUpdate={isUpdate}
-            accepting={isVerifying}
+            // Same disabled-during-write contract as the branch below: a decline confirmed
+            // mid-write would persist a record for an acceptance that is about to succeed.
+            accepting={accepting || isVerifying}
           />
         </View>
       )
@@ -215,7 +213,8 @@ const AppLayout = () => {
       drawerContent={(props) => (
         <DrawerContentScrollView {...props}>
           <DrawerItemList {...props} />
-          {termsAccepted ? (
+          {/* Declining keeps access (issue #810), so Support stays available then too. */}
+          {termsAccepted || termsDeclined ? (
             <DrawerItem
               label="Support"
               icon={({ color, size }) => (
@@ -251,17 +250,19 @@ const AppLayout = () => {
         headerRight: () => <PowerMeter />,
       })}
     >
+      {/* Declining keeps access (issue #810): drawer navigation stays visible while the
+          decline window runs, so the user can reach Subscribe to renew and re-accept. */}
       <Drawer.Screen
         name="(tabs)"
-        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
       />
       <Drawer.Screen
         name="profile"
-        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
       />
       <Drawer.Screen
         name="settings"
-        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
       />
       <Drawer.Screen
         name="accept-terms"
@@ -272,7 +273,7 @@ const AppLayout = () => {
       />
       <Drawer.Screen
         name="subscribe"
-        options={termsAccepted ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
       />
     </Drawer>
   )

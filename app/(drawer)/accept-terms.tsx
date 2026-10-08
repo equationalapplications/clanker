@@ -1,25 +1,27 @@
 import { useEffect } from 'react'
-import { StyleSheet, View, Alert } from 'react-native'
-import { useLocalSearchParams, router } from 'expo-router'
+import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
 import { AcceptTerms } from '~/components/AcceptTerms'
 import { ManualDobPicker } from '~/components/ManualDobPicker'
 import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
 import { useAgeVerification } from '~/hooks/useAgeVerification'
+import { showAlert } from '~/utilities/showAlert'
 import { TERMS } from '~/config/termsConfig'
-import { handleTermsDecline } from '~/utilities/termsDecline'
+import { handleTermsCanceled } from '~/utilities/termsDecline'
 
 export default function AcceptTermsScreen() {
-  const params = useLocalSearchParams()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
-  const isUpdate = params.isUpdate === 'true'
-
-  const { accepted, declined, accepting, error } = useSelector(termsService, (state) => ({
+  // From the machine context, NOT search params (finding: a deep link could pass a crafted
+  // ?isUpdate=true on a first-run account — or drop it during an update prompt — and the
+  // two decline surfaces would disagree with the drawer gate's machine-derived value).
+  const { accepted, declined, accepting, isUpdate, error } = useSelector(termsService, (state) => ({
     accepted: state.matches('accepted'),
     declined: state.matches('declined'),
     accepting: state.matches('accepting'),
+    isUpdate: state.context.isUpdate,
     error: state.context.error,
   }))
 
@@ -47,7 +49,7 @@ export default function AcceptTermsScreen() {
   }
 
   const handleRejectedMinor = () => {
-    Alert.alert('Age Restriction', 'This app is for users 18 and older.')
+    showAlert('Age Restriction', 'This app is for users 18 and older.')
     authService.send({ type: 'SIGN_OUT' })
   }
 
@@ -58,25 +60,16 @@ export default function AcceptTermsScreen() {
 
   useEffect(() => {
     if (showDobPicker && error) {
-      Alert.alert(
+      showAlert(
         'Error',
         `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
       )
     }
   }, [showDobPicker, error])
 
-  // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): no sign-out, keep
-  // paid access until the decline window ends. Shared with the drawer gate in
-  // src/utilities/termsDecline.ts so the window rule and notice copy cannot drift.
-  // First-time acceptances (isUpdate=false) have no "previously accepted Terms" to fall
-  // back on, so declining there still signs the user out.
-  const handleCanceled = () => {
-    if (isUpdate) {
-      handleTermsDecline(termsService)
-    } else {
-      authService.send({ type: 'SIGN_OUT' })
-    }
-  }
+  // Decline vs sign-out policy shared with the drawer gate in
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers.
+  const handleCanceled = () => handleTermsCanceled(termsService, authService)
 
   if (showDobPicker) {
     return (

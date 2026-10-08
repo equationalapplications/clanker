@@ -2,11 +2,14 @@ import React from 'react'
 import renderer from 'react-test-renderer'
 
 const mockRouterReplace = jest.fn()
-const mockUseLocalSearchParams = jest.fn()
 const mockShowAlert = jest.fn()
 
 jest.mock('~/utilities/showAlert', () => ({
   showAlert: (...args: unknown[]) => mockShowAlert(...args),
+}))
+
+jest.mock('~/services/analyticsService', () => ({
+  logEvent: jest.fn(),
 }))
 
 jest.mock('~/machines/termsMachine', () => {
@@ -21,12 +24,20 @@ jest.mock('expo-router', () => ({
   router: {
     replace: (...args: unknown[]) => mockRouterReplace(...args),
   },
-  useLocalSearchParams: () => mockUseLocalSearchParams(),
 }))
 
 const mockTermsService = {
   send: jest.fn(),
-  getSnapshot: jest.fn(() => ({ context: { subscription: null } })),
+  getSnapshot: jest.fn(() => ({
+    context: {
+      subscription:
+        currentSnapshot?.termsVersion === undefined
+          ? null
+          : { termsVersion: currentSnapshot.termsVersion },
+      isUpdate: currentSnapshot?.isUpdate ?? false,
+      userUid: 'firebase-u1',
+    },
+  })),
 }
 const mockAuthService = { send: jest.fn() }
 
@@ -80,10 +91,18 @@ type TermsSnapshot = {
   accepted: boolean
   declined?: boolean
   accepting: boolean
+  isUpdate?: boolean
+  // subscription.termsVersion, mirrored into the mock actor snapshot
+  termsVersion?: string | null
   error: Error | null
 }
 
+// The cancel policy reads the actor snapshot (context.isUpdate / subscription / userUid),
+// so the mock getSnapshot mirrors whatever setTermsSnapshot last installed.
+let currentSnapshot: TermsSnapshot | null = null
+
 function setTermsSnapshot(snapshot: TermsSnapshot) {
+  currentSnapshot = snapshot
   mockUseSelector.mockImplementation((_: unknown, selector: (state: unknown) => unknown) => {
     const state = {
       matches: (value: string) => {
@@ -93,6 +112,7 @@ function setTermsSnapshot(snapshot: TermsSnapshot) {
         return false
       },
       context: {
+        isUpdate: snapshot.isUpdate ?? false,
         error: snapshot.error,
       },
     }
@@ -107,7 +127,7 @@ describe('accept-terms screen', () => {
     mockLastAcceptTermsProps = null
     mockShowDobPicker = false
     mockManualDobPickerRendered = false
-    mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'false' })
+    currentSnapshot = null
     setTermsSnapshot({ accepted: false, accepting: false, error: null })
   })
 
@@ -146,7 +166,9 @@ describe('accept-terms screen', () => {
   })
 
   it('sends ACCEPT_TERMS with isUpdate=true from the child callback', () => {
-    mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'true' })
+    // isUpdate comes from the machine context (finding: search params are client-craftable
+    // and could disagree with the drawer gate's machine-derived value)
+    setTermsSnapshot({ accepted: false, accepting: false, isUpdate: true, error: null })
 
     const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
 
@@ -164,7 +186,7 @@ describe('accept-terms screen', () => {
   })
 
   it('shows the decline notice without signing out from the child cancel callback', () => {
-    mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'true' })
+    setTermsSnapshot({ accepted: false, accepting: false, isUpdate: true, error: null })
 
     const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
 
