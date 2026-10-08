@@ -17,7 +17,7 @@ import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
 import { clearTermsDecline } from '~/machines/termsMachine'
-import { handleTermsCanceled } from '~/utilities/termsDecline'
+import { handleTermsCanceled, termsAgeAlreadyVerified } from '~/utilities/termsDecline'
 import { PowerMeter } from '~/components/PowerMeter'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -32,27 +32,9 @@ const HIDDEN_DRAWER_SCREEN_OPTIONS = {
   drawerItemStyle: { display: 'none' as const },
 }
 
-// First Terms version that can only have been accepted through the age gate. The gate shipped
-// while TERMS.version (termsConfig.ts) was '2.4', and 2.4 was also accepted by pre-gate accounts,
-// so the next bump ('2.5') is the first trusted version. Deliberately NOT bumped here: forcing
-// every account to re-accept is a product/legal call. Until the next Terms bump, 2.4 accounts stay
-// accepted; on that bump they run the age check (post-gate 2.4 signups are re-checked too, which
-// is redundant but fail-safe).
-const FIRST_AGE_GATED_TERMS_VERSION = '2.5'
-
-// Compares [major, minor] numerically. Accepts only complete, recognized terms-version
-// values (e.g. "2.5", "2.10"); malformed strings such as "2.5-beta" or "2.5garbage"
-// fail closed (force age check) rather than silently matching the "2.5" prefix.
-function isAtLeastVersion(version: string | null | undefined, minimum: string): boolean {
-  const parse = (v: string) => {
-    const match = /^(\d+)\.(\d+)$/.exec(v)
-    return match ? [Number(match[1]), Number(match[2])] : null
-  }
-  const actual = version ? parse(version) : null
-  const required = parse(minimum)
-  if (!actual || !required) return false
-  return actual[0] !== required[0] ? actual[0] > required[0] : actual[1] >= required[1]
-}
+// First Terms version that can only have been accepted through the age gate lives in
+// src/utilities/termsDecline.ts (FIRST_AGE_GATED_TERMS_VERSION) so acceptance and
+// cancellation cannot drift on the rule.
 
 function DrawerToggleButton({ tintColor }: { tintColor?: ColorValue }) {
   const navigation = useNavigation()
@@ -113,10 +95,6 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
-  // Decline vs sign-out policy shared with the accept-terms screen in
-  // src/utilities/termsDecline.ts so the rule cannot drift between callers.
-  const handleDeclined = () => handleTermsCanceled(termsService, authService)
-
   const {
     verifyAge,
     isVerifying,
@@ -132,13 +110,18 @@ const AppLayout = () => {
     },
   })
 
+  // Decline vs sign-out policy shared with the accept-terms screen in
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers. An update
+  // cancel by a legacy (pre-age-gate) account routes through verifyAge (PR #812 review).
+  const handleDeclined = () => handleTermsCanceled(termsService, authService, verifyAge)
+
   // Re-acceptance skip rule: there is no dedicated age-verification record, so the age check is
   // skipped ONLY when this is a re-acceptance (termsMachine `isUpdate`) AND the previously
   // accepted version (subscription.termsVersion) is >= FIRST_AGE_GATED_TERMS_VERSION, i.e. it
   // was accepted through the age gate. Legacy accounts (accepted before the gate existed) and
-  // new accounts must complete the age flow first.
-  const ageAlreadyVerified =
-    isUpdate && isAtLeastVersion(previousTermsVersion, FIRST_AGE_GATED_TERMS_VERSION)
+  // new accounts must complete the age flow first. Shared with the cancel path via
+  // termsAgeAlreadyVerified in src/utilities/termsDecline.ts.
+  const ageAlreadyVerified = termsAgeAlreadyVerified(isUpdate, previousTermsVersion)
   const handleAccepted = ageAlreadyVerified ? acceptTerms : verifyAge
 
   // The DOB picker replaces AcceptTerms, which would otherwise surface the error inline.

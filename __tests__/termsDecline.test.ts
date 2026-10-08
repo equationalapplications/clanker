@@ -115,11 +115,14 @@ describe('handleTermsCanceled (finding: one cancel policy, two surfaces)', () =>
     jest.clearAllMocks()
   })
 
-  function service(isUpdate: boolean) {
+  function service(isUpdate: boolean, termsVersion: string | null) {
     return {
       getSnapshot: () => ({
         context: {
-          subscription: { nextExpiryDate: '2026-10-20T00:00:00.000Z' },
+          subscription:
+            termsVersion === null
+              ? null
+              : { termsVersion, nextExpiryDate: '2026-10-20T00:00:00.000Z' },
           userUid: 'firebase-u1',
           isUpdate,
         },
@@ -128,13 +131,57 @@ describe('handleTermsCanceled (finding: one cancel policy, two surfaces)', () =>
     }
   }
 
-  it('routes an update decline to notice-then-enforce', () => {
-    const termsService = service(true)
+  it('routes an eligible update decline to notice-then-enforce, skipping the age gate', () => {
+    const termsService = service(true, '2.5')
     const authService = { send: jest.fn() }
+    const verifyAge = jest.fn()
 
-    handleTermsCanceled(termsService as any, authService as any)
+    handleTermsCanceled(termsService as any, authService as any, verifyAge)
 
+    expect(verifyAge).not.toHaveBeenCalled()
     expect(authService.send).not.toHaveBeenCalled()
+    expect(mockRecordTermsDecline).toHaveBeenCalledWith(
+      expect.any(String),
+      'firebase-u1',
+      expect.any(Date),
+    )
+    expect(termsService.send).toHaveBeenCalledWith({
+      type: 'DECLINE_TERMS',
+      windowEnd: expect.any(String),
+    })
+  })
+
+  it.each([
+    ['a pre-gate version', '2.4'],
+    ['an older version', '1.9'],
+    ['no previous version', null],
+    ['a malformed version', 'garbage'],
+    ['a suffixed version', '2.5-beta'],
+  ])('routes a legacy update decline (%s) through the age gate instead', (_label, termsVersion) => {
+    // CodeRabbit round on PR #812: declining straight into notice-then-enforce would let
+    // an account that accepted terms BEFORE the age gate keep access without ever
+    // reaching the age-rejection path. Same rule as acceptance, fail closed.
+    const termsService = service(true, termsVersion)
+    const authService = { send: jest.fn() }
+    const verifyAge = jest.fn()
+
+    handleTermsCanceled(termsService as any, authService as any, verifyAge)
+
+    expect(verifyAge).toHaveBeenCalledTimes(1)
+    expect(termsService.send).not.toHaveBeenCalled()
+    expect(mockRecordTermsDecline).not.toHaveBeenCalled()
+    expect(mockShowAlert).not.toHaveBeenCalled()
+    expect(authService.send).not.toHaveBeenCalled()
+  })
+
+  it.each(['2.10', '3.0'])('treats a previous version of %s as age-verified', (termsVersion) => {
+    const termsService = service(true, termsVersion)
+    const authService = { send: jest.fn() }
+    const verifyAge = jest.fn()
+
+    handleTermsCanceled(termsService as any, authService as any, verifyAge)
+
+    expect(verifyAge).not.toHaveBeenCalled()
     expect(termsService.send).toHaveBeenCalledWith({
       type: 'DECLINE_TERMS',
       windowEnd: expect.any(String),
@@ -142,12 +189,14 @@ describe('handleTermsCanceled (finding: one cancel policy, two surfaces)', () =>
   })
 
   it('signs a first-time decline out (no prior Terms to fall back on)', () => {
-    const termsService = service(false)
+    const termsService = service(false, null)
     const authService = { send: jest.fn() }
+    const verifyAge = jest.fn()
 
-    handleTermsCanceled(termsService as any, authService as any)
+    handleTermsCanceled(termsService as any, authService as any, verifyAge)
 
     expect(authService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(verifyAge).not.toHaveBeenCalled()
     expect(termsService.send).not.toHaveBeenCalled()
     expect(mockRecordTermsDecline).not.toHaveBeenCalled()
   })

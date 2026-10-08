@@ -569,4 +569,29 @@ describe('drawer terms gate age verification', () => {
     expect(acceptTermsCalls()).toHaveLength(0)
     expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
   })
+
+  it('routes a legacy account cancel through the age gate instead of declining', async () => {
+    // CodeRabbit round on PR #812: a cancel by an account whose previous Terms predate
+    // the age gate must reach the age-rejection path — declining straight into
+    // notice-then-enforce would keep access without any age check.
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 13, upperBound: 17 })
+    setTermsSnapshot(blockingSnapshot(true, '2.4'))
+    renderLayout()
+
+    await renderer.act(async () => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
+    )
+    expect(mockRecordTermsDecline).not.toHaveBeenCalled()
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      'Age Restriction',
+      'This app is for users 18 and older.',
+    )
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+  })
 })

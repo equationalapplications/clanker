@@ -38,6 +38,13 @@ const TERMS_DECLINE_KEY = 'terms:declined'
 // Fallback re-check cadence when a 'declined' window cannot be parsed into a delay.
 const TERMS_DECLINE_RECHECK_DELAY_MS = 60_000
 
+// setTimeout (browsers and React Native) treats a delay above the 32-bit signed limit as
+// overflow and fires ~immediately. A paid period can end more than ~24.8 days out (annual
+// plans), so the 'declined' after-delay is capped at the limit: each wake-up re-checks in
+// 'checking' and re-schedules for the remaining time instead of spinning the re-check loop
+// (CodeRabbit round on PR #812).
+const MAX_TIMER_DELAY_MS = 2_147_483_647
+
 interface TermsDeclineRecord {
   uid: string | null
   termsVersion: string
@@ -251,7 +258,7 @@ export const termsMachine = createMachine(
       declineWindowExpiry: ({ context }) => {
         const end = context.declinedUntil ? Date.parse(context.declinedUntil) : NaN
         if (Number.isNaN(end)) return TERMS_DECLINE_RECHECK_DELAY_MS
-        return Math.max(0, end - Date.now())
+        return Math.min(MAX_TIMER_DELAY_MS, Math.max(0, end - Date.now()))
       },
     },
     actions: {

@@ -265,6 +265,36 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     actor.stop()
   })
 
+  it('caps the decline re-check delay at the 32-bit timer limit (long paid period)', async () => {
+    // CodeRabbit round on PR #812: a window more than ~24.8 days out (annual plan) made
+    // the raw delay overflow setTimeout's 32-bit limit, which fires ~immediately and
+    // spun declined→checking→declined. The capped delay must keep the machine resting
+    // in 'declined' well past an overflowed timer's immediate fire.
+    mockStorageGetItemSync.mockReturnValue(null)
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({
+      type: 'DECLINE_TERMS',
+      windowEnd: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString(),
+    } as any)
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    expect(actor.getSnapshot().matches('declined')).toBe(true)
+    expect(actor.getSnapshot().matches('acceptanceRequired')).toBe(false)
+    actor.stop()
+  })
+
   it('decline suppression never satisfies the genuine-acceptance state', async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
     mockStorageGetItemSync.mockReturnValue(

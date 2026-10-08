@@ -68,8 +68,9 @@ export default function AcceptTermsScreen() {
   }, [showDobPicker, error])
 
   // Decline vs sign-out policy shared with the drawer gate in
-  // src/utilities/termsDecline.ts so the rule cannot drift between callers.
-  const handleCanceled = () => handleTermsCanceled(termsService, authService)
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers. An update
+  // cancel by a legacy (pre-age-gate) account routes through verifyAge (PR #812 review).
+  const handleCanceled = () => handleTermsCanceled(termsService, authService, verifyAge)
 
   if (showDobPicker) {
     return (

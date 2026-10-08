@@ -186,7 +186,15 @@ describe('accept-terms screen', () => {
   })
 
   it('shows the decline notice without signing out from the child cancel callback', () => {
-    setTermsSnapshot({ accepted: false, accepting: false, isUpdate: true, error: null })
+    // Age-gated previous version ('2.5'): the cancel policy skips the age gate and
+    // declines straight into notice-then-enforce (issue #810).
+    setTermsSnapshot({
+      accepted: false,
+      accepting: false,
+      isUpdate: true,
+      termsVersion: '2.5',
+      error: null,
+    })
 
     const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
 
@@ -210,6 +218,35 @@ describe('accept-terms screen', () => {
       'Terms declined',
       expect.stringContaining('keep using Clanker under the previous Terms'),
     )
+  })
+
+  it('routes a legacy account cancel through the age gate instead of declining', () => {
+    // CodeRabbit round on PR #812: an account whose previous Terms predate the age gate
+    // must run the age flow on cancel too — the hook mock wires verifyAge to onVerified,
+    // so reaching the gate means a verified adult then accepts instead of declining.
+    setTermsSnapshot({
+      accepted: false,
+      accepting: false,
+      isUpdate: true,
+      termsVersion: '2.4',
+      error: null,
+    })
+
+    const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
+
+    renderer.act(() => {
+      renderer.create(<AcceptTermsScreen />)
+    })
+
+    renderer.act(() => {
+      mockLastAcceptTermsProps?.onCanceled?.()
+    })
+
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
+    )
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'ACCEPT_TERMS', isUpdate: true })
   })
 
   it('declining a first-time acceptance still signs out (no prior Terms to fall back on)', () => {
