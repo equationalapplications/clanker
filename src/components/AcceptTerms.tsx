@@ -49,14 +49,10 @@ export function AcceptTerms({
   }
 
   const onPressCancel = () => {
-    const message = isUpdate
-      ? "If you don't accept the updated terms, you won't be able to use the app."
-      : 'Are you sure you want to cancel? You will need to sign out.'
-
-    Alert.alert(isUpdate ? 'Terms Required' : 'Cancel Registration', message, [
-      { text: isUpdate ? 'Review Again' : 'Continue Registration', style: 'cancel' },
+    Alert.alert('Decline Terms', 'Are you sure you want to decline?', [
+      { text: 'Review Again', style: 'cancel' },
       {
-        text: isUpdate ? 'Sign Out' : 'Sign Out',
+        text: 'Decline',
         style: 'destructive',
         onPress: () => {
           onCanceled?.()

@@ -2,18 +2,56 @@ import { createMachine, assign, fromPromise, ActorRefFrom } from 'xstate'
 import { TERMS } from '~/config/termsConfig'
 import { acceptTermsFn } from '~/services/apiClient'
 import { logEvent } from '~/services/analyticsService'
+import { Storage } from '~/utilities/kvStorage'
 import type { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
   subscription: SubscriptionSnapshot | null
   isUpdate: boolean
   error: Error | null
+  declined: boolean
 }
 
 export type TermsMachineEvents =
   | { type: 'AUTH_STATE_CHANGED'; authState: any }
   | { type: 'ACCEPT_TERMS'; isUpdate?: boolean }
+  | { type: 'DECLINE_TERMS' }
   | { type: 'REJECT_TERMS' }
+
+// Terms declined (ToS §12.19 option [B], notice-then-enforce): a declining user keeps access
+// under the previously accepted Terms until the end of the period they already paid for. The
+// decline record is deliberately NOT an acceptance — subscription.termsVersion stays stale, so
+// once the suppression window ends the normal version check re-prompts and accepting is required
+// to renew. The caller derives the window from subscription.nextExpiryDate when billing provides
+// one, else a 24h fallback from decline (documented approximation — see issue #810). The fallback
+// window constant lives with the decline-notice callers in app/(drawer)/_layout.tsx and
+// app/(drawer)/accept-terms.tsx.
+const TERMS_DECLINE_KEY = 'terms:declined'
+
+interface TermsDeclineRecord {
+  termsVersion: string
+  declinedAt: string
+  suppressUntil: string
+}
+
+function hasActiveDecline(): boolean {
+  try {
+    const raw = Storage.getItemSync(TERMS_DECLINE_KEY)
+    if (!raw) return false
+    const record = JSON.parse(raw) as Partial<TermsDeclineRecord> | null
+    if (
+      !record ||
+      record.termsVersion !== TERMS.version ||
+      typeof record.suppressUntil !== 'string'
+    ) {
+      return false
+    }
+    const suppressUntil = Date.parse(record.suppressUntil)
+    return !Number.isNaN(suppressUntil) && suppressUntil > Date.now()
+  } catch {
+    return false
+  }
+}
 
 export const termsMachine = createMachine(
   {
@@ -27,6 +65,7 @@ export const termsMachine = createMachine(
       subscription: null,
       isUpdate: false,
       error: null,
+      declined: false,
     } as TermsMachineContext,
     on: {
       AUTH_STATE_CHANGED: [
@@ -39,7 +78,7 @@ export const termsMachine = createMachine(
         },
         {
           target: '.idle',
-          actions: assign({ subscription: null, isUpdate: false, error: null }),
+          actions: assign({ subscription: null, isUpdate: false, error: null, declined: false }),
         },
       ],
     },
@@ -55,7 +94,15 @@ export const termsMachine = createMachine(
                 sub !== null && sub.termsVersion === TERMS.version && sub.termsAcceptedAt !== null
               )
             },
-            actions: assign({ isUpdate: false, error: null }),
+            actions: assign({ isUpdate: false, error: null, declined: false }),
+          },
+          {
+            target: 'accepted',
+            // Declined-not-accepted: suppress the blocking surface while the active decline
+            // window runs (paid period end, or the 24h fallback). The stored termsVersion
+            // stays stale, so the next check after the window resumes blocking.
+            guard: ({ context }) => context.declined || hasActiveDecline(),
+            actions: assign({ isUpdate: false, error: null, declined: true }),
           },
           {
             target: 'acceptanceRequired',
@@ -77,6 +124,16 @@ export const termsMachine = createMachine(
           ACCEPT_TERMS: {
             target: 'accepting',
             actions: assign({ error: null }),
+          },
+          DECLINE_TERMS: {
+            target: 'accepted',
+            // 'accepted' here means "not blocked right now" — the decline record keeps
+            // subscription.termsVersion untouched (still the stale prior version), so
+            // enforcement resumes at the next acceptance check after the window ends.
+            actions: assign({
+              declined: true,
+              error: null,
+            }),
           },
         },
       },
@@ -117,5 +174,35 @@ export const termsMachine = createMachine(
     },
   },
 )
+
+/**
+ * Persist a decline (best-effort, sync KV): records that the current Terms version was declined
+ * at this moment and until when the blocking surface should stay suppressed. windowEnd comes
+ * from the subscription's current period end when billing provides one, else 24h from now.
+ */
+export function recordTermsDecline(
+  windowEnd: string,
+  declinedAt: Date = new Date(),
+): void {
+  try {
+    const record: TermsDeclineRecord = {
+      termsVersion: TERMS.version,
+      declinedAt: declinedAt.toISOString(),
+      suppressUntil: windowEnd,
+    }
+    Storage.setItemSync(TERMS_DECLINE_KEY, JSON.stringify(record))
+  } catch {
+    // Best-effort: if persistence fails, decline behaves like a session-only grace
+    // (blocking resumes on next launch) rather than an error the user must handle.
+  }
+}
+
+export function clearTermsDecline(): void {
+  try {
+    Storage.setItemSync(TERMS_DECLINE_KEY, '')
+  } catch {
+    // Best-effort, same contract as recordTermsDecline.
+  }
+}
 
 export type TermsMachineActor = ActorRefFrom<typeof termsMachine>

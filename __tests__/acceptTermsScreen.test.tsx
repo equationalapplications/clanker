@@ -3,6 +3,29 @@ import renderer from 'react-test-renderer'
 
 const mockRouterReplace = jest.fn()
 const mockUseLocalSearchParams = jest.fn()
+const mockShowAlert = jest.fn()
+
+jest.mock('~/utilities/showAlert', () => ({
+  showAlert: (...args: unknown[]) => mockShowAlert(...args),
+}))
+
+jest.mock('~/machines/termsMachine', () => {
+  let real: Record<string, unknown> | null = null
+  return {
+    get recordTermsDecline() {
+      if (!real) real = jest.requireActual('~/machines/termsMachine')
+      return jest.fn()
+    },
+    get clearTermsDecline() {
+      if (!real) real = jest.requireActual('~/machines/termsMachine')
+      return jest.fn()
+    },
+    get termsMachine() {
+      if (!real) real = jest.requireActual('~/machines/termsMachine')
+      return (real as Record<string, unknown>).termsMachine
+    },
+  }
+})
 
 jest.mock('expo-router', () => ({
   router: {
@@ -11,7 +34,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockUseLocalSearchParams(),
 }))
 
-const mockTermsService = { send: jest.fn() }
+const mockTermsService = { send: jest.fn(), getSnapshot: jest.fn(() => ({ context: { subscription: null } })) }
 const mockAuthService = { send: jest.fn() }
 
 jest.mock('~/hooks/useMachines', () => ({
@@ -128,7 +151,7 @@ describe('accept-terms screen', () => {
     expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'ACCEPT_TERMS', isUpdate: true })
   })
 
-  it('sends SIGN_OUT from the child cancel callback', () => {
+  it('shows the decline notice without signing out from the child cancel callback', () => {
     const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
 
     renderer.act(() => {
@@ -141,7 +164,13 @@ describe('accept-terms screen', () => {
       mockLastAcceptTermsProps?.onCanceled?.()
     })
 
-    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    // Decline keeps paid access (issue #810): no SIGN_OUT; DECLINE_TERMS + notice instead
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'DECLINE_TERMS' })
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      'Terms declined',
+      expect.stringContaining('keep using Clanker under the previous Terms'),
+    )
   })
 
   it('renders ManualDobPicker instead of AcceptTerms when showDobPicker is true', () => {

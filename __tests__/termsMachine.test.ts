@@ -3,6 +3,8 @@ import { TERMS } from '../src/config/termsConfig'
 
 const mockAcceptTermsFn = jest.fn()
 const mockLogEvent = jest.fn()
+const mockStorageGetItemSync = jest.fn().mockReturnValue(null)
+const mockStorageSetItemSync = jest.fn()
 
 jest.mock('../src/services/apiClient', () => ({
   acceptTermsFn: mockAcceptTermsFn,
@@ -10,6 +12,13 @@ jest.mock('../src/services/apiClient', () => ({
 
 jest.mock('../src/services/analyticsService', () => ({
   logEvent: mockLogEvent,
+}))
+
+jest.mock('../src/utilities/kvStorage', () => ({
+  Storage: {
+    getItemSync: (...args: unknown[]) => mockStorageGetItemSync(...args),
+    setItemSync: (...args: unknown[]) => mockStorageSetItemSync(...args),
+  },
 }))
 
 const { termsMachine } = require('../src/machines/termsMachine')
@@ -131,6 +140,100 @@ describe('termsMachine', () => {
     actor.send({ type: 'ACCEPT_TERMS' })
     await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
     expect(actor.getSnapshot().context.error?.message).toContain('write failed')
+    actor.stop()
+  })
+})
+
+describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockStorageGetItemSync.mockReturnValue(null)
+  })
+
+  it('DECLINE_TERMS leaves the blocking state without an acceptance write or sign-out', async () => {
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'DECLINE_TERMS' })
+
+    // Not blocked anymore, but NOT accepted either
+    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+    expect(actor.getSnapshot().context.declined).toBe(true)
+    // Decline records no acceptance with the backend
+    expect(mockAcceptTermsFn).not.toHaveBeenCalled()
+    // Stored termsVersion stays stale — enforcement relies on it at next check
+    expect(actor.getSnapshot().context.subscription?.termsVersion).toBe('2.3')
+    actor.stop()
+  })
+
+  it('suppresses re-blocking on the next check while the decline window is active', async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: future }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.declined).toBe(true)
+    actor.stop()
+  })
+
+  it('re-prompts (acceptanceRequired) once the decline window has expired', async () => {
+    const past = new Date(Date.now() - 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: past }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.isUpdate).toBe(true)
+    actor.stop()
+  })
+
+  it('a decline record for an older terms version does not suppress a newer bump', async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ termsVersion: '1.9', suppressUntil: future }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
     actor.stop()
   })
 })

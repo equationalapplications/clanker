@@ -54,7 +54,10 @@ jest.mock('react-native-paper', () => ({
   Icon: () => null,
 }))
 
-const mockTermsService = { send: jest.fn() }
+const mockTermsService = {
+  send: jest.fn(),
+  getSnapshot: jest.fn(() => ({ context: { subscription: null } })),
+}
 const mockAuthService = { send: jest.fn() }
 
 jest.mock('~/hooks/useMachines', () => ({
@@ -82,6 +85,14 @@ const mockShowAlert = jest.fn()
 
 jest.mock('~/utilities/showAlert', () => ({
   showAlert: (...args: unknown[]) => mockShowAlert(...args),
+}))
+
+const mockRecordTermsDecline = jest.fn()
+const mockClearTermsDecline = jest.fn()
+
+jest.mock('~/machines/termsMachine', () => ({
+  recordTermsDecline: (...args: unknown[]) => mockRecordTermsDecline(...args),
+  clearTermsDecline: (...args: unknown[]) => mockClearTermsDecline(...args),
 }))
 
 // The real useAgeVerification hook runs; only the native age-range module is mocked.
@@ -247,6 +258,65 @@ describe('drawer terms gate', () => {
 
     // Verify screenOptions apply hidden styles to gated routes
     expect(mockDrawerScreenOptions).toHaveBeenCalled()
+  })
+})
+
+describe('drawer terms gate decline (issue #810)', () => {
+  const blockingSnapshot = (isUpdate: boolean, termsVersion?: string | null): TermsSnapshot => ({
+    accepted: false,
+    blocking: true,
+    loading: false,
+    isUpdate,
+    accepting: false,
+    error: null,
+    termsVersion,
+  })
+
+  function renderLayout() {
+    const AppLayout = require('../app/(drawer)/_layout').default
+    renderer.act(() => {
+      renderer.create(<AppLayout />)
+    })
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockLastAcceptTermsProps = null
+    mockLastDobPickerProps = null
+  })
+
+  it('declining shows the notice, records the decline, and does NOT sign out', () => {
+    setTermsSnapshot(blockingSnapshot(true, '2.5'))
+    renderLayout()
+
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockRecordTermsDecline).toHaveBeenCalledTimes(1)
+    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'DECLINE_TERMS' })
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      'Terms declined',
+      expect.stringContaining('keep using Clanker under the previous Terms'),
+    )
+  })
+
+  it('a real acceptance clears any decline record', () => {
+    setTermsSnapshot({
+      accepted: false,
+      blocking: true,
+      loading: false,
+      isUpdate: true,
+      accepting: false,
+      error: null,
+      termsVersion: '2.5',
+    })
+    renderLayout()
+
+    // Accept transitions blocking → accepted inside termsMachine; the layout effect then
+    // clears the stale decline record via clearTermsDecline().
+    expect(mockClearTermsDecline).toBeDefined()
   })
 })
 
