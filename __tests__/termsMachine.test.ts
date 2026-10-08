@@ -344,4 +344,42 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     expect(actor.getSnapshot().context.isUpdate).toBe(true)
     actor.stop()
   })
+
+  it('a DECLINE_TERMS arriving during the acceptance write is consumed, not acted on', async () => {
+    // Regression (review finding on PR #811): the cancel button is disabled while
+    // accepting, but a non-UI sender could still deliver DECLINE_TERMS mid-write.
+    // It must be consumed in place — the in-flight write resolves on its own.
+    let resolveWrite!: (value: { data: { success: boolean } }) => void
+    mockAcceptTermsFn.mockReturnValue(
+      new Promise((resolve) => {
+        resolveWrite = resolve
+      }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    actor.send({ type: 'ACCEPT_TERMS' })
+    await waitFor(actor, (state) => state.matches('accepting'), WAIT_OPTS)
+
+    // Mid-write decline: consumed — still accepting, no session decline window seeded
+    const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
+    expect(actor.getSnapshot().matches('accepting')).toBe(true)
+    expect(actor.getSnapshot().context.declinedUntil).toBeNull()
+
+    // The write still resolves normally to a genuine acceptance
+    resolveWrite({ data: { success: true } })
+    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.declinedUntil).toBeNull()
+    actor.stop()
+  })
 })

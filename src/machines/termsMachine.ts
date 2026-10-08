@@ -155,6 +155,15 @@ export const termsMachine = createMachine(
         },
       },
       accepting: {
+        on: {
+          // A decline that arrives while the acceptance write is in flight is consumed in
+          // place (no re-entry, the invoked write keeps running): the write resolves on
+          // its own — accepted on success, re-prompted on failure. The cancel button is
+          // disabled during accepting, so this only guards non-UI senders; consuming the
+          // event explicitly documents the drop instead of relying on XState's implicit
+          // swallowing.
+          DECLINE_TERMS: { reenter: false },
+        },
         invoke: {
           id: 'recordTermsAcceptance',
           src: 'recordTermsAcceptance',
