@@ -29,6 +29,7 @@ function signedInAuthState(userId = 'db-user-1', subscription = {}) {
   return {
     matches: (value: string) => value === 'signedIn',
     context: {
+      user: { uid: `firebase-${userId}` },
       dbUser: { id: userId },
       subscription: {
         termsVersion: null,
@@ -180,7 +181,7 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
   it('suppresses re-blocking on the next check while the decline window is active', async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
     mockStorageGetItemSync.mockReturnValue(
-      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: future }),
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: future }),
     )
 
     const actor = createActor(termsMachine)
@@ -194,15 +195,80 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     } as any)
 
     await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
-    // Suppression came from the persisted record, not a session decline
-    expect(actor.getSnapshot().context.declinedUntil).toBeNull()
+    // Suppression came from the persisted record; the session window is seeded from it so
+    // the 'declined' after-delay can schedule the re-check.
+    expect(actor.getSnapshot().context.declinedUntil).toBe(future)
+    actor.stop()
+  })
+
+  it('a decline record from a different account does not suppress after a signedIn→signedIn switch', async () => {
+    // Regression (review finding on PR #811): Firebase can emit signedIn→signedIn directly
+    // on an account switch — no signedOut branch runs to clear the record — so the record
+    // must be scoped to the uid it was recorded under.
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: future }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    // Account A declines... record is active for A
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+
+    // ...then account B signs in without an intermediate signedOut event
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u2', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.isUpdate).toBe(true)
+    actor.stop()
+  })
+
+  it('re-prompts on its own once the decline window passes, with no auth event', async () => {
+    // Regression (review finding on PR #811): expiry was only evaluated on
+    // AUTH_STATE_CHANGED, so an app left open rested in 'declined' past windowEnd.
+    mockStorageGetItemSync.mockReturnValue(null)
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    // Short window: the 'declined' after-delay must fire the re-check by itself
+    const windowEnd = new Date(Date.now() + 50).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), {
+      ...WAIT_OPTS,
+      timeout: 5000,
+    })
+    expect(actor.getSnapshot().context.isUpdate).toBe(true)
     actor.stop()
   })
 
   it('decline suppression never satisfies the genuine-acceptance state', async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
     mockStorageGetItemSync.mockReturnValue(
-      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: future }),
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: future }),
     )
 
     const actor = createActor(termsMachine)
@@ -254,7 +320,7 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
   it('re-prompts (acceptanceRequired) once the decline window has expired', async () => {
     const past = new Date(Date.now() - 60 * 1000).toISOString()
     mockStorageGetItemSync.mockReturnValue(
-      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: past }),
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: past }),
     )
 
     const actor = createActor(termsMachine)
@@ -275,7 +341,7 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
   it('a decline record for an older terms version does not suppress a newer bump', async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
     mockStorageGetItemSync.mockReturnValue(
-      JSON.stringify({ termsVersion: '1.9', suppressUntil: future }),
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: '1.9', suppressUntil: future }),
     )
 
     const actor = createActor(termsMachine)

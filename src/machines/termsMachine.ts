@@ -7,6 +7,10 @@ import type { SubscriptionSnapshot } from '~/auth/bootstrapSession'
 
 export interface TermsMachineContext {
   subscription: SubscriptionSnapshot | null
+  // Identity the decline record is scoped to (finding: Firebase can emit signedIn→signedIn
+  // on an account switch without a signedOut branch run, so the record must carry the uid
+  // it was recorded under to not leak the suppression window to a different account).
+  userUid: string | null
   isUpdate: boolean
   error: Error | null
   // Session fallback for a decline whose KV record could not be persisted: the window end
@@ -31,34 +35,55 @@ export type TermsMachineEvents =
 // src/utilities/termsDecline.ts, used by both decline-notice callers.
 const TERMS_DECLINE_KEY = 'terms:declined'
 
+// Fallback re-check cadence when a 'declined' window cannot be parsed into a delay.
+const TERMS_DECLINE_RECHECK_DELAY_MS = 60_000
+
 interface TermsDeclineRecord {
+  uid: string | null
   termsVersion: string
   declinedAt: string
   suppressUntil: string
 }
 
-function hasActiveDecline(): boolean {
+// Returns the persisted decline record only when it is active (current version, still inside
+// its suppression window) AND was recorded for `uid` — an account switch that never passes
+// through signedOut must not inherit the previous account's window.
+function activeDeclineRecord(uid: string | null): TermsDeclineRecord | null {
   try {
     const raw = Storage.getItemSync(TERMS_DECLINE_KEY)
-    if (!raw) return false
+    if (!raw) return null
     const record = JSON.parse(raw) as Partial<TermsDeclineRecord> | null
     if (
       !record ||
+      record.uid !== uid ||
       record.termsVersion !== TERMS.version ||
       typeof record.suppressUntil !== 'string'
     ) {
-      return false
+      return null
     }
     const suppressUntil = Date.parse(record.suppressUntil)
-    return !Number.isNaN(suppressUntil) && suppressUntil > Date.now()
+    return Number.isNaN(suppressUntil) || suppressUntil <= Date.now()
+      ? null
+      : (record as TermsDeclineRecord)
   } catch {
-    return false
+    return null
   }
+}
+
+function hasActiveDecline(uid: string | null): boolean {
+  return activeDeclineRecord(uid) !== null
 }
 
 // Session-only fallback window (see TermsMachineContext.declinedUntil). NaN parses fail closed.
 function hasActiveSessionDecline(context: TermsMachineContext): boolean {
   return context.declinedUntil !== null && Date.parse(context.declinedUntil) > Date.now()
+}
+
+// Identity carried by an AUTH_STATE_CHANGED event: the Firebase uid when present, else the
+// backend dbUser id.
+function authStateUid(event: { authState: any }): string | null {
+  return (event.authState.context.user?.uid ?? event.authState.context.dbUser?.id ?? null) as
+    string | null
 }
 
 export const termsMachine = createMachine(
@@ -71,6 +96,7 @@ export const termsMachine = createMachine(
     initial: 'idle',
     context: {
       subscription: null,
+      userUid: null,
       isUpdate: false,
       error: null,
       declinedUntil: null,
@@ -82,6 +108,12 @@ export const termsMachine = createMachine(
           guard: ({ event }) => event.authState.matches('signedIn'),
           actions: assign({
             subscription: ({ event }) => event.authState.context.subscription ?? null,
+            userUid: ({ event }) => authStateUid(event),
+            // The session decline window is account-scoped like the record: a same-account
+            // re-check keeps it, but an account switch that arrives as signedIn→signedIn
+            // (no signedOut branch run) must not inherit the previous account's window.
+            declinedUntil: ({ context, event }) =>
+              authStateUid(event) === context.userUid ? context.declinedUntil : null,
           }),
         },
         {
@@ -89,7 +121,13 @@ export const termsMachine = createMachine(
           // Sign-out also drops the persisted decline record: it must not leak the
           // suppression window to a different account on the same device.
           actions: [
-            assign({ subscription: null, isUpdate: false, error: null, declinedUntil: null }),
+            assign({
+              subscription: null,
+              userUid: null,
+              isUpdate: false,
+              error: null,
+              declinedUntil: null,
+            }),
             'clearDeclineRecord',
           ],
         },
@@ -118,8 +156,18 @@ export const termsMachine = createMachine(
             // record or the session fallback window governs, and both expire with the
             // window. The stored termsVersion stays stale, so the next check after the
             // window resumes blocking without an app restart.
-            guard: ({ context }) => hasActiveDecline() || hasActiveSessionDecline(context),
-            actions: assign({ isUpdate: false, error: null }),
+            guard: ({ context }) =>
+              hasActiveDecline(context.userUid) || hasActiveSessionDecline(context),
+            actions: assign({
+              isUpdate: false,
+              error: null,
+              // Seed the session window from the persisted record so the 'declined'
+              // after-delay can schedule the re-check when no session decline seeded it.
+              declinedUntil: ({ context }) =>
+                context.declinedUntil ??
+                activeDeclineRecord(context.userUid)?.suppressUntil ??
+                null,
+            }),
           },
           {
             target: 'acceptanceRequired',
@@ -185,10 +233,25 @@ export const termsMachine = createMachine(
       // Declined-not-accepted (notice-then-enforce): resting "not blocked" state that is
       // deliberately distinct from 'accepted' so decline never reaches the UI effects that
       // record a real acceptance.
-      declined: {},
+      declined: {
+        // Expiry is NOT keyed to auth events (finding: an app left open would rest here past
+        // windowEnd indefinitely). Re-run the acceptance check when the suppression window
+        // ends — 'checking' re-evaluates and lands in acceptanceRequired (or 'declined'
+        // again with a fresh delay if a still-active record governs).
+        after: { declineWindowExpiry: { target: 'checking' } },
+      },
     },
   },
   {
+    delays: {
+      // Milliseconds until the suppression window ends; an unparseable window re-checks on
+      // a short poll rather than never (both window sources are ISO strings in practice).
+      declineWindowExpiry: ({ context }) => {
+        const end = context.declinedUntil ? Date.parse(context.declinedUntil) : NaN
+        if (Number.isNaN(end)) return TERMS_DECLINE_RECHECK_DELAY_MS
+        return Math.max(0, end - Date.now())
+      },
+    },
     actions: {
       clearDeclineRecord: () => {
         clearTermsDecline()
@@ -214,12 +277,17 @@ export const termsMachine = createMachine(
 
 /**
  * Persist a decline (best-effort, sync KV): records that the current Terms version was declined
- * at this moment and until when the blocking surface should stay suppressed. windowEnd comes
- * from the subscription's current period end when billing provides one, else 24h from now.
+ * at this moment by `uid` and until when the blocking surface should stay suppressed. windowEnd
+ * comes from the subscription's current period end when billing provides one, else 24h from now.
  */
-export function recordTermsDecline(windowEnd: string, declinedAt: Date = new Date()): void {
+export function recordTermsDecline(
+  windowEnd: string,
+  uid: string | null,
+  declinedAt: Date = new Date(),
+): void {
   try {
     const record: TermsDeclineRecord = {
+      uid,
       termsVersion: TERMS.version,
       declinedAt: declinedAt.toISOString(),
       suppressUntil: windowEnd,
