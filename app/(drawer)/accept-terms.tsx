@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { useSelector } from '@xstate/react'
@@ -9,7 +9,7 @@ import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
 import { useAgeVerification } from '~/hooks/useAgeVerification'
 import { showAlert } from '~/utilities/showAlert'
 import { TERMS } from '~/config/termsConfig'
-import { handleTermsCanceled } from '~/utilities/termsDecline'
+import { handleTermsCanceled, handleTermsDecline } from '~/utilities/termsDecline'
 
 export default function AcceptTermsScreen() {
   const termsService = useTermsMachine()
@@ -44,7 +44,15 @@ export default function AcceptTermsScreen() {
     }
   }, [declined])
 
+  // What a passed age check resolves into: the age flow runs for both Accept and (legacy
+  // accounts) Decline, and a verified adult who tapped Decline must decline — not accept.
+  const ageCheckIntent = useRef<'accept' | 'decline'>('accept')
+
   const handleVerifiedAdult = () => {
+    if (ageCheckIntent.current === 'decline') {
+      handleTermsDecline(termsService)
+      return
+    }
     termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
   }
 
@@ -53,10 +61,11 @@ export default function AcceptTermsScreen() {
     authService.send({ type: 'SIGN_OUT' })
   }
 
-  const { verifyAge, isVerifying, showDobPicker, handleDobResult } = useAgeVerification({
-    onVerified: handleVerifiedAdult,
-    onRejected: handleRejectedMinor,
-  })
+  const { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification } =
+    useAgeVerification({
+      onVerified: handleVerifiedAdult,
+      onRejected: handleRejectedMinor,
+    })
 
   useEffect(() => {
     if (showDobPicker && error) {
@@ -70,7 +79,20 @@ export default function AcceptTermsScreen() {
   // Decline vs sign-out policy shared with the drawer gate in
   // src/utilities/termsDecline.ts so the rule cannot drift between callers. An update
   // cancel by a legacy (pre-age-gate) account routes through verifyAge (PR #812 review).
-  const handleCanceled = () => handleTermsCanceled(termsService, authService, verifyAge)
+  const handleCanceled = () =>
+    handleTermsCanceled(
+      termsService,
+      authService,
+      () => {
+        ageCheckIntent.current = 'decline'
+        void verifyAge()
+      },
+      needsPlayVerification,
+    )
+  const handleAccepted = () => {
+    ageCheckIntent.current = 'accept'
+    void verifyAge()
+  }
 
   if (showDobPicker) {
     return (
@@ -83,7 +105,7 @@ export default function AcceptTermsScreen() {
   return (
     <View style={styles.container}>
       <AcceptTerms
-        onAccepted={verifyAge}
+        onAccepted={handleAccepted}
         onCanceled={handleCanceled}
         isUpdate={isUpdate}
         accepting={accepting || isVerifying}

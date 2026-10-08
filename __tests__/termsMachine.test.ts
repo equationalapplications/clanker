@@ -339,11 +339,68 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     // A different account signing in on this device must not inherit the window
     actor.send({
       type: 'AUTH_STATE_CHANGED',
-      authState: { matches: () => false, context: { subscription: null } },
+      authState: { matches: (value: string) => value === 'signedOut', context: {} },
     } as any)
     await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
 
     expect(mockStorageSetItemSync).toHaveBeenCalledWith('terms:declined', '')
+    actor.stop()
+  })
+
+  it("the boot-time 'initializing' snapshot keeps the persisted record (survives a restart)", async () => {
+    // Regression (PR #812 review): authMachine boots in 'initializing' and app/_layout.tsx
+    // always forwards that first snapshot. Clearing the record on every non-signedIn state
+    // wiped it on every launch, so a decline never survived an app restart.
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ uid: 'firebase-u1', termsVersion: TERMS.version, suppressUntil: future }),
+    )
+    mockStorageSetItemSync.mockClear()
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: { matches: (value: string) => value === 'initializing', context: {} },
+    } as any)
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+    expect(mockStorageSetItemSync).not.toHaveBeenCalledWith('terms:declined', '')
+    actor.stop()
+  })
+
+  it('a foreground refresh (bootstrapping) keeps the same-account session window', async () => {
+    // The session window is the fallback when the KV record failed to persist; a
+    // signedIn → bootstrapping → signedIn refresh must not drop it.
+    const actor = createActor(termsMachine)
+    actor.start()
+    const stale = signedInAuthState('u1', {
+      termsVersion: '2.3',
+      termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+    })
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: stale } as any)
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
+    mockStorageSetItemSync.mockClear()
+
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: { matches: (value: string) => value === 'bootstrapping', context: {} },
+    } as any)
+    actor.send({ type: 'AUTH_STATE_CHANGED', authState: stale } as any)
+
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+    expect(actor.getSnapshot().context.declinedUntil).toBe(windowEnd)
+    expect(mockStorageSetItemSync).not.toHaveBeenCalledWith('terms:declined', '')
     actor.stop()
   })
 

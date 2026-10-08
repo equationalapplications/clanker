@@ -58,6 +58,8 @@ jest.mock('react-native-paper', () => ({
     },
   }),
   Icon: () => null,
+  // Rendered by the Play-verification banner.
+  Text: () => null,
 }))
 
 const mockTermsService = {
@@ -366,7 +368,10 @@ describe('drawer terms gate decline (issue #810)', () => {
     )
   })
 
-  it('a real acceptance clears any decline record; a decline never does', () => {
+  it('neither a decline nor an acceptance clears the record from the layout', () => {
+    // The record is cleared by termsMachine's acceptance onDone (PR #812 review): the
+    // layout's 'accepted'-transition effect also fires on every launch that boots straight
+    // into 'accepted', so clearing there was a duplicate KV write on every start.
     const AppLayout = require('../app/(drawer)/_layout').default
 
     setTermsSnapshot(blockingSnapshot(true, '2.5'))
@@ -376,11 +381,10 @@ describe('drawer terms gate decline (issue #810)', () => {
     })
 
     // Decline (blocking → DECLINE_TERMS) must NOT reach the 'accepted'-transition effect:
-    // no clearTermsDecline, no fabricated TERMS_ACCEPTED_LOCAL.
+    // no fabricated TERMS_ACCEPTED_LOCAL.
     renderer.act(() => {
       ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
     })
-    expect(mockClearTermsDecline).not.toHaveBeenCalled()
     expect(mockAuthService.send).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
     )
@@ -391,7 +395,7 @@ describe('drawer terms gate decline (issue #810)', () => {
       instance.update(<AppLayout />)
     })
 
-    expect(mockClearTermsDecline).toHaveBeenCalledTimes(1)
+    expect(mockClearTermsDecline).not.toHaveBeenCalled()
     expect(mockAuthService.send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
     )
@@ -593,5 +597,50 @@ describe('drawer terms gate age verification', () => {
       'This app is for users 18 and older.',
     )
     expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+  })
+
+  it('a verified adult who tapped Decline (legacy account) declines — never accepts', async () => {
+    // PR #812 review: the age flow's onVerified was always acceptTerms, so a legacy
+    // account that tapped Decline and passed the age check was recorded as ACCEPTING.
+    mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
+    setTermsSnapshot(blockingSnapshot(true, '2.4'))
+    renderLayout()
+
+    await renderer.act(async () => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(acceptTermsCalls()).toHaveLength(0)
+    expect(mockRecordTermsDecline).toHaveBeenCalledTimes(1)
+    expect(mockTermsService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
+    )
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+  })
+
+  it('a legacy cancel blocked on Play verification signs out instead of looping', async () => {
+    // PR #812 review: VERIFICATION_REQUIRED leaves no age signal, and the Play-verification
+    // branch's Cancel re-ran the same age flow forever — sign-out is the escape.
+    mockRequestSignalsAccess.mockResolvedValue('VERIFICATION_REQUIRED')
+    setTermsSnapshot(blockingSnapshot(true, '2.4'))
+    renderLayout()
+
+    await renderer.act(async () => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(mockRequestSignalsAccess).toHaveBeenCalledTimes(1)
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+
+    // Now on the Play-verification banner: Cancel must leave, not re-run verification.
+    await renderer.act(async () => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(mockRequestSignalsAccess).toHaveBeenCalledTimes(1)
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(acceptTermsCalls()).toHaveLength(0)
+    expect(mockRecordTermsDecline).not.toHaveBeenCalled()
   })
 })

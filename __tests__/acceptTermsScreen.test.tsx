@@ -62,6 +62,7 @@ type AcceptTermsProps = {
 
 let mockLastAcceptTermsProps: AcceptTermsProps | null = null
 let mockShowDobPicker = false
+let mockNeedsPlayVerification = false
 let mockManualDobPickerRendered = false
 
 jest.mock('~/components/AcceptTerms', () => ({
@@ -84,6 +85,7 @@ jest.mock('~/hooks/useAgeVerification', () => ({
     isVerifying: false,
     showDobPicker: mockShowDobPicker,
     handleDobResult: jest.fn(),
+    needsPlayVerification: mockNeedsPlayVerification,
   }),
 }))
 
@@ -126,6 +128,7 @@ describe('accept-terms screen', () => {
     jest.clearAllMocks()
     mockLastAcceptTermsProps = null
     mockShowDobPicker = false
+    mockNeedsPlayVerification = false
     mockManualDobPickerRendered = false
     currentSnapshot = null
     setTermsSnapshot({ accepted: false, accepting: false, error: null })
@@ -223,7 +226,8 @@ describe('accept-terms screen', () => {
   it('routes a legacy account cancel through the age gate instead of declining', () => {
     // CodeRabbit round on PR #812: an account whose previous Terms predate the age gate
     // must run the age flow on cancel too — the hook mock wires verifyAge to onVerified,
-    // so reaching the gate means a verified adult then accepts instead of declining.
+    // so this is a verified adult. They tapped Decline, so they DECLINE: passing the age
+    // check must never be recorded as accepting the new Terms (PR #812 review).
     setTermsSnapshot({
       accepted: false,
       accepting: false,
@@ -242,11 +246,39 @@ describe('accept-terms screen', () => {
       mockLastAcceptTermsProps?.onCanceled?.()
     })
 
-    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+    expect(mockTermsService.send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'DECLINE_TERMS' }),
     )
     expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
-    expect(mockTermsService.send).toHaveBeenCalledWith({ type: 'ACCEPT_TERMS', isUpdate: true })
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'ACCEPT_TERMS' }),
+    )
+  })
+
+  it('a legacy cancel blocked on Play verification signs out instead of looping', () => {
+    // PR #812 review: VERIFICATION_REQUIRED leaves no age signal, so re-running the age
+    // flow on Cancel would dead-end — sign-out is the escape.
+    mockNeedsPlayVerification = true
+    setTermsSnapshot({
+      accepted: false,
+      accepting: false,
+      isUpdate: true,
+      termsVersion: '2.4',
+      error: null,
+    })
+
+    const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
+
+    renderer.act(() => {
+      renderer.create(<AcceptTermsScreen />)
+    })
+
+    renderer.act(() => {
+      mockLastAcceptTermsProps?.onCanceled?.()
+    })
+
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockTermsService.send).not.toHaveBeenCalled()
   })
 
   it('declining a first-time acceptance still signs out (no prior Terms to fall back on)', () => {

@@ -126,7 +126,11 @@ export const termsMachine = createMachine(
         {
           target: '.idle',
           // Sign-out also drops the persisted decline record: it must not leak the
-          // suppression window to a different account on the same device.
+          // suppression window to a different account on the same device. Gated to an
+          // actual signedOut — NOT every non-signedIn state: the auth machine boots in
+          // 'initializing' and that first snapshot is always forwarded, so clearing here
+          // unconditionally wiped the record on every launch (PR #812 review).
+          guard: ({ event }) => event.authState.matches('signedOut'),
           actions: [
             assign({
               subscription: null,
@@ -137,6 +141,14 @@ export const termsMachine = createMachine(
             }),
             'clearDeclineRecord',
           ],
+        },
+        {
+          // Transient non-signedIn states (initializing, signingIn, bootstrapping — which
+          // also covers a foreground/bootstrap refresh — and signingOut): wait in idle and
+          // keep the decline record AND the account-scoped session window. The next
+          // signedIn event keeps the window only for the same uid.
+          target: '.idle',
+          actions: assign({ subscription: null, isUpdate: false, error: null }),
         },
       ],
     },
@@ -163,8 +175,10 @@ export const termsMachine = createMachine(
             // record or the session fallback window governs, and both expire with the
             // window. The stored termsVersion stays stale, so the next check after the
             // window resumes blocking without an app restart.
+            // Session window first: it is in memory, so the sync KV read is skipped
+            // whenever it already governs.
             guard: ({ context }) =>
-              hasActiveDecline(context.userUid) || hasActiveSessionDecline(context),
+              hasActiveSessionDecline(context) || hasActiveDecline(context.userUid),
             actions: assign({
               isUpdate: false,
               error: null,

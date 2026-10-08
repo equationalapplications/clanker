@@ -188,6 +188,20 @@ describe('handleTermsCanceled (finding: one cancel policy, two surfaces)', () =>
     })
   })
 
+  it('signs a legacy update decline out while Play verification blocks the age flow', () => {
+    // PR #812 review: no age signal can be read under VERIFICATION_REQUIRED, so re-running
+    // the age flow would loop — sign-out keeps a way off the blocking screen.
+    const termsService = service(true, '2.4')
+    const authService = { send: jest.fn() }
+    const verifyAge = jest.fn()
+
+    handleTermsCanceled(termsService as any, authService as any, verifyAge, true)
+
+    expect(authService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(verifyAge).not.toHaveBeenCalled()
+    expect(termsService.send).not.toHaveBeenCalled()
+  })
+
   it('signs a first-time decline out (no prior Terms to fall back on)', () => {
     const termsService = service(false, null)
     const authService = { send: jest.fn() }

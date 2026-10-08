@@ -16,8 +16,11 @@ import { showAlert } from '~/utilities/showAlert'
 import LoadingIndicator from '~/components/LoadingIndicator'
 import { useEffect, useRef } from 'react'
 import { TERMS } from '~/config/termsConfig'
-import { clearTermsDecline } from '~/machines/termsMachine'
-import { handleTermsCanceled, termsAgeAlreadyVerified } from '~/utilities/termsDecline'
+import {
+  handleTermsCanceled,
+  handleTermsDecline,
+  termsAgeAlreadyVerified,
+} from '~/utilities/termsDecline'
 import { PowerMeter } from '~/components/PowerMeter'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
@@ -81,9 +84,9 @@ const AppLayout = () => {
   const previousTermsAccepted = useRef<boolean>(termsAccepted)
 
   useEffect(() => {
+    // The decline record is cleared by termsMachine's acceptance onDone, not here: this
+    // effect also fires on every launch that boots straight into 'accepted'.
     if (!previousTermsAccepted.current && termsAccepted) {
-      // A real acceptance supersedes any decline record (issue #810).
-      clearTermsDecline()
       authService.send({
         type: 'TERMS_ACCEPTED_LOCAL',
         termsVersion: TERMS.version,
@@ -95,6 +98,10 @@ const AppLayout = () => {
 
   const acceptTerms = () => termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
 
+  // What a passed age check resolves into: the age flow runs for both Accept and (legacy
+  // accounts) Decline, and a verified adult who tapped Decline must decline — not accept.
+  const ageCheckIntent = useRef<'accept' | 'decline'>('accept')
+
   const {
     verifyAge,
     isVerifying,
@@ -103,7 +110,13 @@ const AppLayout = () => {
     needsPlayVerification,
     retryPlayVerification,
   } = useAgeVerification({
-    onVerified: acceptTerms,
+    onVerified: () => {
+      if (ageCheckIntent.current === 'decline') {
+        handleTermsDecline(termsService)
+      } else {
+        acceptTerms()
+      }
+    },
     onRejected: () => {
       showAlert('Age Restriction', 'This app is for users 18 and older.')
       authService.send({ type: 'SIGN_OUT' })
@@ -113,7 +126,16 @@ const AppLayout = () => {
   // Decline vs sign-out policy shared with the accept-terms screen in
   // src/utilities/termsDecline.ts so the rule cannot drift between callers. An update
   // cancel by a legacy (pre-age-gate) account routes through verifyAge (PR #812 review).
-  const handleDeclined = () => handleTermsCanceled(termsService, authService, verifyAge)
+  const handleDeclined = () =>
+    handleTermsCanceled(
+      termsService,
+      authService,
+      () => {
+        ageCheckIntent.current = 'decline'
+        void verifyAge()
+      },
+      needsPlayVerification,
+    )
 
   // Re-acceptance skip rule: there is no dedicated age-verification record, so the age check is
   // skipped ONLY when this is a re-acceptance (termsMachine `isUpdate`) AND the previously
@@ -122,7 +144,16 @@ const AppLayout = () => {
   // new accounts must complete the age flow first. Shared with the cancel path via
   // termsAgeAlreadyVerified in src/utilities/termsDecline.ts.
   const ageAlreadyVerified = termsAgeAlreadyVerified(isUpdate, previousTermsVersion)
-  const handleAccepted = ageAlreadyVerified ? acceptTerms : verifyAge
+  const handleAccepted = ageAlreadyVerified
+    ? acceptTerms
+    : () => {
+        ageCheckIntent.current = 'accept'
+        void verifyAge()
+      }
+  const handlePlayRetry = () => {
+    ageCheckIntent.current = 'accept'
+    retryPlayVerification()
+  }
 
   // The DOB picker replaces AcceptTerms, which would otherwise surface the error inline.
   useEffect(() => {
@@ -159,7 +190,7 @@ const AppLayout = () => {
             </Text>
           </View>
           <AcceptTerms
-            onAccepted={retryPlayVerification}
+            onAccepted={handlePlayRetry}
             onCanceled={handleDeclined}
             isUpdate={isUpdate}
             // Same disabled-during-write contract as the branch below: a decline confirmed

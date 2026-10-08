@@ -112,11 +112,19 @@ export function termsAgeAlreadyVerified(
  * notice-then-enforce, while a legacy account (accepted before the gate) must run the
  * age flow first — declining directly would keep access without ever reaching the
  * age-rejection path.
+ *
+ * `verifyAgeForDecline` must resolve a verified adult into a DECLINE (handleTermsDecline),
+ * never an acceptance: the user tapped Decline, so passing the age check must not record
+ * the new Terms as accepted. `ageVerificationBlocked` is true while Play mandates identity
+ * verification (VERIFICATION_REQUIRED): no age signal can be read, so re-running the age
+ * flow would loop on the same gate — the legacy cancel signs out instead, which keeps a
+ * way off the blocking screen (PR #812 review).
  */
 export function handleTermsCanceled(
   termsService: TermsMachineActor,
   authService: AuthMachineActor,
-  verifyAge: () => void,
+  verifyAgeForDecline: () => void,
+  ageVerificationBlocked = false,
 ): void {
   const context = termsService.getSnapshot().context
   if (!context.isUpdate) {
@@ -127,5 +135,9 @@ export function handleTermsCanceled(
     handleTermsDecline(termsService)
     return
   }
-  verifyAge()
+  if (ageVerificationBlocked) {
+    authService.send({ type: 'SIGN_OUT' })
+    return
+  }
+  verifyAgeForDecline()
 }
