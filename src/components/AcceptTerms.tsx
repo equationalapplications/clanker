@@ -49,6 +49,21 @@ export function AcceptTerms({
   }
 
   const onPressCancel = () => {
+    // First-time acceptances (isUpdate=false) have no previously accepted Terms to keep
+    // using, so declining means leaving — the button is labeled "Sign Out" below.
+    if (!isUpdate) {
+      Alert.alert('Sign Out', 'You must accept the Terms and Conditions to use Clanker.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: () => {
+            onCanceled?.()
+          },
+        },
+      ])
+      return
+    }
     Alert.alert('Decline Terms', 'Are you sure you want to decline?', [
       { text: 'Review Again', style: 'cancel' },
       {
@@ -134,7 +149,9 @@ export function AcceptTerms({
       >
         {isUpdate ? 'Accept Updated Terms' : 'I Accept'}
       </Button>
-      <Button mode="outlined" onPress={onPressCancel}>
+      {/* Disabled while the acceptance write is in flight: a decline confirmed mid-write
+          would race the onDone/onError transition (DECLINE is unhandled in 'accepting'). */}
+      <Button mode="outlined" onPress={onPressCancel} disabled={accepting}>
         {isUpdate ? 'Cancel' : 'Sign Out'}
       </Button>
       {/* Use a light status bar on iOS to account for the black space above the modal */}

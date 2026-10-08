@@ -86,12 +86,9 @@ export const termsMachine = createMachine(
         },
         {
           target: '.idle',
-          actions: assign({
-            subscription: null,
-            isUpdate: false,
-            error: null,
-            declinedUntil: null,
-          }),
+          // Sign-out also drops the persisted decline record: it must not leak the
+          // suppression window to a different account on the same device.
+          actions: [assign({ subscription: null, isUpdate: false, error: null, declinedUntil: null }), 'clearDeclineRecord'],
         },
       ],
     },
@@ -110,7 +107,9 @@ export const termsMachine = createMachine(
             actions: assign({ isUpdate: false, error: null, declinedUntil: null }),
           },
           {
-            target: 'accepted',
+            // 'declined' (NOT 'accepted'): the UI effects treat 'accepted' as a real
+            // acceptance (record the new version), which would launder a decline into one.
+            target: 'declined',
             // Declined-not-accepted: suppress the blocking surface while the active decline
             // window runs (paid period end, or the 24h fallback) — either the persisted
             // record or the session fallback window governs, and both expire with the
@@ -141,11 +140,13 @@ export const termsMachine = createMachine(
             actions: assign({ error: null }),
           },
           DECLINE_TERMS: {
-            target: 'accepted',
-            // 'accepted' here means "not blocked right now" — the decline record keeps
-            // subscription.termsVersion untouched (still the stale prior version), so
-            // enforcement resumes at the next acceptance check after the window ends.
-            // windowEnd seeds the session fallback in case the KV record failed to persist.
+            // 'declined' (NOT 'accepted'): the layout/screen effects treat 'accepted' as a
+            // real acceptance — targeting it here would clear the decline record and record
+            // the new Terms version as accepted. 'declined' keeps subscription.termsVersion
+            // untouched (still the stale prior version), so enforcement resumes at the next
+            // acceptance check after the window ends. windowEnd seeds the session fallback
+            // in case the KV record failed to persist.
+            target: 'declined',
             actions: assign({
               declinedUntil: ({ event }) => event.windowEnd,
               error: null,
@@ -169,10 +170,17 @@ export const termsMachine = createMachine(
         },
       },
       accepted: {},
+      // Declined-not-accepted (notice-then-enforce): resting "not blocked" state that is
+      // deliberately distinct from 'accepted' so decline never reaches the UI effects that
+      // record a real acceptance.
+      declined: {},
     },
   },
   {
     actions: {
+      clearDeclineRecord: () => {
+        clearTermsDecline()
+      },
       logTermsAccepted: ({ context }: { context: TermsMachineContext }) => {
         logEvent('terms_accepted', { is_update: context.isUpdate })
       },

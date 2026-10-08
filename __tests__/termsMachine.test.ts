@@ -167,7 +167,8 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
     actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
 
     // Not blocked anymore, but NOT accepted either
-    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+    expect(actor.getSnapshot().matches('declined')).toBe(true)
+    expect(actor.getSnapshot().matches('accepted')).toBe(false)
     expect(actor.getSnapshot().context.declinedUntil).toBe(windowEnd)
     // Decline records no acceptance with the backend
     expect(mockAcceptTermsFn).not.toHaveBeenCalled()
@@ -192,9 +193,61 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
       }),
     } as any)
 
-    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
     // Suppression came from the persisted record, not a session decline
     expect(actor.getSnapshot().context.declinedUntil).toBeNull()
+    actor.stop()
+  })
+
+  it('decline suppression never satisfies the genuine-acceptance state', async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    mockStorageGetItemSync.mockReturnValue(
+      JSON.stringify({ termsVersion: TERMS.version, suppressUntil: future }),
+    )
+
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    // Regression (review finding on PR #811): suppression used to land in 'accepted',
+    // which the UI effects treat as a real acceptance — fabricating one and wiping the
+    // decline record. It must rest in 'declined' instead.
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
+    expect(actor.getSnapshot().matches('accepted')).toBe(false)
+    actor.stop()
+  })
+
+  it('signing out clears the persisted decline record', async () => {
+    const actor = createActor(termsMachine)
+    actor.start()
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: signedInAuthState('u1', {
+        termsVersion: '2.3',
+        termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    } as any)
+
+    await waitFor(actor, (state) => state.matches('acceptanceRequired'), WAIT_OPTS)
+
+    const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
+    mockStorageSetItemSync.mockClear()
+
+    // A different account signing in on this device must not inherit the window
+    actor.send({
+      type: 'AUTH_STATE_CHANGED',
+      authState: { matches: () => false, context: { subscription: null } },
+    } as any)
+    await waitFor(actor, (state) => state.matches('idle'), WAIT_OPTS)
+
+    expect(mockStorageSetItemSync).toHaveBeenCalledWith('terms:declined', '')
     actor.stop()
   })
 
@@ -256,11 +309,12 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
 
     const windowEnd = new Date(Date.now() + 60 * 60 * 1000).toISOString()
     actor.send({ type: 'DECLINE_TERMS', windowEnd } as any)
-    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+    expect(actor.getSnapshot().matches('declined')).toBe(true)
+    expect(actor.getSnapshot().matches('accepted')).toBe(false)
 
     // A later in-session re-check (auth snapshot change) stays suppressed until the window ends
     actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)
-    await waitFor(actor, (state) => state.matches('accepted'), WAIT_OPTS)
+    await waitFor(actor, (state) => state.matches('declined'), WAIT_OPTS)
     actor.stop()
   })
 
@@ -281,7 +335,8 @@ describe('termsMachine decline (notice-then-enforce, issue #810)', () => {
 
     const expiredWindow = new Date(Date.now() - 60 * 1000).toISOString()
     actor.send({ type: 'DECLINE_TERMS', windowEnd: expiredWindow } as any)
-    expect(actor.getSnapshot().matches('accepted')).toBe(true)
+    expect(actor.getSnapshot().matches('declined')).toBe(true)
+    expect(actor.getSnapshot().matches('accepted')).toBe(false)
 
     // Next re-check after the window: blocking resumes in the same session
     actor.send({ type: 'AUTH_STATE_CHANGED', authState: staleAuthState } as any)

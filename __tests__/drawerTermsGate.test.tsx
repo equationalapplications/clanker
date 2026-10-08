@@ -305,21 +305,50 @@ describe('drawer terms gate decline (issue #810)', () => {
     )
   })
 
-  it('a real acceptance clears any decline record', () => {
-    setTermsSnapshot({
-      accepted: false,
-      blocking: true,
-      loading: false,
-      isUpdate: true,
-      accepting: false,
-      error: null,
-      termsVersion: '2.5',
+  it('a real acceptance clears any decline record; a decline never does', () => {
+    const AppLayout = require('../app/(drawer)/_layout').default
+
+    setTermsSnapshot(blockingSnapshot(true, '2.5'))
+    let instance: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      instance = renderer.create(<AppLayout />)
     })
+
+    // Decline (blocking → DECLINE_TERMS) must NOT reach the 'accepted'-transition effect:
+    // no clearTermsDecline, no fabricated TERMS_ACCEPTED_LOCAL.
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+    expect(mockClearTermsDecline).not.toHaveBeenCalled()
+    expect(mockAuthService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
+    )
+
+    // A real acceptance (blocking → accepted) fires the layout effect.
+    renderer.act(() => {
+      setTermsSnapshot({ ...blockingSnapshot(true, '2.5'), accepted: true, blocking: false })
+      instance.update(<AppLayout />)
+    })
+
+    expect(mockClearTermsDecline).toHaveBeenCalledTimes(1)
+    expect(mockAuthService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
+    )
+  })
+
+  it('declining a first-time acceptance still signs out (no prior Terms to fall back on)', () => {
+    setTermsSnapshot(blockingSnapshot(false, null))
     renderLayout()
 
-    // Accept transitions blocking → accepted inside termsMachine; the layout effect then
-    // clears the stale decline record via clearTermsDecline().
-    expect(mockClearTermsDecline).toBeDefined()
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockRecordTermsDecline).not.toHaveBeenCalled()
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
+    )
   })
 })
 

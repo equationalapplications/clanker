@@ -10,21 +10,11 @@ jest.mock('~/utilities/showAlert', () => ({
 }))
 
 jest.mock('~/machines/termsMachine', () => {
-  let real: Record<string, unknown> | null = null
-  return {
-    get recordTermsDecline() {
-      if (!real) real = jest.requireActual('~/machines/termsMachine')
-      return jest.fn()
-    },
-    get clearTermsDecline() {
-      if (!real) real = jest.requireActual('~/machines/termsMachine')
-      return jest.fn()
-    },
-    get termsMachine() {
-      if (!real) real = jest.requireActual('~/machines/termsMachine')
-      return (real as Record<string, unknown>).termsMachine
-    },
-  }
+  const real = jest.requireActual('~/machines/termsMachine') as Record<string, unknown>
+  // Stable per-test-file mocks (getters returning fresh jest.fn()s would make any
+  // call assertion impossible). Everything else stays real so DECLINE_TERMS flows
+  // through the actual termsMachine.
+  return { ...real, recordTermsDecline: jest.fn(), clearTermsDecline: jest.fn() }
 })
 
 jest.mock('expo-router', () => ({
@@ -88,6 +78,7 @@ jest.mock('~/hooks/useAgeVerification', () => ({
 
 type TermsSnapshot = {
   accepted: boolean
+  declined?: boolean
   accepting: boolean
   error: Error | null
 }
@@ -97,6 +88,7 @@ function setTermsSnapshot(snapshot: TermsSnapshot) {
     const state = {
       matches: (value: string) => {
         if (value === 'accepted') return snapshot.accepted
+        if (value === 'declined') return (snapshot as { declined?: boolean }).declined === true
         if (value === 'accepting') return snapshot.accepting
         return false
       },
@@ -136,6 +128,23 @@ describe('accept-terms screen', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/')
   })
 
+  it('declining re-enters the app WITHOUT recording an acceptance', () => {
+    setTermsSnapshot({ accepted: false, declined: true, accepting: false, error: null })
+
+    const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
+
+    renderer.act(() => {
+      renderer.create(<AcceptTermsScreen />)
+    })
+
+    // Regression (review finding on PR #811): decline used to share the 'accepted' state,
+    // so this effect fabricated a TERMS_ACCEPTED_LOCAL for the new Terms version.
+    expect(mockAuthService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
+    )
+    expect(mockRouterReplace).toHaveBeenCalledWith('/')
+  })
+
   it('sends ACCEPT_TERMS with isUpdate=true from the child callback', () => {
     mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'true' })
 
@@ -155,6 +164,8 @@ describe('accept-terms screen', () => {
   })
 
   it('shows the decline notice without signing out from the child cancel callback', () => {
+    mockUseLocalSearchParams.mockReturnValue({ isUpdate: 'true' })
+
     const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
 
     renderer.act(() => {
@@ -176,6 +187,23 @@ describe('accept-terms screen', () => {
     expect(mockShowAlert).toHaveBeenCalledWith(
       'Terms declined',
       expect.stringContaining('keep using Clanker under the previous Terms'),
+    )
+  })
+
+  it('declining a first-time acceptance still signs out (no prior Terms to fall back on)', () => {
+    const AcceptTermsScreen = require('../app/(drawer)/accept-terms').default
+
+    renderer.act(() => {
+      renderer.create(<AcceptTermsScreen />)
+    })
+
+    renderer.act(() => {
+      mockLastAcceptTermsProps?.onCanceled?.()
+    })
+
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
     )
   })
 

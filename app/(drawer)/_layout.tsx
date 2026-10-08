@@ -111,7 +111,15 @@ const AppLayout = () => {
   // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): no sign-out, keep
   // paid access until the decline window ends. Shared with the accept-terms screen in
   // src/utilities/termsDecline.ts so the window rule and notice copy cannot drift.
-  const handleDeclined = () => handleTermsDecline(termsService)
+  // First-time acceptances (isUpdate=false) have no "previously accepted Terms" to fall
+  // back on, so declining there still signs the user out.
+  const handleDeclined = () => {
+    if (isUpdate) {
+      handleTermsDecline(termsService)
+    } else {
+      authService.send({ type: 'SIGN_OUT' })
+    }
+  }
 
   const {
     verifyAge,

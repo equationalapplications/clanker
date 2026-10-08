@@ -16,8 +16,9 @@ export default function AcceptTermsScreen() {
   const authService = useAuthMachine()
   const isUpdate = params.isUpdate === 'true'
 
-  const { accepted, accepting, error } = useSelector(termsService, (state) => ({
+  const { accepted, declined, accepting, error } = useSelector(termsService, (state) => ({
     accepted: state.matches('accepted'),
+    declined: state.matches('declined'),
     accepting: state.matches('accepting'),
     error: state.context.error,
   }))
@@ -32,6 +33,14 @@ export default function AcceptTermsScreen() {
       router.replace('/')
     }
   }, [accepted, authService])
+
+  // Decline is NOT an acceptance: re-enter the app without recording the new Terms version
+  // (issue #810). Only 'accepted' reaches TERMS_ACCEPTED_LOCAL above.
+  useEffect(() => {
+    if (declined) {
+      router.replace('/')
+    }
+  }, [declined])
 
   const handleVerifiedAdult = () => {
     termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
@@ -59,7 +68,15 @@ export default function AcceptTermsScreen() {
   // Decline = notice-then-enforce (ToS §12.19 option [B], issue #810): no sign-out, keep
   // paid access until the decline window ends. Shared with the drawer gate in
   // src/utilities/termsDecline.ts so the window rule and notice copy cannot drift.
-  const handleCanceled = () => handleTermsDecline(termsService)
+  // First-time acceptances (isUpdate=false) have no "previously accepted Terms" to fall
+  // back on, so declining there still signs the user out.
+  const handleCanceled = () => {
+    if (isUpdate) {
+      handleTermsDecline(termsService)
+    } else {
+      authService.send({ type: 'SIGN_OUT' })
+    }
+  }
 
   if (showDobPicker) {
     return (
