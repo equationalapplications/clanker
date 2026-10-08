@@ -1,12 +1,13 @@
 import { StatusBar } from 'expo-status-bar'
 import { useState, useEffect } from 'react'
-import { StyleSheet, View, Alert, Platform } from 'react-native'
+import { StyleSheet, View, Platform } from 'react-native'
 import { Text, Checkbox, useTheme } from 'react-native-paper'
 import { router } from 'expo-router'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import Button from '~/components/Button'
 import Logo from '~/components/Logo'
+import { showAlert } from '~/utilities/showAlert'
 import { TERMS } from '~/config/termsConfig'
 
 interface AcceptTermsProps {
@@ -29,7 +30,7 @@ export function AcceptTerms({
 
   useEffect(() => {
     if (error) {
-      Alert.alert(
+      showAlert(
         'Error',
         `Failed to record your acceptance. Please check your connection and try again.\n\n${error}`,
       )
@@ -42,7 +43,7 @@ export function AcceptTerms({
 
   const onPressAccept = () => {
     if (!checked) {
-      Alert.alert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
+      showAlert('Please Accept Terms', 'You must accept the terms and conditions to continue.')
       return
     }
     onAccepted?.()
@@ -52,7 +53,7 @@ export function AcceptTerms({
     // First-time acceptances (isUpdate=false) have no previously accepted Terms to keep
     // using, so declining means leaving — the button is labeled "Sign Out" below.
     if (!isUpdate) {
-      Alert.alert('Sign Out', 'You must accept the Terms and Conditions to use Clanker.', [
+      showAlert('Sign Out', 'You must accept the Terms and Conditions to use Clanker.', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sign Out',
@@ -64,7 +65,7 @@ export function AcceptTerms({
       ])
       return
     }
-    Alert.alert('Decline Terms', 'Are you sure you want to decline?', [
+    showAlert('Decline Terms', 'Are you sure you want to decline?', [
       { text: 'Review Again', style: 'cancel' },
       {
         text: 'Decline',
