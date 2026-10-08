@@ -1,23 +1,27 @@
-import { useEffect } from 'react'
-import { StyleSheet, View, Alert } from 'react-native'
-import { useLocalSearchParams, router } from 'expo-router'
+import { useEffect, useRef } from 'react'
+import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
 import { AcceptTerms } from '~/components/AcceptTerms'
 import { ManualDobPicker } from '~/components/ManualDobPicker'
 import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
 import { useAgeVerification } from '~/hooks/useAgeVerification'
+import { showAlert } from '~/utilities/showAlert'
 import { TERMS } from '~/config/termsConfig'
+import { handleTermsCanceled, handleTermsDecline } from '~/utilities/termsDecline'
 
 export default function AcceptTermsScreen() {
-  const params = useLocalSearchParams()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
-  const isUpdate = params.isUpdate === 'true'
-
-  const { accepted, accepting, error } = useSelector(termsService, (state) => ({
+  // From the machine context, NOT search params (finding: a deep link could pass a crafted
+  // ?isUpdate=true on a first-run account — or drop it during an update prompt — and the
+  // two decline surfaces would disagree with the drawer gate's machine-derived value).
+  const { accepted, declined, accepting, isUpdate, error } = useSelector(termsService, (state) => ({
     accepted: state.matches('accepted'),
+    declined: state.matches('declined'),
     accepting: state.matches('accepting'),
+    isUpdate: state.context.isUpdate,
     error: state.context.error,
   }))
 
@@ -32,31 +36,62 @@ export default function AcceptTermsScreen() {
     }
   }, [accepted, authService])
 
+  // Decline is NOT an acceptance: re-enter the app without recording the new Terms version
+  // (issue #810). Only 'accepted' reaches TERMS_ACCEPTED_LOCAL above.
+  useEffect(() => {
+    if (declined) {
+      router.replace('/')
+    }
+  }, [declined])
+
+  // What a passed age check resolves into: the age flow runs for both Accept and (legacy
+  // accounts) Decline, and a verified adult who tapped Decline must decline — not accept.
+  const ageCheckIntent = useRef<'accept' | 'decline'>('accept')
+
   const handleVerifiedAdult = () => {
+    if (ageCheckIntent.current === 'decline') {
+      handleTermsDecline(termsService)
+      return
+    }
     termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
   }
 
   const handleRejectedMinor = () => {
-    Alert.alert('Age Restriction', 'This app is for users 18 and older.')
+    showAlert('Age Restriction', 'This app is for users 18 and older.')
     authService.send({ type: 'SIGN_OUT' })
   }
 
-  const { verifyAge, isVerifying, showDobPicker, handleDobResult } = useAgeVerification({
-    onVerified: handleVerifiedAdult,
-    onRejected: handleRejectedMinor,
-  })
+  const { verifyAge, isVerifying, showDobPicker, handleDobResult, needsPlayVerification } =
+    useAgeVerification({
+      onVerified: handleVerifiedAdult,
+      onRejected: handleRejectedMinor,
+    })
 
   useEffect(() => {
     if (showDobPicker && error) {
-      Alert.alert(
+      showAlert(
         'Error',
         `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
       )
     }
   }, [showDobPicker, error])
 
-  const handleCanceled = () => {
-    authService.send({ type: 'SIGN_OUT' })
+  // Decline vs sign-out policy shared with the drawer gate in
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers. An update
+  // cancel by a legacy (pre-age-gate) account routes through verifyAge (PR #812 review).
+  const handleCanceled = () =>
+    handleTermsCanceled(
+      termsService,
+      authService,
+      () => {
+        ageCheckIntent.current = 'decline'
+        void verifyAge()
+      },
+      needsPlayVerification,
+    )
+  const handleAccepted = () => {
+    ageCheckIntent.current = 'accept'
+    void verifyAge()
   }
 
   if (showDobPicker) {
@@ -70,7 +105,7 @@ export default function AcceptTermsScreen() {
   return (
     <View style={styles.container}>
       <AcceptTerms
-        onAccepted={verifyAge}
+        onAccepted={handleAccepted}
         onCanceled={handleCanceled}
         isUpdate={isUpdate}
         accepting={accepting || isVerifying}
