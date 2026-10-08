@@ -1,4 +1,4 @@
-import { createMachine, assign, fromPromise, fromCallback } from 'xstate'
+import { createMachine, assign, fromPromise, fromCallback, ActorRefFrom } from 'xstate'
 import {
   FirebaseUser as User,
   onAuthStateChanged,
@@ -18,6 +18,8 @@ import { kvStorePersister } from '~/config/queryPersister'
 import { clearSettings } from '~/utilities/settingsStorage'
 
 export type BootstrapRefreshReason = 'purchase' | 'restore' | 'manual' | 'terms' | 'foreground'
+
+export type AuthMachineActor = ActorRefFrom<typeof authMachine>
 
 type UsagePlanStatus = 'active' | 'cancelled' | 'expired' | null
 

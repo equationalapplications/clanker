@@ -3,6 +3,8 @@ import renderer from 'react-test-renderer'
 
 const mockDrawerScreenOptions = jest.fn()
 let mockLastAcceptTermsProps: Record<string, unknown> | null = null
+// Per-route options captured from Drawer.Screen (undefined = visible/default)
+let mockLastDrawerScreenOptions: Record<string, any> = {}
 
 jest.mock('expo-router', () => ({
   router: {
@@ -37,7 +39,11 @@ jest.mock('expo-router/drawer', () => {
     }
     return <>{children}</>
   }
-  Drawer.Screen = ({ name }: { name: string }) => <>{name}</>
+  // Options are captured per route so tests can assert hidden-vs-visible gating.
+  Drawer.Screen = ({ name, options }: { name: string; options?: any }) => {
+    mockLastDrawerScreenOptions[name] = options
+    return <>{name}</>
+  }
 
   return { Drawer }
 })
@@ -54,7 +60,19 @@ jest.mock('react-native-paper', () => ({
   Icon: () => null,
 }))
 
-const mockTermsService = { send: jest.fn() }
+const mockTermsService = {
+  send: jest.fn(),
+  getSnapshot: jest.fn(() => ({
+    context: {
+      subscription:
+        currentSnapshot?.termsVersion === undefined
+          ? null
+          : { termsVersion: currentSnapshot.termsVersion },
+      isUpdate: currentSnapshot?.isUpdate ?? false,
+      userUid: 'firebase-u1',
+    },
+  })),
+}
 const mockAuthService = { send: jest.fn() }
 
 jest.mock('~/hooks/useMachines', () => ({
@@ -84,6 +102,18 @@ jest.mock('~/utilities/showAlert', () => ({
   showAlert: (...args: unknown[]) => mockShowAlert(...args),
 }))
 
+jest.mock('~/services/analyticsService', () => ({
+  logEvent: jest.fn(),
+}))
+
+const mockRecordTermsDecline = jest.fn()
+const mockClearTermsDecline = jest.fn()
+
+jest.mock('~/machines/termsMachine', () => ({
+  recordTermsDecline: (...args: unknown[]) => mockRecordTermsDecline(...args),
+  clearTermsDecline: (...args: unknown[]) => mockClearTermsDecline(...args),
+}))
+
 // The real useAgeVerification hook runs; only the native age-range module is mocked.
 const mockRequestAgeRange = jest.fn()
 const mockIsEligible = jest.fn()
@@ -104,6 +134,7 @@ jest.mock('@xstate/react', () => ({
 
 type TermsSnapshot = {
   accepted: boolean
+  declined?: boolean
   blocking: boolean
   loading: boolean
   isUpdate: boolean
@@ -113,11 +144,17 @@ type TermsSnapshot = {
   termsVersion?: string | null
 }
 
+// The cancel policy reads the actor snapshot (context.isUpdate / subscription / userUid),
+// so the mock getSnapshot mirrors whatever setTermsSnapshot last installed.
+let currentSnapshot: TermsSnapshot | null = null
+
 function setTermsSnapshot(snapshot: TermsSnapshot) {
+  currentSnapshot = snapshot
   mockUseSelector.mockImplementation((_: unknown, selector: (state: any) => any) => {
     const state = {
       matches: (value: string) => {
         if (value === 'accepted') return snapshot.accepted
+        if (value === 'declined') return snapshot.declined === true
         if (value === 'acceptanceRequired') return snapshot.blocking
         if (value === 'idle' || value === 'checking') return snapshot.loading
         if (value === 'accepting') return snapshot.accepting
@@ -139,6 +176,8 @@ describe('drawer terms gate', () => {
     jest.clearAllMocks()
     mockLastAcceptTermsProps = null
     mockLastDobPickerProps = null
+    mockLastDrawerScreenOptions = {}
+    currentSnapshot = null
   })
 
   it('maps (tabs) route to Chat labels in drawer screenOptions', () => {
@@ -247,6 +286,130 @@ describe('drawer terms gate', () => {
 
     // Verify screenOptions apply hidden styles to gated routes
     expect(mockDrawerScreenOptions).toHaveBeenCalled()
+  })
+
+  it('keeps drawer navigation visible while resting in declined (issue #810)', () => {
+    // Finding: a declining user keeps using Clanker, so hiding every drawer route —
+    // including Subscribe, where they renew and re-accept — contradicted the policy.
+    setTermsSnapshot({
+      accepted: false,
+      declined: true,
+      blocking: false,
+      loading: false,
+      isUpdate: true,
+      accepting: false,
+      error: null,
+      termsVersion: '2.4',
+    })
+
+    const AppLayout = require('../app/(drawer)/_layout').default
+
+    renderer.act(() => {
+      renderer.create(<AppLayout />)
+    })
+
+    for (const name of ['(tabs)', 'profile', 'settings', 'subscribe']) {
+      expect(mockLastDrawerScreenOptions[name]).toBeUndefined()
+    }
+  })
+})
+
+describe('drawer terms gate decline (issue #810)', () => {
+  const blockingSnapshot = (isUpdate: boolean, termsVersion?: string | null): TermsSnapshot => ({
+    accepted: false,
+    blocking: true,
+    loading: false,
+    isUpdate,
+    accepting: false,
+    error: null,
+    termsVersion,
+  })
+
+  function renderLayout() {
+    const AppLayout = require('../app/(drawer)/_layout').default
+    renderer.act(() => {
+      renderer.create(<AppLayout />)
+    })
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockLastAcceptTermsProps = null
+    mockLastDobPickerProps = null
+    mockLastDrawerScreenOptions = {}
+    currentSnapshot = null
+  })
+
+  it('declining shows the notice, records the decline, and does NOT sign out', () => {
+    setTermsSnapshot(blockingSnapshot(true, '2.5'))
+    renderLayout()
+
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+
+    expect(mockAuthService.send).not.toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    // Record is scoped to the signed-in account (finding: signedIn→signedIn switches
+    // never run the signedOut clear, so an unscoped record would leak the window).
+    expect(mockRecordTermsDecline).toHaveBeenCalledWith(
+      expect.any(String),
+      'firebase-u1',
+      expect.any(Date),
+    )
+    expect(mockTermsService.send).toHaveBeenCalledWith({
+      type: 'DECLINE_TERMS',
+      windowEnd: expect.any(String),
+    })
+    expect(mockShowAlert).toHaveBeenCalledWith(
+      'Terms declined',
+      expect.stringContaining('keep using Clanker under the previous Terms'),
+    )
+  })
+
+  it('a real acceptance clears any decline record; a decline never does', () => {
+    const AppLayout = require('../app/(drawer)/_layout').default
+
+    setTermsSnapshot(blockingSnapshot(true, '2.5'))
+    let instance: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      instance = renderer.create(<AppLayout />)
+    })
+
+    // Decline (blocking → DECLINE_TERMS) must NOT reach the 'accepted'-transition effect:
+    // no clearTermsDecline, no fabricated TERMS_ACCEPTED_LOCAL.
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+    expect(mockClearTermsDecline).not.toHaveBeenCalled()
+    expect(mockAuthService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
+    )
+
+    // A real acceptance (blocking → accepted) fires the layout effect.
+    renderer.act(() => {
+      setTermsSnapshot({ ...blockingSnapshot(true, '2.5'), accepted: true, blocking: false })
+      instance.update(<AppLayout />)
+    })
+
+    expect(mockClearTermsDecline).toHaveBeenCalledTimes(1)
+    expect(mockAuthService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TERMS_ACCEPTED_LOCAL' }),
+    )
+  })
+
+  it('declining a first-time acceptance still signs out (no prior Terms to fall back on)', () => {
+    setTermsSnapshot(blockingSnapshot(false, null))
+    renderLayout()
+
+    renderer.act(() => {
+      ;(mockLastAcceptTermsProps?.onCanceled as () => void)()
+    })
+
+    expect(mockAuthService.send).toHaveBeenCalledWith({ type: 'SIGN_OUT' })
+    expect(mockRecordTermsDecline).not.toHaveBeenCalled()
+    expect(mockTermsService.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'DECLINE_TERMS' }),
+    )
   })
 })
 

@@ -1,23 +1,27 @@
 import { useEffect } from 'react'
-import { StyleSheet, View, Alert } from 'react-native'
-import { useLocalSearchParams, router } from 'expo-router'
+import { StyleSheet, View } from 'react-native'
+import { router } from 'expo-router'
 import { useSelector } from '@xstate/react'
 
 import { AcceptTerms } from '~/components/AcceptTerms'
 import { ManualDobPicker } from '~/components/ManualDobPicker'
 import { useTermsMachine, useAuthMachine } from '~/hooks/useMachines'
 import { useAgeVerification } from '~/hooks/useAgeVerification'
+import { showAlert } from '~/utilities/showAlert'
 import { TERMS } from '~/config/termsConfig'
+import { handleTermsCanceled } from '~/utilities/termsDecline'
 
 export default function AcceptTermsScreen() {
-  const params = useLocalSearchParams()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
-  const isUpdate = params.isUpdate === 'true'
-
-  const { accepted, accepting, error } = useSelector(termsService, (state) => ({
+  // From the machine context, NOT search params (finding: a deep link could pass a crafted
+  // ?isUpdate=true on a first-run account — or drop it during an update prompt — and the
+  // two decline surfaces would disagree with the drawer gate's machine-derived value).
+  const { accepted, declined, accepting, isUpdate, error } = useSelector(termsService, (state) => ({
     accepted: state.matches('accepted'),
+    declined: state.matches('declined'),
     accepting: state.matches('accepting'),
+    isUpdate: state.context.isUpdate,
     error: state.context.error,
   }))
 
@@ -32,12 +36,20 @@ export default function AcceptTermsScreen() {
     }
   }, [accepted, authService])
 
+  // Decline is NOT an acceptance: re-enter the app without recording the new Terms version
+  // (issue #810). Only 'accepted' reaches TERMS_ACCEPTED_LOCAL above.
+  useEffect(() => {
+    if (declined) {
+      router.replace('/')
+    }
+  }, [declined])
+
   const handleVerifiedAdult = () => {
     termsService.send({ type: 'ACCEPT_TERMS', isUpdate })
   }
 
   const handleRejectedMinor = () => {
-    Alert.alert('Age Restriction', 'This app is for users 18 and older.')
+    showAlert('Age Restriction', 'This app is for users 18 and older.')
     authService.send({ type: 'SIGN_OUT' })
   }
 
@@ -48,16 +60,16 @@ export default function AcceptTermsScreen() {
 
   useEffect(() => {
     if (showDobPicker && error) {
-      Alert.alert(
+      showAlert(
         'Error',
         `Failed to record your acceptance. Please check your connection and try again.\n\n${error.message}`,
       )
     }
   }, [showDobPicker, error])
 
-  const handleCanceled = () => {
-    authService.send({ type: 'SIGN_OUT' })
-  }
+  // Decline vs sign-out policy shared with the drawer gate in
+  // src/utilities/termsDecline.ts so the rule cannot drift between callers.
+  const handleCanceled = () => handleTermsCanceled(termsService, authService)
 
   if (showDobPicker) {
     return (
