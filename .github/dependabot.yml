@@ -111,6 +111,23 @@ updates:
       - dependency-name: '@types/node'
         versions: ['>=25']
 
+  # The cloud-agent images' Node base (Dockerfile for Cloud Run, Dockerfile.dev
+  # for docker-compose), pinned by digest so a rebuild is reproducible and a new
+  # Node patch arrives as a PR. After merging one, redeploy the Cloud Run
+  # service (cloud-agent `npm run deploy`) -- the running image does not change
+  # on its own.
+  - package-ecosystem: docker
+    directory: '/cloud-agent'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    cooldown:
+      # Supply-chain SOP: no version adopted until its upstream release is
+      # >= 14 days old (only CRITICAL security is exempt, by hand).
+      default-days: 14
+
   - package-ecosystem: npm
     directory: '/extension'
     target-branch: staging
