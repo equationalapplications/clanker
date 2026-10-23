@@ -33,6 +33,10 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: no version adopted until its upstream release is
+      # >= 14 days old (only CRITICAL security is exempt, by hand).
+      default-days: 14
     groups:
       # Families that must move together — bumping one member alone produces
       # version skew (the @react-native-firebase/app drift fixed after #641).
@@ -78,6 +82,10 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: no version adopted until its upstream release is
+      # >= 14 days old (only CRITICAL security is exempt, by hand).
+      default-days: 14
     groups:
       equationalapplications:
         patterns:
@@ -98,6 +106,10 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: no version adopted until its upstream release is
+      # >= 14 days old (only CRITICAL security is exempt, by hand).
+      default-days: 14
     groups:
       equationalapplications:
         patterns:
@@ -135,6 +147,10 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: no version adopted until its upstream release is
+      # >= 14 days old (only CRITICAL security is exempt, by hand).
+      default-days: 14
     # TypeScript 7 is the native Go port and typescript-eslint has no support
     # for it yet.
     ignore:
