@@ -74,7 +74,9 @@ describe('handleTermsDecline (issue #810)', () => {
   }
 
   it('records the window, sends DECLINE_TERMS with it, and shows the paid-period notice', () => {
-    const periodEnd = '2026-10-20T00:00:00.000Z'
+    // handleTermsDecline reads the real clock, so the paid period must end
+    // after it: a fixed date turns this into the 24h-fallback case once it passes.
+    const periodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const service = serviceWith({ subscription: { nextExpiryDate: periodEnd } })
 
     handleTermsDecline(service as any)
