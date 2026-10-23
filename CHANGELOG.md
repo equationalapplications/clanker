@@ -1,3 +1,10 @@
+## [33.3.7](https://github.com/equationalapplications/clanker/compare/v33.3.6...v33.3.7) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** bump handlebars to 4.7.10 (Critical advisory) ([80a7e19](https://github.com/equationalapplications/clanker/commit/80a7e19487a572716537d0b53433cdc3afb516db)), closes [#813](https://github.com/equationalapplications/clanker/issues/813)
+
 ## [33.3.6](https://github.com/equationalapplications/clanker/compare/v33.3.5...v33.3.6) (2026-10-08)
 
 
