@@ -30,7 +30,7 @@
     "@google-cloud/cloud-sql-connector": "^1.12.0",
     "@google/adk": "^2.1.0",
     "@google/genai": "^2.26.0",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "firebase-admin": "^14.3.0",
     "firebase-functions": "^7.4.0",
     "mammoth": "^1.12.0",
