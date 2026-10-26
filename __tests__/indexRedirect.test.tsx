@@ -12,19 +12,9 @@ jest.mock('~/hooks/useMachines', () => ({
   useAuthMachine: () => mockUseAuthMachine(),
 }))
 
-jest.mock('~/components/LandingPage', () => {
-  const React = require('react')
-  return () => React.createElement('LandingPage', {})
-})
-
 jest.mock('~/components/LoadingIndicator', () => {
   const React = require('react')
   return () => React.createElement('LoadingIndicator', {})
-})
-
-jest.mock('expo-router/head', () => {
-  const React = require('react')
-  return ({ children }: { children: React.ReactNode }) => React.createElement('Head', {}, children)
 })
 
 jest.mock('expo-router', () => {
@@ -34,37 +24,54 @@ jest.mock('expo-router', () => {
   }
 })
 
-import WebIndex from '../app/index.web'
+import Index from '../app/index'
 
-describe('WebIndex root behavior', () => {
+/**
+ * app/index.tsx is the only root route on every platform. On the web it is
+ * reached by in-app navigation only (router.replace('/') after checkout,
+ * terms, admin): a full page load of `/` is served the static landing page by
+ * Firebase Hosting, never this component.
+ */
+describe('Index root behavior', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('redirects signed-in users to /chat on web root', () => {
+  it('redirects signed-in users to /chat', () => {
     mockUseSelector.mockImplementationOnce(() => ({ uid: 'u1' }))
     mockUseSelector.mockImplementationOnce(() => false)
 
     let tree: any
     act(() => {
-      tree = create(<WebIndex />)
+      tree = create(<Index />)
     })
     const redirects = tree.root.findAllByType('Redirect')
-
     expect(redirects).toHaveLength(1)
     expect(redirects[0]?.props.href).toBe('/chat')
   })
 
-  it('renders landing page for signed-out users', () => {
+  it('redirects signed-out users to /sign-in', () => {
     mockUseSelector.mockImplementationOnce(() => null)
     mockUseSelector.mockImplementationOnce(() => false)
 
     let tree: any
     act(() => {
-      tree = create(<WebIndex />)
+      tree = create(<Index />)
     })
+    const redirects = tree.root.findAllByType('Redirect')
+    expect(redirects).toHaveLength(1)
+    expect(redirects[0]?.props.href).toBe('/sign-in')
+  })
 
-    expect(tree.root.findAllByType('LandingPage')).toHaveLength(1)
+  it('shows the loading indicator while auth is resolving', () => {
+    mockUseSelector.mockImplementationOnce(() => null)
+    mockUseSelector.mockImplementationOnce(() => true)
+
+    let tree: any
+    act(() => {
+      tree = create(<Index />)
+    })
+    expect(tree.root.findAllByType('LoadingIndicator')).toHaveLength(1)
     expect(tree.root.findAllByType('Redirect')).toHaveLength(0)
   })
 })

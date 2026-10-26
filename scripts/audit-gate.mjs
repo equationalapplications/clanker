@@ -36,6 +36,16 @@ const ALLOWLIST = {
     reason: 'no patched release exists; dev/build toolchain path only, no untrusted patterns at runtime',
     added: '2026-10-03',
   },
+  // zod <4.6.6 — memory exhaustion on oversized constrained collections.
+  // The app's own zod (shared/*.ts) is a direct dependency pinned >=4.6.7.
+  // The remaining hit is expo → @expo/cli, which pins zod ^3.25.76 and only
+  // runs at build/export time on schemas it ships itself; no untrusted input
+  // reaches it at app runtime. Remove when @expo/cli depends on zod >=4.6.6.
+  'GHSA-mrhx-c7xc-m3w5': {
+    package: 'zod',
+    reason: '@expo/cli pins zod ^3.25.76; build-time CLI path only',
+    added: '2026-10-25',
+  },
 }
 
 const GITHUB_ADVISORY_URL = /GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}/i

@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth'
 import { getFunctions, httpsCallable, type Functions } from 'firebase/functions'
 import { reportError } from '~/utilities/reportError'
+import { setSignedInHint } from '~/utilities/signedInHint'
 import type {
   FetchProactiveMessagesRequest,
   FetchProactiveMessagesResponse,
@@ -101,6 +102,10 @@ const appCheckReady: Promise<void> = (() => {
 })()
 
 const auth = getAuth(firebaseApp)
+
+// Keep the landing page's signed-in hint in step with the real session for
+// the lifetime of the page (sign-in, sign-out, token expiry).
+onAuthStateChangedInternal(auth, (user) => setSignedInHint(Boolean(user)))
 
 // Mock user for local development sandbox
 let mockUser: User | null = null
