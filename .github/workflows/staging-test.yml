@@ -55,9 +55,12 @@ jobs:
       # that matrix — gesture-handler 3.2.1 passes npm ci, lint, typecheck and
       # all 163 Jest suites while being wrong for SDK 57 (#661). `--check` only
       # reads package.json and exits non-zero on a mismatch; `--fix` would
-      # rewrite the tree and must never be used in CI.
+      # rewrite the tree and must never be used in CI. The gate script applies
+      # the supply-chain SOP's 14-day rule on top: a mismatch fails only when a
+      # satisfying release is already >= 14 days old (see
+      # scripts/expo-check-gate.mjs); a newer one is reported and deferred.
       - name: 📐 Check Expo SDK dependency matrix
-        run: npx expo install --check
+        run: node scripts/expo-check-gate.mjs
 
       - name: 🎨 Check formatting
         run: npm run format:check

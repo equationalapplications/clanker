@@ -33,6 +33,11 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: version updates wait until the upstream release is
+      # >= 14 days old. Cooldown never applies to Dependabot security-update
+      # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
+      default-days: 14
     groups:
       # Families that must move together — bumping one member alone produces
       # version skew (the @react-native-firebase/app drift fixed after #641).
@@ -78,6 +83,11 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: version updates wait until the upstream release is
+      # >= 14 days old. Cooldown never applies to Dependabot security-update
+      # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
+      default-days: 14
     groups:
       equationalapplications:
         patterns:
@@ -98,6 +108,11 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: version updates wait until the upstream release is
+      # >= 14 days old. Cooldown never applies to Dependabot security-update
+      # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
+      default-days: 14
     groups:
       equationalapplications:
         patterns:
@@ -111,6 +126,24 @@ updates:
       - dependency-name: '@types/node'
         versions: ['>=25']
 
+  # The cloud-agent images' Node base (Dockerfile for Cloud Run, Dockerfile.dev
+  # for docker-compose), pinned by digest so a rebuild is reproducible and a new
+  # Node patch arrives as a PR. After merging one, redeploy the Cloud Run
+  # service (cloud-agent `npm run deploy`) -- the running image does not change
+  # on its own.
+  - package-ecosystem: docker
+    directory: '/cloud-agent'
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    cooldown:
+      # Supply-chain SOP: version updates wait until the upstream release is
+      # >= 14 days old. Cooldown never applies to Dependabot security-update
+      # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
+      default-days: 14
+
   - package-ecosystem: npm
     directory: '/extension'
     target-branch: staging
@@ -118,6 +151,11 @@ updates:
       interval: weekly
       day: monday
       time: '07:00'
+    cooldown:
+      # Supply-chain SOP: version updates wait until the upstream release is
+      # >= 14 days old. Cooldown never applies to Dependabot security-update
+      # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
+      default-days: 14
     # TypeScript 7 is the native Go port and typescript-eslint has no support
     # for it yet.
     ignore:
