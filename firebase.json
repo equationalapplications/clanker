@@ -16,7 +16,11 @@
     "site": "clanker-prod",
     "public": "dist",
     "cleanUrls": true,
-    "ignore": ["firebase.json", "**/.git/**", "**/.DS_Store"],
+    "ignore": [
+      "firebase.json",
+      "**/.git/**",
+      "**/.DS_Store"
+    ],
     "headers": [
       {
         "source": "**",
@@ -26,12 +30,28 @@
             "value": "same-origin-allow-popups"
           }
         ]
+      },
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/welcome",
+        "destination": "/",
+        "type": 301
       }
     ],
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/app-shell.html"
       }
     ]
   },
@@ -40,7 +60,12 @@
       "source": "functions",
       "codebase": "clanker",
       "runtime": "nodejs24",
-      "ignore": ["node_modules", ".git", "firebase-debug.log", "*.local"],
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "*.local"
+      ],
       "predeploy": [
         "cd \"$RESOURCE_DIR\" && npx eslint .",
         "cd \"$RESOURCE_DIR\" && rm -rf lib && npx tsc"

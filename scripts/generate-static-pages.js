@@ -3,9 +3,15 @@
 
 /**
  * Generates SEO-friendly static HTML for the public legal pages (/privacy, /terms)
- * plus sitemap.xml and robots.txt, writing them into public/ so `expo export`
- * copies them into dist/. Firebase `cleanUrls` serves these static files before
- * the SPA catch-all rewrite (see firebase.json).
+ * plus sitemap.xml, robots.txt and llms.txt, writing them into public/ so
+ * `expo export` copies them into dist/. Firebase `cleanUrls` serves these static
+ * files before the SPA catch-all rewrite (see firebase.json).
+ *
+ * It also generates the marketing landing page served at `/`. That one cannot
+ * live in public/ because `expo export` writes its own single-page shell to
+ * dist/index.html; it is written to landing/index.html (tracked, so the
+ * marketing tests and git-based lastmod can read it) and swapped into
+ * dist/index.html by scripts/finalize-web-export.mjs after the export.
  *
  * Single source of truth: src/config/privacyConfig.ts, src/config/termsConfig.ts,
  * and src/config/landingConfig.ts.
@@ -22,6 +28,7 @@ const ts = require('typescript')
 
 const ROOT = path.resolve(__dirname, '..')
 const PUBLIC_DIR = path.join(ROOT, 'public')
+const LANDING_FILE = path.join(ROOT, 'landing', 'index.html')
 
 // ---------------------------------------------------------------------------
 // Minimal TS module loader (transpile + evaluate) with native-dep stubs.
@@ -78,7 +85,12 @@ function resolveTs(file) {
   throw new Error(`Cannot resolve module: ${file}`)
 }
 
-const { SITE_BASE: SITE } = loadTsModule(path.join(ROOT, 'src/config/siteConfig'))
+const {
+  SITE_BASE: SITE,
+  APP_HOME_PATH,
+  SIGNED_IN_HINT_KEY,
+  APP_SHELL_FILE,
+} = loadTsModule(path.join(ROOT, 'src/config/siteConfig'))
 
 // ---------------------------------------------------------------------------
 // Plain-text (config) → HTML conversion.
@@ -211,7 +223,7 @@ const SHARED_CSS = `
 
 const FOOTER = `
     <footer>
-      <a href="/welcome">About Clanker</a>
+      <a href="/">Home</a>
       <span>·</span>
       <a href="/real-time-voice">Real-Time Voice</a>
       <span>·</span>
@@ -304,6 +316,12 @@ function writeFile(relPath, contents) {
   fs.mkdirSync(path.dirname(full), { recursive: true })
   fs.writeFileSync(full, contents)
   console.log(`  ✓ public/${relPath}`)
+}
+
+function writeRepoFile(absPath, contents) {
+  fs.mkdirSync(path.dirname(absPath), { recursive: true })
+  fs.writeFileSync(absPath, contents)
+  console.log(`  ✓ ${path.relative(ROOT, absPath)}`)
 }
 
 function toIsoDate(humanDate) {
@@ -478,11 +496,16 @@ function renderWelcomeFeatureCard(feature) {
             </article>`
 }
 
-function generateWelcome() {
+function generateLanding() {
   const { SITE_META, SITE_BASE, JSONLD, HERO, FEATURES, FEATURES_SECTION, VIDEO, FOOTER_LINKS } =
     loadTsModule(path.join(ROOT, 'src/config/landingConfig.ts'))
 
   const canonical = `${SITE_BASE}${SITE_META.canonicalPath}`
+  // Signed-in visitors skip the marketing page. The key is written by
+  // src/utilities/signedInHint.web.ts; crawlers never run this.
+  const signedInRedirect =
+    `<script>try{if(localStorage.getItem(${JSON.stringify(SIGNED_IN_HINT_KEY)})==='1')` +
+    `location.replace(${JSON.stringify(APP_HOME_PATH)})}catch(e){}</script>`
   const jsonLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
@@ -526,6 +549,7 @@ function generateWelcome() {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${signedInRedirect}
     <title>${escapeHtml(SITE_META.title)}</title>
     <meta name="description" content="${escapeHtmlAttr(SITE_META.description)}" />
     <meta name="keywords" content="${escapeHtmlAttr(SITE_META.keywords)}" />
@@ -604,13 +628,12 @@ ${featureCards}
 </html>
 `
 
-  writeFile('welcome/index.html', html)
+  writeRepoFile(LANDING_FILE, html)
 }
 
 function generateSitemap({ privacy, terms }) {
-  const welcomePage = path.join(PUBLIC_DIR, 'welcome/index.html')
   const pages = [
-    { loc: '/welcome', changefreq: 'weekly', priority: '1.0', lastmodFile: welcomePage },
+    { loc: '/', changefreq: 'weekly', priority: '1.0', lastmodFile: LANDING_FILE },
     {
       loc: '/real-time-voice',
       changefreq: 'monthly',
@@ -688,13 +711,63 @@ ${urls}
 `
   writeFile('sitemap.xml', sitemap)
 
+  // The Expo shell is an empty document for crawlers; every app route resolves
+  // to it (see firebase.json). Keep it and its clean-URL alias out of the index.
+  const shellPath = `/${APP_SHELL_FILE}`
+  const shellCleanPath = shellPath.replace(/\.html$/, '')
   const robots = `# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
+Disallow: ${shellPath}
+Disallow: ${shellCleanPath}
 
 Sitemap: ${SITE}/sitemap.xml
 `
   writeFile('robots.txt', robots)
+
+  return pages
+}
+
+/**
+ * llms.txt (https://llmstxt.org): a plain-text guide for AI assistants. Built
+ * from the same config as the landing page so the two cannot drift.
+ */
+function generateLlmsTxt(pages) {
+  const { SITE_META, HERO, FEATURES, FOOTER_LINKS } = loadTsModule(
+    path.join(ROOT, 'src/config/landingConfig.ts'),
+  )
+  const pageLabel = new Map(FOOTER_LINKS.map((link) => [link.href, link.label]))
+  pageLabel.set('/', 'Home')
+  const pageLines = pages
+    .map((page) => `- ${pageLabel.get(page.loc) ?? page.loc}: ${SITE}${page.loc}`)
+    .join('\n')
+  const featureLines = FEATURES.map((feature) => {
+    const link = feature.learnMoreHref ? ` (${SITE}${feature.learnMoreHref})` : ''
+    return `- ${feature.title}${link}: ${feature.body}`
+  }).join('\n')
+
+  const text = `# ${SITE_META.siteName}
+
+> ${SITE_META.description}
+
+${HERO.tagline}. Free to start on iOS, Android, and the web: ${SITE}${HERO.signInHref}
+Made by Equational Applications LLC (https://equationalapplications.com/).
+
+## Features
+
+${featureLines}
+
+## Pages
+
+${pageLines}
+
+## Notes
+
+- Everything under ${SITE}/sign-in, ${SITE}${APP_HOME_PATH} and other app routes is the
+  signed-in web app, rendered in the browser; it has no content for crawlers.
+- Support: ${SITE}/support
+`
+  writeFile('llms.txt', text)
 }
 
 function copyStaticAssets() {
@@ -712,8 +785,9 @@ function main() {
   copyStaticAssets()
   const privacy = generatePrivacy()
   const terms = generateTerms()
-  generateWelcome()
-  generateSitemap({ privacy, terms })
+  generateLanding()
+  const pages = generateSitemap({ privacy, terms })
+  generateLlmsTxt(pages)
   console.log('Done.')
 }
 

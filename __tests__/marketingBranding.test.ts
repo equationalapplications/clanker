@@ -1,7 +1,12 @@
 import fs from 'fs'
 import path from 'path'
 
-const PUBLIC_DIR = path.resolve(__dirname, '..', 'public')
+const ROOT = path.resolve(__dirname, '..')
+const PUBLIC_DIR = path.join(ROOT, 'public')
+// The landing page is served at `/` but generated outside public/ because
+// `expo export` owns dist/index.html until scripts/finalize-web-export.mjs
+// swaps it in. See scripts/generate-static-pages.js.
+const LANDING_FILE = path.join(ROOT, 'landing', 'index.html')
 
 /**
  * Marketing-page branding regression test.
@@ -14,7 +19,8 @@ const PUBLIC_DIR = path.resolve(__dirname, '..', 'public')
  */
 const PAGES = [
   {
-    slug: 'welcome',
+    slug: '',
+    file: LANDING_FILE,
     title: 'Clanker AI — Personal AI Assistant with Real-Time Voice & OKF Memory',
   },
   { slug: 'real-time-voice', title: 'Live Real-Time Voice Calls — Clanker AI' },
@@ -31,8 +37,8 @@ const PAGES = [
   { slug: 'support', title: 'Support & FAQ — Clanker AI' },
 ] as const
 
-function readPage(slug: string): string {
-  return fs.readFileSync(path.join(PUBLIC_DIR, slug, 'index.html'), 'utf8')
+function readPage(page: { slug: string; file?: string }): string {
+  return fs.readFileSync(page.file ?? path.join(PUBLIC_DIR, page.slug, 'index.html'), 'utf8')
 }
 
 function decodeEntities(value: string): string {
@@ -87,8 +93,9 @@ function allNodes(html: string): Record<string, unknown>[] {
   return extractJsonLdBlocks(html).flatMap((block) => flattenNodes(block))
 }
 
-describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
-  const html = readPage(slug)
+describe.each(PAGES)('marketing page /$slug', (page) => {
+  const { slug, title } = page
+  const html = readPage(page)
 
   it('has the expected <title>', () => {
     expect(extractTitle(html)).toBe(title)
@@ -145,8 +152,25 @@ describe.each(PAGES)('marketing page /$slug', ({ slug, title }) => {
   })
 })
 
+describe('landing page served at /', () => {
+  const html = readPage(PAGES[0])
+
+  it('is the only page that redirects signed-in visitors into the app', () => {
+    const all = PAGES.map((page) => readPage(page))
+    const withRedirect = all.filter((h) => h.includes('localStorage.getItem('))
+    expect(withRedirect).toEqual([html])
+    expect(html).toContain("location.replace(\"/chat\")")
+  })
+
+  it('never links to the retired /welcome URL', () => {
+    PAGES.map((page) => readPage(page)).forEach((h) => {
+      expect(h).not.toMatch(/href="\/welcome/)
+    })
+  })
+})
+
 describe('marketing pages as a whole', () => {
-  const all = PAGES.map(({ slug }) => ({ slug, html: readPage(slug) }))
+  const all = PAGES.map((page) => ({ slug: page.slug, html: readPage(page) }))
 
   it('declares exactly one SoftwareApplication, named "Clanker AI" with alternateName "Clanker"', () => {
     const apps = all.flatMap(({ html }) =>
@@ -162,7 +186,7 @@ describe('marketing pages as a whole', () => {
     expect(alts).toEqual(['Clanker AI logo'])
   })
 
-  it('keeps the generator template and public/welcome in agreement on the hero alt', () => {
+  it('keeps the generator template and landing/index.html in agreement on the hero alt', () => {
     const script = fs.readFileSync(
       path.resolve(__dirname, '..', 'scripts', 'generate-static-pages.js'),
       'utf8',

@@ -68,6 +68,7 @@ public/privacy/
 public/terms/
 public/sitemap.xml
 public/robots.txt
+public/llms.txt
 public/clanker-icon.png
 
 # Superpowers skill session artifacts (local-only)
