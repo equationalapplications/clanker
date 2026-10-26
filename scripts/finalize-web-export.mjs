@@ -56,14 +56,17 @@ export function patchShell(html) {
 }
 
 function main() {
-  if (!fs.existsSync(SHELL_SRC)) fail(`missing ${path.relative(ROOT, SHELL_SRC)}; run expo export first`)
+  if (!fs.existsSync(SHELL_SRC))
+    fail(`missing ${path.relative(ROOT, SHELL_SRC)}; run expo export first`)
   if (!fs.existsSync(LANDING_SRC)) {
     fail(`missing ${path.relative(ROOT, LANDING_SRC)}; run npm run generate:static-pages first`)
   }
 
   const shell = fs.readFileSync(SHELL_SRC, 'utf8')
   if (!isExpoShell(shell)) {
-    fail(`${path.relative(ROOT, SHELL_SRC)} does not look like the Expo shell; refusing to overwrite it`)
+    fail(
+      `${path.relative(ROOT, SHELL_SRC)} does not look like the Expo shell; refusing to overwrite it`,
+    )
   }
 
   const landing = fs.readFileSync(LANDING_SRC, 'utf8')

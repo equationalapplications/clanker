@@ -55,11 +55,11 @@ Expo keeps owning the app. Firebase Hosting owns the root.
 
 ### Firebase Hosting rules
 
-| Rule | Before | After |
-|---|---|---|
-| rewrite `**` | `/index.html` | `/app-shell.html` |
-| redirect | none | `/welcome` → `/` (301) |
-| header | none | `/.well-known/apple-app-site-association` → `Content-Type: application/json` |
+| Rule         | Before        | After                                                                        |
+| ------------ | ------------- | ---------------------------------------------------------------------------- |
+| rewrite `**` | `/index.html` | `/app-shell.html`                                                            |
+| redirect     | none          | `/welcome` → `/` (301)                                                       |
+| header       | none          | `/.well-known/apple-app-site-association` → `Content-Type: application/json` |
 
 Firebase evaluates redirects, then static files, then rewrites, so `/`, the pillar pages,
 `llms.txt`, `robots.txt`, `sitemap.xml` and `.well-known/*` are served as files and every

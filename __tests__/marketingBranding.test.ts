@@ -159,7 +159,7 @@ describe('landing page served at /', () => {
     const all = PAGES.map((page) => readPage(page))
     const withRedirect = all.filter((h) => h.includes('localStorage.getItem('))
     expect(withRedirect).toEqual([html])
-    expect(html).toContain("location.replace(\"/chat\")")
+    expect(html).toContain('location.replace("/chat")')
   })
 
   it('never links to the retired /welcome URL', () => {

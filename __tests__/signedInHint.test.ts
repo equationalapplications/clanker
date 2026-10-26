@@ -54,7 +54,10 @@ describe('signedInHint (web)', () => {
   })
 
   it('uses the same key the landing page script reads', () => {
-    const landing = require('fs').readFileSync(require('path').resolve(__dirname, '..', 'landing', 'index.html'), 'utf8')
+    const landing = require('fs').readFileSync(
+      require('path').resolve(__dirname, '..', 'landing', 'index.html'),
+      'utf8',
+    )
     expect(landing).toContain(`localStorage.getItem(${JSON.stringify(SIGNED_IN_HINT_KEY)})==='1'`)
   })
 })
