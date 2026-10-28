@@ -127,8 +127,8 @@ export function ChatViewContent({
   // `translate-with-padding`.
   // react-native-keyboard-controller's KeyboardAvoidingView is forwardRef<View>:
   // at runtime the ref IS the host view instance (which has measureInWindow).
-  // Its TS ref type is still the legacy component-ref form, so derive the ref
-  // type from the component's own props and narrow where methods are used.
+  // Derive the ref type from the component's own props so it matches whatever
+  // ref form the library declares, and narrow where methods are used.
   type KeyboardAvoidingViewRef = NonNullable<
     React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']
   > extends React.Ref<infer T>

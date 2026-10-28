@@ -85,6 +85,7 @@ const common = {
   // Where each exclusion is covered is noted inline; see .github/workflows/staging-test.yml.
   testPathIgnorePatterns: [
     '/node_modules/',
+    '<rootDir>/temp/',
     // functions/ and cloud-agent/ use node:test, not Jest. Both are run by
     // staging-test.yml as separate `npm test` steps.
     '<rootDir>/functions/',
@@ -116,10 +117,24 @@ const common = {
 
 const TEST_MATCH = ['**/__tests__/**/*.{test,spec}.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)']
 
+// Guard: the dom project only works if the patch-package patch for the RN
+// preset is applied (it removes the global.window define that breaks jsdom).
+// Fail with a descriptive message instead of per-suite "Cannot redefine
+// property: window" errors when postinstall was skipped or the patch drifted.
+const rnPresetSetupPath = require.resolve('@react-native/jest-preset/jest/setup.js')
+if (/^\s*window:\s*\{/m.test(fs.readFileSync(rnPresetSetupPath, 'utf8'))) {
+  throw new Error(
+    'jest.config.js: node_modules/@react-native/jest-preset/jest/setup.js still defines global.window — ' +
+      'run `npx patch-package` (patches/@react-native+jest-preset+0.88.1.patch must be applied; ' +
+      'it is normally applied by postinstall) or update the patch for a newer preset version.',
+  )
+}
+
 module.exports = {
   projects: [
     {
       ...common,
+      displayName: 'dom',
       preset: 'jest-expo',
       testEnvironment: 'jsdom',
       // Project setupFiles APPEND to the preset's (which run first), so this
