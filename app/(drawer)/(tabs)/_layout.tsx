@@ -25,7 +25,10 @@ export default function TabLayout() {
           title: 'Chat',
           tabBarAccessibilityLabel: 'Chat',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={String(color)} />
+            <TabBarIcon
+              name={focused ? 'chatbubble' : 'chatbubble-outline'}
+              color={String(color)}
+            />
           ),
         }}
       />

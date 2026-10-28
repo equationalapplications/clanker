@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View, Text, StyleSheet, type ViewStyle, type HostInstance } from 'react-native'
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  type ViewStyle,
+  type HostInstance,
+} from 'react-native'
 import { initializeAppleSignIn } from '~/auth/appleSignin.web'
 
 type ButtonState = 'idle' | 'loading' | 'error'

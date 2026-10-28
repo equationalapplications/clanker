@@ -236,7 +236,9 @@ it('does not mark the thread read when triggerSync returns void', async () => {
   // throw and must not invoke the post-sync mark-read.
   const syncVoid = jest.fn(() => undefined)
   const { Wrapper } = createWrapper()
-  await renderHook(() => useProactiveNotificationRouting({ triggerSync: syncVoid }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync: syncVoid }), {
+    wrapper: Wrapper,
+  })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
   await new Promise((res) => setTimeout(res, 10))
   expect(syncVoid).toHaveBeenCalledTimes(1)

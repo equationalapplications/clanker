@@ -23,7 +23,9 @@ const renderWithProvider = async (ui: React.ReactElement) =>
 
 describe('MessageBubble', () => {
   it('renders the text', async () => {
-    const { getByText } = await renderWithProvider(<MessageBubble message={baseMessage} isOwn={true} />)
+    const { getByText } = await renderWithProvider(
+      <MessageBubble message={baseMessage} isOwn={true} />,
+    )
     expect(getByText('hello')).toBeTruthy()
   })
 

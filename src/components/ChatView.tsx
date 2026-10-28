@@ -129,11 +129,12 @@ export function ChatViewContent({
   // at runtime the ref IS the host view instance (which has measureInWindow).
   // Derive the ref type from the component's own props so it matches whatever
   // ref form the library declares, and narrow where methods are used.
-  type KeyboardAvoidingViewRef = NonNullable<
-    React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']
-  > extends React.Ref<infer T>
-    ? T
-    : never
+  type KeyboardAvoidingViewRef =
+    NonNullable<React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']> extends React.Ref<
+      infer T
+    >
+      ? T
+      : never
   const keyboardAvoidingRef = useRef<KeyboardAvoidingViewRef>(null)
   const keyboardAvoidingRelativeY = useRef(0)
   const [keyboardAvoidingOffset, setKeyboardAvoidingOffset] = useState(0)

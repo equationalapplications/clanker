@@ -43,9 +43,12 @@ describe('useMemoryBundle', () => {
     // RNTL 14's async renderHook flushes effects before returning, so gate the
     // fetch promise to observe the initial loading state.
     let resolveFetch!: (bundle: typeof BUNDLE) => void
-    const getMemoryBundle = jest
-      .fn()
-      .mockImplementation(() => new Promise<typeof BUNDLE>((resolve) => { resolveFetch = resolve }))
+    const getMemoryBundle = jest.fn().mockImplementation(
+      () =>
+        new Promise<typeof BUNDLE>((resolve) => {
+          resolveFetch = resolve
+        }),
+    )
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
     const { result } = await renderHook(() => useMemoryBundle('char1'))
@@ -89,7 +92,12 @@ describe('useMemoryBundle', () => {
     const getMemoryBundle = jest
       .fn()
       .mockResolvedValueOnce(BUNDLE)
-      .mockImplementationOnce(() => new Promise<typeof BUNDLE>((resolve) => { resolveSecondFetch = resolve }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof BUNDLE>((resolve) => {
+            resolveSecondFetch = resolve
+          }),
+      )
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
     const { result, rerender } = await renderHook(({ id }: { id: string }) => useMemoryBundle(id), {

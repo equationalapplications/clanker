@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View, Text, StyleSheet, type ViewStyle, type HostInstance } from 'react-native'
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  type ViewStyle,
+  type HostInstance,
+} from 'react-native'
 import ProviderButton from '~/auth/AuthProviderButton'
 import { initializeGoogleSignIn, renderGoogleSignInButton } from '~/auth/googleSignin.web'
 

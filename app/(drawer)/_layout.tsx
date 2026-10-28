@@ -1,11 +1,6 @@
 // SDK 58 moved the drawer primitives onto the expo-router/drawer entry point;
 // the expo-router/build/react-navigation/* deep import is gone.
-import {
-  Drawer,
-  DrawerContentScrollView,
-  DrawerItem,
-  DrawerItemList,
-} from 'expo-router/drawer'
+import { Drawer, DrawerContentScrollView, DrawerItem, DrawerItemList } from 'expo-router/drawer'
 import { router, useNavigation, type Href } from 'expo-router'
 import { Text, useTheme, Icon } from 'react-native-paper'
 import { Pressable, StyleSheet, View, ColorValue } from 'react-native'
