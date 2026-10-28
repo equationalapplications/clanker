@@ -193,10 +193,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
-    // SDK 58 defaults web.output to 'server'; pin 'static' to keep the SDK 57
-    // export behavior (pure static hosting, no server runtime needed). Switching
-    // to server output is its own change.
-    output: 'static',
+    // web.output stays unset: the SDK 58 default is 'single' (SPA, one boot
+    // index.html), which is what this app must ship — the design doc for the
+    // landing page requires `/` to remain the SPA entry, and the hand-written
+    // /privacy + /terms pages in public/ rely on the SPA catch-all. Do NOT pin
+    // 'static' or 'server' here: both pre-render route HTML and break that.
     buildScript: {
       baseUrl: '/',
     },
