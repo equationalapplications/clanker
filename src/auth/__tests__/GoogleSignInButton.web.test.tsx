@@ -43,7 +43,7 @@ describe('GoogleSignInButton (web)', () => {
   })
 
   it('calls initializeGoogleSignIn then renderGoogleSignInButton on mount', async () => {
-    render(<GoogleSignInButton />)
+    await render(<GoogleSignInButton />)
     await waitFor(() => {
       expect(googleSigninWeb.initializeGoogleSignIn).toHaveBeenCalledTimes(1)
       expect(googleSigninWeb.renderGoogleSignInButton).toHaveBeenCalledTimes(1)
@@ -52,26 +52,34 @@ describe('GoogleSignInButton (web)', () => {
 
   it('calls onLoadingChange(true) when onCredentialStart fires', async () => {
     const onLoadingChange = jest.fn()
-    render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
+    await render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
     await waitFor(() => expect(capturedHandlers).not.toBeNull())
-    act(() => capturedHandlers!.onCredentialStart())
+    await act(async () => {
+      capturedHandlers!.onCredentialStart()
+    })
     expect(onLoadingChange).toHaveBeenCalledWith(true)
   })
 
   it('calls onLoadingChange(false) when onCredentialSuccess fires', async () => {
     const onLoadingChange = jest.fn()
-    render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
+    await render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
     await waitFor(() => expect(capturedHandlers).not.toBeNull())
-    act(() => capturedHandlers!.onCredentialStart())
-    act(() => capturedHandlers!.onCredentialSuccess())
+    await act(async () => {
+      capturedHandlers!.onCredentialStart()
+    })
+    await act(async () => {
+      capturedHandlers!.onCredentialSuccess()
+    })
     expect(onLoadingChange).toHaveBeenLastCalledWith(false)
   })
 
   it('calls onLoadingChange(false) and shows error caption when onCredentialError fires', async () => {
     const onLoadingChange = jest.fn()
-    render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
+    await render(<GoogleSignInButton onLoadingChange={onLoadingChange} />)
     await waitFor(() => expect(capturedHandlers).not.toBeNull())
-    act(() => capturedHandlers!.onCredentialError(new Error('auth/network-error')))
+    await act(async () => {
+      capturedHandlers!.onCredentialError(new Error('auth/network-error'))
+    })
     expect(onLoadingChange).toHaveBeenLastCalledWith(false)
     expect(screen.getByText(/Sign-in failed/)).toBeTruthy()
   })
@@ -80,23 +88,27 @@ describe('GoogleSignInButton (web)', () => {
     ;(googleSigninWeb.initializeGoogleSignIn as jest.Mock).mockRejectedValueOnce(
       new Error('script load failed'),
     )
-    render(<GoogleSignInButton />)
+    await render(<GoogleSignInButton />)
     await waitFor(() => {
       expect(screen.getByText(/Google Sign-In unavailable/)).toBeTruthy()
     })
   })
 
   it('shows loading overlay when loading prop is true', async () => {
-    render(<GoogleSignInButton loading />)
+    await render(<GoogleSignInButton loading />)
     await waitFor(() => expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy())
   })
 
   it('shows loading overlay and blocks interaction during credential exchange (onCredentialStart)', async () => {
-    render(<GoogleSignInButton loading={false} />)
+    await render(<GoogleSignInButton loading={false} />)
     await waitFor(() => expect(capturedHandlers).not.toBeNull())
-    act(() => capturedHandlers!.onCredentialStart())
+    await act(async () => {
+      capturedHandlers!.onCredentialStart()
+    })
     expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy()
-    act(() => capturedHandlers!.onCredentialSuccess())
+    await act(async () => {
+      capturedHandlers!.onCredentialSuccess()
+      })
     await waitFor(() => expect(screen.queryByTestId('google-signin-loading-overlay')).toBeNull())
   })
 })

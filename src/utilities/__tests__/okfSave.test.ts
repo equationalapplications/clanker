@@ -10,9 +10,6 @@ const mockGenerateAsync = jest.fn()
 const mockFileWrite = jest.fn()
 
 jest.mock('react-native', () => ({
-  InteractionManager: {
-    runAfterInteractions: (callback: () => void) => callback(),
-  },
   Platform: {
     get OS() {
       return mockPlatformOS
@@ -22,6 +19,15 @@ jest.mock('react-native', () => ({
     },
   },
 }))
+
+// okfSave defers native UI readiness via requestIdleCallback (RN 0.88 removed
+// InteractionManager) — run the callback immediately in tests.
+beforeAll(() => {
+  ;(global as Record<string, unknown>).requestIdleCallback = (callback: () => void) => {
+    callback()
+    return 0
+  }
+})
 
 jest.mock('jszip', () =>
   jest.fn().mockImplementation(() => ({

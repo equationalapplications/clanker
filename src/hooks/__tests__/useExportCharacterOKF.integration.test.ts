@@ -57,13 +57,13 @@ jest.mock('~/utilities/reportError', () => ({
 }))
 
 describe('useExportCharacterOKF', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     ;(okfSave.zipAndSaveOKF as jest.Mock).mockResolvedValue({ saveLocation: 'share' })
   })
 
   it('exports character memory and saves ZIP', async () => {
-    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
+    const { result } = await renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     expect(result.current.isExporting).toBe(false)
     expect(result.current.error).toBeNull()
@@ -93,7 +93,7 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('passes formatOkfBundle files through unmodified, plus the README', async () => {
-    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
+    const { result } = await renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     await act(async () => {
       await result.current.exportOkf()
@@ -109,7 +109,7 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('keeps export callback stable while using the latest character name', async () => {
-    const { result, rerender } = renderHook<
+    const { result, rerender } = await renderHook<
       ReturnType<typeof useExportCharacterOKF>,
       { characterName: string }
     >(({ characterName }) => useExportCharacterOKF('char_123', characterName), {
@@ -117,7 +117,7 @@ describe('useExportCharacterOKF', () => {
     })
     const firstExportOkf = result.current.exportOkf
 
-    rerender({ characterName: 'RenamedCharacter' })
+    await rerender({ characterName: 'RenamedCharacter' })
 
     expect(result.current.exportOkf).toBe(firstExportOkf)
 
@@ -133,7 +133,7 @@ describe('useExportCharacterOKF', () => {
   })
 
   it('handles export errors and sets error state', async () => {
-    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
+    const { result } = await renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     ;(okfSave.zipAndSaveOKF as jest.Mock).mockRejectedValueOnce(new Error('ZIP generation failed'))
 
@@ -161,7 +161,7 @@ describe('useExportCharacterOKF', () => {
           }),
       )
     })
-    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
+    const { result } = await renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     let exportPromise!: Promise<void>
     await act(async () => {
@@ -192,7 +192,7 @@ describe('useExportCharacterOKF', () => {
           }),
       )
     })
-    const { result } = renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
+    const { result } = await renderHook(() => useExportCharacterOKF('char_123', 'TestChar'))
 
     await act(async () => {
       const firstExport = result.current.exportOkf()

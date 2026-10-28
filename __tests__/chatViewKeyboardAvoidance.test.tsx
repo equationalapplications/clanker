@@ -207,7 +207,13 @@ jest.mock('react-native-keyboard-controller', () => {
   return {
     KeyboardAvoidingView: React.forwardRef((props: any, ref: any) => {
       capturedKavProps.push(props)
-      return React.createElement(View, { ...props, ref })
+      // SDK 58: KeyboardAvoidingView is a class instance exposing the wrapped
+      // host view as `.viewRef.current` (that host is what has
+      // measureInWindow). Mirror that indirection so ChatView's JS measurement
+      // reaches the mocked View.
+      const hostViewRef = React.useRef(null)
+      React.useImperativeHandle(ref, () => ({ viewRef: hostViewRef }))
+      return React.createElement(View, { ...props, ref: hostViewRef })
     }),
     KeyboardProvider: ({ children }: any) => children ?? null,
     useKeyboardHandler: () => ({}),

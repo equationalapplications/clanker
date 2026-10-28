@@ -39,14 +39,14 @@ const mockGetOrSpawn = jest.mocked(wikiOrchestrator.getOrSpawn)
 const mockWikiSync = jest.mocked(wikiSync)
 
 describe('useCharacterWiki', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     _resetCharacterWikiEntityQueuesForTests()
   })
 
   test('returns null operations when wiki is unavailable', async () => {
     mockUseWiki.mockReturnValue(null as any)
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
     await expect(result.current.read('test')).resolves.toBeNull()
   })
 
@@ -141,7 +141,7 @@ describe('useCharacterWiki', () => {
     const mockActor = createMockActor()
     mockGetOrSpawn.mockReturnValue(mockActor)
 
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
 
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
     let ingestResultReturned: any
@@ -195,7 +195,7 @@ describe('useCharacterWiki', () => {
     }
 
     mockGetOrSpawn.mockReturnValue(mockActor as any)
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
 
     const doc = { sourceRef: 's', sourceHash: 'h', documentChunk: 'content' }
     let promise!: Promise<any>
@@ -233,7 +233,7 @@ describe('useCharacterWiki', () => {
     const mockActor = createMockActor({ lastReadResult: readResult })
     mockGetOrSpawn.mockReturnValue(mockActor)
 
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
 
     let readResultReturned: any
     await act(async () => {
@@ -261,7 +261,7 @@ describe('useCharacterWiki', () => {
       },
     } as any)
 
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
     await act(async () => {
       await result.current.sync('cloud-1')
     })
@@ -313,7 +313,7 @@ describe('useCharacterWiki', () => {
       },
     } as any)
 
-    const { result } = renderHook(() => useCharacterWiki('char1'))
+    const { result } = await renderHook(() => useCharacterWiki('char1'))
     await act(async () => {
       await result.current.sync('cloud-1')
     })

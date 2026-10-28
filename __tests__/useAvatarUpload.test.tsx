@@ -1,5 +1,4 @@
-import React from 'react'
-import { act, create } from 'react-test-renderer'
+import { renderHook as rtlRenderHook, act } from '@testing-library/react-native'
 import { useAvatarUpload } from '~/hooks/useAvatarUpload'
 import { saveCharacterImage } from '~/services/characterImageService'
 import * as ImagePicker from 'expo-image-picker'
@@ -51,40 +50,33 @@ function makePickerResult(width: number, height: number, uri = 'file://source.jp
 }
 
 function renderHook(onImageUploaded?: (imageId: string) => void) {
-  let hookValue: ReturnType<typeof useAvatarUpload> | null = null
-
-  function Probe() {
-    hookValue = useAvatarUpload({
+  // RNTL 14's renderHook replaces the hand-rolled react-test-renderer Probe:
+  // its act no longer flushes async state updates under React 19.
+  return rtlRenderHook(() =>
+    useAvatarUpload({
       characterId: 'char-1',
       onImageUploaded,
-    })
-    return null
-  }
-
-  act(() => {
-    create(<Probe />)
-  })
-
-  return {
-    getHookValue: () => {
-      if (!hookValue) {
-        throw new Error('hook value missing')
-      }
-      return hookValue
-    },
-  }
+    }),
+  ).then((rendered) => ({
+    getHookValue: () => rendered.result.current,
+  }))
 }
 
 describe('useAvatarUpload', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     mockCharacterSend.mockReset()
+    // mockReset (unlike clearAllMocks) drops leaked implementations from the
+    // previous test — e.g. a never-resolving mockReturnValue on the picker.
+    mockLaunchImageLibraryAsync.mockReset()
+    mockManipulateAsync.mockReset()
+    mockSaveCharacterImage.mockReset()
   })
 
   it('returns null and skips save when picker is canceled', async () => {
     mockLaunchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: null } as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let result: string | null = null
     await act(async () => {
@@ -100,7 +92,7 @@ describe('useAvatarUpload', () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(2000, 1000) as never)
     mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     await act(async () => {
       await getHookValue().uploadAvatar()
@@ -115,7 +107,7 @@ describe('useAvatarUpload', () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1024, 1024) as never)
     mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     await act(async () => {
       await getHookValue().uploadAvatar()
@@ -135,7 +127,7 @@ describe('useAvatarUpload', () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(1024, 1024) as never)
     mockSaveCharacterImage.mockResolvedValue({ id: 'img-42' } as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let result: string | null = null
     await act(async () => {
@@ -148,7 +140,7 @@ describe('useAvatarUpload', () => {
   it('still rejects images below the 200px minimum', async () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(150, 150) as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let result: string | null = 'init'
     await act(async () => {
@@ -163,7 +155,7 @@ describe('useAvatarUpload', () => {
   it('normalizes permission errors from picker', async () => {
     mockLaunchImageLibraryAsync.mockRejectedValue(new Error('Permission denied by user'))
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let result: string | null = 'init'
     await act(async () => {
@@ -179,10 +171,10 @@ describe('useAvatarUpload', () => {
     mockLaunchImageLibraryAsync.mockReturnValue(pickerDeferred.promise as never)
     mockSaveCharacterImage.mockResolvedValue({ id: 'img-1' } as never)
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let pendingUpload!: Promise<string | null>
-    act(() => {
+    await act(async () => {
       pendingUpload = getHookValue().uploadAvatar()
     })
 
@@ -200,7 +192,7 @@ describe('useAvatarUpload', () => {
     mockLaunchImageLibraryAsync.mockResolvedValue(makePickerResult(600, 600) as never)
     mockSaveCharacterImage.mockRejectedValue(new Error('SQLite write failed'))
 
-    const { getHookValue } = renderHook()
+    const { getHookValue } = await renderHook()
 
     let result: string | null = 'init'
     await act(async () => {

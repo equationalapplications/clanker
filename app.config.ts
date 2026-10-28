@@ -193,6 +193,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
+    // SDK 58 defaults web.output to 'server'; pin 'static' to keep the SDK 57
+    // export behavior (pure static hosting, no server runtime needed). Switching
+    // to server output is its own change.
+    output: 'static',
     buildScript: {
       baseUrl: '/',
     },

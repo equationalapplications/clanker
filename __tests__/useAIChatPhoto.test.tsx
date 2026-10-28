@@ -188,7 +188,7 @@ const localOnlyCharacterProps = {
 }
 
 describe('useAIChat photo path', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     mockIsDevSandboxEnabled.mockReturnValue(false)
     mockUseChatMessages.mockReturnValue([])
@@ -224,12 +224,12 @@ describe('useAIChat photo path', () => {
     process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = 'http://10.0.0.1:8080/agent/run'
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     delete process.env.EXPO_PUBLIC_CLOUD_AGENT_URL
   })
 
   it('persists the message with the render hint, commits the row, then calls the agent', async () => {
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, 'what is this?')
@@ -271,7 +271,7 @@ describe('useAIChat photo path', () => {
     // Re-entering from inside the agent call is what makes this deterministic:
     // the second send is guaranteed to start while the first is still in flight,
     // with no timers to race.
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     mockCallCloudAgent.mockImplementationOnce(async () => {
       await result.current.sendPhoto(PHOTO, 'and this?')
@@ -293,7 +293,7 @@ describe('useAIChat photo path', () => {
     // The mutex is shared across `sendMessage` and `sendPhoto` — a photo turn
     // in flight must block a text turn from the same tick, not just another
     // photo turn.
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     mockCallCloudAgent.mockImplementationOnce(async () => {
       await result.current.sendMessage({
@@ -314,7 +314,7 @@ describe('useAIChat photo path', () => {
   })
 
   it('drops a photo send that starts while a text send is still in flight', async () => {
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     mockCallCloudAgent.mockImplementationOnce(async () => {
       await result.current.sendPhoto(PHOTO, 'and this?')
@@ -338,7 +338,7 @@ describe('useAIChat photo path', () => {
     // The guard must release in `finally`, or one failed turn wedges the photo
     // path for the rest of the session.
     mockCallCloudAgent.mockRejectedValueOnce(new Error('network'))
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, 'first')
@@ -352,7 +352,7 @@ describe('useAIChat photo path', () => {
 
   it('keeps the photo when the reply throws', async () => {
     mockCallCloudAgent.mockRejectedValue(new Error('network'))
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, 'what is this?').catch(() => {})
@@ -372,7 +372,7 @@ describe('useAIChat photo path', () => {
       user_id: 'user-1',
       mime_type: 'image/webp',
     })
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, 'what is this?')
@@ -388,7 +388,7 @@ describe('useAIChat photo path', () => {
   it('scopes the message_id lookup to the same character and user', async () => {
     // Defence-in-depth: a row with a colliding message_id from another
     // character or user must not be reused as this turn's photo.
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, 'what is this?')
@@ -402,7 +402,7 @@ describe('useAIChat photo path', () => {
   })
 
   it('refuses to send a photo when the character has no cloud agent', async () => {
-    const { result } = renderHook(() => useAIChat(localOnlyCharacterProps))
+    const { result } = await renderHook(() => useAIChat(localOnlyCharacterProps))
 
     expect(result.current.canSendPhoto).toBe(false)
     await act(async () => {
@@ -421,7 +421,7 @@ describe('useAIChat photo path', () => {
     // from raw `message.text`, it would record `User: ` with nothing after
     // it, which is incoherent once the conversation has scrolled. The chunk
     // goes through `buildContentHistory`, which substitutes `[sent a photo]`.
-    const { result } = renderHook(() => useAIChat(cloudCharacterProps))
+    const { result } = await renderHook(() => useAIChat(cloudCharacterProps))
 
     await act(async () => {
       await result.current.sendPhoto(PHOTO, '')

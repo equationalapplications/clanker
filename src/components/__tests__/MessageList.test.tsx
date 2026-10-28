@@ -17,7 +17,7 @@ const baseMessage: Message = {
 }
 
 describe('MessageList streaming-key invariant', () => {
-  it('preserves the message _id across streaming updates', () => {
+  it('preserves the message _id across streaming updates', async () => {
     // A React-component avatar mock (not a render prop) makes remounts
     // observable: if the keyed row were torn down and rebuilt on each
     // streaming update, the avatar component would unmount and remount.
@@ -34,14 +34,14 @@ describe('MessageList streaming-key invariant', () => {
     }
     const renderAvatar = (_message: Message) => <CountingAvatar />
 
-    const first = render(
+    const first = await render(
       <MessageList messages={[baseMessage]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
     expect(avatarMountCount).toBe(1)
 
     // Force a streaming update — same _id, new text
     const updated: Message = { ...baseMessage, text: 'hello world' }
-    first.rerender(
+    await first.rerender(
       <MessageList messages={[updated]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
 
@@ -49,20 +49,20 @@ describe('MessageList streaming-key invariant', () => {
     expect(first.getByText('hello world')).toBeTruthy()
   })
 
-  it('renders one row per message when _ids are unique', () => {
+  it('renders one row per message when _ids are unique', async () => {
     // Two messages with distinct _ids must render two rows. A regression
     // that drops keyExtractor or flattens the data would collapse them.
     const renderAvatar = () => null
     const a: Message = { ...baseMessage, _id: 'msg-a', text: 'message a' }
     const b: Message = { ...baseMessage, _id: 'msg-b', text: 'message b' }
-    const { getByText } = render(
+    const { getByText } = await render(
       <MessageList messages={[a, b]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
     expect(getByText('message a')).toBeTruthy()
     expect(getByText('message b')).toBeTruthy()
   })
 
-  it('does not remount a row when a persisted row replaces the streamed row under the same _id', () => {
+  it('does not remount a row when a persisted row replaces the streamed row under the same _id', async () => {
     // Fix A makes stream→persist a same-key, fresh-identity swap: the refetch
     // delivers a new row object whose _id equals the streamed one. This pins
     // that MessageList reconciles in place across that swap. Expected green
@@ -78,14 +78,14 @@ describe('MessageList streaming-key invariant', () => {
     const renderAvatar = (_message: Message) => <CountingAvatar />
 
     const streamed: Message = { ...baseMessage, _id: 'ai_42', text: '' }
-    const view = render(
+    const view = await render(
       <MessageList messages={[streamed]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
     expect(avatarMountCount).toBe(1)
 
     // Refetch delivers the persisted row: fresh object identity, same _id.
     const persisted: Message = { ...baseMessage, _id: 'ai_42', text: 'hello world' }
-    view.rerender(
+    await view.rerender(
       <MessageList messages={[persisted]} currentUserId="user" renderAvatar={renderAvatar} />,
     )
 

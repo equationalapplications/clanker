@@ -2,7 +2,6 @@ import React from 'react'
 import { PaperProvider } from 'react-native-paper'
 import { render } from '@testing-library/react-native'
 import { MessageBubble } from '../MessageBubble'
-import ChatImageBubble from '~/components/ChatImageBubble'
 import type { Message } from '~/types/chat'
 
 // Mock useResolvedImage to avoid pulling Firebase through ChatImageBubble.
@@ -19,30 +18,33 @@ const baseMessage: Message = {
   user: baseUser,
 }
 
-const renderWithProvider = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>)
+const renderWithProvider = async (ui: React.ReactElement) =>
+  await render(<PaperProvider>{ui}</PaperProvider>)
 
 describe('MessageBubble', () => {
-  it('renders the text', () => {
-    const { getByText } = renderWithProvider(<MessageBubble message={baseMessage} isOwn={true} />)
+  it('renders the text', async () => {
+    const { getByText } = await renderWithProvider(<MessageBubble message={baseMessage} isOwn={true} />)
     expect(getByText('hello')).toBeTruthy()
   })
 
-  it('renders ChatImageBubble when imageId is set, with no `image` field required', () => {
-    const { UNSAFE_getByType } = renderWithProvider(
+  it('renders ChatImageBubble when imageId is set, with no `image` field required', async () => {
+    const { getByLabelText } = await renderWithProvider(
       <MessageBubble message={{ ...baseMessage, imageId: 'img-1' }} isOwn={true} />,
     )
-    expect(UNSAFE_getByType(ChatImageBubble)).toBeTruthy()
+    // RNTL v14 removed the *ByType queries; the mocked useResolvedImage makes
+    // ChatImageBubble render its placeholder, which carries this label.
+    expect(getByLabelText('Photo unavailable')).toBeTruthy()
   })
 
-  it('does not render ChatImageBubble when imageId is absent', () => {
-    const { UNSAFE_queryByType } = renderWithProvider(
+  it('does not render ChatImageBubble when imageId is absent', async () => {
+    const { queryByLabelText } = await renderWithProvider(
       <MessageBubble message={baseMessage} isOwn={true} />,
     )
-    expect(UNSAFE_queryByType(ChatImageBubble)).toBeNull()
+    expect(queryByLabelText('Photo unavailable')).toBeNull()
   })
 
-  it('renders the grounding footer when groundingMetadata is set', () => {
-    const { getByText } = renderWithProvider(
+  it('renders the grounding footer when groundingMetadata is set', async () => {
+    const { getByText } = await renderWithProvider(
       <MessageBubble
         message={{
           ...baseMessage,

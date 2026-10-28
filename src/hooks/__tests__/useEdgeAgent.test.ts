@@ -81,7 +81,7 @@ const usageFields = {
   verifiedAt: '2026-06-24T00:00:00.000Z',
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
   mockIsDevSandboxEnabled.mockReturnValue(false)
   process.env.EXPO_PUBLIC_CLOUD_AGENT_URL = ''
@@ -97,7 +97,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -122,7 +122,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -149,7 +149,7 @@ describe('useEdgeAgent', () => {
       })
       .mockResolvedValueOnce({ reply: 'It is Thursday.', functionCalls: undefined, ...usageFields })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -174,7 +174,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -196,7 +196,7 @@ describe('useEdgeAgent', () => {
       })
       .mockResolvedValueOnce({ reply: 'Handled locally', functionCalls: undefined, ...usageFields })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
     )
 
@@ -221,7 +221,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -242,7 +242,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
     )
 
@@ -259,7 +259,7 @@ describe('useEdgeAgent', () => {
   it('escalates when generateChatReply throws, for cloud-synced characters', async () => {
     mockGenerateChatReply.mockRejectedValue(new Error('Network error'))
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -279,14 +279,14 @@ describe('useEdgeAgent', () => {
       }),
     )
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
     expect(result.current.isThinking).toBe(false)
 
     let done = false
-    act(() => {
+    await act(async () => {
       void result.current.sendMessage('Hello').then(() => {
         done = true
       })
@@ -310,7 +310,7 @@ describe('useEdgeAgent', () => {
     })
     const mockWiki = { id: 'wiki-1' } as never
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({
         character,
         userId: 'u1',
@@ -343,7 +343,7 @@ describe('useEdgeAgent', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -366,7 +366,7 @@ describe('cloud-only stub routing', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -388,7 +388,7 @@ describe('cloud-only stub routing', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
     )
 
@@ -424,7 +424,7 @@ describe('local image generation for non-cloud-synced characters', () => {
         ...usageFields,
       })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
     )
 
@@ -448,7 +448,7 @@ describe('local image generation for non-cloud-synced characters', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: false, wiki: null }),
     )
 
@@ -472,7 +472,7 @@ describe('local image generation for non-cloud-synced characters', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -512,7 +512,7 @@ describe('set_reminder local execution (Decision 0)', () => {
         ...usageFields,
       })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({
         character,
         userId: 'u1',
@@ -547,7 +547,7 @@ describe('set_reminder local execution (Decision 0)', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({ character, userId: 'u1', priorMessages, isCloudSynced: true, wiki: null }),
     )
 
@@ -568,7 +568,7 @@ describe('set_reminder local execution (Decision 0)', () => {
       ...usageFields,
     })
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useEdgeAgent({
         character,
         userId: 'u1',

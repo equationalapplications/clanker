@@ -77,7 +77,7 @@ const createWrapper = () => {
   return { queryClient, Wrapper }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
   appStateListeners.length = 0
   for (const k of Object.keys(notificationListeners)) delete notificationListeners[k]
@@ -86,26 +86,30 @@ beforeEach(() => {
   mockMarkReadCall.mockResolvedValue({ updated: 0 })
 })
 
-const fireAppStateActive = () => {
+const fireAppStateActive = async () => {
   expect(appStateListeners.length).toBeGreaterThan(0)
-  act(() => {
+  // Async act: the state change kicks off an async sync run; keeping the run's
+  // kickoff inside one awaited act scope avoids interleaved act queues, which
+  // under React 19.3 / RNTL 14 wedge passive-effect flushing for later renders.
+  await act(async () => {
     appStateListeners[0]('active')
+    await Promise.resolve()
   })
 }
 
 describe('useProactiveSync', () => {
   it('fires sync on app foreground (active)', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
-    fireAppStateActive()
+    await fireAppStateActive()
 
     await waitFor(() => expect(mockSync).toHaveBeenCalledWith('uid-1'))
   })
 
   it('fires sync on foreground receipt of a PROACTIVE_CHARACTER_MESSAGE notification', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     await act(async () => {
       notificationListeners.received?.({
@@ -120,7 +124,7 @@ describe('useProactiveSync', () => {
 
   it('ignores foreground receipts of other notification types', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     // The mount (cold-start) sync has already fired; the assertion is that the
     // foreign receipt adds no FURTHER run.
@@ -138,14 +142,14 @@ describe('useProactiveSync', () => {
 
   it('fires sync on mount (cold start, no AppState change and no tap)', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     await waitFor(() => expect(mockSync).toHaveBeenCalledWith('uid-1'))
   })
 
   it('does NOT fire on mount without a user id', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync(null), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync(null), { wrapper: Wrapper })
 
     await act(async () => {})
     expect(mockSync).not.toHaveBeenCalled()
@@ -160,9 +164,12 @@ describe('useProactiveSync', () => {
         }),
     )
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    const { result } = await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
-    act(() => {
+    // Async act: each triggerSync kicks off async work; a sync act here would
+    // interleave act queues (React 19.3 / RNTL 14) and wedge passive-effect
+    // flushing in the tests that follow.
+    await act(async () => {
       result.current.triggerSync()
       result.current.triggerSync()
       result.current.triggerSync()
@@ -180,7 +187,7 @@ describe('useProactiveSync', () => {
     const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
     mockSync.mockResolvedValue(['char-1'])
 
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     await act(async () => {
       appStateListeners[0]('active')
@@ -201,7 +208,7 @@ describe('useProactiveSync', () => {
   it('flushes the read queue even when the sync pull fails', async () => {
     mockSync.mockRejectedValueOnce(new Error('boom'))
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     // A stranded mark-read queue makes the server suppress every future push
     // from that character, so the flush must not share the pull's fate.
@@ -209,30 +216,31 @@ describe('useProactiveSync', () => {
   })
 
   it('does NOT invalidate on sync failure', async () => {
-    mockSync.mockRejectedValueOnce(new Error('boom'))
     const { Wrapper, queryClient } = createWrapper()
     const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
 
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    const { result } = await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+
+    // SDK 58 note: the mount run settles during the awaited renderHook (and
+    // consumes any mockRejectedValueOnce), so arm a fresh failing run and drive
+    // it explicitly — the assertion targets the run that actually failed.
+    invalidateSpy.mockClear()
+    mockSync.mockRejectedValueOnce(new Error('boom'))
 
     await act(async () => {
-      appStateListeners[0]('active')
+      await result.current.triggerSync()
     })
 
-    await waitFor(() => expect(mockSync).toHaveBeenCalledWith('uid-1'))
+    expect(mockSync).toHaveBeenCalledWith('uid-1')
 
-    // Give the rejected run time to settle — if invalidation were going to
-    // happen, it would have happened by now.
-    await act(async () => {
-      await new Promise((res) => setTimeout(res, 10))
-    })
-
+    // The run has fully settled inside the act above — if invalidation were
+    // going to happen, it would have happened by now.
     expect(invalidateSpy).not.toHaveBeenCalled()
   })
 
   it('flushes the read queue with the real callable after a successful sync', async () => {
     const { Wrapper } = createWrapper()
-    renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
+    await renderHook(() => useProactiveSync('uid-1'), { wrapper: Wrapper })
 
     await act(async () => {
       appStateListeners[0]('active')
@@ -259,7 +267,7 @@ describe('user switch while a sync is in flight', () => {
     )
 
     const { Wrapper } = createWrapper()
-    const { rerender } = renderHook(({ uid }: { uid: string }) => useProactiveSync(uid), {
+    const { rerender } = await renderHook(({ uid }: { uid: string }) => useProactiveSync(uid), {
       wrapper: Wrapper,
       initialProps: { uid: 'user-a' },
     })

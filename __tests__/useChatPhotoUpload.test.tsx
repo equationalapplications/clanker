@@ -32,7 +32,7 @@ const VARIANTS = {
   thumb: { base64: 'THUMB', mimeType: 'image/webp' as const },
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.resetAllMocks()
   mockDeviceState.isDevice = true
   mockDeviceState.missing = false
@@ -53,7 +53,7 @@ beforeEach(() => {
 
 it('fails with a device-required message on the iOS simulator instead of crashing', async () => {
   mockDeviceState.isDevice = false
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -71,7 +71,7 @@ it('fails closed on iOS when the expo-device native module is missing', async ()
   // The hook must block iOS capture instead of falling through to the
   // uncatchable simulator crash — even though detection is impossible.
   mockDeviceState.missing = true
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -85,7 +85,7 @@ it('fails closed on iOS when the expo-device native module is missing', async ()
 })
 
 it('builds a photo message from a picked asset without cropping it', async () => {
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   const photo = await act(async () =>
     result.current.prepareFromAsset({
@@ -116,7 +116,7 @@ it('rejects an encode that exceeds the wire cap instead of sending a doomed requ
     master: { base64: 'A'.repeat(1_400_001), mimeType: 'image/webp' },
     thumb: { base64: 'THUMB', mimeType: 'image/webp' },
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   await act(async () => {
     await expect(
@@ -130,7 +130,7 @@ it('surfaces a denied camera permission as an error without launching the camera
     granted: false,
     canAskAgain: true,
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -147,7 +147,7 @@ it('points to device settings when the camera is permanently denied', async () =
     granted: false,
     canAskAgain: false,
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -161,7 +161,7 @@ it('points to device settings when the camera is permanently denied', async () =
 
 it('returns null when the camera is cancelled', async () => {
   ;(ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({ canceled: true, assets: [] })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -180,7 +180,7 @@ it('resolves dimensions via Image.getSize when the caller supplies 0/unknown', a
     success(2048, 1536),
   )
 
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   const photo = await act(async () =>
     result.current.prepareFromAsset({ uri: 'file:///no-dims.jpg', width: 0, height: 0 }),
@@ -205,7 +205,7 @@ it('surfaces an unreadable image as a clear error rather than silently using 0 d
     failure(new Error('decode failed')),
   )
 
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   await act(async () => {
     await expect(
@@ -230,7 +230,7 @@ it('requests photo library permission before launching the picker', async () => 
     return { canceled: true, assets: [] }
   })
 
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   await act(async () => {
     await result.current.pickFromLibrary()
@@ -246,7 +246,7 @@ it('surfaces a denied photo library permission as an error without launching the
     granted: false,
     canAskAgain: true,
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -263,7 +263,7 @@ it('points to device settings when the photo library is permanently denied', asy
     granted: false,
     canAskAgain: false,
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {
@@ -280,7 +280,7 @@ it('returns null when the photo library picker is cancelled', async () => {
     canceled: true,
     assets: [],
   })
-  const { result } = renderHook(() => useChatPhotoUpload())
+  const { result } = await renderHook(() => useChatPhotoUpload())
 
   let photo: unknown
   await act(async () => {

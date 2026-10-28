@@ -13,13 +13,13 @@ describe('AppleSignInButton (web)', () => {
   const originalClientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
   const originalRedirectUri = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID = 'com.example.app.web'
     process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI = 'https://example.com/auth/apple'
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (originalClientId === undefined) {
       delete process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID
     } else {
@@ -37,7 +37,7 @@ describe('AppleSignInButton (web)', () => {
       new Error('script init failed'),
     )
 
-    render(<AppleSignInButton />)
+    await render(<AppleSignInButton />)
 
     await waitFor(() => {
       expect(screen.getByTestId('apple-signin-unavailable-caption')).toBeTruthy()
@@ -56,7 +56,7 @@ describe('AppleSignInButton (web)', () => {
         }),
     )
 
-    const { unmount } = render(<AppleSignInButton />)
+    const { unmount } = await render(<AppleSignInButton />)
     unmount()
     resolveInit(mockCleanup)
 

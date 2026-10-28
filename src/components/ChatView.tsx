@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { Keyboard, View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import {
+  Keyboard,
+  View,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  type HostInstance,
+  type KeyboardAvoidingViewInstance,
+} from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -118,12 +126,15 @@ export function ChatViewContent({
   // concrete supported value — with `undefined` the component emits an empty
   // style and never avoids at all. iOS keeps `padding`; Android uses
   // `translate-with-padding`.
-  const keyboardAvoidingRef = useRef<View>(null)
+  const keyboardAvoidingRef = useRef<KeyboardAvoidingViewInstance>(null)
   const keyboardAvoidingRelativeY = useRef(0)
   const [keyboardAvoidingOffset, setKeyboardAvoidingOffset] = useState(0)
 
   const remeasureKeyboardAvoidingOffset = useCallback(() => {
-    keyboardAvoidingRef.current?.measureInWindow((_x, y) => {
+    // KeyboardAvoidingView's ref is the class instance; the host view it wraps
+    // is exposed as .viewRef (SDK 58 typing), which is what has measureInWindow.
+    const hostView = keyboardAvoidingRef.current?.viewRef?.current as HostInstance | null
+    hostView?.measureInWindow((_x, y) => {
       const next = Math.max(0, Math.round(y - keyboardAvoidingRelativeY.current))
       setKeyboardAvoidingOffset((prev) => (prev === next ? prev : next))
     })
@@ -297,7 +308,13 @@ export function ChatViewContent({
 
   return (
     <KeyboardAvoidingView
-      ref={keyboardAvoidingRef}
+      // KAV's SDK 58 ref prop type is the legacy element-ref form; our ref is
+      // the class instance (KeyboardAvoidingViewInstance) — cast to satisfy it.
+      ref={
+        keyboardAvoidingRef as unknown as NonNullable<
+          React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']
+        >
+      }
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
       keyboardVerticalOffset={keyboardAvoidingOffset}
