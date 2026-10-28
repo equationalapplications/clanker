@@ -11,9 +11,11 @@ const path = require('node:path')
 
 const IGNORED_DIRS = new Set([
   'node_modules',
+  '.git',
   '.worktrees',
   '.brain',
   '.claude',
+  '.fastembed_cache',
   'functions',
   'cloud-agent',
   'extension',
@@ -22,19 +24,22 @@ const IGNORED_DIRS = new Set([
   'build',
   'dist',
   'coverage',
+  'temp',
 ])
 
-// Suites that declare `@jest-environment jsdom` must NOT run the
-// @react-native/jest-preset setup file: since SDK 58 (RN 0.88) that preset is
-// a separate package whose setup unconditionally does
-// `Object.defineProperties(global, { window: ... })`, which throws
-// "Cannot redefine property: window" under jsdom (jsdom installs `window` as a
-// non-configurable global). jest-expo 57's in-package setup guarded this with
-// `if (typeof window !== 'object')`; jest-expo's own setup file still guards
-// and is jsdom-safe, so the dom project below uses a cloned preset with the RN
-// setup stripped from setupFiles (project setupFiles only PREPEND to a preset's,
-// they cannot remove it). Discovered at config load so a docblock stays the
-// single source of truth.
+// Suites that declare `@jest-environment jsdom` run in the 'dom' project
+// (jsdom environment); everything else runs in 'native'. The docblock stays
+// the single source of truth for project membership — discovered at config
+// load so a new suite never has to be listed here.
+//
+// WHY the split: since SDK 58 (RN 0.88) the jest preset is the external
+// @react-native/jest-preset, whose setup file unconditionally does
+// `Object.defineProperties(global, { window: ... })`. jsdom installs `window`
+// as a non-configurable global, so that define throws and the suite cannot
+// even load. `patches/@react-native+jest-preset+0.88.1.patch` (patch-package)
+// removes that window entry — with it applied the stock setup is jsdom-safe
+// (jest-expo's own setup guards `window` with `typeof window !== 'object'`),
+// so both projects share the same preset and only the environment differs.
 function findJsdomSuites(dir, out) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
@@ -111,49 +116,15 @@ const common = {
 
 const TEST_MATCH = ['**/__tests__/**/*.{test,spec}.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)']
 
-// The dom project needs the full RN preset setup (jest-expo's own setup depends
-// on the native-bridge mocks it installs), but the stock setup file redefines
-// global.window, which throws under jsdom. Generate a patched copy with ONLY
-// the `window` entry removed — done at config load from the installed preset
-// source, so it tracks whatever @react-native/jest-preset version is installed.
-// Revisit/remove when the upstream guard lands.
-// Relative imports inside the setup file (`./mock`) must resolve against the
-// preset's own directory, so the patched copy is written THERE, not into the
-// repo root. (node_modules is writable in this workspace; on a pristine CI
-// install the write re-runs at config load.)
-const rnSetupPath = require.resolve('@react-native/jest-preset/jest/setup.js')
-const rnSetupSource = fs.readFileSync(rnSetupPath, 'utf8')
-const patchedRnSetup = rnSetupSource.replace(
-  /\n\s*window:\s*\{[^{}]*\},/,
-  '\n  // window entry removed for jsdom compatibility — see jest.config.js',
-)
-if (patchedRnSetup === rnSetupSource) {
-  throw new Error(
-    'jest.config.js: could not patch @react-native/jest-preset setup.js (window entry not found); ' +
-      'the SDK 58 jsdom workaround needs updating.',
-  )
-}
-const patchedSetupPath = path.join(path.dirname(rnSetupPath), 'setup.dom-patched.js')
-fs.writeFileSync(patchedSetupPath, patchedRnSetup)
-
-// Clone the jest-expo preset config for the dom project and swap the RN setup
-// file for the patched copy. Everything else — transforms,
-// transformIgnorePatterns, module mappers — must stay identical to native.
-const expoPresetConfig = require('jest-expo/jest-preset')
-const domSetupFiles = expoPresetConfig.setupFiles.map((f) =>
-  /@react-native[\\/]jest-preset[\\/]jest[\\/]setup\.js$/.test(f) ? patchedSetupPath : f,
-)
-
 module.exports = {
   projects: [
     {
       ...common,
-      ...expoPresetConfig,
-      passWithNoTests: undefined,
-      displayName: 'dom',
+      preset: 'jest-expo',
       testEnvironment: 'jsdom',
+      // Project setupFiles APPEND to the preset's (which run first), so this
+      // runs after the (patched, jsdom-safe) RN + jest-expo setup.
       setupFiles: [
-        ...domSetupFiles,
         '<rootDir>/jest.setup.early.js',
         '<rootDir>/jest.setup.js',
         '<rootDir>/jest.setup.dom.js',

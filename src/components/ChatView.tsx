@@ -8,7 +8,6 @@ import {
   Platform,
   TouchableOpacity,
   type HostInstance,
-  type KeyboardAvoidingViewInstance,
 } from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
@@ -126,14 +125,21 @@ export function ChatViewContent({
   // concrete supported value — with `undefined` the component emits an empty
   // style and never avoids at all. iOS keeps `padding`; Android uses
   // `translate-with-padding`.
-  const keyboardAvoidingRef = useRef<KeyboardAvoidingViewInstance>(null)
+  // react-native-keyboard-controller's KeyboardAvoidingView is forwardRef<View>:
+  // at runtime the ref IS the host view instance (which has measureInWindow).
+  // Its TS ref type is still the legacy component-ref form, so derive the ref
+  // type from the component's own props and narrow where methods are used.
+  type KeyboardAvoidingViewRef = NonNullable<
+    React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']
+  > extends React.Ref<infer T>
+    ? T
+    : never
+  const keyboardAvoidingRef = useRef<KeyboardAvoidingViewRef>(null)
   const keyboardAvoidingRelativeY = useRef(0)
   const [keyboardAvoidingOffset, setKeyboardAvoidingOffset] = useState(0)
 
   const remeasureKeyboardAvoidingOffset = useCallback(() => {
-    // KeyboardAvoidingView's ref is the class instance; the host view it wraps
-    // is exposed as .viewRef (SDK 58 typing), which is what has measureInWindow.
-    const hostView = keyboardAvoidingRef.current?.viewRef?.current as HostInstance | null
+    const hostView = keyboardAvoidingRef.current as unknown as HostInstance | null
     hostView?.measureInWindow((_x, y) => {
       const next = Math.max(0, Math.round(y - keyboardAvoidingRelativeY.current))
       setKeyboardAvoidingOffset((prev) => (prev === next ? prev : next))
@@ -308,13 +314,7 @@ export function ChatViewContent({
 
   return (
     <KeyboardAvoidingView
-      // KAV's SDK 58 ref prop type is the legacy element-ref form; our ref is
-      // the class instance (KeyboardAvoidingViewInstance) — cast to satisfy it.
-      ref={
-        keyboardAvoidingRef as unknown as NonNullable<
-          React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']
-        >
-      }
+      ref={keyboardAvoidingRef}
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'translate-with-padding'}
       keyboardVerticalOffset={keyboardAvoidingOffset}

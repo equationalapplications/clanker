@@ -108,7 +108,7 @@ describe('GoogleSignInButton (web)', () => {
     expect(screen.getByTestId('google-signin-loading-overlay')).toBeTruthy()
     await act(async () => {
       capturedHandlers!.onCredentialSuccess()
-      })
+    })
     await waitFor(() => expect(screen.queryByTestId('google-signin-loading-overlay')).toBeNull())
   })
 })

@@ -31,8 +31,9 @@ function buildZipFilename(characterName: string): string {
 async function waitForNativeUiReady(): Promise<void> {
   // InteractionManager was removed in RN 0.88 (SDK 58); requestIdleCallback is
   // the documented replacement for deferring native work past the current UI.
+  // The timeout keeps the picker from waiting behind long frames.
   await new Promise<void>((resolve) => {
-    requestIdleCallback(() => resolve())
+    requestIdleCallback(() => resolve(), { timeout: 200 })
   })
 }
 
