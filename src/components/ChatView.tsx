@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { router } from 'expo-router'
 import { useNavigation } from 'expo-router/react-navigation'
-import { Keyboard, View, StyleSheet, Platform, TouchableOpacity } from 'react-native'
+import {
+  Keyboard,
+  View,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  type HostInstance,
+} from 'react-native'
 import { useSelector } from '@xstate/react'
 import { useCharacter } from '~/hooks/useCharacters'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
@@ -118,12 +125,23 @@ export function ChatViewContent({
   // concrete supported value — with `undefined` the component emits an empty
   // style and never avoids at all. iOS keeps `padding`; Android uses
   // `translate-with-padding`.
-  const keyboardAvoidingRef = useRef<View>(null)
+  // react-native-keyboard-controller's KeyboardAvoidingView is forwardRef<View>:
+  // at runtime the ref IS the host view instance (which has measureInWindow).
+  // Derive the ref type from the component's own props so it matches whatever
+  // ref form the library declares, and narrow where methods are used.
+  type KeyboardAvoidingViewRef =
+    NonNullable<React.ComponentPropsWithRef<typeof KeyboardAvoidingView>['ref']> extends React.Ref<
+      infer T
+    >
+      ? T
+      : never
+  const keyboardAvoidingRef = useRef<KeyboardAvoidingViewRef>(null)
   const keyboardAvoidingRelativeY = useRef(0)
   const [keyboardAvoidingOffset, setKeyboardAvoidingOffset] = useState(0)
 
   const remeasureKeyboardAvoidingOffset = useCallback(() => {
-    keyboardAvoidingRef.current?.measureInWindow((_x, y) => {
+    const hostView = keyboardAvoidingRef.current as unknown as HostInstance | null
+    hostView?.measureInWindow((_x, y) => {
       const next = Math.max(0, Math.round(y - keyboardAvoidingRelativeY.current))
       setKeyboardAvoidingOffset((prev) => (prev === next ? prev : next))
     })

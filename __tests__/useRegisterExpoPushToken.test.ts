@@ -60,7 +60,7 @@ describe('useRegisterExpoPushToken', () => {
   it('registers native token via Firebase callable', async () => {
     const Notifications = require('expo-notifications')
 
-    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
     await waitFor(() => {
       expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledWith({ projectId: 'test-proj' })
       expect(mockRegisterExpoPushTokenFn).toHaveBeenCalledWith({
@@ -78,7 +78,7 @@ describe('useRegisterExpoPushToken', () => {
     } as unknown as typeof Constants.expoConfig
     const Notifications = require('expo-notifications')
 
-    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(Notifications.getDevicePushTokenAsync).not.toHaveBeenCalled()
@@ -91,7 +91,7 @@ describe('useRegisterExpoPushToken', () => {
     const Notifications = require('expo-notifications')
     window.localStorage.setItem('EXPO_NOTIFICATIONS_INSTALLATION_ID', 'install-1')
 
-    renderHook(() =>
+    await renderHook(() =>
       useRegisterExpoPushToken({
         enabled: true,
         projectId: '2333eead-a87c-4a6f-adea-b1b433f4740e',
@@ -122,7 +122,7 @@ describe('useRegisterExpoPushToken', () => {
     mockIsDevSandboxEnabled.mockReturnValue(true)
     const Notifications = require('expo-notifications')
 
-    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'test-proj' }))
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled()

@@ -1,7 +1,10 @@
 import fs from 'fs'
 import path from 'path'
 
-const PUBLIC_DIR = path.resolve(__dirname, '..', 'public')
+const ROOT = path.resolve(__dirname, '..')
+const PUBLIC_DIR = path.join(ROOT, 'public')
+// Served at `/`; generated outside public/ (see marketingBranding.test.ts).
+const LANDING_FILE = path.join(ROOT, 'landing', 'index.html')
 
 // /privacy and /terms are gitignored generated output, matching
 // marketingBranding.test.ts.
@@ -20,10 +23,13 @@ function findHtmlFiles(dir: string): string[] {
   return files
 }
 
-const PAGES = findHtmlFiles(PUBLIC_DIR).map((file) => ({
-  relativePath: path.relative(PUBLIC_DIR, file),
-  file,
-}))
+const PAGES = [
+  { relativePath: path.relative(ROOT, LANDING_FILE), file: LANDING_FILE },
+  ...findHtmlFiles(PUBLIC_DIR).map((file) => ({
+    relativePath: path.relative(PUBLIC_DIR, file),
+    file,
+  })),
+]
 
 function extractJsonLdBlocks(html: string): string[] {
   return Array.from(
@@ -68,12 +74,12 @@ describe('marketing page JSON-LD discovery', () => {
       [
         'advanced-memory',
         'image-generation',
+        'landing',
         'memory-export-with-okf',
         'open-source',
         'privacy-mode',
         'real-time-voice',
         'support',
-        'welcome',
       ].map((slug) => path.join(slug, 'index.html')),
     )
   })

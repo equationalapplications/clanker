@@ -80,7 +80,7 @@ const createWrapper = () => {
   return { queryClient, invalidateSpy, Wrapper }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
   responseListener = undefined
   mockLastResponse = null
@@ -90,7 +90,7 @@ beforeEach(() => {
 
 it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger non-blocking', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
   // triggerSync still fires synchronously; only the push waits on the
   // cloud->local id resolve (one local SQLite read), so it lands a microtask
@@ -99,17 +99,17 @@ it('routes a tap with valid type + /chat/ deepLink and fires the sync trigger no
   await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc'))
 })
 
-it('ignores a wrong type', () => {
+it('ignores a wrong type', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'OTHER', deepLink: '/chat/abc' }))
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
-it('ignores a malformed deepLink', () => {
+it('ignores a malformed deepLink', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(
     response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: 'https://evil.example/chat/x' }),
   )
@@ -117,33 +117,33 @@ it('ignores a malformed deepLink', () => {
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
-it('ignores a missing deepLink', () => {
+it('ignores a missing deepLink', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE' }))
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
-it('ignores missing data', () => {
+it('ignores missing data', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response(undefined))
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
-it('ignores a dot-segment deepLink (e.g. /chat/../admin)', () => {
+it('ignores a dot-segment deepLink (e.g. /chat/../admin)', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/../admin' }))
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockRouterPush).not.toHaveBeenCalled()
 })
 
-it('ignores a multi-segment deepLink after /chat/', () => {
+it('ignores a multi-segment deepLink after /chat/', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc/extra' }))
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockRouterPush).not.toHaveBeenCalled()
@@ -151,8 +151,8 @@ it('ignores a multi-segment deepLink after /chat/', () => {
 
 it('routes cold start after mount and clears the response', async () => {
   const { Wrapper } = createWrapper()
-  mockLastResponse = response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' })
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  mockLastResponse = await response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith('/chat/abc'))
   expect(triggerSync).toHaveBeenCalledTimes(1)
   await waitFor(() => expect(mockClearLast).toHaveBeenCalledTimes(1))
@@ -160,8 +160,8 @@ it('routes cold start after mount and clears the response', async () => {
 
 it('ignores a cold-start notification of the wrong shape and leaves the response in place', async () => {
   const { Wrapper } = createWrapper()
-  mockLastResponse = response({ type: 'OTHER' })
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  mockLastResponse = await response({ type: 'OTHER' })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   await waitFor(() => expect(mockRouterPush).not.toHaveBeenCalled())
   expect(triggerSync).not.toHaveBeenCalled()
   expect(mockClearLast).not.toHaveBeenCalled()
@@ -173,11 +173,11 @@ it('does not route the same response identifier twice (listener + useLastNotific
   // then arrives via the listener — must dedupe so the chat route isn't
   // pushed twice.
   const { Wrapper } = createWrapper()
-  mockLastResponse = response(
+  mockLastResponse = await response(
     { type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' },
     'dup-id',
   )
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   await waitFor(() => expect(mockRouterPush).toHaveBeenCalledTimes(1))
   expect(triggerSync).toHaveBeenCalledTimes(1)
   expect(mockClearLast).toHaveBeenCalledTimes(1)
@@ -197,7 +197,7 @@ it('does not route the same response identifier twice (listener + useLastNotific
 
 it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', async () => {
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
   responseListener!(
     response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }, 'id-1'),
   )
@@ -216,7 +216,7 @@ it('routes the SAME deepLink from DIFFERENT identifiers (no over-dedupe)', async
 it('marks the opened thread read after triggerSync resolves', async () => {
   const { Wrapper, invalidateSpy } = createWrapper()
   mockMarkLocally.mockResolvedValue(['p-new-1', 'p-new-2'])
-  renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync }), { wrapper: Wrapper })
 
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
 
@@ -236,7 +236,9 @@ it('does not mark the thread read when triggerSync returns void', async () => {
   // throw and must not invoke the post-sync mark-read.
   const syncVoid = jest.fn(() => undefined)
   const { Wrapper } = createWrapper()
-  renderHook(() => useProactiveNotificationRouting({ triggerSync: syncVoid }), { wrapper: Wrapper })
+  await renderHook(() => useProactiveNotificationRouting({ triggerSync: syncVoid }), {
+    wrapper: Wrapper,
+  })
   responseListener!(response({ type: 'PROACTIVE_CHARACTER_MESSAGE', deepLink: '/chat/abc' }))
   await new Promise((res) => setTimeout(res, 10))
   expect(syncVoid).toHaveBeenCalledTimes(1)
@@ -250,7 +252,7 @@ it('does not mark the thread read when triggerSync returns void', async () => {
  * diverged character therefore routed to a dead id and marked nothing read.
  */
 describe('cloud->local character id resolution', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockLocalIds.clear()
     mockThrowingIds.clear()
   })
@@ -258,7 +260,7 @@ describe('cloud->local character id resolution', () => {
   it('routes to the LOCAL chat id, not the cloud id from the deepLink', async () => {
     mockLocalIds.set('cloud-uuid-9', 'char_local9')
     const { Wrapper } = createWrapper()
-    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+    const { unmount } = await renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
       wrapper: Wrapper,
     })
 
@@ -274,7 +276,7 @@ describe('cloud->local character id resolution', () => {
     mockLocalIds.set('cloud-uuid-8', 'char_local8')
     mockMarkLocally.mockResolvedValue(['m1'])
     const { Wrapper } = createWrapper()
-    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+    const { unmount } = await renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
       wrapper: Wrapper,
     })
 
@@ -293,7 +295,7 @@ describe('cloud->local character id resolution', () => {
 
   it('falls back to the deepLink id when the character has no local row', async () => {
     const { Wrapper } = createWrapper()
-    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+    const { unmount } = await renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
       wrapper: Wrapper,
     })
 
@@ -313,7 +315,7 @@ describe('cloud->local character id resolution', () => {
   it('falls back to /chat index when resolveLocalCharacterId throws', async () => {
     mockThrowingIds.add('cloud-db-fail')
     const { Wrapper } = createWrapper()
-    const { unmount } = renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
+    const { unmount } = await renderHook(() => useProactiveNotificationRouting({ triggerSync }), {
       wrapper: Wrapper,
     })
 

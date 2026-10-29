@@ -26,14 +26,31 @@
             "value": "same-origin-allow-popups"
           }
         ]
+      },
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/welcome",
+        "destination": "/",
+        "type": 301
       }
     ],
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "/app-shell.html"
       }
-    ]
+    ],
+    "predeploy": ["npm run predeploy"]
   },
   "functions": [
     {

@@ -13,10 +13,10 @@ const mockRequestAgeRange = AgeRange.requestAgeRangeAsync as jest.Mock
 const mockIsEligible = AgeRange.isEligibleForAgeFeaturesAsync as jest.Mock
 const mockRequestSignalsAccess = AgeRange.requestAgeSignalsAccessAsync as jest.Mock
 
-function setup() {
+async function setup() {
   const onVerified = jest.fn()
   const onRejected = jest.fn()
-  const result = renderHook(() => useAgeVerification({ onVerified, onRejected }))
+  const result = await renderHook(() => useAgeVerification({ onVerified, onRejected }))
   return { ...result, onVerified, onRejected }
 }
 
@@ -37,18 +37,18 @@ function setVersion(version: string) {
   })
 }
 
-function resetPlatformVersion() {
+async function resetPlatformVersion() {
   if (originalVersionDescriptor) {
     Object.defineProperty(Platform, 'Version', originalVersionDescriptor)
     originalVersionDescriptor = undefined
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
 })
 
-afterEach(() => {
+afterEach(async () => {
   __resetJestPlatformOS()
   resetPlatformVersion()
 })
@@ -57,7 +57,7 @@ describe('web', () => {
   beforeEach(() => __setJestPlatformOS('web'))
 
   it('sets showDobPicker immediately without calling native APIs', async () => {
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.showDobPicker).toBe(true)
     expect(result.current.isVerifying).toBe(false)
@@ -68,13 +68,13 @@ describe('web', () => {
 })
 
 describe('iOS < 26', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     __setJestPlatformOS('ios')
     setVersion('17.5')
   })
 
   it('sets showDobPicker immediately without calling native APIs', async () => {
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.showDobPicker).toBe(true)
     expect(result.current.isVerifying).toBe(false)
@@ -85,14 +85,14 @@ describe('iOS < 26', () => {
 })
 
 describe('iOS >= 26', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     __setJestPlatformOS('ios')
     setVersion('26.0')
   })
 
   it('shows the DOB picker when isEligible is false (no verified age signal available)', async () => {
     mockIsEligible.mockResolvedValue(false)
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     // `false` = regulation does not apply in this region, NOT "user is an adult".
     // No verified age signal exists, so the manual DOB check is required.
@@ -105,7 +105,7 @@ describe('iOS >= 26', () => {
   it('calls onVerified when isEligible is null and lowerBound >= 18', async () => {
     mockIsEligible.mockResolvedValue(null)
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     expect(onVerified).toHaveBeenCalledTimes(1)
     expect(result.current.isVerifying).toBe(false)
@@ -114,7 +114,7 @@ describe('iOS >= 26', () => {
   it('calls onVerified when isEligible is true and lowerBound >= 18', async () => {
     mockIsEligible.mockResolvedValue(true)
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     expect(onVerified).toHaveBeenCalledTimes(1)
     expect(result.current.isVerifying).toBe(false)
@@ -123,7 +123,7 @@ describe('iOS >= 26', () => {
   it('calls onRejected when lowerBound < 18', async () => {
     mockIsEligible.mockResolvedValue(true)
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 17, upperBound: 17 })
-    const { result, onRejected } = setup()
+    const { result, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(onRejected).toHaveBeenCalledTimes(1)
     expect(result.current.isVerifying).toBe(false)
@@ -132,7 +132,7 @@ describe('iOS >= 26', () => {
   it('shows DOB picker when lowerBound is null', async () => {
     mockIsEligible.mockResolvedValue(true)
     mockRequestAgeRange.mockResolvedValue({ lowerBound: null, upperBound: null })
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.showDobPicker).toBe(true)
     expect(result.current.isVerifying).toBe(false)
@@ -143,7 +143,7 @@ describe('iOS >= 26', () => {
   it('shows DOB picker when requestAgeRangeAsync throws', async () => {
     mockIsEligible.mockResolvedValue(true)
     mockRequestAgeRange.mockRejectedValue(new Error('not signed in'))
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.showDobPicker).toBe(true)
     expect(result.current.isVerifying).toBe(false)
@@ -154,7 +154,7 @@ describe('iOS >= 26', () => {
   it('falls through to requestAgeRangeAsync when isEligibleForAgeFeaturesAsync throws', async () => {
     mockIsEligible.mockRejectedValue(new Error('service error'))
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     // isEligible error treated as unknown — falls through to requestAgeRangeAsync
     expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
@@ -163,14 +163,14 @@ describe('iOS >= 26', () => {
 })
 
 describe('Android', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     __setJestPlatformOS('android')
     mockRequestSignalsAccess.mockResolvedValue('SHARED')
   })
 
   it('calls onVerified when lowerBound >= 18', async () => {
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     expect(onVerified).toHaveBeenCalledTimes(1)
     expect(mockIsEligible).not.toHaveBeenCalled()
@@ -187,7 +187,7 @@ describe('Android', () => {
       calls.push('range')
       return { lowerBound: 18, upperBound: null }
     })
-    const { result } = setup()
+    const { result } = await setup()
     await act(() => result.current.verifyAge())
     expect(calls).toEqual(['access', 'range'])
   })
@@ -196,7 +196,7 @@ describe('Android', () => {
     'shows DOB picker without requesting the age range when access status is %p',
     async (status) => {
       mockRequestSignalsAccess.mockResolvedValue(status)
-      const { result, onVerified, onRejected } = setup()
+      const { result, onVerified, onRejected } = await setup()
       await act(() => result.current.verifyAge())
       expect(result.current.showDobPicker).toBe(true)
       expect(result.current.isVerifying).toBe(false)
@@ -208,7 +208,7 @@ describe('Android', () => {
 
   it('flags VERIFICATION_REQUIRED as needing Play Store resolution instead of offering the DOB picker', async () => {
     mockRequestSignalsAccess.mockResolvedValue('VERIFICATION_REQUIRED')
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.needsPlayVerification).toBe(true)
     expect(result.current.showDobPicker).toBe(false)
@@ -223,7 +223,7 @@ describe('Android', () => {
       .mockResolvedValueOnce('VERIFICATION_REQUIRED')
       .mockResolvedValueOnce('SHARED')
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 21, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.needsPlayVerification).toBe(true)
     await act(() => result.current.retryPlayVerification())
@@ -237,7 +237,7 @@ describe('Android', () => {
       .mockResolvedValueOnce('VERIFICATION_REQUIRED')
       .mockRejectedValueOnce(new Error('play services error'))
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.needsPlayVerification).toBe(true)
     await act(() => result.current.retryPlayVerification())
@@ -255,7 +255,7 @@ describe('Android', () => {
       .mockResolvedValueOnce('VERIFICATION_REQUIRED')
       .mockResolvedValueOnce('NOT_SHARED')
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.needsPlayVerification).toBe(true)
     await act(() => result.current.retryPlayVerification())
@@ -270,7 +270,7 @@ describe('Android', () => {
   it('falls through to requestAgeRangeAsync when requestAgeSignalsAccessAsync throws', async () => {
     mockRequestSignalsAccess.mockRejectedValue(new Error('play services error'))
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 18, upperBound: null })
-    const { result, onVerified } = setup()
+    const { result, onVerified } = await setup()
     await act(() => result.current.verifyAge())
     expect(mockRequestAgeRange).toHaveBeenCalledTimes(1)
     expect(onVerified).toHaveBeenCalledTimes(1)
@@ -278,7 +278,7 @@ describe('Android', () => {
 
   it('calls onRejected when lowerBound < 18', async () => {
     mockRequestAgeRange.mockResolvedValue({ lowerBound: 17, upperBound: 17 })
-    const { result, onRejected } = setup()
+    const { result, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(onRejected).toHaveBeenCalledTimes(1)
     expect(result.current.isVerifying).toBe(false)
@@ -286,7 +286,7 @@ describe('Android', () => {
 
   it('shows DOB picker when requestAgeRangeAsync throws', async () => {
     mockRequestAgeRange.mockRejectedValue(new Error('play services error'))
-    const { result, onVerified, onRejected } = setup()
+    const { result, onVerified, onRejected } = await setup()
     await act(() => result.current.verifyAge())
     expect(result.current.showDobPicker).toBe(true)
     expect(result.current.isVerifying).toBe(false)
@@ -296,15 +296,19 @@ describe('Android', () => {
 })
 
 describe('handleDobResult', () => {
-  it('calls onVerified when isAdult is true', () => {
-    const { result, onVerified } = setup()
-    act(() => result.current.handleDobResult(true))
+  it('calls onVerified when isAdult is true', async () => {
+    const { result, onVerified } = await setup()
+    await act(async () => {
+      result.current.handleDobResult(true)
+    })
     expect(onVerified).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onRejected when isAdult is false', () => {
-    const { result, onRejected } = setup()
-    act(() => result.current.handleDobResult(false))
+  it('calls onRejected when isAdult is false', async () => {
+    const { result, onRejected } = await setup()
+    await act(async () => {
+      result.current.handleDobResult(false)
+    })
     expect(onRejected).toHaveBeenCalledTimes(1)
   })
 })

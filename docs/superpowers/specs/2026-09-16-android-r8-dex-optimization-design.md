@@ -140,16 +140,16 @@ being tested.
 
 **3.3 Smoke test on the internal-track install.** Every item must pass:
 
-| Area          | Check                                                                          | R8 risk being covered                                          |
-| ------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Auth          | Google Sign-In; Firebase Auth token exchange; App Check token                  | RNFB / google-signin bridge, reflection                        |
-| Billing       | RevenueCat offerings load; purchase or restore completes; entitlement reflects | RevenueCat model deserialization                               |
-| Voice         | Speechmatics two-way audio session starts and returns audio                    | `@speechmatics/expo-two-way-audio` has no known consumer rules |
-| Images        | Image picker, share, save to library                                           | expo-image / media-library / sharing                           |
-| Notifications | Push received, **small icon renders correctly**                                | `shrinkResources` removing a drawable looked up by name        |
-| Backend       | Firebase Functions call, Storage upload, SQLite read/write, llm-wiki path      | RNFB functions/storage, expo-sqlite                            |
-| UI            | WebView screen, keyboard-controller chat composer, reanimated animations       | JSI / Fabric bridge classes                                    |
-| Updates       | App fetches and applies an OTA on the `staging` channel                        | expo-updates                                                   |
+| Area          | Check                                                                          | R8 risk being covered                                                                  |
+| ------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Auth          | Google Sign-In; Firebase Auth token exchange; App Check token                  | RNFB / google-signin bridge, reflection                                                |
+| Billing       | RevenueCat offerings load; purchase or restore completes; entitlement reflects | RevenueCat model deserialization                                                       |
+| Voice         | Speechmatics two-way audio session starts and returns audio                    | vendored `modules/expo-two-way-audio` (ex-`@speechmatics`) has no known consumer rules |
+| Images        | Image picker, share, save to library                                           | expo-image / media-library / sharing                                                   |
+| Notifications | Push received, **small icon renders correctly**                                | `shrinkResources` removing a drawable looked up by name                                |
+| Backend       | Firebase Functions call, Storage upload, SQLite read/write, llm-wiki path      | RNFB functions/storage, expo-sqlite                                                    |
+| UI            | WebView screen, keyboard-controller chat composer, reanimated animations       | JSI / Fabric bridge classes                                                            |
+| Updates       | App fetches and applies an OTA on the `staging` channel                        | expo-updates                                                                           |
 
 **3.4 Deobfuscation check.**
 

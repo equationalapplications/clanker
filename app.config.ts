@@ -141,8 +141,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSPhotoLibraryAddUsageDescription:
         'Allow Clanker to save images your characters create to your photo library.',
       // Microphone permission was previously supplied by the expo-speech-recognition
-      // config plugin (deleted in c695ab0e). @speechmatics/expo-two-way-audio, the
-      // current Talk-tab voice stack, ships no config plugin and hard-fatalErrors
+      // config plugin (deleted in c695ab0e). expo-two-way-audio (vendored local
+      // module at modules/expo-two-way-audio, ex-@speechmatics), the current
+      // Talk-tab voice stack, ships no config plugin and hard-fatalErrors
       // on iOS when NSMicrophoneUsageDescription is absent — see memory notes.
       NSMicrophoneUsageDescription:
         'Allow Clanker to access your microphone for voice conversations.',
@@ -159,7 +160,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.equationalapplications.clanker',
     googleServicesFile: getGoogleServicesJson(),
     // RECORD_AUDIO was previously supplied by the expo-speech-recognition
-    // config plugin (deleted in c695ab0e). @speechmatics/expo-two-way-audio,
+    // config plugin (deleted in c695ab0e). expo-two-way-audio (vendored local
+    // module at modules/expo-two-way-audio, ex-@speechmatics),
     // the current Talk-tab voice stack, requires this permission.
     permissions: ['android.permission.RECORD_AUDIO'],
     adaptiveIcon: {
@@ -193,6 +195,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
+    // SDK 58's default web.output is 'single' (SPA), but pin it explicitly so
+    // the export mode can't drift with a future SDK default change. This app
+    // must ship the SPA: `/` is the Expo Router boot entry and client-side auth
+    // routing depends on it
+    // (docs/superpowers/specs/2026-07-04-landing-page-content-unification-design.md),
+    // and the hand-written /privacy + /terms pages in public/ rely on the SPA
+    // catch-all rewrite in firebase.json. 'static' or 'server' would pre-render
+    // route HTML and break both; the SEO pages live in public/
+    // (scripts/generate-static-pages.js), so crawlers keep real HTML there.
+    output: 'single',
     buildScript: {
       baseUrl: '/',
     },

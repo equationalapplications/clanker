@@ -79,10 +79,10 @@ const baseChat = {
   streamingMessage: null,
 }
 
-const renderChat = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>)
+const renderChat = async (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>)
 
 describe('ChatView streamed/persisted dedupe', () => {
-  it('renders the persisted row exactly once while the streamed row is still set', () => {
+  it('renders the persisted row exactly once while the streamed row is still set', async () => {
     // Worst-case overlap: the refetch delivered the persisted row while the
     // hook still holds the streamed copy. Same _id (Task 1 invariant), so
     // without the dedupe guard the list renders the same key twice.
@@ -98,7 +98,7 @@ describe('ChatView streamed/persisted dedupe', () => {
       streamingMessage: { ...row },
     })
 
-    const view = renderChat(
+    const view = await renderChat(
       <ChatViewContent characterId="char-1" character={baseCharacter} currentUserId="user-1" />,
     )
     expect(view.getAllByText('final answer text')).toHaveLength(1)

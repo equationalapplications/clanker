@@ -5,8 +5,8 @@ import {
   requestMicrophonePermissionsAsync,
   addExpoTwoWayAudioEventListener,
   tearDown as moduleTearDown,
-  restart,
-} from '@speechmatics/expo-two-way-audio'
+  bargeIn,
+} from '../../modules/expo-two-way-audio/src'
 import { resample24to16 } from '../utils/audioResample'
 
 export interface TwoWayAudioAdapterInterface {
@@ -23,6 +23,14 @@ const BYTES_PER_MS = 32
 
 export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   private _micSub: { remove: () => void } | null = null
+  // Deduplicates concurrent startRecording() calls. The LATEST caller's
+  // onChunk wins (the single mic listener always forwards to it) — a second
+  // caller must not silently lose chunks. stopRecording() bumps the
+  // generation so a start that was still awaiting permissions aborts instead
+  // of bringing the mic live with no owner.
+  private _startPromise: Promise<boolean> | null = null
+  private _onChunk: ((b64: string) => void) | null = null
+  private _startGeneration = 0
   private _playbackEndTime = 0
   private _pcmCarryover = new Uint8Array(0)
 
@@ -30,10 +38,29 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
     await moduleInitialize()
   }
 
-  async startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+  startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+    this._onChunk = onChunk
+    if (this._startPromise) return this._startPromise
+    const startPromise = this._doStartRecording(onChunk).finally(() => {
+      // Only clear if this is still the in-flight start: a stopRecording()
+      // between submission and settlement already nulled _startPromise for
+      // the next caller, and this finally must not clobber that new start.
+      if (this._startPromise === startPromise) this._startPromise = null
+    })
+    this._startPromise = startPromise
+    return startPromise
+  }
+
+  private async _doStartRecording(onChunk: (base64: string) => void): Promise<boolean> {
     if (this._micSub !== null) return true
 
+    const generation = this._startGeneration
     const perm = await requestMicrophonePermissionsAsync()
+    if (this._startGeneration !== generation) {
+      // stopRecording()/tearDown() ran while the permission prompt was up —
+      // do not bring the mic live with no owner.
+      return false
+    }
     if (!perm.granted) return false
 
     const micSub = addExpoTwoWayAudioEventListener('onMicrophoneData', (ev) => {
@@ -42,7 +69,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
         for (let i = 0; i < ev.data.length; i++) {
           binaryString += String.fromCharCode(ev.data[i])
         }
-        onChunk(btoa(binaryString))
+        this._onChunk?.(btoa(binaryString))
       } catch (error) {
         console.warn('[TwoWayAudioAdapter] Dropped mic chunk due to encode error:', error)
       }
@@ -65,6 +92,15 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   stopRecording(): void {
+    this._startGeneration += 1
+    // Clear the in-flight start promise: start → stop → start around the OS
+    // permission prompt must give the SECOND caller a fresh start, not hand
+    // it the stale promise that is about to resolve false on its generation
+    // mismatch (which silently killed the second start).
+    this._startPromise = null
+    // Drop the last consumer's chunk closure so the adapter never outlives
+    // its owner with a stale mic-data target.
+    this._onChunk = null
     toggleRecording(false)
     this._micSub?.remove()
     this._micSub = null
@@ -110,7 +146,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   clearPlaybackQueue(): void {
     this._playbackEndTime = 0
     this._pcmCarryover = new Uint8Array(0)
-    restart()
+    bargeIn()
   }
 
   isPlaying(): boolean {
@@ -118,6 +154,9 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   async tearDown(): Promise<void> {
+    this._startGeneration += 1
+    this._startPromise = null
+    this._onChunk = null
     this._playbackEndTime = 0
     this._pcmCarryover = new Uint8Array(0)
     this._micSub?.remove()

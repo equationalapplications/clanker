@@ -169,7 +169,7 @@ afterEach(() => {
 describe('useAIChat streaming id unification', () => {
   it('persists the AI reply under the same _id it streamed under', async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -184,7 +184,7 @@ describe('useAIChat streaming id unification', () => {
     )
 
     let sendPromise!: Promise<void>
-    act(() => {
+    await act(async () => {
       sendPromise = result.current.sendMessage(userMessage)
     })
 
@@ -211,7 +211,7 @@ describe('useAIChat streaming id unification', () => {
 
   it('clears the streamed row only after the post-success refetch resolves', async () => {
     const { queryClient, Wrapper } = createWrapper()
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -232,7 +232,7 @@ describe('useAIChat streaming id unification', () => {
     })
 
     let sendPromise!: Promise<void>
-    act(() => {
+    await act(async () => {
       sendPromise = result.current.sendMessage(userMessage)
     })
     await waitFor(() => expect(queryClient.invalidateQueries).toHaveBeenCalled())
@@ -249,7 +249,7 @@ describe('useAIChat streaming id unification', () => {
 
   it('clears the streamed row immediately when the turn fails', async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -281,7 +281,7 @@ describe('useAIChat streaming id unification', () => {
         }),
     )
 
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -297,7 +297,7 @@ describe('useAIChat streaming id unification', () => {
     } as never
 
     let photoPromise!: Promise<boolean>
-    act(() => {
+    await act(async () => {
       photoPromise = result.current.sendPhoto(photo, 'look')
     })
     await waitFor(() => expect(result.current.streamingMessage).not.toBeNull())
@@ -343,7 +343,7 @@ describe('useAIChat streaming id unification', () => {
       Promise.resolve({ reply: 'overflow', toolCalls: [], usageSnapshot: null }),
     )
 
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -359,7 +359,7 @@ describe('useAIChat streaming id unification', () => {
     } as never
 
     let photoPromise!: Promise<boolean>
-    act(() => {
+    await act(async () => {
       photoPromise = result.current.sendPhoto(photo, 'look')
     })
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(1))
@@ -380,7 +380,7 @@ describe('useAIChat streaming id unification', () => {
     }
 
     let secondPromise!: Promise<void>
-    act(() => {
+    await act(async () => {
       secondPromise = result.current.sendMessage(secondUserMessage)
     })
     // Drain generously: with a premature release, turn 2 races through
@@ -406,7 +406,7 @@ describe('useAIChat streaming id unification', () => {
     // With the gates genuinely free, the retried second turn streams normally,
     // and its bubble stays alive until its OWN refetch settles.
     let retryPromise!: Promise<void>
-    act(() => {
+    await act(async () => {
       retryPromise = result.current.sendMessage(secondUserMessage)
     })
     await waitFor(() => expect(result.current.streamingMessage?.text).toBe('second '))
@@ -427,7 +427,7 @@ describe('useAIChat streaming id unification', () => {
 describe('agent chat image ingestion', () => {
   const fireTurnWithImage = async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )
@@ -455,7 +455,7 @@ describe('agent chat image ingestion', () => {
     )
 
     let sendPromise!: Promise<void>
-    act(() => {
+    await act(async () => {
       sendPromise = result.current.sendMessage(userMessage)
     })
     await waitFor(() => expect(result.current.streamingMessage?.text).toBe('drawing…'))
@@ -538,7 +538,7 @@ describe('agent chat image ingestion', () => {
 
   it('persists no imageId on plain text turns', async () => {
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(
+    const { result } = await renderHook(
       () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
       { wrapper: Wrapper },
     )

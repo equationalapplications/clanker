@@ -152,7 +152,7 @@ jest.mock('react-native-paper', () => {
 jest.mock('~/components/composer/IngestProgressBar', () => () => null)
 
 describe('ChatComposer', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     mockHasChanged.mockResolvedValue(true)
     mockForget.mockResolvedValue(undefined)
@@ -193,7 +193,7 @@ describe('ChatComposer', () => {
     })
   }
 
-  it('sends on web when Enter is pressed without Shift', () => {
+  it('sends on web when Enter is pressed without Shift', async () => {
     // Force Platform.OS to 'web' so the onKeyPress handler the wrapper
     // installs on web fires; the same code path is a no-op on native.
     const Platform = require('react-native').Platform
@@ -228,7 +228,7 @@ describe('ChatComposer', () => {
     expect(onSend).toHaveBeenCalled()
   })
 
-  it('keeps newline path on web when Shift+Enter is pressed', () => {
+  it('keeps newline path on web when Shift+Enter is pressed', async () => {
     const Platform = require('react-native').Platform
     const originalOs = Platform.OS
     Object.defineProperty(Platform, 'OS', { value: 'web', configurable: true })
@@ -266,7 +266,7 @@ describe('ChatComposer', () => {
     expect(composer.props.returnKeyType).toBe('send')
   })
 
-  it('does not send on web when Enter is pressed with whitespace-only text', () => {
+  it('does not send on web when Enter is pressed with whitespace-only text', async () => {
     // The unified composer no longer trims inside its onSubmitEditing — that
     // check moved up to ChatInputBar's handleSubmit, which owns the text
     // state. The wrapper exposes the prop chain that lets the parent decide:
@@ -301,7 +301,7 @@ describe('ChatComposer', () => {
     expect(onSubmit).toHaveBeenCalled()
     expect(onSend).not.toHaveBeenCalled()
   })
-  it('submits on native when submit editing fires', () => {
+  it('submits on native when submit editing fires', async () => {
     const onSend = jest.fn()
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
@@ -330,7 +330,7 @@ describe('ChatComposer', () => {
     expect(onSend).toHaveBeenCalled()
   })
 
-  it('does not send on native submit when text is whitespace-only', () => {
+  it('does not send on native submit when text is whitespace-only', async () => {
     // Same as the web whitespace case above: ChatComposer no longer trims.
     // ChatInputBar does the trim-and-skip-empty gate. Verify the
     // wrapper's contract: it fires onSubmitEditing; the parent decides.
@@ -363,7 +363,7 @@ describe('ChatComposer', () => {
     expect(onSend).not.toHaveBeenCalled()
   })
 
-  it('sets accessibilityLabel on input for native', () => {
+  it('sets accessibilityLabel on input for native', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
@@ -383,7 +383,7 @@ describe('ChatComposer', () => {
     expect(composer.props.accessibilityLabel).toBe('Message input')
   })
 
-  it('sets accessibilityLabel on input for web', () => {
+  it('sets accessibilityLabel on input for web', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
@@ -403,7 +403,7 @@ describe('ChatComposer', () => {
     expect(composer.props.accessibilityLabel).toBe('Message input')
   })
 
-  it('native snackbar has accessibilityRole "alert" and polite live region', () => {
+  it('native snackbar has accessibilityRole "alert" and polite live region', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     act(() => {
       create(<ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} />)
@@ -414,7 +414,7 @@ describe('ChatComposer', () => {
     expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
   })
 
-  it('web snackbar has accessibilityRole "alert" and polite live region', () => {
+  it('web snackbar has accessibilityRole "alert" and polite live region', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     act(() => {
       create(<ChatComposer text="" onChangeText={jest.fn()} onSubmit={jest.fn()} />)
@@ -425,7 +425,7 @@ describe('ChatComposer', () => {
     expect(capturedSnackbarProps.accessibilityLiveRegion).toBe('polite')
   })
 
-  it('renders + ingest button for free-tier users (native) when characterId and userId are provided', () => {
+  it('renders + ingest button for free-tier users (native) when characterId and userId are provided', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
@@ -446,7 +446,7 @@ describe('ChatComposer', () => {
     expect(plusButton[0].props.icon).toBe('plus')
   })
 
-  it('renders + ingest button for free-tier users (web) when characterId and userId are provided', () => {
+  it('renders + ingest button for free-tier users (web) when characterId and userId are provided', async () => {
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
 
@@ -467,7 +467,7 @@ describe('ChatComposer', () => {
     expect(plusButton[0].props.icon).toBe('plus')
   })
 
-  it('shows an ingest spinner while memory ingest is in progress (native)', () => {
+  it('shows an ingest spinner while memory ingest is in progress (native)', async () => {
     mockUseCharacterWikiResult.isIngesting = true
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
@@ -492,7 +492,7 @@ describe('ChatComposer', () => {
     expect(plusButton.length).toBe(0)
   })
 
-  it('shows an ingest spinner while memory ingest is in progress (web)', () => {
+  it('shows an ingest spinner while memory ingest is in progress (web)', async () => {
     mockUseCharacterWikiResult.isIngesting = true
     const ChatComposer = require('~/components/ChatComposer').default
     let tree!: ReturnType<typeof create>
@@ -1226,8 +1226,8 @@ describe('ChatComposer', () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
-    act(() => {
-      tree.unmount()
+    await act(async () => {
+      await tree.unmount()
     })
 
     await act(async () => {
@@ -1700,8 +1700,8 @@ describe('ChatComposer', () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
 
-    act(() => {
-      tree.unmount()
+    await act(async () => {
+      await tree.unmount()
     })
 
     await act(async () => {
@@ -1751,7 +1751,7 @@ describe('ChatComposer', () => {
   })
 
   describe('image pick: send vs memory (Task 15)', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockCaptureFromCamera.mockReset()
       mockPickFromLibrary.mockReset()
       mockPrepareFromAsset.mockReset()
@@ -1767,7 +1767,7 @@ describe('ChatComposer', () => {
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, findByText } = render(
+      const { getByLabelText, findByText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1777,7 +1777,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       fireEvent.press(await findByText('Add document'))
 
       expect(await findByText('Send in chat')).toBeTruthy()
@@ -1796,7 +1798,7 @@ describe('ChatComposer', () => {
       mockText.mockResolvedValue('hello world')
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, getByText, queryByText } = render(
+      const { getByLabelText, getByText, queryByText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1806,7 +1808,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByText('Add document'))
       })
@@ -1825,7 +1829,7 @@ describe('ChatComposer', () => {
       })
 
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, findByText, queryByText } = render(
+      const { getByLabelText, findByText, queryByText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1836,7 +1840,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       fireEvent.press(await findByText('Add document'))
 
       // Never silently degraded to a text-only turn: the option is present and
@@ -1862,7 +1868,7 @@ describe('ChatComposer', () => {
 
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(true)
-      const { getByLabelText, findByText, queryByText } = render(
+      const { getByLabelText, findByText, queryByText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1877,7 +1883,9 @@ describe('ChatComposer', () => {
 
       // The menu's photo items are direct-to-chat entry points, so they must
       // be inert while busy.
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Take photo'))
         fireEvent.press(getByLabelText('Choose from library'))
@@ -1915,7 +1923,7 @@ describe('ChatComposer', () => {
 
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(true)
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -1926,7 +1934,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Take photo'))
       })
@@ -1957,7 +1967,7 @@ describe('ChatComposer', () => {
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(false)
       const onChangeText = jest.fn()
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text="my caption"
           onChangeText={onChangeText}
@@ -1968,7 +1978,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Take photo'))
       })
@@ -1994,7 +2006,7 @@ describe('ChatComposer', () => {
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(true)
       const onChangeText = jest.fn()
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text="my caption"
           onChangeText={onChangeText}
@@ -2005,7 +2017,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Take photo'))
       })
@@ -2016,15 +2030,15 @@ describe('ChatComposer', () => {
   })
 
   describe('attachment menu', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockCaptureFromCamera.mockReset()
       mockPickFromLibrary.mockReset()
       mockPrepareFromAsset.mockReset()
     })
 
-    it('opens the attachment menu with all three actions when photos are supported', () => {
+    it('opens the attachment menu with all three actions when photos are supported', async () => {
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, queryByLabelText } = render(
+      const { getByLabelText, queryByLabelText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -2041,7 +2055,9 @@ describe('ChatComposer', () => {
       expect(queryByLabelText('Choose from library')).toBeNull()
       expect(queryByLabelText('Add document')).toBeNull()
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
 
       expect(getByLabelText('Take photo')).toBeTruthy()
       expect(getByLabelText('Choose from library')).toBeTruthy()
@@ -2064,7 +2080,7 @@ describe('ChatComposer', () => {
 
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(true)
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -2075,7 +2091,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Choose from library'))
       })
@@ -2101,7 +2119,7 @@ describe('ChatComposer', () => {
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(false)
       const onChangeText = jest.fn()
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text="my caption"
           onChangeText={onChangeText}
@@ -2112,7 +2130,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Choose from library'))
       })
@@ -2138,7 +2158,7 @@ describe('ChatComposer', () => {
       const ChatComposer = require('~/components/ChatComposer').default
       const onSendPhoto = jest.fn().mockResolvedValue(true)
       const onChangeText = jest.fn()
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text="my caption"
           onChangeText={onChangeText}
@@ -2149,7 +2169,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
       await act(async () => {
         fireEvent.press(getByLabelText('Choose from library'))
       })
@@ -2158,9 +2180,9 @@ describe('ChatComposer', () => {
       await waitFor(() => expect(onChangeText).toHaveBeenCalledWith(''))
     })
 
-    it('hides the photo items when the character cannot use the cloud agent', () => {
+    it('hides the photo items when the character cannot use the cloud agent', async () => {
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText, queryByLabelText } = render(
+      const { getByLabelText, queryByLabelText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -2171,7 +2193,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
 
       expect(queryByLabelText('Take photo')).toBeNull()
       expect(queryByLabelText('Choose from library')).toBeNull()
@@ -2180,7 +2204,7 @@ describe('ChatComposer', () => {
 
     it('disables the photo items while a reply is in flight but keeps Add document enabled', async () => {
       const ChatComposer = require('~/components/ChatComposer').default
-      const { getByLabelText } = render(
+      const { getByLabelText } = await render(
         <ChatComposer
           text=""
           onChangeText={jest.fn()}
@@ -2193,7 +2217,9 @@ describe('ChatComposer', () => {
         />,
       )
 
-      fireEvent.press(getByLabelText('Attach a photo or document'))
+      await act(async () => {
+        fireEvent.press(getByLabelText('Attach a photo or document'))
+      })
 
       const takePhoto = getByLabelText('Take photo')
       const chooseFromLibrary = getByLabelText('Choose from library')

@@ -113,7 +113,7 @@ describe('MemoryInspectorScreen', () => {
     jest.restoreAllMocks()
   })
 
-  test('renders facts, tasks, and events sections', () => {
+  test('renders facts, tasks, and events sections', async () => {
     jest.mocked(useMemoryBundle).mockReturnValue({
       bundle: BUNDLE,
       isLoading: false,
@@ -121,14 +121,14 @@ describe('MemoryInspectorScreen', () => {
       refetch: jest.fn(),
     })
 
-    render(<MemoryInspectorScreen />, { wrapper })
+    await render(<MemoryInspectorScreen />, { wrapper })
 
     expect(screen.getByText('Likes cats')).toBeTruthy()
     expect(screen.getByText('Buy cat food')).toBeTruthy()
     expect(screen.getByText('Mentioned cats')).toBeTruthy()
   })
 
-  test('shows loading indicator when loading', () => {
+  test('shows loading indicator when loading', async () => {
     jest.mocked(useMemoryBundle).mockReturnValue({
       bundle: null,
       isLoading: true,
@@ -136,7 +136,7 @@ describe('MemoryInspectorScreen', () => {
       refetch: jest.fn(),
     })
 
-    render(<MemoryInspectorScreen />, { wrapper })
+    await render(<MemoryInspectorScreen />, { wrapper })
 
     expect(screen.getByText(/loading/i)).toBeTruthy()
   })
@@ -163,7 +163,7 @@ describe('MemoryInspectorScreen', () => {
       refetch: refetchMock,
     })
 
-    render(<MemoryInspectorScreen />, { wrapper })
+    await render(<MemoryInspectorScreen />, { wrapper })
 
     const deleteButtons = screen.getAllByLabelText('Delete')
     fireEvent.press(deleteButtons[0])
@@ -196,7 +196,7 @@ describe('MemoryInspectorScreen', () => {
       refetch: refetchMock,
     })
 
-    render(<MemoryInspectorScreen />, { wrapper })
+    await render(<MemoryInspectorScreen />, { wrapper })
 
     const deleteButtons = screen.getAllByLabelText('Delete')
     fireEvent.press(deleteButtons[1])
@@ -229,7 +229,7 @@ describe('MemoryInspectorScreen', () => {
       refetch: refetchMock,
     })
 
-    render(<MemoryInspectorScreen />, { wrapper })
+    await render(<MemoryInspectorScreen />, { wrapper })
 
     const deleteButtons = screen.getAllByLabelText('Delete')
     fireEvent.press(deleteButtons[0])

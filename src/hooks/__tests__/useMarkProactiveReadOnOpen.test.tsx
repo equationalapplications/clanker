@@ -71,7 +71,7 @@ const createWrapper = () => {
   return { queryClient, invalidateSpy, Wrapper }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
   mockActiveCleanup?.()
   mockActiveCleanup = undefined
@@ -82,7 +82,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     mockCount.mockResolvedValue(2)
     mockMarkLocally.mockResolvedValue(['p1', 'p2'])
     const { invalidateSpy, Wrapper } = createWrapper()
-    renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
+    await renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
     // Atomic pair: mark locally + enqueue (no call) inside the same SQLite tx.
     await waitFor(() => expect(mockMarkLocally).toHaveBeenCalledWith('c1', mockFakeDb))
     await waitFor(() =>
@@ -96,7 +96,7 @@ describe('useMarkProactiveReadOnOpen', () => {
   it('does nothing when unread is 0 (second open is a no-op)', async () => {
     mockCount.mockResolvedValue(0)
     const { Wrapper } = createWrapper()
-    renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
+    await renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
     await waitFor(() => expect(mockCount).toHaveBeenCalled())
     expect(mockMarkLocally).not.toHaveBeenCalled()
     expect(mockEnqueue).not.toHaveBeenCalled()
@@ -107,7 +107,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     mockCount.mockResolvedValue(2)
     mockMarkLocally.mockResolvedValue([])
     const { Wrapper } = createWrapper()
-    renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
+    await renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
     await waitFor(() => expect(mockMarkLocally).toHaveBeenCalled())
     expect(mockEnqueue).not.toHaveBeenCalled()
     expect(mockFlush).not.toHaveBeenCalled()
@@ -125,7 +125,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     mockCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1)
     mockMarkLocally.mockResolvedValueOnce(['p-new'])
     const { invalidateSpy, Wrapper } = createWrapper()
-    const { rerender } = renderHook(
+    const { rerender } = await renderHook(
       ({ characterId }: { characterId: string }) => useMarkProactiveReadOnOpen(characterId),
       { wrapper: Wrapper, initialProps: { characterId: 'c1' } },
     )
@@ -156,7 +156,7 @@ describe('useMarkProactiveReadOnOpen', () => {
     mockMarkLocally.mockResolvedValue(['p-boom'])
     mockEnqueue.mockRejectedValueOnce(new Error('disk full'))
     const { invalidateSpy, Wrapper } = createWrapper()
-    renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
+    await renderHook(() => useMarkProactiveReadOnOpen('c1'), { wrapper: Wrapper })
     await waitFor(() => expect(mockEnqueue).toHaveBeenCalled())
     // The error swallowed by the catch — but nothing downstream ran.
     expect(mockFlush).not.toHaveBeenCalled()

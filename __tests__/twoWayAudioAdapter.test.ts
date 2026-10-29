@@ -4,16 +4,20 @@ const mockToggleRecording = jest.fn()
 const mockRequestMicPermissions = jest.fn()
 const mockAddEventListener = jest.fn()
 const mockTearDown = jest.fn()
-const mockRestart = jest.fn()
+const mockBargeIn = jest.fn()
 
-jest.mock('@speechmatics/expo-two-way-audio', () => ({
-  initialize: (...a: unknown[]) => mockInitialize(...a),
-  playPCMData: (...a: unknown[]) => mockPlayPCMData(...a),
-  toggleRecording: (...a: unknown[]) => mockToggleRecording(...a),
-  requestMicrophonePermissionsAsync: (...a: unknown[]) => mockRequestMicPermissions(...a),
-  addExpoTwoWayAudioEventListener: (...a: unknown[]) => mockAddEventListener(...a),
-  tearDown: (...a: unknown[]) => mockTearDown(...a),
-  restart: (...a: unknown[]) => mockRestart(...a),
+// The vendored local module (imported by the adapter via a relative path).
+jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
+  __esModule: true,
+  default: {
+    initialize: (...a: unknown[]) => mockInitialize(...a),
+    playPCMData: (...a: unknown[]) => mockPlayPCMData(...a),
+    toggleRecording: (...a: unknown[]) => mockToggleRecording(...a),
+    requestMicrophonePermissionsAsync: (...a: unknown[]) => mockRequestMicPermissions(...a),
+    addListener: (...a: unknown[]) => mockAddEventListener(...a),
+    tearDown: (...a: unknown[]) => mockTearDown(...a),
+    bargeIn: (...a: unknown[]) => mockBargeIn(...a),
+  },
 }))
 
 jest.mock('~/utils/audioResample', () => ({
@@ -29,7 +33,7 @@ describe('TwoWayAudioAdapter', () => {
     jest.clearAllMocks()
     mockInitialize.mockResolvedValue(undefined)
     mockTearDown.mockReturnValue(undefined)
-    mockRestart.mockReturnValue(undefined)
+    mockBargeIn.mockReturnValue(undefined)
     mockToggleRecording.mockReturnValue(true)
     mockRequestMicPermissions.mockResolvedValue({ granted: true })
     mockAddEventListener.mockReturnValue({ remove: jest.fn() })
@@ -143,9 +147,112 @@ describe('TwoWayAudioAdapter', () => {
     consoleWarnSpy.mockRestore()
   })
 
-  test('clearPlaybackQueue calls restart()', () => {
+  test('clearPlaybackQueue calls bargeIn() and never restart-style recording toggles', () => {
     adapter.clearPlaybackQueue()
-    expect(mockRestart).toHaveBeenCalled()
+    expect(mockBargeIn).toHaveBeenCalledTimes(1)
+    // Barge-in must keep the mic alive: no start/stop recording through the module.
+    expect(mockToggleRecording).not.toHaveBeenCalled()
+    expect(mockPlayPCMData).not.toHaveBeenCalled()
+  })
+
+  test('concurrent startRecording calls share one native start; latest onChunk wins', async () => {
+    let resolvePerm!: (v: { granted: boolean }) => void
+    mockRequestMicPermissions.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePerm = resolve
+      }),
+    )
+
+    const chunksA: string[] = []
+    const chunksB: string[] = []
+    const p1 = adapter.startRecording((b64) => chunksA.push(b64))
+    const p2 = adapter.startRecording((b64) => chunksB.push(b64))
+
+    // Exactly one permission request and one listener for both callers.
+    expect(mockRequestMicPermissions).toHaveBeenCalledTimes(1)
+
+    resolvePerm({ granted: true })
+    expect(await p1).toBe(true)
+    expect(await p2).toBe(true)
+    expect(mockAddEventListener).toHaveBeenCalledTimes(1)
+
+    // One chunk delivered; only the latest caller's onChunk receives it.
+    const micListener = mockAddEventListener.mock.calls[0][1] as (ev: { data: Uint8Array }) => void
+    micListener({ data: new Uint8Array([1, 2, 3]) })
+    expect(chunksA).toHaveLength(0)
+    expect(chunksB).toHaveLength(1)
+  })
+
+  test('stopRecording during the permission prompt aborts the start', async () => {
+    let resolvePerm!: (v: { granted: boolean }) => void
+    mockRequestMicPermissions.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePerm = resolve
+      }),
+    )
+
+    const p = adapter.startRecording(jest.fn())
+    adapter.stopRecording()
+    resolvePerm({ granted: true })
+
+    expect(await p).toBe(false)
+    // The mic must never go live: only stopRecording's own toggle(false).
+    expect(mockToggleRecording).not.toHaveBeenCalledWith(true)
+    expect(mockAddEventListener).not.toHaveBeenCalled()
+  })
+
+  test('start → stop → start around the permission prompt: the second start succeeds', async () => {
+    let resolveFirstPerm!: (v: { granted: boolean }) => void
+    let permCall = 0
+    mockRequestMicPermissions.mockImplementation(() => {
+      permCall += 1
+      if (permCall === 1) {
+        return new Promise((resolve) => {
+          resolveFirstPerm = resolve
+        })
+      }
+      return Promise.resolve({ granted: true })
+    })
+
+    const stale = adapter.startRecording(jest.fn())
+    adapter.stopRecording() // second caller arrives while the first prompt is up
+    const fresh = adapter.startRecording(jest.fn())
+    resolveFirstPerm({ granted: true })
+
+    // The stale start still aborts on its generation mismatch…
+    expect(await stale).toBe(false)
+    // …but the fresh start must get its OWN promise and succeed — before the
+    // fix it was handed the stale in-flight promise and silently failed.
+    expect(await fresh).toBe(true)
+    expect(mockToggleRecording).toHaveBeenCalledWith(true)
+  })
+
+  test('stopRecording drops the stale chunk consumer', async () => {
+    const staleChunks: string[] = []
+    let micListener: ((ev: { data: Uint8Array }) => void) | null = null
+    mockAddEventListener.mockImplementation((_event, cb) => {
+      micListener = cb
+      return { remove: jest.fn() }
+    })
+    await adapter.startRecording((b64) => staleChunks.push(b64))
+    adapter.stopRecording()
+
+    // Even if the native side still delivers once more, the removed consumer
+    // must never see a chunk.
+    micListener!({ data: new Uint8Array([9, 9, 9]) })
+    expect(staleChunks).toHaveLength(0)
+  })
+
+  test('a failed start clears the in-flight dedupe so the next start works', async () => {
+    mockToggleRecording.mockImplementationOnce(() => {
+      throw new Error('toggle failed')
+    })
+    await expect(adapter.startRecording(jest.fn())).rejects.toThrow('toggle failed')
+
+    // _startPromise was cleared by .finally — the retry is not swallowed.
+    const result = await adapter.startRecording(jest.fn())
+    expect(result).toBe(true)
+    expect(mockToggleRecording).toHaveBeenCalledTimes(2)
   })
 
   test('isPlaying() returns false initially', () => {

@@ -1,4 +1,4 @@
-import { render, fireEvent } from '@testing-library/react-native'
+import { render, fireEvent, act } from '@testing-library/react-native'
 import ChatImageBubble from '~/components/ChatImageBubble'
 import { useResolvedImage } from '~/hooks/useResolvedImage'
 
@@ -9,16 +9,16 @@ jest.mock('~/hooks/useResolvedImage', () => ({
 const resolvedUri = (uri: string | null) => ({ uri, isResolved: true })
 const pendingResolve = { uri: null, isResolved: false }
 
-beforeEach(() => {
+beforeEach(async () => {
   ;(useResolvedImage as jest.Mock).mockReset()
   // Default: no row found. Individual tests override with the shape they need.
   ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri(null))
 })
 
-it('renders the thumb variant, not the master', () => {
+it('renders the thumb variant, not the master', async () => {
   ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
 
-  const { getByLabelText } = render(
+  const { getByLabelText } = await render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
   )
 
@@ -26,28 +26,30 @@ it('renders the thumb variant, not the master', () => {
   expect(getByLabelText('Photo in this message')).toBeTruthy()
 })
 
-it('opens the master in a viewer on tap', () => {
+it('opens the master in a viewer on tap', async () => {
   ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
 
-  const { getByLabelText, queryByLabelText } = render(
+  const { getByLabelText, queryByLabelText } = await render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
   )
   expect(queryByLabelText('Full size photo')).toBeNull()
 
-  fireEvent.press(getByLabelText('Photo in this message'))
+  await act(async () => {
+    fireEvent.press(getByLabelText('Photo in this message'))
+  })
 
   expect(getByLabelText('Full size photo')).toBeTruthy()
   expect(useResolvedImage).toHaveBeenCalledWith('img-1', 'master')
 })
 
-it('degrades to a placeholder only after the lookup completes with no row', () => {
+it('degrades to a placeholder only after the lookup completes with no row', async () => {
   // The photo may have been deleted from the Avatar Picker, evicted by the FIFO
   // cap, or genuinely absent. The message keeps its text either way. The
   // placeholder must NOT appear while the lookup is still in flight — the row
   // may simply be mid-sync on this device (message-before-image ordering).
   ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri(null))
 
-  const { queryByLabelText, getByLabelText } = render(
+  const { queryByLabelText, getByLabelText } = await render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
   )
 
@@ -55,13 +57,13 @@ it('degrades to a placeholder only after the lookup completes with no row', () =
   expect(getByLabelText('Photo unavailable')).toBeTruthy()
 })
 
-it('renders nothing while the thumbnail lookup is in flight', () => {
+it('renders nothing while the thumbnail lookup is in flight', async () => {
   // The image row may not have arrived on this device yet. Announcing
   // "Photo unavailable" before the lookup completes is wrong: the row is
   // coming, the bubble just hasn't been able to find it yet.
   ;(useResolvedImage as jest.Mock).mockReturnValue(pendingResolve)
 
-  const { queryByLabelText } = render(
+  const { queryByLabelText } = await render(
     <ChatImageBubble currentMessage={{ _id: 'm1', imageId: 'img-1' } as never} />,
   )
 
@@ -69,8 +71,8 @@ it('renders nothing while the thumbnail lookup is in flight', () => {
   expect(queryByLabelText('Photo unavailable')).toBeNull()
 })
 
-it('renders nothing for a message with no image', () => {
-  const { toJSON } = render(<ChatImageBubble currentMessage={{ _id: 'm1' } as never} />)
+it('renders nothing for a message with no image', async () => {
+  const { toJSON } = await render(<ChatImageBubble currentMessage={{ _id: 'm1' } as never} />)
   expect(toJSON()).toBeNull()
 })
 
@@ -93,14 +95,14 @@ const BubbleStub = ({ currentMessage, renderMessageImage }: any) => {
 }
 
 describe('Bubble integration with ChatImageBubble', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     ;(useResolvedImage as jest.Mock).mockReturnValue(resolvedUri('file:///thumb.webp'))
   })
 
-  it('renders ChatImageBubble when image is set (truthy gate passes)', () => {
+  it('renders ChatImageBubble when image is set (truthy gate passes)', async () => {
     const renderMessageImage = jest.fn((props: any) => <ChatImageBubble {...props} />)
 
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <BubbleStub
         currentMessage={{
           _id: 'm1',
@@ -118,12 +120,12 @@ describe('Bubble integration with ChatImageBubble', () => {
     expect(getByLabelText('Photo in this message')).toBeTruthy()
   })
 
-  it('does not render ChatImageBubble when image is missing (gate short-circuits)', () => {
+  it('does not render ChatImageBubble when image is missing (gate short-circuits)', async () => {
     // Mirrors the bug PR #591 shipped: a message that only carries `imageId`
     // must not produce a photo bubble through the gifted-chat pipeline.
     const renderMessageImage = jest.fn((props: any) => <ChatImageBubble {...props} />)
 
-    const { queryByLabelText } = render(
+    const { queryByLabelText } = await render(
       <BubbleStub
         currentMessage={{
           _id: 'm1',

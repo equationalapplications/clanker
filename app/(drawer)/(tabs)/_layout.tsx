@@ -1,6 +1,6 @@
 import { Tabs, router, useNavigation, usePathname } from 'expo-router'
 import React from 'react'
-import { Alert, ColorValue } from 'react-native'
+import { Alert } from 'react-native'
 import { TabBarIcon } from '~/components/navigation/TabBarIcon'
 import { editDirtyRef, setEditDirty } from '~/hooks/useEditDirtyState'
 
@@ -24,8 +24,11 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarAccessibilityLabel: 'Chat',
-          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
-            <TabBarIcon name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={focused ? 'chatbubble' : 'chatbubble-outline'}
+              color={String(color)}
+            />
           ),
         }}
       />
@@ -34,8 +37,8 @@ export default function TabLayout() {
         options={{
           title: 'Talk',
           tabBarAccessibilityLabel: 'Talk',
-          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
-            <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'mic' : 'mic-outline'} color={String(color)} />
           ),
         }}
       />
@@ -44,8 +47,8 @@ export default function TabLayout() {
         options={{
           title: 'Characters',
           tabBarAccessibilityLabel: 'Characters',
-          tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
-            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={String(color)} />
           ),
         }}
         listeners={{

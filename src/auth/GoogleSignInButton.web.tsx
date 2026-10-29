@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View, Text, StyleSheet, type ViewStyle } from 'react-native'
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  type ViewStyle,
+  type HostInstance,
+} from 'react-native'
 import ProviderButton from '~/auth/AuthProviderButton'
 import { initializeGoogleSignIn, renderGoogleSignInButton } from '~/auth/googleSignin.web'
 
@@ -15,7 +22,7 @@ type Props = {
 }
 
 export default function GoogleSignInButton({ onLoadingChange, loading, disabled, style }: Props) {
-  const containerRef = useRef<View>(null)
+  const containerRef = useRef<HostInstance>(null)
   const [buttonState, setButtonState] = useState<ButtonState>('idle')
   const [initFailed, setInitFailed] = useState(false)
   const onLoadingChangeRef = useRef(onLoadingChange)

@@ -13,14 +13,14 @@ jest.mock('~/services/analyticsService', () => ({
 }))
 
 describe('useScreenTracking', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     jest.mocked(waitForAnalyticsInit).mockResolvedValue(undefined)
   })
 
   it('logs a screen view for the initial pathname after analytics init', async () => {
     jest.mocked(usePathname).mockReturnValue('/characters')
-    renderHook(() => useScreenTracking())
+    await renderHook(() => useScreenTracking())
     await waitFor(() => {
       expect(waitForAnalyticsInit).toHaveBeenCalled()
       expect(logScreenView).toHaveBeenCalledWith('/characters')
@@ -30,7 +30,7 @@ describe('useScreenTracking', () => {
 
   it('logs a new screen view when the pathname changes', async () => {
     jest.mocked(usePathname).mockReturnValue('/characters')
-    const { rerender } = renderHook(() => useScreenTracking())
+    const { rerender } = await renderHook(() => useScreenTracking())
     await waitFor(() => expect(logScreenView).toHaveBeenCalledWith('/characters'))
 
     jest.mocked(usePathname).mockReturnValue('/settings')
@@ -44,7 +44,7 @@ describe('useScreenTracking', () => {
 
   it('does not log again when the pathname is unchanged across renders', async () => {
     jest.mocked(usePathname).mockReturnValue('/characters')
-    const { rerender } = renderHook(() => useScreenTracking())
+    const { rerender } = await renderHook(() => useScreenTracking())
     await waitFor(() => expect(logScreenView).toHaveBeenCalledTimes(1))
     rerender({})
     rerender({})

@@ -209,7 +209,7 @@ liveVoiceMachine  ──AUDIO_OUTPUT──▶  useLiveVoiceChat.playChunk()
                                    │  IN:  onMicrophoneData   │
                                    │       16kHz → base64     │
                                    │  OUT: playPCMData(16kHz) │
-                                   │       restart() (barge-in)│
+                                   │  bargeIn() (barge-in)    │
                                    │  AEC: unified session    │
                                    └──────────────────────────┘
 ```
@@ -280,7 +280,7 @@ Behavior must match web semantics where possible. **`UseLiveAudioIOReturn` uncha
 | `stopRecording()`        | `adapter.stopRecording()`                                                                                                                        |
 | First `playChunk()`      | `playChunk` on adapter; set `playbackState = 'playing'`                                                                                          |
 | Subsequent `playChunk()` | `playChunk` only                                                                                                                                 |
-| `clearPlaybackQueue()`   | `adapter.clearPlaybackQueue()` → `restart()`; `playbackState = 'idle'`                                                                           |
+| `clearPlaybackQueue()`   | `adapter.clearPlaybackQueue()` → `bargeIn()` (was `restart()` pre-vendoring — see `modules/expo-two-way-audio`); `playbackState = 'idle'`        |
 | `AUDIO_INTERRUPTED`      | Same as `clearPlaybackQueue()` — already wired in `useLiveVoiceChat`                                                                             |
 | `endCall` / unmount      | `tearDown()`                                                                                                                                     |
 | Malformed base64         | Log warning, skip chunk                                                                                                                          |

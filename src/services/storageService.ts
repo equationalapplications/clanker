@@ -36,7 +36,7 @@ export async function uploadImageBytes(
   contentType: string,
 ): Promise<void> {
   // Stage the bytes as a file so putFile can stream them.
-  const staged = stageForUpload(base64)
+  const staged = await stageForUpload(base64)
   try {
     await putFile(storageRef(path), staged.uri, { contentType })
   } finally {
@@ -58,11 +58,11 @@ export async function uploadImageBytes(
  * skips the `finally` cleanup above — the permanent document directory has no
  * such sweeper.
  */
-function stageForUpload(base64: string): File {
+async function stageForUpload(base64: string): Promise<File> {
   const dir = new Directory(Paths.cache, 'image-uploads')
   if (!dir.exists) dir.create()
   const file = new File(dir, `upload_${Date.now()}_${Math.random().toString(36).slice(2)}.webp`)
-  file.write(base64, { encoding: 'base64' })
+  await file.write(base64, { encoding: 'base64' })
   return file
 }
 

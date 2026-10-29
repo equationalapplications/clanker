@@ -1,0 +1,18 @@
+diff --git a/node_modules/@react-native/jest-preset/jest/setup.js b/node_modules/@react-native/jest-preset/jest/setup.js
+index 5082aec..9dedc0e 100644
+--- a/node_modules/@react-native/jest-preset/jest/setup.js
++++ b/node_modules/@react-native/jest-preset/jest/setup.js
+@@ -62,12 +62,7 @@ Object.defineProperties(global, {
+     },
+     writable: true,
+   },
+-  window: {
+-    configurable: true,
+-    enumerable: true,
+-    value: global,
+-    writable: true,
+-  },
++  // window entry removed for jsdom compatibility - see patches/@react-native+jest-preset*.patch
+ });
+ 
+ // This setup script will be published in the react-native package.

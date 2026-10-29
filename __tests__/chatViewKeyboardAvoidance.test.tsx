@@ -207,6 +207,8 @@ jest.mock('react-native-keyboard-controller', () => {
   return {
     KeyboardAvoidingView: React.forwardRef((props: any, ref: any) => {
       capturedKavProps.push(props)
+      // keyboard-controller's KeyboardAvoidingView is forwardRef<View> — the
+      // ref goes straight to the host View (which has measureInWindow).
       return React.createElement(View, { ...props, ref })
     }),
     KeyboardProvider: ({ children }: any) => children ?? null,

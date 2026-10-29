@@ -78,7 +78,8 @@ export async function writeLocalImageBytes(
   const file = new File(dir, fileNameFor(imageId, variant))
   // Without an explicit encoding `write` defaults to utf8 and stores the base64
   // *text*, producing a file:// URI that no image decoder can read.
-  file.write(base64, { encoding: 'base64' })
+  // File.write is async as of SDK 58 — await it before the URI is consumed.
+  await file.write(base64, { encoding: 'base64' })
   return file.uri
 }
 
