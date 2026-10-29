@@ -45,11 +45,11 @@ Talk tab: Start Call
 
 ## Client Architecture
 
-| Module             | Role                                                                                                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state                                       |
-| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor                                          |
-| `useLiveAudioIO`   | Hardware: unified duplex mic + playback via `@speechmatics/expo-two-way-audio`, 24→16 kHz resample, barge-in flush |
+| Module             | Role                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state                                                           |
+| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor                                                              |
+| `useLiveAudioIO`   | Hardware: unified duplex mic + playback via the vendored `modules/expo-two-way-audio` local module, 24→16 kHz resample, barge-in flush |
 
 **Key files:**
 
@@ -86,14 +86,14 @@ Text chat reaches the same tool via Cloud Agent `POST /agent/run` (synchronous `
 
 ## Audio
 
-**Native audio (Talk tab):** Uses `@speechmatics/expo-two-way-audio` (MIT, stock, Speechmatics-maintained) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
+**Native audio (Talk tab):** Uses the vendored local Expo module `modules/expo-two-way-audio` (ported from `@speechmatics/expo-two-way-audio@0.1.2`, MIT, with EA's barge-in fork applied in source — the npm package and its patch-package patch are retired) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
 
-| Direction        | Format                                  | Library                            |
-| ---------------- | --------------------------------------- | ---------------------------------- |
-| Mic uplink       | 16 kHz, mono, 16-bit PCM                | `@speechmatics/expo-two-way-audio` |
-| Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `@speechmatics/expo-two-way-audio` |
+| Direction        | Format                                  | Library                                 |
+| ---------------- | --------------------------------------- | --------------------------------------- |
+| Mic uplink       | 16 kHz, mono, 16-bit PCM                | `modules/expo-two-way-audio` (vendored) |
+| Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `modules/expo-two-way-audio` (vendored) |
 
-**Native rebuild required** — `@speechmatics/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
+**Native rebuild required** — `modules/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
 
 ---
 
