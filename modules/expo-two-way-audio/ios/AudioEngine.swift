@@ -344,6 +344,10 @@ class AudioEngine {
         // The media server daemon rebuilt the audio graph: refresh the
         // session category first, then rebuild — and setup() now removes
         // existing taps before reinstalling, so this can't double-tap.
+        // NOTE: we deliberately reuse the existing avAudioEngine/speechPlayer
+        // objects (matches long-standing behavior); if a device ever shows a
+        // post-reset fault, recreating them is the next step per Apple's
+        // guidance.
         self.setupAudioSession()
         self.avAudioEngine.stop()
         self.setup()

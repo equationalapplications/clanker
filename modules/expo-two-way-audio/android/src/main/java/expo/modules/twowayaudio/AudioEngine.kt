@@ -64,23 +64,6 @@ class AudioEngine (context: Context) {
         // Route audio to external device if connected, otherwise route to speaker
         updateAudioRouting()
 
-        // Listen for changes in audio routing (stored so tearDown() can
-        // unregister — previously the callback accumulated per session and
-        // kept mutating system audio routing after the engine was gone).
-        audioDeviceCallback = object : android.media.AudioDeviceCallback() {
-            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
-                Log.d("AudioEngine", "onAudioDevicesAdded")
-                super.onAudioDevicesAdded(addedDevices)
-                updateAudioRouting()
-            }
-            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
-                Log.d("AudioEngine", "onAudioDevicesRemoved")
-                super.onAudioDevicesRemoved(removedDevices)
-                updateAudioRouting()
-            }
-        }
-        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
-
         val bufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_OUT_MONO,
@@ -103,6 +86,26 @@ class AudioEngine (context: Context) {
         ).apply {
             play()
         }
+
+        // Listen for changes in audio routing (stored so tearDown() can
+        // unregister — previously the callback accumulated per session and
+        // kept mutating system audio routing after the engine was gone).
+        // Registered AFTER the AudioTrack is built: if construction above
+        // throws, initialize() catches it and the engine is discarded — a
+        // callback registered before that point would leak with no owner.
+        audioDeviceCallback = object : android.media.AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+                Log.d("AudioEngine", "onAudioDevicesAdded")
+                super.onAudioDevicesAdded(addedDevices)
+                updateAudioRouting()
+            }
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                Log.d("AudioEngine", "onAudioDevicesRemoved")
+                super.onAudioDevicesRemoved(removedDevices)
+                updateAudioRouting()
+            }
+        }
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
     }
 
     private fun updateAudioRouting() {
@@ -369,15 +372,20 @@ class AudioEngine (context: Context) {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     fun resumeRecordingAndPlayer() {
-        // Called from the host Activity's onResume (lifecycle listener) — a
-        // focus failure here must degrade to a log, never crash the app.
+        // Reachable from the host Activity's onResume path (via
+        // ExpoTwoWayAudioLifeCycleListener) — nothing here may crash the app,
+        // so every failure degrades to a log.
         try {
             requestAudioFocus()
         } catch (e: Exception) {
             Log.e("AudioEngine", "Audio focus request failed on resume", e)
         }
-        isRecording = toggleRecording(isRecordingBeforePause)
-        audioTrack.play()
+        try {
+            isRecording = toggleRecording(isRecordingBeforePause)
+            audioTrack.play()
+        } catch (e: Exception) {
+            Log.e("AudioEngine", "Audio resume failed", e)
+        }
     }
 
     /** Stop scheduled agent audio immediately while keeping the mic alive (barge-in). */

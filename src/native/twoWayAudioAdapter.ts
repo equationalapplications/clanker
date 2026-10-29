@@ -23,10 +23,14 @@ const BYTES_PER_MS = 32
 
 export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   private _micSub: { remove: () => void } | null = null
-  // Deduplicates concurrent startRecording() calls: without this, two fast
-  // calls both pass the _micSub check while awaiting permission, and the
-  // first listener leaks (mic chunks sent twice afterwards).
+  // Deduplicates concurrent startRecording() calls. The LATEST caller's
+  // onChunk wins (the single mic listener always forwards to it) — a second
+  // caller must not silently lose chunks. stopRecording() bumps the
+  // generation so a start that was still awaiting permissions aborts instead
+  // of bringing the mic live with no owner.
   private _startPromise: Promise<boolean> | null = null
+  private _onChunk: ((b64: string) => void) | null = null
+  private _startGeneration = 0
   private _playbackEndTime = 0
   private _pcmCarryover = new Uint8Array(0)
 
@@ -35,6 +39,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+    this._onChunk = onChunk
     if (this._startPromise) return this._startPromise
     this._startPromise = this._doStartRecording(onChunk).finally(() => {
       this._startPromise = null
@@ -45,7 +50,13 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   private async _doStartRecording(onChunk: (base64: string) => void): Promise<boolean> {
     if (this._micSub !== null) return true
 
+    const generation = this._startGeneration
     const perm = await requestMicrophonePermissionsAsync()
+    if (this._startGeneration !== generation) {
+      // stopRecording()/tearDown() ran while the permission prompt was up —
+      // do not bring the mic live with no owner.
+      return false
+    }
     if (!perm.granted) return false
 
     const micSub = addExpoTwoWayAudioEventListener('onMicrophoneData', (ev) => {
@@ -54,7 +65,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
         for (let i = 0; i < ev.data.length; i++) {
           binaryString += String.fromCharCode(ev.data[i])
         }
-        onChunk(btoa(binaryString))
+        this._onChunk?.(btoa(binaryString))
       } catch (error) {
         console.warn('[TwoWayAudioAdapter] Dropped mic chunk due to encode error:', error)
       }
@@ -77,6 +88,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   stopRecording(): void {
+    this._startGeneration += 1
     toggleRecording(false)
     this._micSub?.remove()
     this._micSub = null
@@ -130,6 +142,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   }
 
   async tearDown(): Promise<void> {
+    this._startGeneration += 1
     this._playbackEndTime = 0
     this._pcmCarryover = new Uint8Array(0)
     this._micSub?.remove()
