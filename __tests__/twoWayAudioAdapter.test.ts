@@ -201,6 +201,18 @@ describe('TwoWayAudioAdapter', () => {
     expect(mockAddEventListener).not.toHaveBeenCalled()
   })
 
+  test('a failed start clears the in-flight dedupe so the next start works', async () => {
+    mockToggleRecording.mockImplementationOnce(() => {
+      throw new Error('toggle failed')
+    })
+    await expect(adapter.startRecording(jest.fn())).rejects.toThrow('toggle failed')
+
+    // _startPromise was cleared by .finally — the retry is not swallowed.
+    const result = await adapter.startRecording(jest.fn())
+    expect(result).toBe(true)
+    expect(mockToggleRecording).toHaveBeenCalledTimes(2)
+  })
+
   test('isPlaying() returns false initially', () => {
     jest.useFakeTimers()
     try {

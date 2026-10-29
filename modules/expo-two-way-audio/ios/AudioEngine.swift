@@ -12,6 +12,9 @@ class AudioEngine {
     public private(set) var isRecording = false
     // Mic state when the current interruption began (restored on .ended).
     private var wasRecordingBeforeInterruption = false
+    // True between interruption .began and .ended — while set, JS-facing
+    // toggles record intent rather than immediate state.
+    private var isInterrupted = false
     
     public var onMicDataCallback: ((Data) -> Void)?
     public var onInputVolumeCallback: ((Float) -> Void)?
@@ -248,7 +251,20 @@ class AudioEngine {
         input.isVoiceProcessingBypassed = bypass
     }
     
+    /// JS-facing toggle. While an interruption is in flight the engine is
+    /// force-stopped, so this expresses USER INTENT, not immediate state:
+    /// record it as the post-interruption restore target instead of letting
+    /// `.ended` revive a mic the user just muted.
     func toggleRecording(_ val: Bool) -> Bool {
+        if isInterrupted {
+            wasRecordingBeforeInterruption = val
+        }
+        return setRecording(val)
+    }
+
+    /// Engine-internal recording state change — never touches the
+    /// interruption intent snapshot.
+    private func setRecording(_ val: Bool) -> Bool {
         isRecording = val
         if !isRecording {
             avAudioEngine.inputNode.isVoiceProcessingInputMuted = true
@@ -269,7 +285,7 @@ class AudioEngine {
         } catch {
             print("Could not set the audio session to inactive: \(error)")
         }
-        toggleRecording(false)
+        setRecording(false)
         speechPlayer.stop()
         updateOutputVolume()
     }
@@ -281,7 +297,7 @@ class AudioEngine {
             print("Could not set the audio session to active: \(error)")
         }
         self.checkEngineIsRunning()
-        isRecording = toggleRecording(restoreRecording)
+        isRecording = setRecording(restoreRecording)
         speechPlayer.play()
     }
     
@@ -319,14 +335,18 @@ class AudioEngine {
             // that state — previously any `shouldResume` interruption turned
             // the mic back on even if the user had muted it.
             self.wasRecordingBeforeInterruption = self.isRecording
+            self.isInterrupted = true
             self.stopRecordingAndPlayer()
             onAudioInterruptionCallback?("began")
         case .ended:
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                // The interruption is over: JS toggles are live state again.
+                self.isInterrupted = false
                 if options.contains(.shouldResume) {
                     // Interruption ended. Resume playback; restore the mic
-                    // only if it was live when the interruption began.
+                    // only if it was live when the interruption began (or if
+                    // the user re-enabled it during the interruption).
                     self.resumeRecordingAndPlayer(restoreRecording: self.wasRecordingBeforeInterruption)
                     onAudioInterruptionCallback?("ended")
                 } else {
