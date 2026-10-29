@@ -155,6 +155,64 @@ describe('TwoWayAudioAdapter', () => {
     expect(mockPlayPCMData).not.toHaveBeenCalled()
   })
 
+  test('concurrent startRecording calls share one native start; latest onChunk wins', async () => {
+    let resolvePerm!: (v: { granted: boolean }) => void
+    mockRequestMicPermissions.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePerm = resolve
+      }),
+    )
+
+    const chunksA: string[] = []
+    const chunksB: string[] = []
+    const p1 = adapter.startRecording((b64) => chunksA.push(b64))
+    const p2 = adapter.startRecording((b64) => chunksB.push(b64))
+
+    // Exactly one permission request and one listener for both callers.
+    expect(mockRequestMicPermissions).toHaveBeenCalledTimes(1)
+
+    resolvePerm({ granted: true })
+    expect(await p1).toBe(true)
+    expect(await p2).toBe(true)
+    expect(mockAddEventListener).toHaveBeenCalledTimes(1)
+
+    // One chunk delivered; only the latest caller's onChunk receives it.
+    const micListener = mockAddEventListener.mock.calls[0][1] as (ev: { data: Uint8Array }) => void
+    micListener({ data: new Uint8Array([1, 2, 3]) })
+    expect(chunksA).toHaveLength(0)
+    expect(chunksB).toHaveLength(1)
+  })
+
+  test('stopRecording during the permission prompt aborts the start', async () => {
+    let resolvePerm!: (v: { granted: boolean }) => void
+    mockRequestMicPermissions.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePerm = resolve
+      }),
+    )
+
+    const p = adapter.startRecording(jest.fn())
+    adapter.stopRecording()
+    resolvePerm({ granted: true })
+
+    expect(await p).toBe(false)
+    // The mic must never go live: only stopRecording's own toggle(false).
+    expect(mockToggleRecording).not.toHaveBeenCalledWith(true)
+    expect(mockAddEventListener).not.toHaveBeenCalled()
+  })
+
+  test('a failed start clears the in-flight dedupe so the next start works', async () => {
+    mockToggleRecording.mockImplementationOnce(() => {
+      throw new Error('toggle failed')
+    })
+    await expect(adapter.startRecording(jest.fn())).rejects.toThrow('toggle failed')
+
+    // _startPromise was cleared by .finally — the retry is not swallowed.
+    const result = await adapter.startRecording(jest.fn())
+    expect(result).toBe(true)
+    expect(mockToggleRecording).toHaveBeenCalledTimes(2)
+  })
+
   test('isPlaying() returns false initially', () => {
     jest.useFakeTimers()
     try {
