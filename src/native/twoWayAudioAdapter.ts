@@ -5,8 +5,8 @@ import {
   requestMicrophonePermissionsAsync,
   addExpoTwoWayAudioEventListener,
   tearDown as moduleTearDown,
-  restart,
-} from '@speechmatics/expo-two-way-audio'
+  bargeIn,
+} from '../../modules/expo-two-way-audio/src'
 import { resample24to16 } from '../utils/audioResample'
 
 export interface TwoWayAudioAdapterInterface {
@@ -110,7 +110,7 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   clearPlaybackQueue(): void {
     this._playbackEndTime = 0
     this._pcmCarryover = new Uint8Array(0)
-    restart()
+    bargeIn()
   }
 
   isPlaying(): boolean {

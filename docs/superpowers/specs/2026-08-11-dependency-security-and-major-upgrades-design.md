@@ -301,7 +301,7 @@ guard (Bundle.main.infoDictionary?["NSMicrophoneUsageDescription"]) != nil else 
 
 Beyond dead-code hygiene, this drops a speech-recognition permission the app does not use — one less declaration to justify in App Store and Play review.
 
-**Do not disturb `patches/@speechmatics+expo-two-way-audio+0.1.2.patch`.** `@speechmatics/expo-two-way-audio` is pinned exactly at `0.1.2` and is not in this effort's scope; the patch filename is version-keyed the same way the `expo-age-range` one is, and any incidental bump breaks it. Note the coupling with the removal above: this package supplies live voice but declares none of its own permissions.
+**~~Do not disturb `patches/@speechmatics+expo-two-way-audio+0.1.2.patch`.~~ SUPERSEDED (2026-10-29, clanker #857):** the npm package and the patch are gone. The fork now lives in source as the vendored local module `modules/expo-two-way-audio` (which exposes `bargeIn()` instead of the forked `restart()`); version-keyed patch drift for this dependency is no longer possible. The `expo-age-range` patch-filename coupling mentioned below still applies to that patch. The original note, kept for the record: `@speechmatics/expo-two-way-audio` was pinned exactly at `0.1.2` and the patch filename was version-keyed the same way the `expo-age-range` one is; any incidental bump would have broken it. That package supplied live voice but declared none of its own permissions — the vendored module likewise declares none of its own.
 
 **Requires native verification**, which CI does not cover: `cd ios && pod install` plus a real iOS build, and `./gradlew clean` plus a real Android build. Do not merge on a green `npm test` alone.
 

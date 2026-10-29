@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ExpoTwoWayAudioModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.twowayaudio.ExpoTwoWayAudioModule"]
+  }
+}

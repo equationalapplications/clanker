@@ -4,16 +4,21 @@ const mockToggleRecording = jest.fn()
 const mockRequestMicPermissions = jest.fn()
 const mockAddEventListener = jest.fn()
 const mockTearDown = jest.fn()
-const mockRestart = jest.fn()
+const mockBargeIn = jest.fn()
 
-jest.mock('@speechmatics/expo-two-way-audio', () => ({
-  initialize: (...a: unknown[]) => mockInitialize(...a),
-  playPCMData: (...a: unknown[]) => mockPlayPCMData(...a),
-  toggleRecording: (...a: unknown[]) => mockToggleRecording(...a),
-  requestMicrophonePermissionsAsync: (...a: unknown[]) => mockRequestMicPermissions(...a),
-  addExpoTwoWayAudioEventListener: (...a: unknown[]) => mockAddEventListener(...a),
-  tearDown: (...a: unknown[]) => mockTearDown(...a),
-  restart: (...a: unknown[]) => mockRestart(...a),
+// The vendored local module (imported by the adapter via a relative path).
+jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
+  __esModule: true,
+  default: {
+    initialize: (...a: unknown[]) => mockInitialize(...a),
+    playPCMData: (...a: unknown[]) => mockPlayPCMData(...a),
+    toggleRecording: (...a: unknown[]) => mockToggleRecording(...a),
+    requestMicrophonePermissionsAsync: (...a: unknown[]) => mockRequestMicPermissions(...a),
+    addEventListener: undefined,
+    addListener: (...a: unknown[]) => mockAddEventListener(...a),
+    tearDown: (...a: unknown[]) => mockTearDown(...a),
+    bargeIn: (...a: unknown[]) => mockBargeIn(...a),
+  },
 }))
 
 jest.mock('~/utils/audioResample', () => ({
@@ -29,7 +34,7 @@ describe('TwoWayAudioAdapter', () => {
     jest.clearAllMocks()
     mockInitialize.mockResolvedValue(undefined)
     mockTearDown.mockReturnValue(undefined)
-    mockRestart.mockReturnValue(undefined)
+    mockBargeIn.mockReturnValue(undefined)
     mockToggleRecording.mockReturnValue(true)
     mockRequestMicPermissions.mockResolvedValue({ granted: true })
     mockAddEventListener.mockReturnValue({ remove: jest.fn() })
@@ -143,9 +148,12 @@ describe('TwoWayAudioAdapter', () => {
     consoleWarnSpy.mockRestore()
   })
 
-  test('clearPlaybackQueue calls restart()', () => {
+  test('clearPlaybackQueue calls bargeIn() and never restart-style recording toggles', () => {
     adapter.clearPlaybackQueue()
-    expect(mockRestart).toHaveBeenCalled()
+    expect(mockBargeIn).toHaveBeenCalledTimes(1)
+    // Barge-in must keep the mic alive: no start/stop recording through the module.
+    expect(mockToggleRecording).not.toHaveBeenCalled()
+    expect(mockPlayPCMData).not.toHaveBeenCalled()
   })
 
   test('isPlaying() returns false initially', () => {
