@@ -1,3 +1,5 @@
+package expo.modules.twowayaudio
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioAttributes
@@ -236,6 +238,14 @@ class AudioEngine (context: Context) {
             audioRecord.stop()
             audioRecord.release()
         }
+        // Release the audio effects (created per startRecording) — previously
+        // leaked on every mic toggle.
+        echoCanceler?.enabled = false
+        echoCanceler?.release()
+        echoCanceler = null
+        noiseSuppressor?.enabled = false
+        noiseSuppressor?.release()
+        noiseSuppressor = null
         onInputVolumeCallback?.invoke(0.0F)
     }
 
@@ -374,8 +384,22 @@ class AudioEngine (context: Context) {
 
     @SuppressLint("NewApi")
     fun tearDown() {
+        // Abort any running playback loop and drop queued agent audio BEFORE
+        // releasing native resources — otherwise the old loop keeps draining
+        // queued audio and firing volume callbacks after the engine reference
+        // is gone (same abort+clear+bump shape as clearPlaybackQueueForBargeIn).
+        abortPlayback = true
+        synchronized(audioSampleQueue) {
+            playbackGeneration += 1
+            audioSampleQueue.clear()
+        }
         stopRecording()
+        audioTrack.pause()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            audioTrack.flush()
+        }
         audioTrack.stop()
+        audioTrack.release()
         audioManager.mode = AudioManager.MODE_NORMAL
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.clearCommunicationDevice()
@@ -384,6 +408,7 @@ class AudioEngine (context: Context) {
             audioManager.abandonAudioFocusRequest(request)
         }
         executorServiceMicrophone.shutdownNow()
+        executorServicePlayback.shutdownNow()
     }
 
 
