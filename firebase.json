@@ -49,6 +49,9 @@
         "source": "**",
         "destination": "/app-shell.html"
       }
+    ],
+    "predeploy": [
+      "npm run predeploy"
     ]
   },
   "functions": [
