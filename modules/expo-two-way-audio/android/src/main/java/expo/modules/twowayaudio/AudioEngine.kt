@@ -37,6 +37,7 @@ class AudioEngine (context: Context) {
     private val executorServiceMicrophone = Executors.newFixedThreadPool(1)
     private val executorServicePlayback = Executors.newFixedThreadPool(1)
     private var speakerDevice: AudioDeviceInfo? = null
+    private var audioDeviceCallback: android.media.AudioDeviceCallback? = null
 
     var isRecording = false
     private var isRecordingBeforePause = false
@@ -63,8 +64,10 @@ class AudioEngine (context: Context) {
         // Route audio to external device if connected, otherwise route to speaker
         updateAudioRouting()
 
-        // Listen for changes in audio routing
-        audioManager.registerAudioDeviceCallback(object:android.media.AudioDeviceCallback(){
+        // Listen for changes in audio routing (stored so tearDown() can
+        // unregister — previously the callback accumulated per session and
+        // kept mutating system audio routing after the engine was gone).
+        audioDeviceCallback = object : android.media.AudioDeviceCallback() {
             override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
                 Log.d("AudioEngine", "onAudioDevicesAdded")
                 super.onAudioDevicesAdded(addedDevices)
@@ -75,7 +78,8 @@ class AudioEngine (context: Context) {
                 super.onAudioDevicesRemoved(removedDevices)
                 updateAudioRouting()
             }
-        }, null)
+        }
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
 
         val bufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
@@ -144,6 +148,11 @@ class AudioEngine (context: Context) {
 
     @SuppressLint("NewApi")
     private fun requestAudioFocus() {
+        // Abandon any previous request first — resume used to leak one per
+        // background/foreground cycle.
+        audioFocusRequest?.let { request ->
+            audioManager.abandonAudioFocusRequest(request)
+        }
         val focusRequest =
             AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
                 .setAudioAttributes(
@@ -166,7 +175,10 @@ class AudioEngine (context: Context) {
         audioFocusRequest = focusRequest
         val result = audioManager.requestAudioFocus(focusRequest)
 
-        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+        // DELAYED is a normal outcome given setAcceptsDelayedFocusGain(true);
+        // treating it as failure used to throw out of the Activity onResume
+        // path (resumeRecordingAndPlayer) and crash the app.
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
             throw RuntimeException("Audio focus request failed")
         }
     }
@@ -357,7 +369,13 @@ class AudioEngine (context: Context) {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     fun resumeRecordingAndPlayer() {
-        requestAudioFocus()
+        // Called from the host Activity's onResume (lifecycle listener) — a
+        // focus failure here must degrade to a log, never crash the app.
+        try {
+            requestAudioFocus()
+        } catch (e: Exception) {
+            Log.e("AudioEngine", "Audio focus request failed on resume", e)
+        }
         isRecording = toggleRecording(isRecordingBeforePause)
         audioTrack.play()
     }
@@ -429,6 +447,10 @@ class AudioEngine (context: Context) {
         }
         executorServiceMicrophone.shutdownNow()
         executorServicePlayback.shutdownNow()
+        audioDeviceCallback?.let { callback ->
+            audioManager.unregisterAudioDeviceCallback(callback)
+        }
+        audioDeviceCallback = null
     }
 
 

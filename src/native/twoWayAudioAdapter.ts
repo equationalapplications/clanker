@@ -23,6 +23,10 @@ const BYTES_PER_MS = 32
 
 export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   private _micSub: { remove: () => void } | null = null
+  // Deduplicates concurrent startRecording() calls: without this, two fast
+  // calls both pass the _micSub check while awaiting permission, and the
+  // first listener leaks (mic chunks sent twice afterwards).
+  private _startPromise: Promise<boolean> | null = null
   private _playbackEndTime = 0
   private _pcmCarryover = new Uint8Array(0)
 
@@ -30,7 +34,15 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
     await moduleInitialize()
   }
 
-  async startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+  startRecording(onChunk: (base64: string) => void): Promise<boolean> {
+    if (this._startPromise) return this._startPromise
+    this._startPromise = this._doStartRecording(onChunk).finally(() => {
+      this._startPromise = null
+    })
+    return this._startPromise
+  }
+
+  private async _doStartRecording(onChunk: (base64: string) => void): Promise<boolean> {
     if (this._micSub !== null) return true
 
     const perm = await requestMicrophonePermissionsAsync()

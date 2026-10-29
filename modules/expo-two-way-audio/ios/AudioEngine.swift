@@ -10,6 +10,8 @@ class AudioEngine {
     
     public private(set) var voiceIOFormat: AVAudioFormat
     public private(set) var isRecording = false
+    // Mic state when the current interruption began (restored on .ended).
+    private var wasRecordingBeforeInterruption = false
     
     public var onMicDataCallback: ((Data) -> Void)?
     public var onInputVolumeCallback: ((Float) -> Void)?
@@ -107,15 +109,22 @@ class AudioEngine {
             print("Could not enable voice processing \(error)")
             return
         }
-        
+
         avAudioEngine.inputNode.isVoiceProcessingInputMuted = !isRecording
-        
+
         let output = avAudioEngine.outputNode
         let mainMixer = avAudioEngine.mainMixerNode
-        
+
         avAudioEngine.connect(speechPlayer, to: mainMixer, format: voiceIOFormat)
         avAudioEngine.connect(mainMixer, to: output, format: voiceIOFormat)
-        
+
+        // setup() can run more than once (media-services reset re-runs it) —
+        // remove any existing taps first or installTap raises an ObjC
+        // exception for a second tap on the same bus. removeTap is a no-op
+        // when no tap is installed.
+        input.removeTap(onBus: 0)
+        mainMixer.removeTap(onBus: 0)
+
         input.installTap(onBus: 0, bufferSize: 2048, format: voiceIOFormat) { [weak self] buffer, when in
             // We don't do any input processing (no volume calculation or passing mic data to the callback) if discardRecording == true
             // See comment in the playPCMData function
@@ -265,14 +274,14 @@ class AudioEngine {
         updateOutputVolume()
     }
     
-    func resumeRecordingAndPlayer(){
+    func resumeRecordingAndPlayer(restoreRecording: Bool = true){
         do {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Could not set the audio session to active: \(error)")
         }
         self.checkEngineIsRunning()
-        isRecording = toggleRecording(true)
+        isRecording = toggleRecording(restoreRecording)
         speechPlayer.play()
     }
     
@@ -306,14 +315,19 @@ class AudioEngine {
 
         switch type {
         case .began:
+            // Remember whether the mic was live so `.ended` restores exactly
+            // that state — previously any `shouldResume` interruption turned
+            // the mic back on even if the user had muted it.
+            self.wasRecordingBeforeInterruption = self.isRecording
             self.stopRecordingAndPlayer()
             onAudioInterruptionCallback?("began")
         case .ended:
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) {
-                    // Interruption ended. Resume playback.
-                    self.resumeRecordingAndPlayer()
+                    // Interruption ended. Resume playback; restore the mic
+                    // only if it was live when the interruption began.
+                    self.resumeRecordingAndPlayer(restoreRecording: self.wasRecordingBeforeInterruption)
                     onAudioInterruptionCallback?("ended")
                 } else {
                     // Interruption ends. Don't resume playback.
@@ -321,11 +335,16 @@ class AudioEngine {
                 }
             }
         @unknown default:
-            fatalError("Unknown type: \(type)")
+            // Don't crash on future SDK interruption types — log and carry on.
+            print("AudioEngine: unknown interruption type \(type.rawValue)")
         }
     }
     
     private func handleMediaServicesWereReset() {
+        // The media server daemon rebuilt the audio graph: refresh the
+        // session category first, then rebuild — and setup() now removes
+        // existing taps before reinstalling, so this can't double-tap.
+        self.setupAudioSession()
         self.avAudioEngine.stop()
         self.setup()
         self.start()

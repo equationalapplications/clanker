@@ -1,5 +1,6 @@
 package expo.modules.twowayaudio
 
+import android.util.Log
 import androidx.core.os.bundleOf
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -28,6 +29,7 @@ class ExpoTwoWayAudioModule : Module() {
                 setupCallbacks()
                 promise.resolve(true)
             } catch (e: Exception) {
+                Log.e("ExpoTwoWayAudio", "initialize failed", e)
                 promise.resolve(false)
             }
         }
