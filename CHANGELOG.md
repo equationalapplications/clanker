@@ -1,3 +1,27 @@
+# [33.4.0](https://github.com/equationalapplications/clanker/compare/v33.3.7...v33.4.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **#857:** address Opus T3 review minors ([e2da10c](https://github.com/equationalapplications/clanker/commit/e2da10c71ac24c117a940cb743c22bc846e5541b)), closes [#857](https://github.com/equationalapplications/clanker/issues/857)
+* **#857:** address T1.5 xhigh review — Android teardown/resource fixes ([fb62b2e](https://github.com/equationalapplications/clanker/commit/fb62b2e6613ab6dd5cbaddbe0d43a848a1070e8c)), closes [#857](https://github.com/equationalapplications/clanker/issues/857)
+* **#857:** include vendored module native sources ([1131a06](https://github.com/equationalapplications/clanker/commit/1131a066ad38748dd1af6d8d45fb1fde1f312a38)), closes [#857](https://github.com/equationalapplications/clanker/issues/857)
+* **#865:** audio native hardening from [#865](https://github.com/equationalapplications/clanker/issues/865) review gauntlet ([96b67c9](https://github.com/equationalapplications/clanker/commit/96b67c9d01c7baef239d321b1c5dbdc7dcbd6837)), closes [#861](https://github.com/equationalapplications/clanker/issues/861)
+* **#866:** adjudicated T1.5 findings — latest-onChunk-wins, stop-during-start guard ([bd32baa](https://github.com/equationalapplications/clanker/commit/bd32baa9301c7056c52c6ae2480224b65829b58f)), closes [#866](https://github.com/equationalapplications/clanker/issues/866)
+* **#866:** interruption-intent tracking on iOS + rejection-path test ([188648d](https://github.com/equationalapplications/clanker/commit/188648d63d8886c74d7767708863852f8d48421c)), closes [#866](https://github.com/equationalapplications/clanker/issues/866)
+* **audio:** opus t3 majors from the [#865](https://github.com/equationalapplications/clanker/issues/865) gauntlet ([7318d2f](https://github.com/equationalapplications/clanker/commit/7318d2f733b67df02a1ccf719793111bc33b2c36))
+* **test:** address SDK 58 upgrade review findings ([3b6edfd](https://github.com/equationalapplications/clanker/commit/3b6edfd8ed73b85eca3953b2c501e5628c1ba15d))
+* **test:** apply delta-review nits ([726dcaa](https://github.com/equationalapplications/clanker/commit/726dcaa33b581cd5c8afa3de617e0e32361c070c))
+* **web:** drop web.output 'static' pin — SDK 58 default is 'single' (SPA) ([9a7f88f](https://github.com/equationalapplications/clanker/commit/9a7f88fcf9afef2cca1b7f92586516bac74e56f9)), closes [#855](https://github.com/equationalapplications/clanker/issues/855)
+* **web:** guard hosting deploys with the export predeploy chain ([1c2475c](https://github.com/equationalapplications/clanker/commit/1c2475ccdcb00ffa17801dec4357f8b677f6f988)), closes [#1](https://github.com/equationalapplications/clanker/issues/1)
+* **web:** pin web.output to 'single' explicitly (Opus delta follow-up) ([b58185f](https://github.com/equationalapplications/clanker/commit/b58185f0b36c3e97eea64dd7315a1369a6c9ccb7))
+
+
+### Features
+
+* vendor speechmatics two-way-audio fork as local Expo module ([#857](https://github.com/equationalapplications/clanker/issues/857)) ([50c37d8](https://github.com/equationalapplications/clanker/commit/50c37d8fe1b0aef3879d8bb110c00260922b00b4)), closes [#15](https://github.com/equationalapplications/clanker/issues/15)
+* **web:** serve the static landing page at /, retire /welcome ([678b310](https://github.com/equationalapplications/clanker/commit/678b310108511acc3e0bdd97db6c9dcbf01ac1da))
+
 ## [33.3.7](https://github.com/equationalapplications/clanker/compare/v33.3.6...v33.3.7) (2026-10-23)
 
 
