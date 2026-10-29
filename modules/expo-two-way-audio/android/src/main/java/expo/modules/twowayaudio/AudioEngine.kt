@@ -282,13 +282,21 @@ class AudioEngine (context: Context) {
 
     private fun playAudioFromSampleQueue(generation: Int = playbackGeneration) {
         executorServicePlayback.execute {
+            // Early return: isPlaying may stay true here with a non-empty
+            // queue. This is safe ONLY because every generation bump pairs
+            // with a barge-in task queued behind this one (which restarts the
+            // drain, see the tail of clearPlaybackQueueForBargeIn) — except
+            // tearDown, which shuts this executor down. Do not bump the
+            // generation anywhere else without preserving one of the two.
             if (generation != playbackGeneration || abortPlayback) {
                 synchronized(audioSampleQueue) {
                     if (audioSampleQueue.isEmpty()) isPlaying = false
                 }
                 return@execute
             }
-            isPlaying = true
+            // isPlaying was already claimed under the queue lock by whichever
+            // path started this loop (playPCMData, the barge-in restart, or
+            // the drain re-kick) — do not set it here unlocked.
             try {
                 while (!abortPlayback && generation == playbackGeneration) {
                     val data: ByteArray?
@@ -374,9 +382,21 @@ class AudioEngine (context: Context) {
                 Log.e("AudioEngine", "Error clearing playback queue", e)
             }
             abortPlayback = false
-            isPlaying = false
             onOutputVolumeCallback?.invoke(0.0F)
-            if (synchronized(audioSampleQueue) { audioSampleQueue.isNotEmpty() }) {
+            // Decide restart-vs-idle under the same lock playPCMData uses for
+            // its start decision, so a concurrent enqueue can never start a
+            // duplicate loop (isPlaying has a single lock-guarded writer path).
+            val restartPlayback: Boolean
+            synchronized(audioSampleQueue) {
+                if (audioSampleQueue.isNotEmpty()) {
+                    isPlaying = true
+                    restartPlayback = true
+                } else {
+                    isPlaying = false
+                    restartPlayback = false
+                }
+            }
+            if (restartPlayback) {
                 playAudioFromSampleQueue()
             }
         }

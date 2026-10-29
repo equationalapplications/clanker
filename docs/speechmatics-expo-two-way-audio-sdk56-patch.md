@@ -27,9 +27,11 @@ Where things went:
   vendored module first — EA's copy intentionally differs (barge-in API, no
   `restart`, race fix).
 
-Correction to the original text below: it attributed **both** SDK 56 errors
-to upstream PR #15. #15 covers **only** the `MicrophonePermissionRequester`
-hunk; the `legacyResolver` fix has no upstream PR.
+Correction to the original text (preserved in git history — path
+`docs/speechmatics-expo-two-way-audio-sdk56-patch.md`, pre-2026-10-29): it
+attributed **both** SDK 56 errors to upstream PR #15. #15 covers **only**
+the `MicrophonePermissionRequester` hunk; the `legacyResolver` fix has no
+upstream PR.
 
 The original document is preserved in git history (path:
 `docs/speechmatics-expo-two-way-audio-sdk56-patch.md`, pre-2026-10-29).

@@ -14,7 +14,6 @@ jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
     playPCMData: (...a: unknown[]) => mockPlayPCMData(...a),
     toggleRecording: (...a: unknown[]) => mockToggleRecording(...a),
     requestMicrophonePermissionsAsync: (...a: unknown[]) => mockRequestMicPermissions(...a),
-    addEventListener: undefined,
     addListener: (...a: unknown[]) => mockAddEventListener(...a),
     tearDown: (...a: unknown[]) => mockTearDown(...a),
     bargeIn: (...a: unknown[]) => mockBargeIn(...a),
