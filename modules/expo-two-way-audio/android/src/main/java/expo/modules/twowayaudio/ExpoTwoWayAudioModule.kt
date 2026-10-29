@@ -21,11 +21,30 @@ class ExpoTwoWayAudioModule : Module() {
         Name("ExpoTwoWayAudio")
         AsyncFunction("initialize") { promise: Promise ->
             try {
+                // A torn-down engine (mic-tap failure path or a previous JS
+                // reload's OnDestroy) must never satisfy a fresh initialize —
+                // it would report success while playPCMData throws
+                // RejectedExecutionException against the dead executors.
+                if (audioEngine?.isTornDown == true) {
+                    audioEngine = null
+                }
                 if (audioEngine != null) {
+                    // Rebind on EVERY initialize: after a JS reload this module
+                    // instance is new, and the surviving engine would otherwise
+                    // keep sending events to the dead instance's sendEvent, so
+                    // the new JS never receives onMicrophoneData.
+                    setupCallbacks()
                     promise.resolve(true)
                     return@AsyncFunction
                 }
-                audioEngine = appContext.reactContext?.let { AudioEngine(it) }
+                val reactContext = appContext.reactContext
+                if (reactContext == null) {
+                    // No engine and nothing to build one with: report failure
+                    // rather than claiming success.
+                    promise.resolve(false)
+                    return@AsyncFunction
+                }
+                audioEngine = AudioEngine(reactContext)
                 setupCallbacks()
                 promise.resolve(true)
             } catch (e: Exception) {
@@ -94,6 +113,15 @@ class ExpoTwoWayAudioModule : Module() {
                  android.Manifest.permission.RECORD_AUDIO
              )
          }
+
+        // JS reload (dev or OTA) destroys this module instance, but the static
+        // engine would survive it holding the dead instance's callbacks — mic
+        // data would never reach the new JS. Tear the engine down with the
+        // module; the next initialize() builds a fresh one.
+        OnDestroy {
+            audioEngine?.tearDown()
+            audioEngine = null
+        }
 
         // Register events
         Events(

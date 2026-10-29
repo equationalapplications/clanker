@@ -64,48 +64,69 @@ class AudioEngine (context: Context) {
         // Route audio to external device if connected, otherwise route to speaker
         updateAudioRouting()
 
-        val bufferSize = AudioTrack.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AUDIO_FORMAT
-        )
+        // Everything below can throw (buffer-size query, AudioTrack build,
+        // device-callback registration). The engine gets discarded on any
+        // failure — so restore the system-audio state mutated above instead of
+        // leaving MODE_IN_COMMUNICATION + held audio focus behind.
+        var track: AudioTrack? = null
+        try {
+            val bufferSize = AudioTrack.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AUDIO_FORMAT
+            )
 
-        audioTrack = AudioTrack(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build(),
-            AudioFormat.Builder()
-                .setEncoding(AUDIO_FORMAT)
-                .setSampleRate(SAMPLE_RATE)
-                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                .build(),
-            bufferSize,
-            AudioTrack.MODE_STREAM,
-            audioManager.generateAudioSessionId()
-        ).apply {
-            play()
-        }
+            // Build first, THEN play: if play() throws, `track` is already
+            // set and the catch block can release it.
+            val newTrack = AudioTrack(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build(),
+                AudioFormat.Builder()
+                    .setEncoding(AUDIO_FORMAT)
+                    .setSampleRate(SAMPLE_RATE)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+                bufferSize,
+                AudioTrack.MODE_STREAM,
+                audioManager.generateAudioSessionId()
+            )
+            track = newTrack
+            newTrack.play()
+            audioTrack = newTrack
 
-        // Listen for changes in audio routing (stored so tearDown() can
-        // unregister — previously the callback accumulated per session and
-        // kept mutating system audio routing after the engine was gone).
-        // Registered AFTER the AudioTrack is built: if construction above
-        // throws, initialize() catches it and the engine is discarded — a
-        // callback registered before that point would leak with no owner.
-        audioDeviceCallback = object : android.media.AudioDeviceCallback() {
-            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
-                Log.d("AudioEngine", "onAudioDevicesAdded")
-                super.onAudioDevicesAdded(addedDevices)
-                updateAudioRouting()
+            // Listen for changes in audio routing (stored so tearDown() can
+            // unregister — previously the callback accumulated per session and
+            // kept mutating system audio routing after the engine was gone).
+            // Registered AFTER the AudioTrack is built: if construction above
+            // throws, initialize() catches it and the engine is discarded — a
+            // callback registered before that point would leak with no owner.
+            audioDeviceCallback = object : android.media.AudioDeviceCallback() {
+                override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) {
+                    Log.d("AudioEngine", "onAudioDevicesAdded")
+                    super.onAudioDevicesAdded(addedDevices)
+                    updateAudioRouting()
+                }
+                override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                    Log.d("AudioEngine", "onAudioDevicesRemoved")
+                    super.onAudioDevicesRemoved(removedDevices)
+                    updateAudioRouting()
+                }
             }
-            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
-                Log.d("AudioEngine", "onAudioDevicesRemoved")
-                super.onAudioDevicesRemoved(removedDevices)
-                updateAudioRouting()
+            audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
+        } catch (e: Exception) {
+            try {
+                track?.release()
+            } catch (releaseError: Exception) {
+                Log.e("AudioEngine", "Failed releasing AudioTrack during init failure", releaseError)
             }
+            audioManager.mode = AudioManager.MODE_NORMAL
+            audioFocusRequest?.let { request ->
+                audioManager.abandonAudioFocusRequest(request)
+            }
+            throw e
         }
-        audioManager.registerAudioDeviceCallback(audioDeviceCallback, null)
     }
 
     private fun updateAudioRouting() {
@@ -237,11 +258,15 @@ class AudioEngine (context: Context) {
                     }
                 }
                 Log.d("AudioEngine", "Mic sample tap stopped.")
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 Log.e("AudioEngine", "Error reading mic sample data", e)
                 isRecording = false
                 tearDown()
-                throw e
+                // NO rethrow: this closure runs inside executorServiceMicrophone,
+                // so a throw here hits the thread's default uncaught-exception
+                // handler and KILLS THE APP. tearDown() is idempotent and marks
+                // the engine torn-down; the module drops a torn-down engine and
+                // the next initialize() builds a fresh one.
             }
         }
     }
@@ -428,8 +453,19 @@ class AudioEngine (context: Context) {
         }
     }
 
+    /** True once tearDown() has run; a torn-down engine is dead and must be discarded. */
+    @Volatile
+    var isTornDown: Boolean = false
+        private set
+
     @SuppressLint("NewApi")
     fun tearDown() {
+        // Idempotent: a double tearDown (mic-tap failure path + module OnDestroy,
+        // or two JS tearDown calls) must not pause/stop/release an already
+        // released AudioTrack — the IllegalStateException used to escape
+        // Function("tearDown") and leave the module stuck with a dead engine.
+        if (isTornDown) return
+        isTornDown = true
         // Abort any running playback loop and drop queued agent audio BEFORE
         // releasing native resources — otherwise the old loop keeps draining
         // queued audio and firing volume callbacks after the engine reference

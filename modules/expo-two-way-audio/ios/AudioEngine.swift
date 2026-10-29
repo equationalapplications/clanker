@@ -339,10 +339,14 @@ class AudioEngine {
             self.stopRecordingAndPlayer()
             onAudioInterruptionCallback?("began")
         case .ended:
+            // The interruption is over: JS toggles are live state again.
+            // Reset UNCONDITIONALLY — `.ended` may legitimately arrive without
+            // the options key, and leaving isInterrupted stuck true would make
+            // every later JS toggle overwrite wasRecordingBeforeInterruption
+            // that nothing ever reads.
+            self.isInterrupted = false
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                // The interruption is over: JS toggles are live state again.
-                self.isInterrupted = false
                 if options.contains(.shouldResume) {
                     // Interruption ended. Resume playback; restore the mic
                     // only if it was live when the interruption began (or if
@@ -353,6 +357,9 @@ class AudioEngine {
                     // Interruption ends. Don't resume playback.
                     onAudioInterruptionCallback?("blocked")
                 }
+            } else {
+                // No options key: be conservative — report blocked, no resume.
+                onAudioInterruptionCallback?("blocked")
             }
         @unknown default:
             // Don't crash on future SDK interruption types — log and carry on.
