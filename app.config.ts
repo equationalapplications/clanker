@@ -193,6 +193,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
     bundler: 'metro',
+    // SDK 58's default web.output is 'single' (SPA), but pin it explicitly so
+    // the export mode can't drift with a future SDK default change. This app
+    // must ship the SPA: `/` is the Expo Router boot entry and client-side auth
+    // routing depends on it
+    // (docs/superpowers/specs/2026-07-04-landing-page-content-unification-design.md),
+    // and the hand-written /privacy + /terms pages in public/ rely on the SPA
+    // catch-all rewrite in firebase.json. 'static' or 'server' would pre-render
+    // route HTML and break both; the SEO pages live in public/
+    // (scripts/generate-static-pages.js), so crawlers keep real HTML there.
+    output: 'single',
     buildScript: {
       baseUrl: '/',
     },

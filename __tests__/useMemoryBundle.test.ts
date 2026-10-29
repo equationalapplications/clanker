@@ -40,13 +40,23 @@ const BUNDLE = {
 
 describe('useMemoryBundle', () => {
   test('fetches memory bundle on mount', async () => {
-    const getMemoryBundle = jest.fn().mockResolvedValue(BUNDLE)
+    // RNTL 14's async renderHook flushes effects before returning, so gate the
+    // fetch promise to observe the initial loading state.
+    let resolveFetch!: (bundle: typeof BUNDLE) => void
+    const getMemoryBundle = jest.fn().mockImplementation(
+      () =>
+        new Promise<typeof BUNDLE>((resolve) => {
+          resolveFetch = resolve
+        }),
+    )
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
-    const { result } = renderHook(() => useMemoryBundle('char1'))
+    const { result } = await renderHook(() => useMemoryBundle('char1'))
 
     expect(result.current.isLoading).toBe(true)
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      resolveFetch(BUNDLE)
+    })
     expect(getMemoryBundle).toHaveBeenCalledWith('char1')
     expect(result.current.bundle).toEqual(BUNDLE)
     expect(result.current.error).toBeNull()
@@ -55,7 +65,7 @@ describe('useMemoryBundle', () => {
   test('returns null bundle when wiki is unavailable', async () => {
     jest.mocked(useWiki).mockReturnValue(null as never)
 
-    const { result } = renderHook(() => useMemoryBundle('char1'))
+    const { result } = await renderHook(() => useMemoryBundle('char1'))
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.bundle).toBeNull()
@@ -65,7 +75,7 @@ describe('useMemoryBundle', () => {
     const getMemoryBundle = jest.fn().mockResolvedValue(BUNDLE)
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
-    const { result } = renderHook(() => useMemoryBundle('char1'))
+    const { result } = await renderHook(() => useMemoryBundle('char1'))
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     await act(async () => {
@@ -76,22 +86,36 @@ describe('useMemoryBundle', () => {
   })
 
   test('clears bundle and shows loading immediately when entityId changes after load', async () => {
-    const getMemoryBundle = jest.fn().mockResolvedValue(BUNDLE)
+    // Gate the second fetch so the intermediate "cleared + loading" state is
+    // observable: RNTL 14's awaited rerender flushes effects before returning.
+    let resolveSecondFetch!: (bundle: typeof BUNDLE) => void
+    const getMemoryBundle = jest
+      .fn()
+      .mockResolvedValueOnce(BUNDLE)
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof BUNDLE>((resolve) => {
+            resolveSecondFetch = resolve
+          }),
+      )
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
-    const { result, rerender } = renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
+    const { result, rerender } = await renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
       initialProps: { id: 'char1' },
     })
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.bundle).toEqual(BUNDLE)
 
-    rerender({ id: 'char2' })
+    await rerender({ id: 'char2' })
 
     expect(result.current.bundle).toBeNull()
     expect(result.current.isLoading).toBe(true)
     expect(result.current.error).toBeNull()
 
+    await act(async () => {
+      resolveSecondFetch(BUNDLE)
+    })
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(getMemoryBundle).toHaveBeenLastCalledWith('char2')
   })
@@ -116,13 +140,13 @@ describe('useMemoryBundle', () => {
 
     jest.mocked(useWiki).mockReturnValue({ getMemoryBundle } as never)
 
-    const { result, rerender } = renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
+    const { result, rerender } = await renderHook(({ id }: { id: string }) => useMemoryBundle(id), {
       initialProps: { id: 'char1' },
     })
 
     await waitFor(() => expect(getMemoryBundle).toHaveBeenCalledTimes(1))
 
-    rerender({ id: 'char2' })
+    await rerender({ id: 'char2' })
 
     await waitFor(() => expect(getMemoryBundle).toHaveBeenCalledTimes(2))
 

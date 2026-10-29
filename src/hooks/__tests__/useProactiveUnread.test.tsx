@@ -24,7 +24,7 @@ const createWrapper = () => {
   return { queryClient, Wrapper }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
 })
 
@@ -32,7 +32,7 @@ describe('useProactiveUnread', () => {
   it('reports a dot, not a count', async () => {
     mockCountUnreadProactive.mockResolvedValue(7)
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(() => useProactiveUnread('char-1'), { wrapper: Wrapper })
+    const { result } = await renderHook(() => useProactiveUnread('char-1'), { wrapper: Wrapper })
     await waitFor(() => expect(result.current.hasUnread).toBe(true))
     // Deliberately boolean: AI chats are not an inbox, and a numeric count
     // reads as a backlog to clear.
@@ -42,7 +42,7 @@ describe('useProactiveUnread', () => {
   it('drops the dot once everything is read', async () => {
     mockCountUnreadProactive.mockResolvedValue(0)
     const { Wrapper } = createWrapper()
-    const { result } = renderHook(() => useProactiveUnread('char-1'), { wrapper: Wrapper })
+    const { result } = await renderHook(() => useProactiveUnread('char-1'), { wrapper: Wrapper })
     await waitFor(() => expect(result.current.hasUnread).toBe(false))
   })
 })

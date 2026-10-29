@@ -33,7 +33,7 @@ const mockMachineState = {
 }
 
 describe('useTabCharacterId', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActiveCharacterId(null)
     mockUseMostRecentMessage.mockReturnValue({ data: undefined, isLoading: false })
     mockUseSelector.mockImplementation(
@@ -46,39 +46,39 @@ describe('useTabCharacterId', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     setActiveCharacterId(null)
     jest.clearAllMocks()
   })
 
-  it('uses activeCharacterId when it exists in the characters list', () => {
+  it('uses activeCharacterId when it exists in the characters list', async () => {
     setActiveCharacterId('char-b')
 
-    const { result } = renderHook(() => useTabCharacterId())
+    const { result } = await renderHook(() => useTabCharacterId())
 
     expect(result.current.characterId).toBe('char-b')
   })
 
-  it('falls back when activeCharacterId is not in the characters list', () => {
+  it('falls back when activeCharacterId is not in the characters list', async () => {
     setActiveCharacterId('deleted-char')
 
-    const { result } = renderHook(() => useTabCharacterId())
+    const { result } = await renderHook(() => useTabCharacterId())
 
     expect(result.current.characterId).toBe('char-a')
   })
 
-  it('skips stale mostRecentMessage character_id', () => {
+  it('skips stale mostRecentMessage character_id', async () => {
     mockUseMostRecentMessage.mockReturnValue({
       data: { character_id: 'deleted-char' },
       isLoading: false,
     })
 
-    const { result } = renderHook(() => useTabCharacterId())
+    const { result } = await renderHook(() => useTabCharacterId())
 
     expect(result.current.characterId).toBe('char-a')
   })
 
-  it('skips stale defaultCharacterId', () => {
+  it('skips stale defaultCharacterId', async () => {
     mockUseSelector.mockImplementation(
       (_service: unknown, selector: (s: typeof mockMachineState) => unknown) =>
         selector({
@@ -87,7 +87,7 @@ describe('useTabCharacterId', () => {
         }),
     )
 
-    const { result } = renderHook(() => useTabCharacterId())
+    const { result } = await renderHook(() => useTabCharacterId())
 
     expect(result.current.characterId).toBe('char-a')
   })

@@ -171,10 +171,10 @@ function bodyAvatarProps() {
   return capturedAvatarProps[capturedAvatarProps.length - 1]
 }
 
-function headerAvatarProps() {
+async function headerAvatarProps() {
   expect(capturedHeaderTitle).toBeTruthy()
   const before = capturedAvatarProps.length
-  render(capturedHeaderTitle!())
+  await render(capturedHeaderTitle!())
   return capturedAvatarProps[before]
 }
 
@@ -186,43 +186,43 @@ describe('Talk screen avatar source', () => {
     mockResolved = null
   })
 
-  it('body avatar prefers the resolved master when a row is present', () => {
+  it('body avatar prefers the resolved master when a row is present', async () => {
     mockResolved = 'file:///new-master.webp'
-    renderTalk(baseCharacter({ active_image_id: 'img-1' }))
+    await renderTalk(baseCharacter({ active_image_id: 'img-1' }))
 
     expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'master')
     expect(bodyAvatarProps().imageUrl).toBe('file:///new-master.webp')
   })
 
-  it('body avatar passes null when nothing resolves', () => {
+  it('body avatar passes null when nothing resolves', async () => {
     mockResolved = null
-    renderTalk(baseCharacter({}))
+    await renderTalk(baseCharacter({}))
 
     expect(bodyAvatarProps().imageUrl).toBeNull()
   })
 
-  it('header avatar requests the thumb variant and prefers the resolved image', () => {
+  it('header avatar requests the thumb variant and prefers the resolved image', async () => {
     mockResolved = 'file:///new-thumb.webp'
-    renderTalk(baseCharacter({ active_image_id: 'img-1' }))
+    await renderTalk(baseCharacter({ active_image_id: 'img-1' }))
 
     expect(mockUseResolvedImage).toHaveBeenCalledWith('img-1', 'thumb')
-    expect(headerAvatarProps().imageUrl).toBe('file:///new-thumb.webp')
+    expect((await headerAvatarProps()).imageUrl).toBe('file:///new-thumb.webp')
   })
 
   // Guards the useLayoutEffect dependency array. The resolve is async, so the
   // header is first installed with null. `character` is the same object across
   // both renders, so only the resolved uri can retrigger the effect — drop it
   // from the deps and the header keeps showing the bundled default forever.
-  it('reinstalls the header when the resolved image arrives after first render', () => {
+  it('reinstalls the header when the resolved image arrives after first render', async () => {
     mockResolved = null
     const character = baseCharacter({ active_image_id: 'img-1' })
-    const tree = renderTalk(character)
+    const tree = await renderTalk(character)
 
-    expect(headerAvatarProps().imageUrl).toBeNull()
+    expect((await headerAvatarProps()).imageUrl).toBeNull()
 
     mockResolved = 'file:///late-thumb.webp'
-    tree.rerender(<TalkTabScreen />)
+    await tree.rerender(<TalkTabScreen />)
 
-    expect(headerAvatarProps().imageUrl).toBe('file:///late-thumb.webp')
+    expect((await headerAvatarProps()).imageUrl).toBe('file:///late-thumb.webp')
   })
 })

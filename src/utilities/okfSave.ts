@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { InteractionManager, Platform } from 'react-native'
+import { Platform } from 'react-native'
 import { File, Paths } from 'expo-file-system'
 import { EncodingType, StorageAccessFramework, writeAsStringAsync } from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
@@ -29,14 +29,19 @@ function buildZipFilename(characterName: string): string {
 }
 
 async function waitForNativeUiReady(): Promise<void> {
+  // InteractionManager was removed in RN 0.88 (SDK 58); requestIdleCallback is
+  // the documented replacement for deferring native work past the current UI.
+  // The timeout keeps the picker from waiting behind long frames.
   await new Promise<void>((resolve) => {
-    InteractionManager.runAfterInteractions(() => resolve())
+    requestIdleCallback(() => resolve(), { timeout: 200 })
   })
 }
 
 async function shareFromCache(bytes: Uint8Array, zipFilename: string): Promise<void> {
   const output = new File(Paths.cache, zipFilename)
-  output.write(bytes)
+  // File.write is async as of expo-file-system on SDK 58 — must be awaited
+  // before Sharing reads the file.
+  await output.write(bytes)
 
   try {
     await Sharing.shareAsync(output.uri, {

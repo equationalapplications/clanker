@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View, Text, StyleSheet, type ViewStyle } from 'react-native'
+import {
+  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  type ViewStyle,
+  type HostInstance,
+} from 'react-native'
 import { initializeAppleSignIn } from '~/auth/appleSignin.web'
 
 type ButtonState = 'idle' | 'loading' | 'error'
@@ -24,7 +31,7 @@ export default function AppleSignInButton(props: Props) {
 }
 
 function AppleSignInButtonInner({ onLoadingChange, loading, disabled, style }: Props) {
-  const containerRef = useRef<View>(null)
+  const containerRef = useRef<HostInstance>(null)
   const [buttonState, setButtonState] = useState<ButtonState>('idle')
   const [initFailed, setInitFailed] = useState(false)
   const onLoadingChangeRef = useRef(onLoadingChange)

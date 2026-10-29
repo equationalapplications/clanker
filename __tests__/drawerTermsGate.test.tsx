@@ -15,15 +15,6 @@ jest.mock('expo-router', () => ({
   }),
 }))
 
-jest.mock('expo-router/build/react-navigation/drawer', () => {
-  const React = require('react')
-  return {
-    DrawerContentScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    DrawerItemList: () => null,
-    DrawerItem: () => null,
-  }
-})
-
 jest.mock('expo-router/drawer', () => {
   const React = require('react')
 

@@ -69,14 +69,16 @@ const message = {
   imageId: '11111111-2222-4333-8444-555555555555',
 }
 
-function openViewer() {
-  const screen = render(<ChatImageBubble currentMessage={message} />)
-  fireEvent.press(screen.getByLabelText('Photo in this message'))
+async function openViewer() {
+  const screen = await render(<ChatImageBubble currentMessage={message} />)
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText('Photo in this message'))
+  })
   return screen
 }
 
 describe('ChatImageBubble viewer actions', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     // clearAllMocks resets call history but NOT implementations — the
     // no-share-sheet test below overrides this default with false, which
@@ -89,7 +91,7 @@ describe('ChatImageBubble viewer actions', () => {
 
   it('saves the resolved master to the photo library after an add-only grant', async () => {
     ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Save to Photos'))
 
@@ -101,7 +103,7 @@ describe('ChatImageBubble viewer actions', () => {
 
   it('shows a notice on permission denial and saves nothing', async () => {
     ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: false })
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Save to Photos'))
 
@@ -112,7 +114,7 @@ describe('ChatImageBubble viewer actions', () => {
   it('shows a notice when the save fails and leaves the viewer usable', async () => {
     ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
     ;(MediaLibrary.saveToLibraryAsync as jest.Mock).mockRejectedValue(new Error('no space'))
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Save to Photos'))
 
@@ -123,7 +125,7 @@ describe('ChatImageBubble viewer actions', () => {
   })
 
   it('shares the master URI through expo-sharing', async () => {
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -145,23 +147,29 @@ describe('ChatImageBubble viewer actions', () => {
         resolveShare = resolve
       }),
     )
-    const screen = openViewer()
+    const screen = await openViewer()
 
-    fireEvent.press(screen.getByLabelText('Share photo'))
+    let firstPress!: Promise<void>
+    await act(async () => {
+      firstPress = fireEvent.press(screen.getByLabelText('Share photo'))
+    })
     // The first press is mid-flight once the sheet is up; the second must be
     // a no-op rather than a second bridge call.
     await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalledTimes(1))
-    fireEvent.press(screen.getByLabelText('Share photo'))
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Share photo'))
+    })
 
     await act(async () => {
       resolveShare()
+      await firstPress
     })
     expect(Sharing.shareAsync).toHaveBeenCalledTimes(1)
   })
 
   it('shows a notice when sharing fails', async () => {
     ;(Sharing.shareAsync as jest.Mock).mockRejectedValue(new Error('no share sheet'))
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -170,7 +178,7 @@ describe('ChatImageBubble viewer actions', () => {
 
   it('shows a notice when the platform has no share sheet', async () => {
     ;(Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false)
-    const screen = openViewer()
+    const screen = await openViewer()
 
     fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -179,7 +187,7 @@ describe('ChatImageBubble viewer actions', () => {
   })
 
   describe('when the resolved master is a remote URL (cloud rows)', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockUseResolvedImage.mockImplementation(
         (imageId: string | null, variant: 'thumb' | 'master') => ({
           uri: imageId
@@ -191,7 +199,7 @@ describe('ChatImageBubble viewer actions', () => {
     })
 
     it('Share stages the remote master locally and never shares the raw URL', async () => {
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -216,7 +224,7 @@ describe('ChatImageBubble viewer actions', () => {
 
     it('Share shows the failure notice when staging the download fails', async () => {
       fakeShareFs.downloadFileAsync.mockRejectedValue(new Error('offline'))
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -226,7 +234,7 @@ describe('ChatImageBubble viewer actions', () => {
   })
 
   describe('while the master lookup is still in flight', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockUseResolvedImage.mockImplementation(
         (imageId: string | null, variant: 'thumb' | 'master') => ({
           // Thumb resolves instantly; the master never comes back.
@@ -238,7 +246,7 @@ describe('ChatImageBubble viewer actions', () => {
 
     it('Save shows a loading notice and touches nothing', async () => {
       ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Save to Photos'))
 
@@ -250,7 +258,7 @@ describe('ChatImageBubble viewer actions', () => {
     })
 
     it('Share shows a loading notice and opens no sheet', async () => {
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Share photo'))
 
@@ -262,7 +270,7 @@ describe('ChatImageBubble viewer actions', () => {
   })
 
   describe('after the master lookup completes without a URI', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       mockUseResolvedImage.mockImplementation(
         (imageId: string | null, variant: 'thumb' | 'master') => ({
           uri: variant === 'thumb' && imageId ? `file:///cache/thumb.webp` : null,
@@ -273,7 +281,7 @@ describe('ChatImageBubble viewer actions', () => {
 
     it('Save reports the photo as unavailable', async () => {
       ;(MediaLibrary.requestPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true })
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Save to Photos'))
 
@@ -282,7 +290,7 @@ describe('ChatImageBubble viewer actions', () => {
     })
 
     it('Share reports the photo as unavailable', async () => {
-      const screen = openViewer()
+      const screen = await openViewer()
 
       fireEvent.press(screen.getByLabelText('Share photo'))
 

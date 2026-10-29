@@ -33,7 +33,7 @@ export function MessageList({
           renderAvatar={renderAvatar}
         />
       )}
-      ListEmptyComponent={emptyComponent ?? null}
+      ListEmptyComponent={emptyComponent ?? undefined}
       contentContainerStyle={contentContainerStyle}
       removeClippedSubviews={groundingListViewProps?.removeClippedSubviews}
     />

@@ -32,30 +32,30 @@ const baseMeta: GroundingMetadata = {
 }
 
 describe('GroundingFooter', () => {
-  it('renders a citation chip per safe chunk', () => {
-    const { getByText, queryByText } = render(<GroundingFooter metadata={baseMeta} />)
+  it('renders a citation chip per safe chunk', async () => {
+    const { getByText, queryByText } = await render(<GroundingFooter metadata={baseMeta} />)
     expect(getByText('Example')).toBeTruthy()
     expect(queryByText('FTP')).toBeNull()
   })
 
-  it('opens a citation URL on chip press', () => {
+  it('opens a citation URL on chip press', async () => {
     const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
-    const { getByText } = render(<GroundingFooter metadata={baseMeta} />)
+    const { getByText } = await render(<GroundingFooter metadata={baseMeta} />)
     fireEvent.press(getByText('Example'))
     expect(openSpy).toHaveBeenCalledWith('https://example.com')
     openSpy.mockRestore()
   })
 
-  it('renders the search suggestions renderedContent when present', () => {
+  it('renders the search suggestions renderedContent when present', async () => {
     const meta: GroundingMetadata = {
       searchEntryPoint: { renderedContent: '<b>suggestion</b>' },
     }
-    const { getByText } = render(<GroundingFooter metadata={meta} />)
+    const { getByText } = await render(<GroundingFooter metadata={meta} />)
     expect(getByText('<b>suggestion</b>')).toBeTruthy()
   })
 
-  it('returns null when there are no chunks and no renderedContent', () => {
-    const { toJSON } = render(<GroundingFooter metadata={{} as GroundingMetadata} />)
+  it('returns null when there are no chunks and no renderedContent', async () => {
+    const { toJSON } = await render(<GroundingFooter metadata={{} as GroundingMetadata} />)
     expect(toJSON()).toBeNull()
   })
 })

@@ -53,14 +53,14 @@ function setPlatformOS(value: 'ios' | 'android' | 'web') {
   })
 }
 
-function resetPlatformOS() {
+async function resetPlatformOS() {
   if (originalOSDescriptor) {
     Object.defineProperty(Platform, 'OS', originalOSDescriptor)
     originalOSDescriptor = undefined
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks()
   mockGetPermissions.mockResolvedValue({ status: 'granted' })
   mockRequestPermissions.mockResolvedValue({ status: 'granted' })
@@ -69,14 +69,14 @@ beforeEach(() => {
   mockRegisterFn.mockResolvedValue({ data: { ok: true } })
 })
 
-afterEach(() => {
+afterEach(async () => {
   resetPlatformOS()
 })
 
 describe('useRegisterExpoPushToken', () => {
   it('sends capabilities.proactivePush: true with the native token', async () => {
     setPlatformOS('ios')
-    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'proj' }))
     await waitFor(() => expect(mockRegisterFn).toHaveBeenCalled())
     expect(mockRegisterFn).toHaveBeenCalledWith({
       expoPushToken: 'ExponentPushToken[abc]',
@@ -90,7 +90,7 @@ describe('useRegisterExpoPushToken', () => {
       type: 'web',
       data: { endpoint: 'https://example.com/push', keys: { p256dh: 'k', auth: 'a' } },
     })
-    renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: true, projectId: 'proj' }))
     await waitFor(() => expect(mockRegisterFn).toHaveBeenCalled())
     const callArg = mockRegisterFn.mock.calls[0][0] as Record<string, unknown>
     expect(callArg.capabilities).toEqual({ proactivePush: true })
@@ -98,7 +98,7 @@ describe('useRegisterExpoPushToken', () => {
 
   it('does not register when disabled', async () => {
     setPlatformOS('ios')
-    renderHook(() => useRegisterExpoPushToken({ enabled: false, projectId: 'proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: false, projectId: 'proj' }))
     await waitFor(() => expect(mockGetPermissions).not.toHaveBeenCalled())
     expect(mockRegisterFn).not.toHaveBeenCalled()
   })
@@ -110,7 +110,7 @@ describe('useRegisterExpoPushToken', () => {
   // server clears the flag without overwriting the existing expo_push_token.
   it('clears proactivePushReady when notifications transition from enabled to disabled', async () => {
     setPlatformOS('ios')
-    const { rerender } = renderHook(
+    const { rerender } = await renderHook(
       ({ enabled }: { enabled: boolean }) =>
         useRegisterExpoPushToken({ enabled, projectId: 'proj' }),
       { initialProps: { enabled: true } },
@@ -139,7 +139,7 @@ describe('useRegisterExpoPushToken', () => {
 
   it('does not fire a downgrade call on the very first render with enabled=false', async () => {
     setPlatformOS('ios')
-    renderHook(() => useRegisterExpoPushToken({ enabled: false, projectId: 'proj' }))
+    await renderHook(() => useRegisterExpoPushToken({ enabled: false, projectId: 'proj' }))
     await waitFor(() => expect(mockGetPermissions).not.toHaveBeenCalled())
     expect(mockRegisterFn).not.toHaveBeenCalled()
   })

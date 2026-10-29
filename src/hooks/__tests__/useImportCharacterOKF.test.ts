@@ -59,7 +59,7 @@ function buildDump(entityId: string) {
 }
 
 describe('useImportCharacterOKF', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     mockDedupeEventsAgainstExisting.mockImplementation(async (_wiki, _id, dump) => dump)
     mockScanExplicitEventIds.mockReturnValue(new Set())
@@ -70,7 +70,7 @@ describe('useImportCharacterOKF', () => {
     mockPickAndReadOkfBundle.mockResolvedValue([{ path: 'index.md', content: '# root' }])
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -100,7 +100,7 @@ describe('useImportCharacterOKF', () => {
       },
     })
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -113,7 +113,7 @@ describe('useImportCharacterOKF', () => {
   it('silently swallows a cancelled picker without setting an error', async () => {
     mockPickAndReadOkfBundle.mockRejectedValue(new okfImport.OkfPickCancelledError())
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -128,7 +128,7 @@ describe('useImportCharacterOKF', () => {
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
     mockImportDump.mockResolvedValue(undefined)
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -157,7 +157,7 @@ describe('useImportCharacterOKF', () => {
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
     mockImportDump.mockResolvedValue(undefined)
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -174,7 +174,7 @@ describe('useImportCharacterOKF', () => {
     mockPickAndReadOkfBundle.mockResolvedValue([{ path: 'index.md', content: '# root' }])
     mockParseOkfBundle.mockReturnValue(buildDump('placeholder'))
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('placeholder')
@@ -200,7 +200,7 @@ describe('useImportCharacterOKF', () => {
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
     mockImportDump.mockRejectedValue(new WikiBusyError('heal', 'char_1'))
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -223,7 +223,7 @@ describe('useImportCharacterOKF', () => {
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
     mockImportDump.mockResolvedValue(undefined)
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
@@ -245,12 +245,12 @@ describe('useImportCharacterOKF', () => {
     mockPickAndReadOkfBundle.mockResolvedValue([{ path: 'index.md', content: '# root' }])
     mockParseOkfBundle.mockReturnValue(buildDump('char_1'))
 
-    const { result } = renderHook(() => useImportCharacterOKF())
+    const { result } = await renderHook(() => useImportCharacterOKF())
 
     await act(async () => {
       await result.current.handlePickAndPreview('char_1')
     })
-    act(() => {
+    await act(async () => {
       result.current.handleCancel()
     })
 
