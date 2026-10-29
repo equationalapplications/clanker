@@ -133,6 +133,14 @@ public class ExpoTwoWayAudioModule: Module {
             )
         }
 
+        // JS reload (dev or OTA) destroys this module instance; tear the engine
+        // down with it so the session and engine taps don't outlive their
+        // owner. The next initialize() builds a fresh engine.
+        OnDestroy {
+            self.audioEngine?.tearDown()
+            self.audioEngine = nil
+        }
+
         // Define the events that can be emitted
         Events([
             ON_MIC_DATA_EVENT_NAME,

@@ -201,6 +201,48 @@ describe('TwoWayAudioAdapter', () => {
     expect(mockAddEventListener).not.toHaveBeenCalled()
   })
 
+  test('start → stop → start around the permission prompt: the second start succeeds', async () => {
+    let resolveFirstPerm!: (v: { granted: boolean }) => void
+    let permCall = 0
+    mockRequestMicPermissions.mockImplementation(() => {
+      permCall += 1
+      if (permCall === 1) {
+        return new Promise((resolve) => {
+          resolveFirstPerm = resolve
+        })
+      }
+      return Promise.resolve({ granted: true })
+    })
+
+    const stale = adapter.startRecording(jest.fn())
+    adapter.stopRecording() // second caller arrives while the first prompt is up
+    const fresh = adapter.startRecording(jest.fn())
+    resolveFirstPerm({ granted: true })
+
+    // The stale start still aborts on its generation mismatch…
+    expect(await stale).toBe(false)
+    // …but the fresh start must get its OWN promise and succeed — before the
+    // fix it was handed the stale in-flight promise and silently failed.
+    expect(await fresh).toBe(true)
+    expect(mockToggleRecording).toHaveBeenCalledWith(true)
+  })
+
+  test('stopRecording drops the stale chunk consumer', async () => {
+    const staleChunks: string[] = []
+    let micListener: ((ev: { data: Uint8Array }) => void) | null = null
+    mockAddEventListener.mockImplementation((_event, cb) => {
+      micListener = cb
+      return { remove: jest.fn() }
+    })
+    await adapter.startRecording((b64) => staleChunks.push(b64))
+    adapter.stopRecording()
+
+    // Even if the native side still delivers once more, the removed consumer
+    // must never see a chunk.
+    micListener!({ data: new Uint8Array([9, 9, 9]) })
+    expect(staleChunks).toHaveLength(0)
+  })
+
   test('a failed start clears the in-flight dedupe so the next start works', async () => {
     mockToggleRecording.mockImplementationOnce(() => {
       throw new Error('toggle failed')

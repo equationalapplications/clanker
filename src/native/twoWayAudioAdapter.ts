@@ -41,10 +41,14 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
   startRecording(onChunk: (base64: string) => void): Promise<boolean> {
     this._onChunk = onChunk
     if (this._startPromise) return this._startPromise
-    this._startPromise = this._doStartRecording(onChunk).finally(() => {
-      this._startPromise = null
+    const startPromise = this._doStartRecording(onChunk).finally(() => {
+      // Only clear if this is still the in-flight start: a stopRecording()
+      // between submission and settlement already nulled _startPromise for
+      // the next caller, and this finally must not clobber that new start.
+      if (this._startPromise === startPromise) this._startPromise = null
     })
-    return this._startPromise
+    this._startPromise = startPromise
+    return startPromise
   }
 
   private async _doStartRecording(onChunk: (base64: string) => void): Promise<boolean> {
@@ -89,6 +93,14 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
 
   stopRecording(): void {
     this._startGeneration += 1
+    // Clear the in-flight start promise: start → stop → start around the OS
+    // permission prompt must give the SECOND caller a fresh start, not hand
+    // it the stale promise that is about to resolve false on its generation
+    // mismatch (which silently killed the second start).
+    this._startPromise = null
+    // Drop the last consumer's chunk closure so the adapter never outlives
+    // its owner with a stale mic-data target.
+    this._onChunk = null
     toggleRecording(false)
     this._micSub?.remove()
     this._micSub = null
@@ -143,6 +155,8 @@ export class TwoWayAudioAdapter implements TwoWayAudioAdapterInterface {
 
   async tearDown(): Promise<void> {
     this._startGeneration += 1
+    this._startPromise = null
+    this._onChunk = null
     this._playbackEndTime = 0
     this._pcmCarryover = new Uint8Array(0)
     this._micSub?.remove()
