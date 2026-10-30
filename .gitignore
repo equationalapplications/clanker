@@ -34,6 +34,7 @@ ios/
 functions/.env
 functions/.env.*
 !functions/.env.example
+!functions/.env.clanker-prod
 .firebase
 functions/lib
 functions/lib-integration
