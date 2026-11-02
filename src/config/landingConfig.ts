@@ -13,8 +13,8 @@ export const SITE_META = {
     'personal AI assistant, Clanker AI, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, AI characters, export AI character, AI companion, voice assistant',
   canonicalPath: '/',
   ogImage: `${SITE_BASE}/og-image.png`,
-  ogImageWidth: 1024,
-  ogImageHeight: 500,
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
   siteName: 'Clanker AI',
 } as const
 

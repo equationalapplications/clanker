@@ -143,6 +143,13 @@ updates:
       # >= 14 days old. Cooldown never applies to Dependabot security-update
       # PRs; under the SOP, hold those by hand unless the advisory is CRITICAL.
       default-days: 14
+    # Stay on the Node 24 LTS line (same as @types/node above). Without this,
+    # Dependabot proposes odd-numbered lines like node:25, which went EOL in
+    # June 2026 and never got the Oct 2026 security fixes (see #852, and
+    # SynapseTree #105/#114 for the same trap). LTS majors move by hand.
+    ignore:
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: npm
     directory: '/extension'
