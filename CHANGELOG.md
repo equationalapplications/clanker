@@ -1,3 +1,12 @@
+## [33.4.1](https://github.com/equationalapplications/clanker/compare/v33.4.0...v33.4.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **deps:** bump [@equationalapplications](https://github.com/equationalapplications) llm-wiki packages to ^7.15.2 ([eeffdfa](https://github.com/equationalapplications/clanker/commit/eeffdfaef02fbc7751ffa715d97ec70df0dd1bde))
+* **deps:** clear age-gated Dependabot alerts and version bumps ([be6ac82](https://github.com/equationalapplications/clanker/commit/be6ac82d6640008099866c8674cc299317287bdd)), closes [#874](https://github.com/equationalapplications/clanker/issues/874) [#876](https://github.com/equationalapplications/clanker/issues/876) [#878](https://github.com/equationalapplications/clanker/issues/878) [#879](https://github.com/equationalapplications/clanker/issues/879) [#880](https://github.com/equationalapplications/clanker/issues/880) [#881](https://github.com/equationalapplications/clanker/issues/881) [#882](https://github.com/equationalapplications/clanker/issues/882) [#883](https://github.com/equationalapplications/clanker/issues/883) [#875](https://github.com/equationalapplications/clanker/issues/875) [#877](https://github.com/equationalapplications/clanker/issues/877)
+* **web:** read doc-page OG image size from landingConfig ([1ba10b9](https://github.com/equationalapplications/clanker/commit/1ba10b9d5ad2a5b3222d28fb3e6e5cc7e941cad9))
+
 # [33.4.0](https://github.com/equationalapplications/clanker/compare/v33.3.7...v33.4.0) (2026-10-29)
 
 
