@@ -257,6 +257,8 @@ function renderDocPage({
   extraHtml,
 }) {
   const canonical = `${SITE}/${slug}`
+  // Same social-image source as the landing page so the sizes cannot drift.
+  const { SITE_META } = loadTsModule(path.join(ROOT, 'src/config/landingConfig.ts'))
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -270,13 +272,13 @@ function renderDocPage({
     <meta property="og:url" content="${canonical}" />
     <meta property="og:title" content="${pageTitle}" />
     <meta property="og:description" content="${description}" />
-    <meta property="og:image" content="${SITE}/og-image.png" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="500" />
+    <meta property="og:image" content="${SITE_META.ogImage}" />
+    <meta property="og:image:width" content="${SITE_META.ogImageWidth}" />
+    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${pageTitle}" />
     <meta name="twitter:description" content="${description}" />
-    <meta name="twitter:image" content="${SITE}/og-image.png" />
+    <meta name="twitter:image" content="${SITE_META.ogImage}" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
