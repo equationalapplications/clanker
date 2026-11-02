@@ -11,8 +11,8 @@ npm-debug.*
 *.orig.*
 web-build/
 # Expo prebuild outputs
-android/
-ios/
+/android/
+/ios/
 
 # Build outputs
 *.apk
