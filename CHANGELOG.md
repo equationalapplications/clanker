@@ -1,3 +1,11 @@
+## [33.4.2](https://github.com/equationalapplications/clanker/compare/v33.4.1...v33.4.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ios:** register App Check provider factory before FirebaseApp.configure() ([1503fd7](https://github.com/equationalapplications/clanker/commit/1503fd763886f05bb22f759013d65626c384a804))
+* **ios:** restore Firebase init and vendored Swift compile on Expo SDK 58 ([be1338c](https://github.com/equationalapplications/clanker/commit/be1338c4dad2f4055a08ef87a8697a784a0ec021))
+
 ## [33.4.1](https://github.com/equationalapplications/clanker/compare/v33.4.0...v33.4.1) (2026-11-02)
 
 
