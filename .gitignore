@@ -21,6 +21,8 @@ web-build/
 /modules/*/ios/Pods/
 /modules/*/ios/build/
 xcuserdata/
+*.keystore
+keystore.properties
 # Local EAS credentials (keystores, certs, profiles) — never commit
 /credentials/
 
