@@ -1,3 +1,13 @@
+## [33.4.3](https://github.com/equationalapplications/clanker/compare/v33.4.2...v33.4.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* **build:** anchor android/ios ignore patterns so EAS keeps vendored native dirs ([4d9e478](https://github.com/equationalapplications/clanker/commit/4d9e4783207e38847fd8a0eff34170cdb73b2ab8))
+* **build:** ignore keystore files anywhere in the tree ([590b9ba](https://github.com/equationalapplications/clanker/commit/590b9ba83f0306e1ca95becfd746f2df031f1e96))
+* **build:** ignore vendored module build outputs and local credentials ([d53ca63](https://github.com/equationalapplications/clanker/commit/d53ca63be09b5614693c19dc6ea707769cec0972))
+* **web:** add fb:app_id meta tag to landing and feature pages ([500766c](https://github.com/equationalapplications/clanker/commit/500766caa923ca682f602ad43b742a2077e2af3a))
+
 ## [33.4.2](https://github.com/equationalapplications/clanker/compare/v33.4.1...v33.4.2) (2026-11-03)
 
 
