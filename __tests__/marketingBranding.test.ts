@@ -1,6 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 
+import { SITE_META } from '../src/config/landingConfig'
+
 const ROOT = path.resolve(__dirname, '..')
 const PUBLIC_DIR = path.join(ROOT, 'public')
 // The landing page is served at `/` but generated outside public/ because
@@ -149,6 +151,43 @@ describe.each(PAGES)('marketing page /$slug', (page) => {
       .forEach((node) => {
         expect(node.name).toBe('Equational Applications LLC')
       })
+  })
+})
+
+// The feature pages are hand-written, so the app id is duplicated in each one
+// instead of read from SITE_META. Scan every page directory (not PAGES) so a
+// newly added page can't silently skip the tag. /privacy and /terms are
+// gitignored generator output and may be stale or absent locally.
+const GENERATED_ONLY = new Set(['privacy', 'terms'])
+const FB_APP_ID_PAGES = [
+  { name: 'landing/index.html', file: LANDING_FILE },
+  ...fs
+    .readdirSync(PUBLIC_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !GENERATED_ONLY.has(entry.name))
+    .map((entry) => path.join(PUBLIC_DIR, entry.name, 'index.html'))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => ({ name: path.relative(ROOT, file), file })),
+]
+
+describe('fb:app_id', () => {
+  it('finds every hand-written feature page', () => {
+    expect(FB_APP_ID_PAGES.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it.each(FB_APP_ID_PAGES)('$name sets it to SITE_META.fbAppId exactly once', ({ file }) => {
+    const html = fs.readFileSync(file, 'utf8')
+    // A commented-out tag must not satisfy the checks below.
+    const comments = html.match(/<!--[\s\S]*?-->/g) ?? []
+    expect(comments.filter((c) => c.includes('fb:app_id'))).toEqual([])
+    const count = (html.match(/fb:app_id/g) ?? []).length
+    // The generator omits the tag when fbAppId is empty; the hand-written
+    // pages have no such switch, so they always need the tag.
+    if (file === LANDING_FILE && !SITE_META.fbAppId) {
+      expect(count).toBe(0)
+      return
+    }
+    expect(extractMeta(html, 'property', 'fb:app_id')).toBe(SITE_META.fbAppId)
+    expect(count).toBe(1)
   })
 })
 

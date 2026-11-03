@@ -104,6 +104,12 @@ function escapeHtmlAttr(value) {
   return escapeHtml(value).replace(/"/g, '&quot;')
 }
 
+/** fb:app_id meta tag, emitted only once SITE_META.fbAppId is set. */
+function fbAppIdTag(siteMeta) {
+  if (!siteMeta.fbAppId) return ''
+  return `\n    <meta property="fb:app_id" content="${escapeHtmlAttr(siteMeta.fbAppId)}" />`
+}
+
 function inlineFormat(value) {
   let out = escapeHtml(value)
   out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -274,7 +280,7 @@ function renderDocPage({
     <meta property="og:description" content="${description}" />
     <meta property="og:image" content="${SITE_META.ogImage}" />
     <meta property="og:image:width" content="${SITE_META.ogImageWidth}" />
-    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />
+    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />${fbAppIdTag(SITE_META)}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${pageTitle}" />
     <meta name="twitter:description" content="${description}" />
@@ -564,7 +570,7 @@ function generateLanding() {
     <meta property="og:description" content="${escapeHtmlAttr(SITE_META.description)}" />
     <meta property="og:image" content="${SITE_META.ogImage}" />
     <meta property="og:image:width" content="${SITE_META.ogImageWidth}" />
-    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />
+    <meta property="og:image:height" content="${SITE_META.ogImageHeight}" />${fbAppIdTag(SITE_META)}
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(SITE_META.title)}" />
