@@ -175,8 +175,10 @@ describe('fb:app_id', () => {
   })
 
   it.each(FB_APP_ID_PAGES)('$name sets it to SITE_META.fbAppId exactly once', ({ file }) => {
-    // Strip HTML comments so a commented-out tag can't satisfy the checks.
-    const html = fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+    const html = fs.readFileSync(file, 'utf8')
+    // A commented-out tag must not satisfy the checks below.
+    const comments = html.match(/<!--[\s\S]*?-->/g) ?? []
+    expect(comments.filter((c) => c.includes('fb:app_id'))).toEqual([])
     const count = (html.match(/fb:app_id/g) ?? []).length
     // The generator omits the tag when fbAppId is empty; the hand-written
     // pages have no such switch, so they always need the tag.
