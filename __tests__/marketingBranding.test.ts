@@ -176,8 +176,15 @@ describe('fb:app_id', () => {
 
   it.each(FB_APP_ID_PAGES)('$name sets it to SITE_META.fbAppId exactly once', ({ file }) => {
     const html = fs.readFileSync(file, 'utf8')
+    const count = (html.match(/fb:app_id/g) ?? []).length
+    // The generator omits the tag when fbAppId is empty; the hand-written
+    // pages have no such switch, so they always need the tag.
+    if (file === LANDING_FILE && !SITE_META.fbAppId) {
+      expect(count).toBe(0)
+      return
+    }
     expect(extractMeta(html, 'property', 'fb:app_id')).toBe(SITE_META.fbAppId)
-    expect(html.match(/fb:app_id/g) ?? []).toHaveLength(1)
+    expect(count).toBe(1)
   })
 })
 
