@@ -1,6 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 
+import { SITE_META } from '../src/config/landingConfig'
+
 const ROOT = path.resolve(__dirname, '..')
 const PUBLIC_DIR = path.join(ROOT, 'public')
 // The landing page is served at `/` but generated outside public/ because
@@ -117,6 +119,13 @@ describe.each(PAGES)('marketing page /$slug', (page) => {
 
   it('sets og:site_name to "Clanker AI"', () => {
     expect(extractMeta(html, 'property', 'og:site_name')).toBe('Clanker AI')
+  })
+
+  // The feature pages are hand-written, so this guards them against drifting
+  // from the single source of truth the generator reads.
+  it('sets fb:app_id to SITE_META.fbAppId exactly once', () => {
+    expect(extractMeta(html, 'property', 'fb:app_id')).toBe(SITE_META.fbAppId)
+    expect(html.split('property="fb:app_id"').length - 1).toBe(1)
   })
 
   it('has a self-referential canonical and og:url', () => {
