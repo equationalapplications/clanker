@@ -15,6 +15,8 @@ export const SITE_META = {
   ogImage: `${SITE_BASE}/og-image.png`,
   ogImageWidth: 1200,
   ogImageHeight: 630,
+  /** Meta (Facebook) App ID for the fb:app_id tag; empty string omits the tag. */
+  fbAppId: '947908801472882',
   siteName: 'Clanker AI',
 } as const
 

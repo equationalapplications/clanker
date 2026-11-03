@@ -11,8 +11,20 @@ npm-debug.*
 *.orig.*
 web-build/
 # Expo prebuild outputs
-android/
-ios/
+/android/
+/ios/
+# Anchored above so EAS keeps vendored modules' tracked native dirs; ignore
+# their local build outputs explicitly instead.
+/modules/*/android/build/
+/modules/*/android/.gradle/
+/modules/*/android/.cxx/
+/modules/*/ios/Pods/
+/modules/*/ios/build/
+xcuserdata/
+*.keystore
+keystore.properties
+# Local EAS credentials (keystores, certs, profiles) — never commit
+/credentials/
 
 # Build outputs
 *.apk
