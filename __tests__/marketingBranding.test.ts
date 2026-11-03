@@ -121,13 +121,6 @@ describe.each(PAGES)('marketing page /$slug', (page) => {
     expect(extractMeta(html, 'property', 'og:site_name')).toBe('Clanker AI')
   })
 
-  // The feature pages are hand-written, so this guards them against drifting
-  // from the single source of truth the generator reads.
-  it('sets fb:app_id to SITE_META.fbAppId exactly once', () => {
-    expect(extractMeta(html, 'property', 'fb:app_id')).toBe(SITE_META.fbAppId)
-    expect(html.split('property="fb:app_id"').length - 1).toBe(1)
-  })
-
   it('has a self-referential canonical and og:url', () => {
     expect(html).toContain(`<link rel="canonical" href="https://clanker-ai.com/${slug}" />`)
     expect(extractMeta(html, 'property', 'og:url')).toBe(`https://clanker-ai.com/${slug}`)
@@ -158,6 +151,33 @@ describe.each(PAGES)('marketing page /$slug', (page) => {
       .forEach((node) => {
         expect(node.name).toBe('Equational Applications LLC')
       })
+  })
+})
+
+// The feature pages are hand-written, so the app id is duplicated in each one
+// instead of read from SITE_META. Scan every page directory (not PAGES) so a
+// newly added page can't silently skip the tag. /privacy and /terms are
+// gitignored generator output and may be stale or absent locally.
+const GENERATED_ONLY = new Set(['privacy', 'terms'])
+const FB_APP_ID_PAGES = [
+  { name: 'landing/index.html', file: LANDING_FILE },
+  ...fs
+    .readdirSync(PUBLIC_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !GENERATED_ONLY.has(entry.name))
+    .map((entry) => path.join(PUBLIC_DIR, entry.name, 'index.html'))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => ({ name: path.relative(ROOT, file), file })),
+]
+
+describe('fb:app_id', () => {
+  it('finds every hand-written feature page', () => {
+    expect(FB_APP_ID_PAGES.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it.each(FB_APP_ID_PAGES)('$name sets it to SITE_META.fbAppId exactly once', ({ file }) => {
+    const html = fs.readFileSync(file, 'utf8')
+    expect(extractMeta(html, 'property', 'fb:app_id')).toBe(SITE_META.fbAppId)
+    expect(html.match(/fb:app_id/g) ?? []).toHaveLength(1)
   })
 })
 
