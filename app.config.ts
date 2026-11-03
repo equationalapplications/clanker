@@ -252,6 +252,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // framework linkage; this project pins static linkage (expo-build-properties
     // above), so keep Firebase on CocoaPods to avoid duplicate-symbol link errors.
     ['@react-native-firebase/app', { ios: { disableSPM: true } }],
+    // RNFB's plugin can't patch the SDK 58 AppDelegate (see plugins/ file for rationale)
+    './plugins/withFirebaseAppDelegateConfigure',
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/app-check',
