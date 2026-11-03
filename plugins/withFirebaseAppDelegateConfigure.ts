@@ -4,9 +4,16 @@
 // AppDelegate template, so it skips with only a warning ("Unable to determine
 // correct Firebase insertion point") and no Firebase app is ever configured
 // natively — FirebaseCore logs COR000005 and JS crashes on `getApp()`.
-// Insert the call ourselves, after RNFB's plugin has run.
+// Insert the call ourselves, after RNFB's plugin has run. We also register the
+// RNFB App Check provider factory first (`RNFBAppCheckModule.sharedInstance()`),
+// mirroring the app-check plugin's Swift insertion, which skips on this template
+// for the same anchor reason — Firebase requires the factory before configure()
+// (AppCheck-AD-3). The Obj-C-only module is already exposed to Swift through the
+// generated bridging header (`#import "RNFBAppCheckModule.h"`), which the
+// app-check plugin patches successfully.
 // Remove once RNFB ships SDK 58-aware anchors: bump @react-native-firebase/*,
-// rerun prebuild, and delete this plugin if RNFB's warning no longer appears.
+// rerun prebuild, and delete this plugin if RNFB's warning no longer appears
+// (tracked in #890).
 import { withDangerousMod } from '@expo/config-plugins'
 import type { ConfigPlugin } from '@expo/config-plugins'
 import fs from 'fs'
@@ -35,7 +42,7 @@ const withFirebaseAppDelegateConfigure: ConfigPlugin = (config) =>
       }
       contents = contents.replace(
         /(\n)(\s*)(return super\.application\()/,
-        '$1$2FirebaseApp.configure()\n$1$2$3',
+        '$1$2RNFBAppCheckModule.sharedInstance()\n$1$2FirebaseApp.configure()\n$1$2$3',
       )
       fs.writeFileSync(appDelegatePath, contents)
       return cfg

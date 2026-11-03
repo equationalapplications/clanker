@@ -27,7 +27,7 @@ module.exports = function withFirebaseAppDelegateConfigure(config) {
       }
       contents = contents.replace(
         /(\n)(\s*)(return super\.application\()/,
-        '$1$2FirebaseApp.configure()\n$1$2$3',
+        '$1$2RNFBAppCheckModule.sharedInstance()\n$1$2FirebaseApp.configure()\n$1$2$3',
       )
       fs.writeFileSync(appDelegatePath, contents)
       return cfg
