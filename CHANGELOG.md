@@ -1,3 +1,12 @@
+## [33.4.4](https://github.com/equationalapplications/clanker/compare/v33.4.3...v33.4.4) (2026-11-09)
+
+
+### Bug Fixes
+
+* **age-gate:** CodeRabbit findings — run all lockfile checks (was || short-circuit), treat resolved/integrity changes as deltas, fail closed on null/unparsable registry data ([070d606](https://github.com/equationalapplications/clanker/commit/070d606cc638fc23b8cc9aa522f38f2d2fe01ba1))
+* **ci:** gate staging-test installs on the release-age delta check ([3951d5d](https://github.com/equationalapplications/clanker/commit/3951d5da97ec1a097717852c433ac24c86ee3940))
+* **deps:** fail release-age gate closed when a lockfile has no packages entries ([66a97e8](https://github.com/equationalapplications/clanker/commit/66a97e82ed44efecd8877bb29ed1b55d7eecc244))
+
 ## [33.4.3](https://github.com/equationalapplications/clanker/compare/v33.4.2...v33.4.3) (2026-11-03)
 
 
