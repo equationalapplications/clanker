@@ -41,14 +41,6 @@ describe('wikiService', () => {
     expect(mockCreateWiki).toHaveBeenCalledWith(db, expect.any(Object))
   })
 
-  it('setupWiki pins the librarian strategy and maintenance mode', () => {
-    setupWiki({} as any)
-    expect(mockCreateWiki.mock.calls[0][1].config).toMatchObject({
-      librarian: { strategy: 'legacy' },
-      maintenance: 'auto',
-    })
-  })
-
   it('getWiki returns the initialized wiki', () => {
     const db = {} as any
     setupWiki(db)
@@ -157,6 +149,8 @@ describe('wikiService', () => {
           staleInferredAfterDays: 30,
           preFilterLimit: 300,
           hybridWeight: 1,
+          librarian: { strategy: 'legacy' },
+          maintenance: 'auto',
         }),
       }),
     )
