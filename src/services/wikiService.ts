@@ -224,6 +224,10 @@ export function setupWiki(db: SQLiteDatabase): Wiki {
       staleInferredAfterDays: 30, // days: mark old librarian entries as stale
       preFilterLimit: DEFAULT_WIKI_PREFILTER_LIMIT, // limit search candidates for speed
       hybridWeight: 1, // prefer vector scoring while still prefiltering candidates for speed
+      // Pinned so the expo-llm-wiki 8.0.0 default flips can't change behavior silently.
+      // Without maintenance: 'auto', the two auto*Threshold values above stop doing anything.
+      librarian: { strategy: 'legacy' },
+      maintenance: 'auto',
     },
   })
   return _wiki

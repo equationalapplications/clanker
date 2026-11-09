@@ -149,6 +149,8 @@ describe('wikiService', () => {
           staleInferredAfterDays: 30,
           preFilterLimit: 300,
           hybridWeight: 1,
+          librarian: { strategy: 'legacy' },
+          maintenance: 'auto',
         }),
       }),
     )
