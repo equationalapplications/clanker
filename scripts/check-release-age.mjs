@@ -98,7 +98,13 @@ if (baseRef) {
   const changedPaths = []
   for (const [path, meta] of currentMetas) {
     const before = baseMetas.get(path)
-    if (before && (meta.version ?? "") === (before.version ?? "")) inherited++
+    // treat a changed resolved/integrity (same version, new tarball) as a change too
+    if (
+      before &&
+      (meta.version ?? "") === (before.version ?? "") &&
+      (meta.resolved ?? "") === (before.resolved ?? "")
+    )
+      inherited++
     else changedPaths.push(path)
   }
   if (changedPaths.length === 0) {
@@ -137,12 +143,21 @@ async function worker() {
         if (attempt === 3) failures.push(`${name}: ${err.message}`)
       }
     }
-    if (!doc) continue
+    if (!doc) {
+      if (!failures.some((f) => f.startsWith(`${name}:`)))
+        failures.push(`${name}: empty or invalid registry response`)
+      continue
+    }
     for (const version of wanted.get(name)) {
       const published = doc.time?.[version]
       if (!published) failures.push(`${name}@${version}: no publish time in registry`)
-      else if (new Date(published) > cutoff)
-        violations.push(`${name}@${version} published ${published.slice(0, 10)}`)
+      else {
+        const publishedAt = new Date(published)
+        if (Number.isNaN(publishedAt.getTime()))
+          failures.push(`${name}@${version}: unparsable publish time in registry`)
+        else if (publishedAt > cutoff)
+          violations.push(`${name}@${version} published ${published.slice(0, 10)}`)
+      }
     }
   }
 }

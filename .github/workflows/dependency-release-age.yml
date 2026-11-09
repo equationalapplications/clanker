@@ -39,14 +39,12 @@ jobs:
         env:
           BASE_REF: origin/${{ github.event.pull_request.base.ref }}
         run: |
+          status=0
+          base_args=()
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            node scripts/check-release-age.mjs --days 14 --lockfile "package-lock.json" --base "$BASE_REF" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "functions/package-lock.json" --base "$BASE_REF" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "cloud-agent/package-lock.json" --base "$BASE_REF" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "extension/package-lock.json" --base "$BASE_REF"
-          else
-            node scripts/check-release-age.mjs --days 14 --lockfile "package-lock.json" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "functions/package-lock.json" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "cloud-agent/package-lock.json" || \
-            node scripts/check-release-age.mjs --days 14 --lockfile "extension/package-lock.json"
+            base_args=(--base "$BASE_REF")
           fi
+          for lockfile in package-lock.json functions/package-lock.json cloud-agent/package-lock.json extension/package-lock.json; do
+            node scripts/check-release-age.mjs --days 14 --lockfile "$lockfile" "${base_args[@]}" || status=1
+          done
+          exit "$status"
