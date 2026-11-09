@@ -121,7 +121,7 @@
     "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "~24.13.3",
+    "@types/node": "~24.19.2",
     "@types/react": "~19.3.0",
     "@types/react-test-renderer": "^19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
