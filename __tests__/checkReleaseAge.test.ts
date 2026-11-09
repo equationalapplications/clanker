@@ -15,6 +15,15 @@ jest.setTimeout(30000)
 
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'check-release-age.mjs')
 
+// Isolate fixture git operations from the machine's global/system git config
+// (commit.gpgsign, core.hooksPath, aliases, templates) so a commit can't fail
+// or block for reasons unrelated to the checker.
+const ISOLATED_GIT_ENV = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+}
+
 const VALID_LOCK = JSON.stringify({
   lockfileVersion: 3,
   packages: {
@@ -38,16 +47,19 @@ function makeTempDir(): string {
 
 function makeTempRepo(): string {
   const dir = makeTempDir()
-  execFileSync('git', ['init', '-q'], { cwd: dir })
-  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir })
-  execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir })
+  execFileSync('git', ['init', '-q'], { cwd: dir, env: ISOLATED_GIT_ENV })
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], {
+    cwd: dir,
+    env: ISOLATED_GIT_ENV,
+  })
+  execFileSync('git', ['config', 'user.name', 'test'], { cwd: dir, env: ISOLATED_GIT_ENV })
   return dir
 }
 
 function commitFile(repoDir: string, name: string, content: string): void {
   fs.writeFileSync(path.join(repoDir, name), content)
-  execFileSync('git', ['add', name], { cwd: repoDir })
-  execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: repoDir })
+  execFileSync('git', ['add', name], { cwd: repoDir, env: ISOLATED_GIT_ENV })
+  execFileSync('git', ['commit', '-qm', 'fixture'], { cwd: repoDir, env: ISOLATED_GIT_ENV })
 }
 
 describe('check-release-age fail-closed on unreadable lockfiles', () => {

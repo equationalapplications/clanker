@@ -27,6 +27,11 @@ jobs:
     steps:
       - name: 🏗 Setup repo
         uses: actions/checkout@v6
+        # Full history so the base branch ref is present for the release-age
+        # delta diff's `git show` (same requirement as
+        # dependency-release-age.yml).
+        with:
+          fetch-depth: 0
 
       # Must match the deployed runtime: `node:24-slim` in the cloud-agent
       # Dockerfile, `"runtime": "nodejs24"` in firebase.json, and
@@ -36,6 +41,25 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
+
+      # Gate (read-only): the 14-day release-age delta check must run BEFORE
+      # any `npm ci` in this workflow. The same check is also a separate
+      # required workflow (dependency-release-age.yml), but GitHub starts
+      # independent workflows concurrently — gating installs only on that one
+      # would still let a too-new package's install scripts execute here while
+      # the other run was still deciding. Same script, same flags, same
+      # verdict; delta mode exits before any registry fetch when a PR has no
+      # dependency changes, so this costs nothing on most PRs.
+      - name: 🚨 Check dependency release ages (before any install)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+        run: |
+          status=0
+          for lockfile in package-lock.json functions/package-lock.json cloud-agent/package-lock.json extension/package-lock.json; do
+            node scripts/check-release-age.mjs --days 14 --lockfile "$lockfile" --base "$BASE_REF" || status=1
+          done
+          exit "$status"
 
       - name: 📦 Install dependencies
         run: npm ci
