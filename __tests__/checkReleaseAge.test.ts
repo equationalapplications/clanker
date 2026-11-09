@@ -15,14 +15,19 @@ jest.setTimeout(30000)
 
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'check-release-age.mjs')
 
-// Isolate fixture git operations from the machine's global/system git config
-// (commit.gpgsign, core.hooksPath, aliases, templates) so a commit can't fail
-// or block for reasons unrelated to the checker.
-const ISOLATED_GIT_ENV = {
-  ...process.env,
-  GIT_CONFIG_GLOBAL: '/dev/null',
-  GIT_CONFIG_SYSTEM: '/dev/null',
+// Isolate every spawned git invocation (fixture commands and the checker
+// itself) from the ambient environment: strip all inherited GIT_* variables —
+// repository locators like GIT_DIR/GIT_WORK_TREE would point `git init` and
+// `git show` at some other repository, and hooks can leak them into child
+// processes — then re-add config isolation (commit.gpgsign, core.hooksPath,
+// aliases, templates) so a commit can't fail or block for reasons unrelated
+// to the checker.
+const ISOLATED_GIT_ENV: NodeJS.ProcessEnv = { ...process.env }
+for (const key of Object.keys(ISOLATED_GIT_ENV)) {
+  if (key.startsWith('GIT_')) delete ISOLATED_GIT_ENV[key]
 }
+ISOLATED_GIT_ENV.GIT_CONFIG_GLOBAL = '/dev/null'
+ISOLATED_GIT_ENV.GIT_CONFIG_SYSTEM = '/dev/null'
 
 const VALID_LOCK = JSON.stringify({
   lockfileVersion: 3,
@@ -38,7 +43,11 @@ const VALID_LOCK = JSON.stringify({
 const NO_PACKAGES_LOCK = JSON.stringify({ lockfileVersion: 1, name: 'fixture', version: '1.0.0' })
 
 function runScript(args: string[], cwd: string) {
-  return spawnSync(process.execPath, [SCRIPT, ...args], { cwd, encoding: 'utf8' })
+  return spawnSync(process.execPath, [SCRIPT, ...args], {
+    cwd,
+    encoding: 'utf8',
+    env: ISOLATED_GIT_ENV,
+  })
 }
 
 function makeTempDir(): string {
