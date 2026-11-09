@@ -29,7 +29,7 @@
     "@equationalapplications/core-llm-tools": "^7.15.2",
     "@google-cloud/cloud-sql-connector": "^1.12.1",
     "@google/adk": "^2.3.0",
-    "@google/genai": "^2.26.0",
+    "@google/genai": "^2.31.0",
     "drizzle-orm": "^0.45.4",
     "firebase-admin": "^14.5.0",
     "firebase-functions": "^7.4.0",
