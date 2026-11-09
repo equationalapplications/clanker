@@ -72,6 +72,15 @@ function wantedFrom(metas, paths) {
 
 const lock = JSON.parse(fs.readFileSync(lockfile, "utf8"))
 const currentMetas = metaMap(lock)
+// Fail closed: a lockfile with no readable entries (v1 format, truncated, or
+// regenerated) would otherwise pass silently in either mode ("Checked 0
+// packages" / "No dependency changes").
+if (currentMetas.size === 0) {
+  console.error(
+    `${lockfile} has no "packages" entries (lockfileVersion 1 is not supported); cannot verify release ages.`,
+  )
+  process.exit(2)
+}
 let wanted
 let inherited = 0
 const skipped = []
@@ -95,6 +104,15 @@ if (baseRef) {
     process.exit(2)
   }
   const baseMetas = metaMap(JSON.parse(baseRaw))
+  // Fail closed: a base lockfile with no readable entries would mark every
+  // current entry as changed, silently turning the delta check into a
+  // full-lockfile audit.
+  if (baseMetas.size === 0) {
+    console.error(
+      `${baseRef}:${lockfile} has no "packages" entries; cannot compare the delta against a base we cannot read.`,
+    )
+    process.exit(2)
+  }
   const changedPaths = []
   for (const [path, meta] of currentMetas) {
     const before = baseMetas.get(path)
