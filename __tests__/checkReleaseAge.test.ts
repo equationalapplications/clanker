@@ -6,6 +6,8 @@
 // Every case here exits before the script performs any registry fetch, so the
 // suite is fully offline. The happy-path delta case (unchanged lockfile) also
 // exits before fetching, which lets us cover the pass path without network.
+// The one exception is the npm-alias case in the first-party block: it must
+// reach the fetch, and fails (exit 1) whether the registry 404s or is offline.
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -122,5 +124,65 @@ describe('check-release-age fail-closed on unreadable lockfiles', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+// A lockfile whose only change vs the base is the given entry.
+function lockWith(entryPath: string, meta: Record<string, string>): string {
+  const lock = JSON.parse(VALID_LOCK)
+  lock.packages[entryPath] = meta
+  return JSON.stringify(lock)
+}
+
+describe('check-release-age first-party exemption', () => {
+  function runDelta(changed: string) {
+    const dir = makeTempRepo()
+    try {
+      commitFile(dir, 'lock.json', VALID_LOCK)
+      fs.writeFileSync(path.join(dir, 'lock.json'), changed)
+      return runScript(['--base', 'HEAD', '--lockfile', 'lock.json'], dir)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  it('exempts a registry @equationalapplications package without fetching it', () => {
+    const result = runDelta(
+      lockWith('node_modules/@equationalapplications/core-okf', {
+        version: '99.0.0',
+        resolved:
+          'https://registry.npmjs.org/@equationalapplications/core-okf/-/core-okf-99.0.0.tgz',
+      }),
+    )
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('across 0 packages')
+    expect(result.stdout).toContain(
+      'First-party, exempt from the cooldown (@equationalapplications/): @equationalapplications/core-okf@99.0.0',
+    )
+  })
+
+  it('does not exempt an npm alias placed under the first-party scope', () => {
+    const result = runDelta(
+      lockWith('node_modules/@equationalapplications/aliased', {
+        name: 'clanker-age-gate-fixture-does-not-exist',
+        version: '1.0.0',
+        resolved:
+          'https://registry.npmjs.org/clanker-age-gate-fixture-does-not-exist/-/clanker-age-gate-fixture-does-not-exist-1.0.0.tgz',
+      }),
+    )
+    expect(result.status).toBe(1)
+    expect(result.stdout).not.toContain('First-party, exempt')
+    expect(result.stderr).toContain('clanker-age-gate-fixture-does-not-exist')
+  })
+
+  it('does not exempt a first-party name served from another registry', () => {
+    const result = runDelta(
+      lockWith('node_modules/@equationalapplications/core-okf', {
+        version: '99.0.0',
+        resolved: 'https://evil.example.com/@equationalapplications/core-okf/-/core-okf-99.0.0.tgz',
+      }),
+    )
+    expect(result.stdout).not.toContain('First-party, exempt')
+    expect(result.stdout).toContain('Not age-checkable, skipped')
   })
 })
