@@ -41,6 +41,7 @@
 
 - **[Accessibility Guide](docs/accessibility.md)** — Conventions for `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`, live regions, and skip links.
 - **[Architecture Charts](docs/flowcharts/README.md)** — Auto-generated Mermaid dependency charts per module, plus C4 system context and container diagrams.
+- **[Web Root Landing](docs/superpowers/specs/2026-10-25-web-root-static-landing-design.md)** — Production `/` serves the generated static landing page (`landing/index.html`); in-app `/` routes to `/sign-in`.
 
 ## 🏗️ Tech Stack
 
