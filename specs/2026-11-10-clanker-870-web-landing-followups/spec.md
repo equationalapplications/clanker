@@ -1,6 +1,6 @@
 # Spec: clanker #870 — web/landing follow-ups from the #865 gauntlet
 
-**Date:** 2026-11-10 · **Status:** Draft (awaiting Kurt's spec approval) · **Issue:** #870 ·
+**Date:** 2026-11-10 · **Status:** Reviewed (Kurt, 2026-11-10 — Gemini review relayed via Discord msg 1569809843630645379) · **Issue:** #870 ·
 **Repo:** clanker · **Base:** `origin/staging` (`dc660d30`) · **Lane branch:** `chore/web-landing-followups`
 
 ## Goal
