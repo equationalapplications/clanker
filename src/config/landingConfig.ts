@@ -64,10 +64,11 @@ export const HERO = {
   },
   headline: 'Clanker AI',
   tagline: 'A personal AI assistant you design — chat, call, and share your own AI characters',
-  staticPrimaryCtaLabel: 'Try the App',
-  staticSecondaryCtaLabel: 'Explore Images in Chat',
+  appStoreCtaLabel: 'Download on the App Store',
+  playStoreCtaLabel: 'Get it on Google Play',
+  staticWebCtaLabel: 'Use it on the web',
   staticBottomCtaHeading: 'Ready to meet your character?',
-  staticBottomCtaLabel: 'Get started free',
+  staticBottomWebCtaLabel: 'Or start free on the web',
   signInHref: '/sign-in?redirect=/chat',
 } as const
 

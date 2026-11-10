@@ -81,6 +81,14 @@ jest.mock('~/components/AcceptTerms', () => ({
 }))
 
 let mockLastDobPickerProps: { onComplete: (isAdult: boolean) => void } | null = null
+let mockLastConsentPromptEnabled: boolean | null = null
+
+jest.mock('~/components/AnalyticsConsentPrompt', () => ({
+  AnalyticsConsentPrompt: ({ enabled }: { enabled: boolean }) => {
+    mockLastConsentPromptEnabled = enabled
+    return null
+  },
+}))
 
 jest.mock('~/components/ManualDobPicker', () => ({
   ManualDobPicker: (props: { onComplete: (isAdult: boolean) => void }) => {
@@ -170,6 +178,7 @@ describe('drawer terms gate', () => {
     mockLastAcceptTermsProps = null
     mockLastDobPickerProps = null
     mockLastDrawerScreenOptions = {}
+    mockLastConsentPromptEnabled = null
     currentSnapshot = null
   })
 
@@ -279,6 +288,8 @@ describe('drawer terms gate', () => {
 
     // Verify screenOptions apply hidden styles to gated routes
     expect(mockDrawerScreenOptions).toHaveBeenCalled()
+    // The analytics ask waits until the Terms gate is passed.
+    expect(mockLastConsentPromptEnabled).toBe(false)
   })
 
   it('keeps drawer navigation visible while resting in declined (issue #810)', () => {
@@ -304,6 +315,7 @@ describe('drawer terms gate', () => {
     for (const name of ['(tabs)', 'profile', 'settings', 'subscribe']) {
       expect(mockLastDrawerScreenOptions[name]).toBeUndefined()
     }
+    expect(mockLastConsentPromptEnabled).toBe(true)
   })
 })
 

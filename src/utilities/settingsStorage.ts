@@ -18,6 +18,17 @@ export function readBoolSync(key: SettingKey, defaultValue: boolean): boolean {
   }
 }
 
+/** True once the user has made an explicit choice for `key` (cleared values count as unset). */
+export function hasStoredSetting(key: SettingKey): boolean {
+  try {
+    const raw = Storage.getItemSync(settingKey(key))
+    return raw !== null && raw !== ''
+  } catch {
+    // Unreadable storage: treat as decided so a broken store cannot re-prompt every launch.
+    return true
+  }
+}
+
 export function clearSettings(): void {
   for (const key of SETTING_KEYS) {
     try {

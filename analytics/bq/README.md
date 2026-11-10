@@ -33,3 +33,17 @@ server-sent `purchase`, native revenue double-counts. After the first native tes
 
 If `in_app_purchase` is present: prefer disabling the platform IAP auto-collection flag;
 failing that, exclude `in_app_purchase` from these views and document why here.
+
+## Coverage caveats (read before trusting user counts)
+
+- **Native is opt-in.** `analytics_auto_collection_enabled` is `false` and collection follows
+  `setting:analytics`. Until Nov 2026 the only switch lived in Settings (default off), so
+  almost no native installs reported; GA4 users were ~97% web. Since then
+  `AnalyticsConsentPrompt` asks once after Terms, so native coverage = opt-in rate.
+- **Web is consent-gated** by the cookie banner, and the static landing page at `/` carries
+  no tag at all. Landing-page traffic and store-button clicks are not in GA4.
+- **Installs come from the stores.** Use App Store Connect and Play Console for installs.
+  Landing-page store links carry a Play `referrer` (`utm_medium=landing`,
+  `utm_campaign=landing_hero|landing_bottom`) that shows in Play Console acquisition reports.
+  App Store campaign links need the provider token: set `IOS_PROVIDER_TOKEN` in
+  `src/config/siteConfig.js`.
