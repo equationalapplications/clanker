@@ -2,7 +2,10 @@ name: Dependency release age
 
 # Policy: a PR's package-lock.json delta vs the base branch must contain no
 # registry version published in the last 14 days, to limit exposure to
-# poisoned upstream releases. A PR whose delta is empty (no new or changed
+# poisoned upstream releases — except packages under our own scope
+# (@equationalapplications/*) resolved from the npm registry, which skip the
+# cooldown but are still existence-checked (aliases placed under the scope
+# remain age-checked). A PR whose delta is empty (no new or changed
 # packages) passes without a cooldown; whole-lockfile sweeps stay available
 # as manual `workflow_dispatch` audits. Runs before any install, so a
 # too-new package's install scripts never execute in CI.
