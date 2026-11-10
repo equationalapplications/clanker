@@ -63,6 +63,9 @@ const ISOLATED_GIT_ENV: NodeJS.ProcessEnv = { ...process.env }
 for (const key of Object.keys(ISOLATED_GIT_ENV)) {
   if (key.startsWith('GIT_')) delete ISOLATED_GIT_ENV[key]
 }
+// The checker reads its default --days from this; an ambient value would
+// shift the cutoff the fixtures' publish times are built around.
+delete ISOLATED_GIT_ENV.MIN_RELEASE_AGE_DAYS
 ISOLATED_GIT_ENV.GIT_CONFIG_GLOBAL = '/dev/null'
 ISOLATED_GIT_ENV.GIT_CONFIG_SYSTEM = '/dev/null'
 
@@ -153,6 +156,18 @@ describe('check-release-age fail-closed on unreadable lockfiles', () => {
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('HEAD:lock.json')
       expect(result.stderr).toContain('no "packages" entries')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('exits 2 when --registry has no URL', async () => {
+    const dir = makeTempDir()
+    try {
+      fs.writeFileSync(path.join(dir, 'lock.json'), VALID_LOCK)
+      const result = await runScript(['--lockfile', 'lock.json', '--registry'], dir)
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('--registry requires a URL')
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }

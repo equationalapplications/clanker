@@ -47,6 +47,10 @@ if (baseFlag >= 0 && !baseRef) {
 }
 const cutoff = new Date(Date.now() - minDays * 24 * 60 * 60 * 1000)
 const registryArg = arg("--registry", "https://registry.npmjs.org/")
+if (!registryArg || registryArg.startsWith("--")) {
+  console.error("--registry requires a URL (e.g. --registry https://registry.npmjs.org/)")
+  process.exit(2)
+}
 const REGISTRY = registryArg.endsWith("/") ? registryArg : `${registryArg}/`
 const FIRST_PARTY_SCOPES = ["@equationalapplications/"]
 const isFirstParty = (name, resolved) =>
@@ -198,26 +202,25 @@ async function worker() {
         failures.push(`${name}: empty or invalid registry response`)
       continue
     }
-    for (const version of wanted.get(name) ?? []) {
+    // Publish date of name@version, or undefined after recording a failure.
+    const publishedAt = (version) => {
       const published = doc.time?.[version]
       if (!published) failures.push(`${name}@${version}: no publish time in registry`)
-      else {
-        const publishedAt = new Date(published)
-        if (Number.isNaN(publishedAt.getTime()))
-          failures.push(`${name}@${version}: unparsable publish time in registry`)
-        else if (publishedAt > cutoff)
-          violations.push(`${name}@${version} published ${published.slice(0, 10)}`)
-      }
+      else if (Number.isNaN(new Date(published).getTime()))
+        failures.push(`${name}@${version}: unparsable publish time in registry`)
+      else return new Date(published)
+      return undefined
+    }
+    for (const version of wanted.get(name) ?? []) {
+      const at = publishedAt(version)
+      if (at && at > cutoff)
+        violations.push(`${name}@${version} published ${at.toISOString().slice(0, 10)}`)
     }
     // Exempt entries skip the cooldown but must still exist: fail closed on a
     // first-party version that was never published (typo, failed release,
     // lockfile drift).
     for (const version of exemptWanted.get(name) ?? []) {
-      const published = doc.time?.[version]
-      if (!published) failures.push(`${name}@${version}: no publish time in registry`)
-      else if (Number.isNaN(new Date(published).getTime()))
-        failures.push(`${name}@${version}: unparsable publish time in registry`)
-      else verifiedExempt.add(`${name}@${version}`)
+      if (publishedAt(version)) verifiedExempt.add(`${name}@${version}`)
     }
   }
 }
