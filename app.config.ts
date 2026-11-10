@@ -102,6 +102,34 @@ const getGoogleServiceInfoPlist = () => {
   return undefined
 }
 
+// google-signin's bare plugin entry takes the iOS URL scheme from the plist's
+// REVERSED_CLIENT_ID, and Expo silently adds no scheme when that key is
+// missing. Google Sign-In then crashes at sign-in, as it also does when
+// EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (passed to GoogleSignin.configure) is not
+// the plist's CLIENT_ID. Fail the config instead of shipping that build.
+const plistString = (contents: string, key: string): string | undefined =>
+  new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`).exec(contents)?.[1]?.trim()
+
+const verifyGoogleSignInPlist = (plistPath: string | undefined): string | undefined => {
+  if (!plistPath || !fs.existsSync(plistPath)) return plistPath
+  const contents = fs.readFileSync(plistPath, 'utf8')
+  if (!plistString(contents, 'REVERSED_CLIENT_ID')) {
+    throw new Error(
+      `${plistPath} has no REVERSED_CLIENT_ID, so no iOS Google Sign-In URL scheme would be ` +
+        'registered. Download a GoogleService-Info.plist with an iOS OAuth client.',
+    )
+  }
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+  const plistClientId = plistString(contents, 'CLIENT_ID')
+  if (iosClientId && iosClientId !== plistClientId) {
+    throw new Error(
+      `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID does not match CLIENT_ID in ${plistPath}; ` +
+        'Google Sign-In would crash at sign-in.',
+    )
+  }
+  return plistPath
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   scheme: 'com.equationalapplications.clanker',
@@ -130,7 +158,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     bundleIdentifier: 'com.equationalapplications.clanker',
     deploymentTarget: '16.4',
-    googleServicesFile: getGoogleServiceInfoPlist(),
+    googleServicesFile: verifyGoogleSignInPlist(getGoogleServiceInfoPlist()),
     supportsTablet: true,
     usesAppleSignIn: true,
     infoPlist: {
