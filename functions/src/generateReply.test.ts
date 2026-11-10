@@ -116,6 +116,11 @@ test('toGenAITool maps a google_search entry to the camelCase googleSearch field
   assert.deepEqual(result, { googleSearch: {} })
 })
 
+test('toGenAITool also maps a camelCase googleSearch entry (expo-llm-wiki#354)', () => {
+  const result = toGenAITool({ googleSearch: {} } as never)
+  assert.deepEqual(result, { googleSearch: {} })
+})
+
 test('toGenAITool passes functionDeclarations entries through', () => {
   const functionDeclarations = [
     { name: 'get_current_time', description: 'Returns the current time.' },
