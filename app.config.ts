@@ -230,15 +230,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           enableShrinkResourcesInReleaseBuilds: true,
         },
         ios: {
-          useFrameworks: 'static',
-          forceStaticLinking: [
-            'RNFBApp',
-            'RNFBAuth',
-            'RNFBCrashlytics',
-            'RNFBFunctions',
-            'RNFBAppCheck',
-            'RNFBAnalytics',
-          ],
+          // RNFB 27 (Firebase Apple SDK 13+) is distributed only through Swift
+          // Package Manager, which requires dynamic framework linkage — the
+          // old static-linkage + CocoaPods setup (RNFB 26 era, with
+          // ios.disableSPM) was removed upstream and now hard-errors in the
+          // plugin. See https://rnfirebase.io/ios-spm.
+          useFrameworks: 'dynamic',
         },
       },
     ],
@@ -248,16 +245,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-asset',
     'expo-apple-authentication',
-    // RNFB v26 resolves firebase-ios-sdk via SPM by default, which requires dynamic
-    // framework linkage; this project pins static linkage (expo-build-properties
-    // above), so keep Firebase on CocoaPods to avoid duplicate-symbol link errors.
-    ['@react-native-firebase/app', { ios: { disableSPM: true } }],
-    // RNFB's plugin can't patch the SDK 58 AppDelegate (see plugins/ file for rationale)
-    './plugins/withFirebaseAppDelegateConfigure',
+    // RNFB 27 resolves firebase-ios-sdk via SPM only (Firebase Apple SDK 13+
+    // dropped CocoaPods); the plugin no longer accepts ios.disableSPM and
+    // requires dynamic framework linkage (set in expo-build-properties above).
+    // RNFB 27's plugin also handles Expo SDK 58's scene-based AppDelegate
+    // (inserts FirebaseApp.configure() itself), so the #889 stopgap plugin
+    // (plugins/withFirebaseAppDelegateConfigure) is removed — #890's exit
+    // criterion; verified in the generated AppDelegate during prebuild.
+    '@react-native-firebase/app',
     '@react-native-firebase/auth',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/app-check',
-    // Analytics autolinks via RNFBAnalytics (forceStaticLinking); no separate Expo plugin.
+    // Analytics autolinks via RNFBAnalytics; no separate Expo plugin.
     'expo-font',
     'expo-image',
     'expo-splash-screen',
@@ -269,12 +268,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow Clanker to access your camera to take a photo to send in chat.',
       },
     ],
-    [
-      '@react-native-google-signin/google-signin',
-      {
-        iosUrlScheme: process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME,
-      },
-    ],
+    // Bare string on purpose — never turn this into an [name, options] entry.
+    // google-signin 16.2+ treats ANY truthy options object (even
+    // {iosUrlScheme: <unset env var>}) as "without Firebase config plugin"
+    // and hard-errors on the missing scheme. A bare entry passes undefined,
+    // selecting the Firebase path: the URL scheme comes from
+    // GoogleService-Info.plist (REVERSED_CLIENT_ID). Guarded by
+    // __tests__/googleSignInPluginEntry.test.ts.
+    '@react-native-google-signin/google-signin',
     [
       'expo-notifications',
       {
