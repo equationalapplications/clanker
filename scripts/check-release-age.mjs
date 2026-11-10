@@ -10,9 +10,21 @@
 //   (no --base)       Whole-lockfile audit of every registry package — the
 //                     manual `workflow_dispatch` sweep.
 //
-// Usage: node scripts/check-release-age.mjs [--base origin/main] [--days 14] [--lockfile package-lock.json]
+// Usage:
+//   node scripts/check-release-age.mjs [--base origin/main] [--days 14]
+//     [--lockfile package-lock.json] [--registry https://registry.npmjs.org/]
 // Uses only Node built-ins so it can run before `npm ci`.
 // To regenerate a compliant lockfile: npm install --before=<ISO date MIN_DAYS ago>
+//
+// First-party exemption: packages we publish ourselves (FIRST_PARTY_SCOPES) are
+// not held to the cooldown, which targets third-party upstream poisoning. An
+// entry is exempt only when its real package name is in the scope AND its
+// tarball resolves from that scope on the npm registry, so an npm alias placed
+// under our scope (e.g. "@equationalapplications/x": "npm:other@1") is still
+// age-checked. Exempt entries skip the cooldown but are still existence-checked
+// against the registry: a first-party version with no publish time (typo,
+// failed release, lockfile drift) fails closed. Exempt entries that verify are
+// listed in the output.
 import fs from "node:fs"
 import { execFileSync } from "node:child_process"
 
@@ -34,7 +46,13 @@ if (baseFlag >= 0 && !baseRef) {
   process.exit(2)
 }
 const cutoff = new Date(Date.now() - minDays * 24 * 60 * 60 * 1000)
-const REGISTRY = "https://registry.npmjs.org/"
+const registryArg = arg("--registry", "https://registry.npmjs.org/")
+const REGISTRY = registryArg.endsWith("/") ? registryArg : `${registryArg}/`
+const FIRST_PARTY_SCOPES = ["@equationalapplications/"]
+const isFirstParty = (name, resolved) =>
+  FIRST_PARTY_SCOPES.some(
+    (scope) => name.startsWith(scope) && (resolved ?? "").startsWith(`${REGISTRY}${scope}`),
+  )
 
 // path -> meta for every packages entry, including link:/file:/bundled ones
 // (the delta comparison must see them or a changed non-registry entry would
@@ -50,9 +68,12 @@ function metaMap(lock) {
 // Registry-checkable subset of the given paths: name -> Set(version). The
 // root entry and link:/file:/bundled/non-registry entries have no own
 // tarball to age-check and are reported as skipped instead of crashing.
+// First-party entries are returned separately as exempt versions to
+// existence-check (not age-check).
 function wantedFrom(metas, paths) {
   const wanted = new Map()
   const skipped = []
+  const exemptWanted = new Map()
   for (const path of paths) {
     const meta = metas.get(path)
     if (!meta || meta.link || !meta.version || meta.inBundle) {
@@ -64,10 +85,15 @@ function wantedFrom(metas, paths) {
       continue
     }
     const name = meta.name ?? path.slice(path.lastIndexOf("node_modules/") + "node_modules/".length)
+    if (isFirstParty(name, meta.resolved)) {
+      if (!exemptWanted.has(name)) exemptWanted.set(name, new Set())
+      exemptWanted.get(name).add(meta.version)
+      continue
+    }
     if (!wanted.has(name)) wanted.set(name, new Set())
     wanted.get(name).add(meta.version)
   }
-  return { wanted, skipped }
+  return { wanted, skipped, exemptWanted }
 }
 
 const lock = JSON.parse(fs.readFileSync(lockfile, "utf8"))
@@ -82,6 +108,7 @@ if (currentMetas.size === 0) {
   process.exit(2)
 }
 let wanted
+let exemptWanted = new Map()
 let inherited = 0
 const skipped = []
 let scope
@@ -120,7 +147,8 @@ if (baseRef) {
     if (
       before &&
       (meta.version ?? "") === (before.version ?? "") &&
-      (meta.resolved ?? "") === (before.resolved ?? "")
+      (meta.resolved ?? "") === (before.resolved ?? "") &&
+      (meta.integrity ?? "") === (before.integrity ?? "")
     )
       inherited++
     else changedPaths.push(path)
@@ -135,16 +163,20 @@ if (baseRef) {
   const delta = wantedFrom(currentMetas, changedPaths)
   wanted = delta.wanted
   skipped.push(...delta.skipped)
+  exemptWanted = delta.exemptWanted
   scope = `delta vs ${baseRef}`
 } else {
   const all = wantedFrom(currentMetas, [...currentMetas.keys()])
   wanted = all.wanted
+  skipped.push(...all.skipped)
+  exemptWanted = all.exemptWanted
   scope = "whole lockfile"
 }
 
 const violations = []
 const failures = []
-const names = [...wanted.keys()]
+const verifiedExempt = new Set()
+const names = [...new Set([...wanted.keys(), ...exemptWanted.keys()])]
 let next = 0
 async function worker() {
   while (next < names.length) {
@@ -166,7 +198,7 @@ async function worker() {
         failures.push(`${name}: empty or invalid registry response`)
       continue
     }
-    for (const version of wanted.get(name)) {
+    for (const version of wanted.get(name) ?? []) {
       const published = doc.time?.[version]
       if (!published) failures.push(`${name}@${version}: no publish time in registry`)
       else {
@@ -177,6 +209,16 @@ async function worker() {
           violations.push(`${name}@${version} published ${published.slice(0, 10)}`)
       }
     }
+    // Exempt entries skip the cooldown but must still exist: fail closed on a
+    // first-party version that was never published (typo, failed release,
+    // lockfile drift).
+    for (const version of exemptWanted.get(name) ?? []) {
+      const published = doc.time?.[version]
+      if (!published) failures.push(`${name}@${version}: no publish time in registry`)
+      else if (Number.isNaN(new Date(published).getTime()))
+        failures.push(`${name}@${version}: unparsable publish time in registry`)
+      else verifiedExempt.add(`${name}@${version}`)
+    }
   }
 }
 await Promise.all(Array.from({ length: 16 }, worker))
@@ -184,20 +226,24 @@ await Promise.all(Array.from({ length: 16 }, worker))
 if (baseRef) {
   const versionCount = [...wanted.values()].reduce((n, s) => n + s.size, 0)
   console.log(
-    `Checked ${versionCount} changed package version(s) across ${names.length} packages (${scope}) against a ${minDays}-day minimum release age (cutoff ${cutoff.toISOString().slice(0, 10)}).`,
+    `Checked ${versionCount} changed package version(s) across ${wanted.size} packages (${scope}) against a ${minDays}-day minimum release age (cutoff ${cutoff.toISOString().slice(0, 10)}).`,
   )
-  if (skipped.length)
-    console.log(
-      `Not age-checkable, skipped (link:/file:/bundled/non-registry entries): ${[...new Set(skipped)].sort().join(", ")}`,
-    )
   console.log(
     `${inherited} packages inherited unchanged from ${baseRef} are not re-audited in delta mode (workflow_dispatch runs the whole-lockfile audit).`,
   )
 } else {
   console.log(
-    `Checked ${names.length} packages against a ${minDays}-day minimum release age (cutoff ${cutoff.toISOString().slice(0, 10)}).`,
+    `Checked ${wanted.size} packages against a ${minDays}-day minimum release age (cutoff ${cutoff.toISOString().slice(0, 10)}).`,
   )
 }
+if (skipped.length)
+  console.log(
+    `Not age-checkable, skipped (link:/file:/bundled/non-registry entries): ${[...new Set(skipped)].sort().join(", ")}`,
+  )
+if (verifiedExempt.size)
+  console.log(
+    `First-party, exempt from the cooldown (${FIRST_PARTY_SCOPES.join(", ")}): ${[...verifiedExempt].sort().join(", ")}`,
+  )
 if (failures.length) console.error(`Could not verify:\n  ${failures.sort().join("\n  ")}`)
 if (violations.length) {
   console.error(`Too new for policy:\n  ${violations.sort().join("\n  ")}`)
