@@ -21,7 +21,7 @@ const getBuildProperties = (): BuildPropertiesProps => {
   return entry[1] as BuildPropertiesProps
 }
 
-describe('app.config expo-build-properties (Android R8)', () => {
+describe('app.config expo-build-properties (Android R8, iOS linkage)', () => {
   it('enables R8 minification and resource shrinking for release builds', () => {
     const { android } = getBuildProperties()
     expect(android?.enableMinifyInReleaseBuilds).toBe(true)
