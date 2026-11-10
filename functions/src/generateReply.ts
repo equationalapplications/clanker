@@ -289,7 +289,10 @@ function isIdentityConflictError(error: unknown): boolean {
 let textGenerator: GenerateTextFn | undefined
 
 export function toGenAITool(entry: GeminiToolEntry): Tool {
-  if ('google_search' in entry) {
+  // core-llm-tools 8.0.2 keys the built-in entry `google_search`; upstream
+  // expo-llm-wiki#354 renames it to `googleSearch`. Accept both so the next
+  // release can't silently drop the fallback into 'Unsupported tool entry'.
+  if ('google_search' in entry || 'googleSearch' in entry) {
     return { googleSearch: {} }
   }
   if ('functionDeclarations' in entry) {
