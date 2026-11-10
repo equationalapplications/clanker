@@ -39,16 +39,12 @@ describe('app.config expo-build-properties (Android R8)', () => {
     }
   })
 
-  it('keeps the iOS static-linkage settings unchanged', () => {
+  it('uses dynamic iOS framework linkage for RNFB 27 (SPM-only Firebase Apple SDK 13+)', () => {
     const { ios } = getBuildProperties()
-    expect(ios?.useFrameworks).toBe('static')
-    expect(ios?.forceStaticLinking).toEqual([
-      'RNFBApp',
-      'RNFBAuth',
-      'RNFBCrashlytics',
-      'RNFBFunctions',
-      'RNFBAppCheck',
-      'RNFBAnalytics',
-    ])
+    // RNFB 27 (Firebase Apple SDK 13+) is distributed only through Swift
+    // Package Manager, which requires dynamic framework linkage; the RNFB 26
+    // era static-linkage + forceStaticLinking setup is gone (#890).
+    expect(ios?.useFrameworks).toBe('dynamic')
+    expect(ios).not.toHaveProperty('forceStaticLinking')
   })
 })
