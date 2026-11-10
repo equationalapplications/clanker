@@ -268,12 +268,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'Allow Clanker to access your camera to take a photo to send in chat.',
       },
     ],
-    // google-signin via the local compat wrapper: 16.2+ treats ANY truthy
-    // options object (even {iosUrlScheme: <unset env var>}) as "without
-    // Firebase config plugin" and hard-errors on the missing scheme. The
-    // wrapper forces the Firebase path, so the URL scheme comes from
-    // GoogleService-Info.plist (REVERSED_CLIENT_ID) instead of env vars.
-    './plugins/withGoogleSignInCompat',
+    // Bare string on purpose — never turn this into an [name, options] entry.
+    // google-signin 16.2+ treats ANY truthy options object (even
+    // {iosUrlScheme: <unset env var>}) as "without Firebase config plugin"
+    // and hard-errors on the missing scheme. A bare entry passes undefined,
+    // selecting the Firebase path: the URL scheme comes from
+    // GoogleService-Info.plist (REVERSED_CLIENT_ID). Guarded by
+    // __tests__/googleSignInPluginEntry.test.ts.
+    '@react-native-google-signin/google-signin',
     [
       'expo-notifications',
       {
