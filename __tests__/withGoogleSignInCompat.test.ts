@@ -6,12 +6,12 @@ import type { ExpoConfig } from 'expo/config'
 
 import withGoogleSignInCompat from '../plugins/withGoogleSignInCompat'
 
+import googleSignInPluginDefault from '@react-native-google-signin/google-signin/app.plugin.js'
+
 jest.mock('@react-native-google-signin/google-signin/app.plugin.js', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-
-import googleSignInPluginDefault from '@react-native-google-signin/google-signin/app.plugin.js'
 
 const pluginSpy = googleSignInPluginDefault as unknown as jest.Mock
 
@@ -52,7 +52,6 @@ describe('withGoogleSignInCompat', () => {
 // wrapper defends against. If google-signin ever changes its options
 // discrimination, these fail first with a clear pointer.
 describe('google-signin plugin root (real module)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const realPlugin = jest.requireActual('@react-native-google-signin/google-signin/app.plugin.js')
     .default as ConfigPlugin<Record<string, string> | undefined>
 
@@ -71,7 +70,7 @@ describe('app.config google-signin wiring', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const appConfig = require('../app.config').default as (ctx: {
     config: Record<string, unknown>
-  }) => { plugins?: Array<string | [string, unknown?]> }
+  }) => { plugins?: (string | [string, unknown?])[] }
 
   const plugins = appConfig({ config: {} }).plugins ?? []
 
