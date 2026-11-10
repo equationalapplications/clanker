@@ -39,10 +39,10 @@
     "update": "npm run deploy-hosting && npm run ota"
   },
   "dependencies": {
-    "@equationalapplications/core-llm-tools": "^7.15.2",
-    "@equationalapplications/core-llm-wiki": "^7.15.2",
-    "@equationalapplications/expo-llm-wiki": "^7.15.2",
-    "@equationalapplications/schema-org-llm-wiki": "^7.15.2",
+    "@equationalapplications/core-llm-tools": "^8.0.2",
+    "@equationalapplications/core-llm-wiki": "^8.0.2",
+    "@equationalapplications/expo-llm-wiki": "^8.0.2",
+    "@equationalapplications/schema-org-llm-wiki": "^8.0.2",
     "@expo/metro-runtime": "~58.0.15",
     "@expo/vector-icons": "^15.1.1",
     "@google/genai": "^2.21.0",
