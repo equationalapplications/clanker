@@ -56,8 +56,8 @@ and `functions`, without changing how character memory behaves for users.
 
 8.0.2 was published 2026-11-10, so `scripts/check-release-age.mjs` flags the eight
 first-party lock entries (no third-party entry changes). Per the maintainer, first-party
-`@equationalapplications/*` packages are exempt from the 14-day window; the script does not
-encode that exemption today, so the CI step reports them.
+`@equationalapplications/*` packages are exempt from the 14-day window; #910 encodes that
+exemption in the script (registry-resolved, existence-checked, aliases still age-checked).
 
 ## Left to the builder
 
