@@ -2,11 +2,18 @@
  * @jest-environment node
  */
 import type { ConfigPlugin } from '@expo/config-plugins'
-import type { ExpoConfig } from 'expo/config'
+import type { ConfigContext, ExpoConfig } from 'expo/config'
+
+import appConfig from '../app.config'
 
 const GOOGLE_SIGNIN = '@react-native-google-signin/google-signin'
 
-const bareConfig = { _internal: {} } as unknown as ExpoConfig
+// Fresh config per call: the plugin root is wrapped in createRunOncePlugin, which
+// records itself in config._internal.pluginHistory and silently no-ops on any
+// later call with the same config — a shared object would make the second
+// assertion pass without the plugin body ever running. projectRoot is always
+// set by expo-cli; withStaticPlugin asserts on it.
+const bareConfig = () => ({ _internal: { projectRoot: process.cwd() } }) as unknown as ExpoConfig
 
 // Contract check against the REAL installed plugin root. Expo invokes a bare
 // string plugin entry with `undefined` options; google-signin 16.2+ selects
@@ -20,22 +27,20 @@ describe('google-signin plugin root (real module)', () => {
 
   it('throws on a truthy options object without iosUrlScheme (the trap a bare entry avoids)', () => {
     expect(() =>
-      realPlugin(bareConfig, { iosUrlScheme: undefined } as unknown as Record<string, string>),
+      realPlugin(bareConfig(), { iosUrlScheme: undefined } as unknown as Record<string, string>),
     ).toThrow(/iosUrlScheme/)
   })
 
   it('accepts undefined options (Firebase plist path)', () => {
-    expect(() => realPlugin(bareConfig, undefined)).not.toThrow()
+    const config = bareConfig()
+    expect(() => realPlugin(config, undefined)).not.toThrow()
+    // Prove the plugin body actually ran (not skipped by run-once).
+    expect(config._internal?.pluginHistory?.[GOOGLE_SIGNIN]).toBeDefined()
   })
 })
 
 describe('app.config google-signin wiring', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const appConfig = require('../app.config').default as (ctx: {
-    config: Record<string, unknown>
-  }) => { plugins?: (string | [string, unknown?])[] }
-
-  const plugins = appConfig({ config: {} }).plugins ?? []
+  const plugins = appConfig({ config: {} } as ConfigContext).plugins ?? []
 
   it('uses a bare string entry, never an [name, options] array', () => {
     expect(plugins).toContain(GOOGLE_SIGNIN)
