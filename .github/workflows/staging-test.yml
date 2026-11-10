@@ -101,6 +101,9 @@ jobs:
       - name: 🧪 Test with Jest
         run: npm run test
 
+      - name: 🧾 Check generated pages up-to-date
+        run: npm run check:generated
+
       - name: 📦 Install cloud-agent dependencies
         run: cd cloud-agent && npm ci
 
