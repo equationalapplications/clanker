@@ -30,9 +30,9 @@ const ANDROID_PACKAGE = 'com.equationalapplications.clanker'
 
 // Install-source attribution. Google Play passes `referrer` to the Play
 // Console acquisition reports. App Store Connect only attributes `ct`
-// (campaign) when the provider token `pt` is present; leave
-// IOS_PROVIDER_TOKEN empty to send plain store links.
-const IOS_PROVIDER_TOKEN = ''
+// (campaign) when the provider token `pt` is present (App Store Connect >
+// Analytics > Campaigns > Generate a Campaign Link). Empty sends plain links.
+const IOS_PROVIDER_TOKEN = '126212881'
 
 function appStoreUrl(campaign) {
   const base = `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`

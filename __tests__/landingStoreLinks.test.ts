@@ -25,10 +25,20 @@ const decode = (s: string) => s.replace(/&amp;/g, '&')
 describe('landing page store links', () => {
   const html = fs.readFileSync(LANDING_FILE, 'utf8')
 
-  it('links the App Store listing from the hero and the bottom CTA', () => {
-    const matches = html.match(/data-store="app_store"/g) ?? []
-    expect(matches).toHaveLength(2)
-    expect(html).toContain(`https://apps.apple.com/app/id${siteConfig.IOS_APP_STORE_ID}`)
+  it('links the App Store listing with a per-placement campaign', () => {
+    const hrefs = [...html.matchAll(/href="([^"]+)" data-store="app_store"/g)].map((m) =>
+      decode(m[1]),
+    )
+    expect(hrefs).toHaveLength(2)
+    const campaigns = hrefs.map((href) => {
+      const url = new URL(href)
+      expect(url.origin + url.pathname).toBe(
+        `https://apps.apple.com/app/id${siteConfig.IOS_APP_STORE_ID}`,
+      )
+      expect(url.searchParams.get('pt')).toBe('126212881')
+      return url.searchParams.get('ct')
+    })
+    expect(campaigns).toEqual(['landing_hero', 'landing_bottom'])
   })
 
   it('links Google Play with a per-placement install referrer', () => {
@@ -61,8 +71,11 @@ describe('landing page store links', () => {
 })
 
 describe('store URL builders', () => {
-  it('sends a plain App Store link while no provider token is configured', () => {
+  it('builds an App Store campaign link and a plain link without a campaign', () => {
     expect(siteConfig.appStoreUrl('landing_hero')).toBe(
+      `https://apps.apple.com/app/id${siteConfig.IOS_APP_STORE_ID}?pt=126212881&ct=landing_hero&mt=8`,
+    )
+    expect(siteConfig.appStoreUrl()).toBe(
       `https://apps.apple.com/app/id${siteConfig.IOS_APP_STORE_ID}`,
     )
   })

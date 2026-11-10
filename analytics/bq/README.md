@@ -45,5 +45,5 @@ failing that, exclude `in_app_purchase` from these views and document why here.
 - **Installs come from the stores.** Use App Store Connect and Play Console for installs.
   Landing-page store links carry a Play `referrer` (`utm_medium=landing`,
   `utm_campaign=landing_hero|landing_bottom`) that shows in Play Console acquisition reports.
-  App Store campaign links need the provider token: set `IOS_PROVIDER_TOKEN` in
-  `src/config/siteConfig.js`.
+  App Store links carry `pt`/`ct` (same campaign names), shown under App Analytics >
+  Acquisition > Campaigns; the provider token lives in `src/config/siteConfig.js`.
