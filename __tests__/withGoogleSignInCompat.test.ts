@@ -53,9 +53,8 @@ describe('withGoogleSignInCompat', () => {
 // discrimination, these fail first with a clear pointer.
 describe('google-signin plugin root (real module)', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const realPlugin = jest.requireActual(
-    '@react-native-google-signin/google-signin/app.plugin.js',
-  ).default as ConfigPlugin<Record<string, string> | undefined>
+  const realPlugin = jest.requireActual('@react-native-google-signin/google-signin/app.plugin.js')
+    .default as ConfigPlugin<Record<string, string> | undefined>
 
   it('throws on a truthy options object without iosUrlScheme (the 16.2+ trap the wrapper avoids)', () => {
     expect(() =>
@@ -80,8 +79,7 @@ describe('app.config google-signin wiring', () => {
     expect(plugins).toContain('./plugins/withGoogleSignInCompat')
     expect(
       plugins.some(
-        (entry) =>
-          Array.isArray(entry) && entry[0] === '@react-native-google-signin/google-signin',
+        (entry) => Array.isArray(entry) && entry[0] === '@react-native-google-signin/google-signin',
       ),
     ).toBe(false)
   })

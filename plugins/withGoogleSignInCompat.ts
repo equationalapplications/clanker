@@ -12,7 +12,6 @@ import type { ConfigPlugin } from '@expo/config-plugins'
 
 import withGoogleSignInRoot from '@react-native-google-signin/google-signin/app.plugin.js'
 
-const withGoogleSignInCompat: ConfigPlugin = (config) =>
-  withGoogleSignInRoot(config, undefined)
+const withGoogleSignInCompat: ConfigPlugin = (config) => withGoogleSignInRoot(config, undefined)
 
 export default withGoogleSignInCompat
