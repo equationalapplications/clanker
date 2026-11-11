@@ -29,3 +29,7 @@
       no jsdom suite exists, with guard tests), `3045ce4d` (dependabot group excludes
       `jest-expo`), `1ae3e60f` (`test` / `test:watch` forward the first CLI arg). Gates
       re-run: 180/180 suites, 1729/1729 tests; CI green at `1ae3e60f`.
+- [x] Second review — `f705de34`: `@jest-environment jest-environment-jsdom` classifies as dom
+      (Jest resolves the long name to jsdom); guard suite now loads the real `jest.config.js` and
+      asserts every jsdom suite is in dom only and a plain suite in native only (mutation check:
+      removing the native ignores fails it). 180/180 suites, 1733/1733 tests.
