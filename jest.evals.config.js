@@ -1,8 +1,9 @@
-const config = require('./package.json').jest
+const { TRANSFORM_IGNORE_PATTERNS } = require('./jest.shared.config')
+
 module.exports = {
-  preset: config.preset,
-  setupFiles: config.setupFiles,
-  transformIgnorePatterns: config.transformIgnorePatterns,
+  preset: 'jest-expo',
+  setupFiles: ['<rootDir>/jest.setup.early.js', '<rootDir>/jest.setup.js'],
+  transformIgnorePatterns: TRANSFORM_IGNORE_PATTERNS,
   testPathIgnorePatterns: [
     '/node_modules/',
     '<rootDir>/functions/',

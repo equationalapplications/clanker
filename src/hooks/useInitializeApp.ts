@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import { initializeGoogleSignIn } from '~/auth/googleSignin'
+import { getCurrentUser } from '~/config/firebaseConfig'
 import { initializeRevenueCat } from '~/config/revenueCatConfig'
 import { initializeAnalytics } from '~/services/analyticsService'
 import { initializeCrashlytics } from '~/services/crashlyticsService'
@@ -17,16 +18,19 @@ import { reportError } from '~/utilities/reportError'
 export function useInitializeApp() {
   useEffect(() => {
     const initializeAppServices = async () => {
+      // Consent is bound to the account that gave it; the restored user is known synchronously.
+      const uid = getCurrentUser()?.uid ?? null
+
       // --- Crashlytics Initialization ---
       try {
-        await initializeCrashlytics()
+        await initializeCrashlytics(uid)
       } catch (error) {
         reportError(error, 'initializeCrashlytics')
       }
 
       // --- Analytics Initialization (native settings toggle; web uses cookie consent) ---
       try {
-        await initializeAnalytics()
+        await initializeAnalytics(uid)
       } catch (error) {
         reportError(error, 'initializeAnalytics')
       }

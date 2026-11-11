@@ -1,22 +1,19 @@
-import { Storage } from '~/utilities/kvStorage'
+import { isAnalyticsConsentActive } from '~/services/analyticsConsent'
 import { logCrashlyticsError } from '~/services/crashlyticsService'
 
-const ANALYTICS_KEY = 'setting:analytics'
-
 /**
- * Report an error to the console and, if analytics is enabled, to Crashlytics.
+ * Report an error to the console and, if the signed-in account consented, to Crashlytics.
  * Safe to call from any context — does not require React or a hook.
  */
 export function reportError(error: unknown, context?: string): void {
   console.error(context ? `❌ [${context}]` : '❌', error)
 
   try {
-    const analyticsEnabled = Storage.getItemSync(ANALYTICS_KEY) === '1'
-    if (analyticsEnabled) {
+    if (isAnalyticsConsentActive()) {
       const err = error instanceof Error ? error : new Error(String(error))
       void logCrashlyticsError(err, context)
     }
   } catch {
-    // Storage read failed — silently skip Crashlytics reporting
+    // Never let reporting throw
   }
 }

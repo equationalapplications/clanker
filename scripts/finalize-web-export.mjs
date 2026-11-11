@@ -45,8 +45,10 @@ function isExpoShell(html) {
 }
 
 export function patchShell(html) {
-  if (!/<title>[^<]*<\/title>/.test(html)) fail('shell has no <title> to patch')
-  if (html.includes('name="robots"')) fail('shell already carries a robots meta')
+  if (!/<title>[^<]*<\/title>/.test(html))
+    throw new Error('shell has no <title> to patch')
+  if (html.includes('name="robots"'))
+    throw new Error('shell already carries a robots meta')
   return html.replace(
     /<title>[^<]*<\/title>/,
     `<title>${SHELL_TITLE}</title>\n` +
@@ -74,7 +76,13 @@ function main() {
     fail('landing/index.html does not canonicalize to the site root; regenerate it')
   }
 
-  fs.writeFileSync(SHELL_DEST, patchShell(shell))
+  let patchedShell
+  try {
+    patchedShell = patchShell(shell)
+  } catch (error) {
+    fail(error.message)
+  }
+  fs.writeFileSync(SHELL_DEST, patchedShell)
   fs.writeFileSync(LANDING_DEST, landing)
   console.log(`  ✓ dist/${APP_SHELL_FILE} (Expo shell, noindex)`)
   console.log('  ✓ dist/index.html (landing page)')

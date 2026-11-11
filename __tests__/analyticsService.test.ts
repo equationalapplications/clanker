@@ -19,8 +19,17 @@ jest.mock('@react-native-firebase/analytics', () => {
 jest.mock('~/utilities/kvStorage', () => ({
   Storage: {
     getItemSync: jest.fn().mockReturnValue(null),
+    setItemSync: jest.fn(),
   },
 }))
+
+function mockStoredConsent(value: string | null, owner: string | null) {
+  jest
+    .mocked(Storage.getItemSync)
+    .mockImplementation((key: string) =>
+      key === 'setting:analytics' ? value : key === 'setting:analyticsOwner' ? owner : null,
+    )
+}
 
 import {
   getAnalytics,
@@ -84,16 +93,29 @@ describe('analyticsService (native)', () => {
     expect(() => logEvent('x')).not.toThrow()
   })
 
-  it('initializeAnalytics reads persisted setting and enables collection when set', async () => {
-    jest.mocked(Storage.getItemSync).mockReturnValue('1')
-    await initializeAnalytics()
+  it('initializeAnalytics enables collection when the signed-in uid owns a stored grant', async () => {
+    mockStoredConsent('1', 'uid-A')
+    await initializeAnalytics('uid-A')
     expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, true)
   })
 
   it('initializeAnalytics disables collection when setting is off', async () => {
-    jest.mocked(Storage.getItemSync).mockReturnValue('0')
-    await initializeAnalytics()
+    mockStoredConsent('0', 'uid-A')
+    await initializeAnalytics('uid-A')
     expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, false)
+  })
+
+  it('initializeAnalytics disables collection when the grant belongs to another account', async () => {
+    mockStoredConsent('1', 'uid-A')
+    await initializeAnalytics('uid-B')
+    expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, false)
+  })
+
+  it('initializeAnalytics disables collection with no signed-in user (lost session)', async () => {
+    mockStoredConsent('1', 'uid-A')
+    await initializeAnalytics(null)
+    expect(setAnalyticsCollectionEnabled).toHaveBeenCalledWith(mockAnalyticsInstance, false)
+    expect(Storage.setItemSync).not.toHaveBeenCalled()
   })
 
   it('setAnalyticsEnabled(true) calls setAnalyticsCollectionEnabled(instance, true)', async () => {

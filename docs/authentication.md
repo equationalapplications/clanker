@@ -276,7 +276,18 @@ This prevents cross-account stale hydration during user switching.
 
 ### Scope
 
-Web-only. Native (iOS/Android) is out of scope because the app does not load third-party HTTP cookies in the React Native runtime. Native privacy disclosures are handled via App Store / Play Store data forms and the existing in-app analytics setting.
+Web-only. Native (iOS/Android) is out of scope because the app does not load third-party HTTP cookies in the React Native runtime. Native privacy disclosures are handled via App Store / Play Store data forms, a one-time analytics consent prompt (`AnalyticsConsentPrompt`, shown after terms acceptance until answered), and the in-app analytics setting.
+
+### Native analytics consent
+
+Native analytics and Crashlytics consent belongs to the account that gave it (`src/services/analyticsConsent.ts`). Collection is on only when `setting:analytics` is `'1'` **and** `setting:analyticsOwner` is the signed-in uid.
+
+- **Account known** (top-level `USER_FOUND`, before the drawer and prompt mount): the stored choice is reconciled. A choice made by another account is cleared, so this account is asked.
+- **No one signed in** (`signedOut` entry, including a cold start with a lost session or a failed bootstrap, which can be a transient network error): collection is suspended but the choice is kept, so the same account resumes without a re-prompt.
+- **Explicit sign-out or a revoked session**: the choice and its owner are cleared and collection is turned off.
+- **Choices stored before owners existed**: a stored "no" is adopted by the first account that signs in; a stored "yes" is cleared and asked again.
+
+**Crashlytics limitation.** React Native Firebase's `setCrashlyticsCollectionEnabled` only writes a preference that the native SDK reads once per launch. Reports from JavaScript (`recordError`, user id, attributes, JS fatals) stop immediately, and the user id and `context` attribute are cleared before collection is turned off. Native crashes captured later in the same run do not upload during that run, and at startup queued reports are deleted when consent is not active. **Residual on iOS:** a native crash after sign-out, in the same run, can still upload on the next launch, without a user id, because the iOS SDK decides to upload before the preference is re-applied. Closing that needs a native call to the SDK (a small local module or an RNFB patch) and a native build.
 
 ### Architecture
 

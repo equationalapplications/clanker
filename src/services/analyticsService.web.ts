@@ -103,7 +103,7 @@ export function logEvent(name: string, params?: Record<string, unknown>): void {
   enqueueOrRun({ type: 'event', name, params })
 }
 
-export async function initializeAnalytics(): Promise<void> {}
+export async function initializeAnalytics(_uid: string | null = null): Promise<void> {}
 
 export function waitForAnalyticsInit(): Promise<void> {
   return Promise.resolve()

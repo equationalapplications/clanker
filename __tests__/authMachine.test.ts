@@ -11,6 +11,8 @@ const mockSignOutFromApple = jest.fn()
 const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
+const mockReconcileAnalyticsConsent = jest.fn()
+const mockResetAnalyticsConsent = jest.fn().mockResolvedValue(undefined)
 const mockLogEvent = jest.fn()
 const mockSetUserId = jest.fn().mockResolvedValue(undefined)
 const mockQueryClientClear = jest.fn()
@@ -43,6 +45,11 @@ jest.mock('../src/config/revenueCatConfig', () => ({
 
 jest.mock('../src/services/crashlyticsService', () => ({
   setCrashlyticsUserId: mockSetCrashlyticsUserId,
+}))
+
+jest.mock('../src/services/analyticsConsent', () => ({
+  reconcileAnalyticsConsent: mockReconcileAnalyticsConsent,
+  resetAnalyticsConsent: mockResetAnalyticsConsent,
 }))
 
 jest.mock('../src/services/analyticsService', () => ({
@@ -89,6 +96,7 @@ describe('authMachine', () => {
     mockLogoutRevenueCat.mockResolvedValue(undefined)
     mockSetCrashlyticsUserId.mockResolvedValue(undefined)
     mockKvStorePersisterRemoveClient.mockResolvedValue(undefined)
+    mockResetAnalyticsConsent.mockResolvedValue(undefined)
   })
 
   it('reaches signedIn and stores bootstrap snapshot after USER_FOUND', async () => {
@@ -189,6 +197,10 @@ describe('authMachine', () => {
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
     expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
+    // Transient failures land here too, so an opted-in user's consent must survive:
+    // collection is suspended (reconcile(null)) but the stored choice is not reset.
+    expect(mockResetAnalyticsConsent).not.toHaveBeenCalled()
+    expect(mockReconcileAnalyticsConsent).toHaveBeenLastCalledWith(null)
     actor.stop()
   })
 
@@ -229,6 +241,8 @@ describe('authMachine', () => {
 
     expect(mockQueryClientClear).toHaveBeenCalled()
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
+    // A revoked session resets analytics consent like an explicit sign-out.
+    expect(mockResetAnalyticsConsent).toHaveBeenCalledTimes(1)
     actor.stop()
   })
 
@@ -255,8 +269,96 @@ describe('authMachine', () => {
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
     expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
     expect(mockClearSettings).toHaveBeenCalledTimes(1)
+    expect(mockResetAnalyticsConsent).toHaveBeenCalledTimes(1)
     expect(mockQueryClientClear).toHaveBeenCalled()
     actor.stop()
+  })
+
+  describe('analytics consent binding', () => {
+    it('reconciles with the event uid synchronously on USER_FOUND, before bootstrap settles', () => {
+      mockBootstrapSession.mockImplementation(() => new Promise(() => {}))
+      const actor = createActor(authMachine)
+      actor.start()
+      mockReconcileAnalyticsConsent.mockClear()
+
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-A') as any } as any)
+
+      expect(actor.getSnapshot().matches('bootstrapping')).toBe(true)
+      expect(mockReconcileAnalyticsConsent).toHaveBeenCalledWith('uid-A')
+      actor.stop()
+    })
+
+    it('suspends without resetting when bootstrap fails', async () => {
+      mockBootstrapSession.mockRejectedValue(new Error('offline'))
+      const actor = createActor(authMachine)
+      actor.start()
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-A') as any } as any)
+
+      await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+      expect(mockReconcileAnalyticsConsent.mock.calls).toEqual([['uid-A'], [null]])
+      expect(mockResetAnalyticsConsent).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('suspends without resetting on a cold-start NO_USER_FOUND', () => {
+      const actor = createActor(authMachine)
+      actor.start()
+      actor.send({ type: 'NO_USER_FOUND' })
+
+      expect(actor.getSnapshot().matches('signedOut')).toBe(true)
+      expect(mockReconcileAnalyticsConsent).toHaveBeenCalledWith(null)
+      expect(mockResetAnalyticsConsent).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('reconciles for account B after account A failed to bootstrap', async () => {
+      mockBootstrapSession.mockRejectedValueOnce(new Error('offline'))
+      mockBootstrapSession.mockResolvedValueOnce({
+        user: { id: 'user-B' },
+        subscription: { planTier: 'free' },
+      })
+      const actor = createActor(authMachine)
+      actor.start()
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-A') as any } as any)
+      await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-B') as any } as any)
+      await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+
+      expect(mockReconcileAnalyticsConsent).toHaveBeenLastCalledWith('uid-B')
+      expect(mockResetAnalyticsConsent).not.toHaveBeenCalled()
+      actor.stop()
+    })
+
+    it('ignores USER_FOUND while signing out', async () => {
+      mockBootstrapSession.mockResolvedValue({
+        user: { id: 'user-1' },
+        subscription: { planTier: 'free' },
+      })
+      let finishSignOut: (() => void) | undefined
+      mockFirebaseSignOut.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finishSignOut = () => resolve()
+          }),
+      )
+      const actor = createActor(authMachine)
+      actor.start()
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-A') as any } as any)
+      await waitFor(actor, (state) => state.matches('signedIn'), WAIT_OPTS)
+
+      actor.send({ type: 'SIGN_OUT' })
+      expect(actor.getSnapshot().matches('signingOut')).toBe(true)
+      mockReconcileAnalyticsConsent.mockClear()
+      actor.send({ type: 'USER_FOUND', user: makeUser('uid-A') as any } as any)
+      expect(mockReconcileAnalyticsConsent).not.toHaveBeenCalled()
+
+      while (!finishSignOut) await new Promise((resolve) => setTimeout(resolve, 0))
+      finishSignOut()
+      await waitFor(actor, (state) => state.matches('signedOut'), WAIT_OPTS)
+      expect(mockResetAnalyticsConsent).toHaveBeenCalledTimes(1)
+      actor.stop()
+    })
   })
 
   it('replays one pending refresh after bootstrapping when a new reason arrives mid-bootstrap', async () => {

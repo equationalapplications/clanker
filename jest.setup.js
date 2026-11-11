@@ -252,3 +252,14 @@ Object.defineProperty(globalThis, '__resetJestPlatformOS', {
   },
   configurable: true,
 })
+
+// RN 0.88 removed InteractionManager; okfSave defers native UI readiness via
+// requestIdleCallback, which neither the RN jest preset nor jsdom provides.
+// Polyfill globally so ANY suite importing okfSave works without a per-suite
+// shim (the beforeAll shim used to live in okfSave.test.ts only).
+if (typeof globalThis.requestIdleCallback !== 'function') {
+  globalThis.requestIdleCallback = (callback) => {
+    callback()
+    return 0
+  }
+}

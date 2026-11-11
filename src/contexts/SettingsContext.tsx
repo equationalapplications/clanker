@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from 'react'
 import { Appearance, Platform } from 'react-native'
 import { Storage } from '~/utilities/kvStorage'
 import { setAnalyticsEnabled } from '~/services/analyticsService'
 import { setCrashlyticsEnabled } from '~/services/crashlyticsService'
+import { setAnalyticsChoice, subscribeAnalyticsConsent } from '~/services/analyticsConsent'
 import { useCookieConsent } from '~/components/CookieConsent'
 import { SettingKey, settingKey, readBoolSync } from '~/utilities/settingsStorage'
 import { readConsent } from '~/utilities/cookieConsentStorage.web'
@@ -39,12 +47,33 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
   })
   const { canUse } = useCookieConsent()
 
+  // Native consent can change outside this provider (account reconcile, sign-out reset), so
+  // keep the toggle in sync. The immediate sync() picks up changes made by child effects
+  // (startup init, auth actor) that ran before this effect subscribed.
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+    const sync = () =>
+      setSettings((prev) => {
+        const analytics = readBoolSync('analytics', false)
+        return prev.analytics === analytics ? prev : { ...prev, analytics }
+      })
+    sync()
+    return subscribeAnalyticsConsent(sync)
+  }, [])
+
   const updateSetting = useCallback(
     (key: SettingKey, value: boolean) => {
       // Gate persistence of darkMode on cookie consent, but only on web.
       // On native, cookie consent is not available (no localStorage), so always persist.
       const requiresPreferencesConsent = key === 'darkMode' && Platform.OS === 'web'
       const shouldPersist = !requiresPreferencesConsent || canUse('preferences')
+
+      // Native analytics consent is owned by analyticsConsent (bound to the signed-in uid).
+      if (key === 'analytics' && Platform.OS !== 'web') {
+        setAnalyticsChoice(value)
+        setSettings((prev) => ({ ...prev, analytics: value }))
+        return
+      }
 
       if (shouldPersist) {
         try {
