@@ -21,12 +21,10 @@ jest.mock('react-native', () => ({
 }))
 
 // okfSave defers native UI readiness via requestIdleCallback (RN 0.88 removed
-// InteractionManager) — run the callback immediately in tests.
+// InteractionManager). The polyfill lives in jest.setup.js — it must already
+// be global here; no per-suite shim allowed.
 beforeAll(() => {
-  ;(global as Record<string, unknown>).requestIdleCallback = (callback: () => void) => {
-    callback()
-    return 0
-  }
+  expect(typeof (global as Record<string, unknown>).requestIdleCallback).toBe('function')
 })
 
 jest.mock('jszip', () =>

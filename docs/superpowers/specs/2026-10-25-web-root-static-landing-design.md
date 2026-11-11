@@ -94,3 +94,14 @@ The 301 covers any remaining inbound links.
 - Firebase Hosting emulator against `dist/`: `/` is the landing page, `/welcome` is a
   301, `/sign-in` and `/characters/shared/x` return the noindex shell, `/llms.txt` is
   text, the AASA file is `application/json`.
+
+## Dev/prod divergence at `/` (accepted)
+
+Production `/` serves the static marketing landing page:
+`scripts/finalize-web-export.mjs` copies `landing/index.html` to
+`dist/index.html`, which Firebase Hosting serves at the site root. In dev
+(`expo start --web`) and inside the SPA, `/` renders `app/index.tsx`,
+which redirects to `/sign-in`. This divergence is accepted: crawlers get
+real content at `/`, humans in the app get routed to sign-in.
+`scripts/check-generated.mjs` guards the tracked landing file against
+drift, so the production copy cannot silently go stale.
