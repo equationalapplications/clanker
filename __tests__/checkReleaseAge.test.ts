@@ -173,6 +173,21 @@ describe('check-release-age fail-closed on unreadable lockfiles', () => {
     }
   })
 
+  it.each(['not-a-url', 'ftp://registry.example.com/'])(
+    'exits 2 when --registry is not an http(s) URL (%s)',
+    async (registry) => {
+      const dir = makeTempDir()
+      try {
+        fs.writeFileSync(path.join(dir, 'lock.json'), VALID_LOCK)
+        const result = await runScript(['--lockfile', 'lock.json', '--registry', registry], dir)
+        expect(result.status).toBe(2)
+        expect(result.stderr).toContain('--registry must be an http(s) URL')
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it('delta mode: unchanged lockfile still passes without a cooldown', async () => {
     const dir = makeTempRepo()
     try {

@@ -46,9 +46,9 @@ function isExpoShell(html) {
 
 export function patchShell(html) {
   if (!/<title>[^<]*<\/title>/.test(html))
-    throw new Error('finalize-web-export: shell has no <title> to patch')
+    throw new Error('shell has no <title> to patch')
   if (html.includes('name="robots"'))
-    throw new Error('finalize-web-export: shell already carries a robots meta')
+    throw new Error('shell already carries a robots meta')
   return html.replace(
     /<title>[^<]*<\/title>/,
     `<title>${SHELL_TITLE}</title>\n` +

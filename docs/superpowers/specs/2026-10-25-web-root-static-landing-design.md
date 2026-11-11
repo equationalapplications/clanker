@@ -101,7 +101,8 @@ Production `/` serves the static marketing landing page:
 `scripts/finalize-web-export.mjs` copies `landing/index.html` to
 `dist/index.html`, which Firebase Hosting serves at the site root. In dev
 (`expo start --web`) and inside the SPA, `/` renders `app/index.tsx`,
-which redirects to `/sign-in`. This divergence is accepted: crawlers get
-real content at `/`, humans in the app get routed to sign-in.
+which redirects signed-in users to `/chat` and everyone else to `/sign-in`.
+This divergence is accepted: crawlers get real content at `/`, humans in the
+app get routed into it.
 `scripts/check-generated.mjs` guards the tracked landing file against
 drift, so the production copy cannot silently go stale.
