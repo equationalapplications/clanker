@@ -1,3 +1,45 @@
+# [34.0.0](https://github.com/equationalapplications/clanker/compare/v33.4.4...v34.0.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **analytics:** bind native consent to the account that gave it ([bf792bc](https://github.com/equationalapplications/clanker/commit/bf792bc408fc08ac262062c9ac6a8de4a0e74433))
+* **analytics:** keep consent when a session bootstrap fails ([25c33da](https://github.com/equationalapplications/clanker/commit/25c33da1aa8ce1d3bd0c6ed23ca238e08d137785))
+* **analytics:** reset native consent whenever a session ends ([fb1f085](https://github.com/equationalapplications/clanker/commit/fb1f085150c393fc577890efa614ad2d47221080))
+* **analytics:** turn native collection off on sign-out ([548ff87](https://github.com/equationalapplications/clanker/commit/548ff8799beb7f73325d9bb510b1fd9a9a948724))
+* **ci:** match lockfile URLs against the normalized --registry value ([2e4261d](https://github.com/equationalapplications/clanker/commit/2e4261d72cc077528552b590cd90492ae877c112))
+* **ci:** reject a missing --registry value in the release-age gate ([0fc5fdf](https://github.com/equationalapplications/clanker/commit/0fc5fdf604a266cc8e708929aabb559764cc2267))
+* **ci:** reject non-http(s) --registry values in the release-age gate ([9d5373b](https://github.com/equationalapplications/clanker/commit/9d5373b48268b27189c04eac6fb246ea7e960c10))
+* **config:** fail iOS config when Google Sign-In plist cannot back the URL scheme ([29c39fd](https://github.com/equationalapplications/clanker/commit/29c39fdb573acc65143d62c7a86b7011fb7de67d))
+* **deps:** bump [@equationalapplications](https://github.com/equationalapplications) llm-wiki packages to ^8.0.2 ([8cd113f](https://github.com/equationalapplications/clanker/commit/8cd113fba0a20a4e10afe9a8ff228735aa67306a))
+* **deps:** bump react-native to 0.88.1 for the Expo SDK matrix gate ([623af33](https://github.com/equationalapplications/clanker/commit/623af33bac38547cf694bc1d668bfd21c0ca84dd))
+* **deps:** bundle gate-passing bumps, migrate RNFB 27 linking, defer expo matrix ([d9ae37b](https://github.com/equationalapplications/clanker/commit/d9ae37b9dba0789cc408450b7995462a16fdb980)), closes [#896-904](https://github.com/equationalapplications/clanker/issues/896-904) [#890](https://github.com/equationalapplications/clanker/issues/890) [#889](https://github.com/equationalapplications/clanker/issues/889)
+* **functions:** accept googleSearch key in toGenAITool ([d8844bd](https://github.com/equationalapplications/clanker/commit/d8844bd0edcfb5a979aada7d4d69ca494d0f1048)), closes [expo-llm-wiki#354](https://github.com/expo-llm-wiki/issues/354)
+* **web:** make patchShell throw instead of exiting the process ([07cd7ff](https://github.com/equationalapplications/clanker/commit/07cd7ffb383d145abd88d505b96d3104d2f33575))
+* **web:** refuse to regenerate over uncommitted landing/public edits ([94a9d39](https://github.com/equationalapplications/clanker/commit/94a9d39f20d9559317b82f5626c5f7758963300c))
+* **web:** stop doubling the finalize-web-export error prefix ([6e69cbe](https://github.com/equationalapplications/clanker/commit/6e69cbebe6949d8048bd5888023397801253f4cb))
+
+
+### chore
+
+* **release:** require a native store build for the RNFB 27 train ([d5619e7](https://github.com/equationalapplications/clanker/commit/d5619e7620f23b595511b4caf71f83aa9ea4767e))
+
+
+### Features
+
+* link app stores from the landing page and ask for native analytics consent ([3d0bcff](https://github.com/equationalapplications/clanker/commit/3d0bcffd5e229225a33054c3057653219f113dc5))
+* **web:** tag App Store landing links with the App Analytics campaign ([c5a3b55](https://github.com/equationalapplications/clanker/commit/c5a3b55088473191852728d1d19f4c819c88dfc7))
+
+
+### BREAKING CHANGES
+
+* **release:** this train ships native changes (RNFB 26 -> 27,
+react-native 0.88.1, dynamic iOS frameworks, google-signin plugin path).
+Bumping the major moves runtimeVersion off 33.0.0 so no OTA reaches
+binaries built with RNFB 26 native modules; users update via the stores.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
 ## [33.4.4](https://github.com/equationalapplications/clanker/compare/v33.4.3...v33.4.4) (2026-11-09)
 
 
