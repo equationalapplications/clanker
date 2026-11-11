@@ -1,3 +1,10 @@
+## [34.0.1](https://github.com/equationalapplications/clanker/compare/v34.0.0...v34.0.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **android:** build with Kotlin 2.4.0 for RNFB 27 / Firebase BoM 35 ([eb8acf7](https://github.com/equationalapplications/clanker/commit/eb8acf79801ba29cafa3e90612b1ed222aef58d6))
+
 # [34.0.0](https://github.com/equationalapplications/clanker/compare/v33.4.4...v34.0.0) (2026-11-11)
 
 
