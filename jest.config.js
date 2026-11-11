@@ -12,9 +12,13 @@ const {
   TRANSFORM_IGNORE_PATTERNS,
   findJsdomSuites,
   jsdomSuitePattern,
+  domTestRegex,
 } = require('./jest.shared.config')
 
-const jsdomSuites = findJsdomSuites(__dirname)
+// Jest realpaths its rootDir before matching; use the same form here so the
+// absolute patterns below match (e.g. Windows 8.3 short names, symlinked dirs).
+const ROOT = fs.realpathSync.native(__dirname)
+const jsdomSuites = findJsdomSuites(ROOT)
 
 const common = {
   globals: {
@@ -90,7 +94,7 @@ module.exports = {
         '<rootDir>/jest.setup.js',
         '<rootDir>/jest.setup.dom.js',
       ],
-      testRegex: jsdomSuites.map((f) => jsdomSuitePattern(__dirname, f)),
+      testRegex: domTestRegex(ROOT, jsdomSuites),
     },
     {
       ...common,
@@ -101,7 +105,7 @@ module.exports = {
       testPathIgnorePatterns: [
         ...common.testPathIgnorePatterns,
         // jsdom suites run in the dom project above.
-        ...jsdomSuites.map((f) => jsdomSuitePattern(__dirname, f)),
+        ...jsdomSuites.map((f) => jsdomSuitePattern(ROOT, f)),
       ],
     },
   ],

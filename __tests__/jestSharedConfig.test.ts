@@ -8,6 +8,7 @@ const shared = require('../jest.shared.config') as {
   findJsdomSuites: (rootDir: string) => string[]
   escapeRegExp: (str: string) => string
   jsdomSuitePattern: (rootDir: string, relPath: string) => string
+  domTestRegex: (rootDir: string, suites: string[]) => string[]
 }
 
 const PRAGMA = '/** @jest-environment jsdom */\ntest("t", () => {})\n'
@@ -65,6 +66,21 @@ describe('jest.shared.config', () => {
       expect(new RegExp(p).test('/r/aXb(c)+/' + rel)).toBe(false)
       expect(new RegExp(p).test(same + '.snap')).toBe(false)
       expect(() => new RegExp(p, 'u')).not.toThrow()
+    })
+  })
+
+  describe('domTestRegex', () => {
+    it('never matches when no suite declares jsdom', () => {
+      const patterns = shared.domTestRegex('/r', [])
+      expect(patterns).toHaveLength(1)
+      expect(new RegExp(patterns[0]).test('/r/src/a.test.ts')).toBe(false)
+    })
+
+    it('anchors one pattern per suite', () => {
+      expect(shared.domTestRegex('/r', ['a.test.ts', 'b.test.ts'])).toEqual([
+        shared.jsdomSuitePattern('/r', 'a.test.ts'),
+        shared.jsdomSuitePattern('/r', 'b.test.ts'),
+      ])
     })
   })
 })

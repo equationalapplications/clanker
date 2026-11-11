@@ -84,6 +84,13 @@ function jsdomSuitePattern(rootDir, relPath) {
   return '^' + escapeRegExp(path.join(rootDir, relPath)) + '$'
 }
 
+// Jest treats an empty testRegex as unset and falls back to the default
+// testMatch, which would run EVERY suite in the dom project. A never-matching
+// pattern keeps the dom project empty when no suite declares jsdom.
+function domTestRegex(rootDir, suites) {
+  return suites.length ? suites.map((f) => jsdomSuitePattern(rootDir, f)) : ['(?!)']
+}
+
 module.exports = {
   TRANSFORM_IGNORE_PATTERNS,
   findJsdomSuites: findJsdomSuitesRel,
@@ -91,4 +98,5 @@ module.exports = {
   isJsdomSource,
   escapeRegExp,
   jsdomSuitePattern,
+  domTestRegex,
 }
