@@ -1,5 +1,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { extract, parse } = require('jest-docblock')
 
 const IGNORED_DIRS = new Set([
   'node_modules',
@@ -26,7 +27,13 @@ const TRANSFORM_IGNORE_PATTERNS = [
 // Suites that declare `@jest-environment jsdom` run in the 'dom' project
 // (jsdom environment); everything else runs in 'native'. The docblock stays
 // the single source of truth for project membership — discovered at config
-// load so a new suite never has to be listed here.
+// load so a new suite never has to be listed here. Classification is Jest's
+// own docblock rule (jest-docblock extract/parse of the whole file); there is
+// no regex fallback, so discovery cannot disagree with the runner.
+//
+// Depth rule: node_modules, .git and .worktrees are pruned at any depth; the
+// rest of IGNORED_DIRS (build, dist, ...) only at the repo root, so a nested
+// `src/x/build/__tests__` suite is still discovered.
 //
 // WHY the split: since SDK 58 (RN 0.88) the jest preset is the external
 // @react-native/jest-preset, whose setup file unconditionally does
@@ -36,34 +43,52 @@ const TRANSFORM_IGNORE_PATTERNS = [
 // removes that window entry — with it applied the stock setup is jsdom-safe
 // (jest-expo's own setup guards `window` with `typeof window !== 'object'`),
 // so both projects share the same preset and only the environment differs.
-function findJsdomSuitesAbs(dir, out) {
+const ALWAYS_PRUNED = new Set(['node_modules', '.git', '.worktrees'])
+
+function isJsdomSource(source) {
+  return parse(extract(source))['jest-environment'] === 'jsdom'
+}
+
+function findJsdomSuitesAbs(dir, out, depth) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (IGNORED_DIRS.has(entry.name)) continue
-      findJsdomSuitesAbs(path.join(dir, entry.name), out)
+      if (ALWAYS_PRUNED.has(entry.name)) continue
+      if (depth === 0 && IGNORED_DIRS.has(entry.name)) continue
+      findJsdomSuitesAbs(path.join(dir, entry.name), out, depth + 1)
       continue
     }
     if (!/\.(test|spec)\.[jt]sx?$/.test(entry.name)) continue
     const file = path.join(dir, entry.name)
-    let head = ''
+    let source
     try {
-      const fd = fs.openSync(file, 'r')
-      const buf = Buffer.alloc(512)
-      const bytes = fs.readSync(fd, buf, 0, 512, 0)
-      fs.closeSync(fd)
-      head = buf.toString('utf8', 0, bytes)
+      source = fs.readFileSync(file, 'utf8')
     } catch {
       continue
     }
-    if (/@jest-environment\s+jsdom/.test(head)) out.push(file)
+    if (isJsdomSource(source)) out.push(file)
   }
   return out
 }
 
 function findJsdomSuitesRel(rootDir) {
-  return findJsdomSuitesAbs(rootDir, [])
+  return findJsdomSuitesAbs(rootDir, [], 0)
     .map((f) => f.slice(rootDir.length + 1).replace(/\\/g, '/'))
     .sort()
 }
 
-module.exports = { TRANSFORM_IGNORE_PATTERNS, findJsdomSuites: findJsdomSuitesRel, IGNORED_DIRS }
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function jsdomSuitePattern(rootDir, relPath) {
+  return '^' + escapeRegExp(path.join(rootDir, relPath)) + '$'
+}
+
+module.exports = {
+  TRANSFORM_IGNORE_PATTERNS,
+  findJsdomSuites: findJsdomSuitesRel,
+  IGNORED_DIRS,
+  isJsdomSource,
+  escapeRegExp,
+  jsdomSuitePattern,
+}
