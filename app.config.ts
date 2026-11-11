@@ -256,6 +256,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           // Keep rules, if ever needed, go in `extraProguardRules` — android/ is regenerated.
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
+          // RNFB 27 pulls Firebase Android BoM 35, whose libraries carry Kotlin 2.4 metadata;
+          // RN 0.88 / Expo 58 default to Kotlin 2.2.0, which cannot read it
+          // ("binary version of its metadata is 2.4.0, expected version is 2.2.0").
+          // 2.4.0 matches RNFB's own default (@react-native-firebase/app android/build.gradle).
+          kotlinVersion: '2.4.0',
         },
         ios: {
           // RNFB 27 (Firebase Apple SDK 13+) is distributed only through Swift
