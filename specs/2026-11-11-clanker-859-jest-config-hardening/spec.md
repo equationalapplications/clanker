@@ -105,11 +105,17 @@ Base classification: 179 suites, **7 dom / 172 native**. The dom set is exactly:
 - Acceptance: a jsdom suite whose path contains `-`, `[id]` and `(tabs)` is listed
   under dom exactly once and under native zero times.
 
+- Implementation review additions: patterns are built from
+  `fs.realpathSync.native(__dirname)` (Jest realpaths `rootDir` before matching), and an
+  empty jsdom set yields the never-matching `testRegex: ['(?!)']` — an empty array is
+  treated as unset and would fall back to the default `testMatch`, running every suite
+  in dom (`domTestRegex` in `jest.shared.config.js`).
+
 ### 5. Dependencies
 
 - Add `jest-docblock` `~30.5.0` and `jest-environment-jsdom` `~30.5.2` as
   devDependencies (tilde, matching `jest: ~30.5.2`, so they move with Jest).
-- Add a root `jest` group to `.github/dependabot.yml` (`jest`, `jest-*`,
+- Add a root `jest` group (with `exclude-patterns: ['jest-expo']`, which the Expo SDK pins) to `.github/dependabot.yml` (`jest`, `jest-*`,
   `@jest/*`, `babel-jest`) so Jest bumps move the config classifier and the runner
   together.
 - Install with `npm install --save-dev` at the already-resolved versions. Expected

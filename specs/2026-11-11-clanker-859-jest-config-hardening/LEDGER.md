@@ -25,3 +25,7 @@
       exit 0. `npm run test`: 180 suites, 1726/1727 — the one failure was the known
       `avatarPicker` load timeout, 10/10 when re-run alone. Per-project lists: dom 7 (identical to
       base), native 173 (base + guard suite).
+- [x] Implementation review — `108aa280` (realpath root; never-matching dom `testRegex` when
+      no jsdom suite exists, with guard tests), `3045ce4d` (dependabot group excludes
+      `jest-expo`), `1ae3e60f` (`test` / `test:watch` forward the first CLI arg). Gates
+      re-run: 180/180 suites, 1729/1729 tests; CI green at `1ae3e60f`.
