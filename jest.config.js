@@ -8,7 +8,11 @@
 
 const fs = require('node:fs')
 
-const { TRANSFORM_IGNORE_PATTERNS, findJsdomSuites } = require('./jest.shared.config')
+const {
+  TRANSFORM_IGNORE_PATTERNS,
+  findJsdomSuites,
+  jsdomSuitePattern,
+} = require('./jest.shared.config')
 
 const jsdomSuites = findJsdomSuites(__dirname)
 
@@ -86,7 +90,7 @@ module.exports = {
         '<rootDir>/jest.setup.js',
         '<rootDir>/jest.setup.dom.js',
       ],
-      testMatch: jsdomSuites.map((f) => `<rootDir>/${f}`),
+      testRegex: jsdomSuites.map((f) => jsdomSuitePattern(__dirname, f)),
     },
     {
       ...common,
@@ -97,7 +101,7 @@ module.exports = {
       testPathIgnorePatterns: [
         ...common.testPathIgnorePatterns,
         // jsdom suites run in the dom project above.
-        ...jsdomSuites.map((f) => `<rootDir>/${f}`),
+        ...jsdomSuites.map((f) => jsdomSuitePattern(__dirname, f)),
       ],
     },
   ],
