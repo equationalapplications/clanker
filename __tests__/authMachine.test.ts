@@ -195,8 +195,9 @@ describe('authMachine', () => {
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
     expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
-    expect(mockClearSetting).toHaveBeenCalledWith('analytics')
-    expect(mockSetAnalyticsEnabled).toHaveBeenCalledWith(false)
+    // Transient failures land here too, so an opted-in user's consent must survive.
+    expect(mockClearSetting).not.toHaveBeenCalled()
+    expect(mockSetAnalyticsEnabled).not.toHaveBeenCalled()
     actor.stop()
   })
 

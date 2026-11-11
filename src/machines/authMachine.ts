@@ -88,10 +88,12 @@ export type AuthMachineEvents =
 
 /**
  * Analytics consent belongs to the account that gave it. When a session ends — explicit
- * sign-out, server-side revocation, or a failed bootstrap — blank the stored choice and turn
- * native collection off, so the next account starts unconsented and is asked again (cold
- * start already reads '' as off). Web consent is owned by the cookie banner, so it is left
- * alone there.
+ * sign-out or server-side revocation — blank the stored choice and turn native collection
+ * off, so the next account starts unconsented and is asked again (cold start already reads
+ * '' as off). A failed bootstrap is deliberately NOT a reset: it also fires on transient
+ * network failures (e.g. an offline foreground refresh), and wiping an opted-in user's
+ * choice there would re-prompt them for nothing. Web consent is owned by the cookie banner,
+ * so it is left alone there.
  */
 async function resetNativeAnalyticsConsent(): Promise<void> {
   if (Platform.OS === 'web') return
@@ -446,7 +448,6 @@ export const authMachine = createMachine(
       },
       clearFailedBootstrapSession: () => {
         Promise.all([
-          resetNativeAnalyticsConsent(),
           firebaseSignOut(),
           setCrashlyticsUserId(null),
           setUserId(null),
