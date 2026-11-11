@@ -276,7 +276,7 @@ This prevents cross-account stale hydration during user switching.
 
 ### Scope
 
-Web-only. Native (iOS/Android) is out of scope because the app does not load third-party HTTP cookies in the React Native runtime. Native privacy disclosures are handled via App Store / Play Store data forms and the existing in-app analytics setting.
+Web-only. Native (iOS/Android) is out of scope because the app does not load third-party HTTP cookies in the React Native runtime. Native privacy disclosures are handled via App Store / Play Store data forms, a one-time analytics consent prompt (`AnalyticsConsentPrompt`, shown after terms acceptance until answered; collection stays off until opted in, and sign-out turns it off again), and the in-app analytics setting.
 
 ### Architecture
 
