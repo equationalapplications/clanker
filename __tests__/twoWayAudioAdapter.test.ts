@@ -6,7 +6,7 @@ const mockAddEventListener = jest.fn()
 const mockTearDown = jest.fn()
 const mockBargeIn = jest.fn()
 
-// The vendored local module (imported by the adapter via a relative path).
+// The package's native-module wrapper (the adapter imports the package root).
 jest.mock('@equationalapplications/expo-two-way-audio/build/ExpoTwoWayAudioModule', () => ({
   __esModule: true,
   default: {

@@ -1,9 +1,9 @@
 /**
- * Guard tests for the vendored module's JS surface (clanker #857).
+ * Guard tests for the @equationalapplications/expo-two-way-audio JS surface (clanker #857).
  *
  * The dangerous regression class here is the forked `restart()` trap: the
  * old patch redefined `restart()` to mean barge-in while the app believed
- * it kept upstream semantics. The vendored module must therefore never
+ * it kept upstream semantics. The package must therefore never
  * export `restart` at all, and `bargeIn()` must delegate to the native
  * method without touching recording state.
  */
