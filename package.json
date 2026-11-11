@@ -43,6 +43,7 @@
     "@equationalapplications/core-llm-tools": "^8.0.2",
     "@equationalapplications/core-llm-wiki": "^8.0.2",
     "@equationalapplications/expo-llm-wiki": "^8.0.2",
+    "@equationalapplications/expo-two-way-audio": "^0.2.1",
     "@equationalapplications/schema-org-llm-wiki": "^8.0.2",
     "@expo/metro-runtime": "~58.0.15",
     "@expo/vector-icons": "^15.1.1",
