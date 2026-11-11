@@ -6,7 +6,7 @@ import {
   addExpoTwoWayAudioEventListener,
   tearDown as moduleTearDown,
   bargeIn,
-} from '../../modules/expo-two-way-audio/src'
+} from '@equationalapplications/expo-two-way-audio'
 import { resample24to16 } from '../utils/audioResample'
 
 export interface TwoWayAudioAdapterInterface {

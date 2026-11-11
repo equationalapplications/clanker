@@ -169,8 +169,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSPhotoLibraryAddUsageDescription:
         'Allow Clanker to save images your characters create to your photo library.',
       // Microphone permission was previously supplied by the expo-speech-recognition
-      // config plugin (deleted in c695ab0e). expo-two-way-audio (vendored local
-      // module at modules/expo-two-way-audio, ex-@speechmatics), the current
+      // config plugin (deleted in c695ab0e). @equationalapplications/expo-two-way-audio
+      // (EA-maintained fork of @speechmatics/expo-two-way-audio), the current
       // Talk-tab voice stack, ships no config plugin and hard-fatalErrors
       // on iOS when NSMicrophoneUsageDescription is absent — see memory notes.
       NSMicrophoneUsageDescription:
@@ -188,8 +188,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.equationalapplications.clanker',
     googleServicesFile: getGoogleServicesJson(),
     // RECORD_AUDIO was previously supplied by the expo-speech-recognition
-    // config plugin (deleted in c695ab0e). expo-two-way-audio (vendored local
-    // module at modules/expo-two-way-audio, ex-@speechmatics),
+    // config plugin (deleted in c695ab0e). @equationalapplications/expo-two-way-audio
+    // (EA-maintained fork of @speechmatics/expo-two-way-audio),
     // the current Talk-tab voice stack, requires this permission.
     permissions: ['android.permission.RECORD_AUDIO'],
     adaptiveIcon: {

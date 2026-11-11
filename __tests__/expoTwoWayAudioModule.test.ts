@@ -11,7 +11,7 @@
 const mockNativeBargeIn = jest.fn()
 const mockNativeToggleRecording = jest.fn()
 
-jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
+jest.mock('@equationalapplications/expo-two-way-audio/build/ExpoTwoWayAudioModule', () => ({
   __esModule: true,
   default: {
     bargeIn: (...a: unknown[]) => mockNativeBargeIn(...a),
@@ -19,9 +19,9 @@ jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
   },
 }))
 
-import * as ExpoTwoWayAudio from '../modules/expo-two-way-audio/src'
+import * as ExpoTwoWayAudio from '@equationalapplications/expo-two-way-audio'
 
-describe('vendored expo-two-way-audio JS surface', () => {
+describe('@equationalapplications/expo-two-way-audio JS surface', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
