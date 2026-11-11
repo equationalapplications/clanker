@@ -1,3 +1,10 @@
+## [34.0.2](https://github.com/equationalapplications/clanker/compare/v34.0.1...v34.0.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dev:** link cloud-agent packages into the shared node_modules volume ([c0cad37](https://github.com/equationalapplications/clanker/commit/c0cad37ab03a181d4ea0d17c22dad486baee734f))
+
 ## [34.0.1](https://github.com/equationalapplications/clanker/compare/v34.0.0...v34.0.1) (2026-11-11)
 
 
