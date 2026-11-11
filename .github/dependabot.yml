@@ -50,6 +50,16 @@ updates:
       equationalapplications:
         patterns:
           - '@equationalapplications/*'
+      # Jest packages must move together (config classifier uses jest-docblock)
+      jest:
+        patterns:
+          - 'jest'
+          - 'jest-*'
+          - '@jest/*'
+          - 'babel-jest'
+        # jest-expo is pinned by the Expo SDK and moves with the SDK upgrade.
+        exclude-patterns:
+          - 'jest-expo'
     ignore:
       - dependency-name: 'expo'
       - dependency-name: 'expo-*'
