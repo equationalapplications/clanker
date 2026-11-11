@@ -188,6 +188,30 @@ describe('check-release-age fail-closed on unreadable lockfiles', () => {
     },
   )
 
+  it('normalizes --registry before matching lockfile URLs', async () => {
+    const registry = await startRegistry({ foo: { time: { '1.2.3': daysAgo(1) } } })
+    const dir = makeTempDir()
+    try {
+      const lock = JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { name: 'fixture', dependencies: { foo: '1.2.3' } },
+          'node_modules/foo': { version: '1.2.3', resolved: `${registry.url}foo/-/foo-1.2.3.tgz` },
+        },
+      })
+      fs.writeFileSync(path.join(dir, 'lock.json'), lock)
+      // Upper-case scheme and no trailing slash: unnormalized, this matched no
+      // `resolved` URL, so foo was skipped and the too-new release passed.
+      const loud = registry.url.replace('http://', 'HTTP://').replace(/\/$/, '')
+      const result = await runScript(['--lockfile', 'lock.json', '--registry', loud], dir)
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('foo@1.2.3')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+      await registry.close()
+    }
+  })
+
   it('delta mode: unchanged lockfile still passes without a cooldown', async () => {
     const dir = makeTempRepo()
     try {
