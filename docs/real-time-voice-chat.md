@@ -93,7 +93,7 @@ Text chat reaches the same tool via Cloud Agent `POST /agent/run` (synchronous `
 | Mic uplink       | 16 kHz, mono, 16-bit PCM                | `@equationalapplications/expo-two-way-audio` |
 | Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `@equationalapplications/expo-two-way-audio` |
 
-**Native rebuild required** — `@equationalapplications/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
+**Native rebuild required for native changes** — `@equationalapplications/expo-two-way-audio` is a native module. A package bump that changes its Kotlin/Swift code (or its module name/API surface) can't ship by OTA. Rebuild the dev client and store binaries (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent) and treat it as a native release. JS-only bumps with byte-identical native code are OTA-safe.
 
 ---
 
