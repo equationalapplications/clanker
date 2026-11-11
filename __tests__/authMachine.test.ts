@@ -11,6 +11,8 @@ const mockSignOutFromApple = jest.fn()
 const mockLoginRevenueCat = jest.fn()
 const mockLogoutRevenueCat = jest.fn()
 const mockSetCrashlyticsUserId = jest.fn()
+const mockSetCrashlyticsEnabled = jest.fn().mockResolvedValue(undefined)
+const mockSetAnalyticsEnabled = jest.fn().mockResolvedValue(undefined)
 const mockLogEvent = jest.fn()
 const mockSetUserId = jest.fn().mockResolvedValue(undefined)
 const mockQueryClientClear = jest.fn()
@@ -43,10 +45,12 @@ jest.mock('../src/config/revenueCatConfig', () => ({
 
 jest.mock('../src/services/crashlyticsService', () => ({
   setCrashlyticsUserId: mockSetCrashlyticsUserId,
+  setCrashlyticsEnabled: mockSetCrashlyticsEnabled,
 }))
 
 jest.mock('../src/services/analyticsService', () => ({
   logEvent: mockLogEvent,
+  setAnalyticsEnabled: mockSetAnalyticsEnabled,
   setUserId: mockSetUserId,
 }))
 
@@ -255,6 +259,8 @@ describe('authMachine', () => {
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
     expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
     expect(mockClearSettings).toHaveBeenCalledTimes(1)
+    expect(mockSetAnalyticsEnabled).toHaveBeenCalledWith(false)
+    expect(mockSetCrashlyticsEnabled).toHaveBeenCalledWith(false)
     expect(mockQueryClientClear).toHaveBeenCalled()
     actor.stop()
   })

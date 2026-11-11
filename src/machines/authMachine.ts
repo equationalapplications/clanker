@@ -10,8 +10,8 @@ import { signInWithGoogle, GoogleSignInResult, signOutFromGoogle } from '~/auth/
 import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/appleSignin'
 import { bootstrapSession, UserSnapshot, SubscriptionSnapshot } from '~/auth/bootstrapSession'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
-import { setCrashlyticsUserId } from '~/services/crashlyticsService'
-import { logEvent, setUserId } from '~/services/analyticsService'
+import { setCrashlyticsEnabled, setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { logEvent, setAnalyticsEnabled, setUserId } from '~/services/analyticsService'
 import { queryClient } from '~/config/queryClient'
 import { resetLowPowerSession } from '~/state/lowPowerSession'
 import { kvStorePersister } from '~/config/queryPersister'
@@ -545,6 +545,14 @@ export const authMachine = createMachine(
         await runCleanupStep('clearSettings', () => {
           clearSettings()
         })
+        if (Platform.OS !== 'web') {
+          // clearSettings() blanks the stored consent, but the native SDKs keep
+          // collecting until told otherwise. Turn collection off now so the next
+          // account in this process starts unconsented until it answers the
+          // consent prompt (cold start already reads '' as off).
+          await runCleanupStep('setAnalyticsEnabled', () => setAnalyticsEnabled(false))
+          await runCleanupStep('setCrashlyticsEnabled', () => setCrashlyticsEnabled(false))
+        }
         if (Platform.OS === 'ios') {
           await runCleanupStep('signOutFromApple', () => signOutFromApple())
         } else if (Platform.OS === 'android') {
