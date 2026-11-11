@@ -57,6 +57,9 @@ updates:
           - 'jest-*'
           - '@jest/*'
           - 'babel-jest'
+        # jest-expo is pinned by the Expo SDK and moves with the SDK upgrade.
+        exclude-patterns:
+          - 'jest-expo'
     ignore:
       - dependency-name: 'expo'
       - dependency-name: 'expo-*'
