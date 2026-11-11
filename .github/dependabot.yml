@@ -51,8 +51,9 @@ updates:
         patterns:
           - '@equationalapplications/*'
         # Native module: keep it out of the JS-only first-party group so a bump
-        # arrives as its own PR. Before merging one, diff the package's android/
-        # and ios/ between versions; any native change needs a `BREAKING CHANGE:`
+        # arrives as its own PR. Before merging one, diff the package's android/,
+        # ios/ and expo-module.config.json (native registration) between versions;
+        # any native change needs a `BREAKING CHANGE:`
         # footer (new runtimeVersion) or an OTA would ship JS that calls native
         # code missing from older binaries. See docs/real-time-voice-chat.md.
         exclude-patterns:
