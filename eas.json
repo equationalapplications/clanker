@@ -49,12 +49,20 @@
   "submit": {
     "staging": {
       "android": {
-        "track": "internal"
+        "track": "internal",
+        "releaseStatus": "completed"
+      },
+      "ios": {
+        "ascAppId": "6754219831"
       }
     },
     "production": {
       "android": {
-        "track": "internal"
+        "track": "internal",
+        "releaseStatus": "completed"
+      },
+      "ios": {
+        "ascAppId": "6754219831"
       }
     }
   }
