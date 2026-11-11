@@ -51,6 +51,18 @@ if (!registryArg || registryArg.startsWith("--")) {
   console.error("--registry requires a URL (e.g. --registry https://registry.npmjs.org/)")
   process.exit(2)
 }
+// A non-URL value would match no lockfile `resolved` URL, so every registry
+// entry would be skipped and the gate would pass without checking anything.
+let registryProtocol
+try {
+  registryProtocol = new URL(registryArg).protocol
+} catch {
+  registryProtocol = undefined
+}
+if (registryProtocol !== "http:" && registryProtocol !== "https:") {
+  console.error(`--registry must be an http(s) URL, got: ${registryArg}`)
+  process.exit(2)
+}
 const REGISTRY = registryArg.endsWith("/") ? registryArg : `${registryArg}/`
 const FIRST_PARTY_SCOPES = ["@equationalapplications/"]
 const isFirstParty = (name, resolved) =>
