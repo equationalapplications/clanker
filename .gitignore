@@ -13,8 +13,9 @@ web-build/
 # Expo prebuild outputs
 /android/
 /ios/
-# Anchored above so EAS keeps vendored modules' tracked native dirs; ignore
-# their local build outputs explicitly instead.
+# Anchored above so EAS keeps tracked native dirs of any local Expo module under
+# modules/ (none today; the audio module moved to npm in #925); ignore their
+# local build outputs explicitly instead.
 /modules/*/android/build/
 /modules/*/android/.gradle/
 /modules/*/android/.cxx/

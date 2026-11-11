@@ -45,11 +45,11 @@ Talk tab: Start Call
 
 ## Client Architecture
 
-| Module             | Role                                                                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state                                                           |
-| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor                                                              |
-| `useLiveAudioIO`   | Hardware: unified duplex mic + playback via the vendored `modules/expo-two-way-audio` local module, 24→16 kHz resample, barge-in flush |
+| Module             | Role                                                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `useLiveVoiceChat` | Controller: pre-flight checks, wires machine + audio, exposes Talk tab state                                                 |
+| `liveVoiceMachine` | XState v5 lifecycle: sync → connect → live → save → idle; WebSocket actor                                                    |
+| `useLiveAudioIO`   | Hardware: unified duplex mic + playback via `@equationalapplications/expo-two-way-audio`, 24→16 kHz resample, barge-in flush |
 
 **Key files:**
 
@@ -86,14 +86,14 @@ Text chat reaches the same tool via Cloud Agent `POST /agent/run` (synchronous `
 
 ## Audio
 
-**Native audio (Talk tab):** Uses the vendored local Expo module `modules/expo-two-way-audio` (ported from `@speechmatics/expo-two-way-audio@0.1.2`, MIT, with EA's barge-in fork applied in source — the npm package and its patch-package patch are retired) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
+**Native audio (Talk tab):** Uses `@equationalapplications/expo-two-way-audio` from npm (EA-maintained fork of `@speechmatics/expo-two-way-audio@0.1.2`, MIT, with barge-in as `bargeIn()`; repo: [equationalapplications/expo-two-way-audio](https://github.com/equationalapplications/expo-two-way-audio). It replaced the vendored `modules/expo-two-way-audio` copy, whose native code was byte-identical) as a unified duplex module for microphone capture and PCM playback. Hardware AEC is enabled on both iOS (`VoiceProcessingIO`) and Android (linked `AudioRecord`/`AudioTrack` session). Downlink audio is resampled from 24 kHz to 16 kHz in `src/utils/audioResample.ts` before enqueue. Wire protocol (24 kHz base64 downlink, 16 kHz uplink) is unchanged.
 
-| Direction        | Format                                  | Library                                 |
-| ---------------- | --------------------------------------- | --------------------------------------- |
-| Mic uplink       | 16 kHz, mono, 16-bit PCM                | `modules/expo-two-way-audio` (vendored) |
-| Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `modules/expo-two-way-audio` (vendored) |
+| Direction        | Format                                  | Library                                      |
+| ---------------- | --------------------------------------- | -------------------------------------------- |
+| Mic uplink       | 16 kHz, mono, 16-bit PCM                | `@equationalapplications/expo-two-way-audio` |
+| Speaker downlink | 24 kHz PCM chunks (resampled to 16 kHz) | `@equationalapplications/expo-two-way-audio` |
 
-**Native rebuild required** — `modules/expo-two-way-audio` is a native module. OTA updates are insufficient. Rebuild dev client after install (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent).
+**Native rebuild required for native changes** — `@equationalapplications/expo-two-way-audio` is a native module. A package bump that changes its Kotlin/Swift code (or its module name/API surface) can't ship by OTA. To check a bump, diff the package's `android/`, `ios/` and `expo-module.config.json` between the two versions (`npm pack` both). The config file is what registers the native module classes with autolinking, so a change there is a native change even if `android/` and `ios/` are untouched. If any of them changed, the bump commit must carry a `BREAKING CHANGE:` footer: that moves the major version and with it the `runtimeVersion`, which is the only thing that stops an OTA reaching older binaries. Then rebuild the dev client and store binaries (`npm run build:dev-a`, `build:dev-i`, or EAS equivalent). JS-only bumps with byte-identical native code are OTA-safe. Dependabot proposes this package in its own PR (excluded from the `equationalapplications` group in `.github/dependabot.yml`) so the check isn't skipped.
 
 ---
 

@@ -21,7 +21,7 @@ const IGNORED_DIRS = new Set([
 ])
 
 const TRANSFORM_IGNORE_PATTERNS = [
-  'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
+  'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-firebase/.*|firebase/.*|@firebase/.*)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@equationalapplications/expo-two-way-audio)',
 ]
 
 // Suites that declare `@jest-environment jsdom` run in the 'dom' project

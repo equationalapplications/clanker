@@ -1,9 +1,9 @@
 /**
- * Guard tests for the vendored module's JS surface (clanker #857).
+ * Guard tests for the @equationalapplications/expo-two-way-audio JS surface (clanker #857).
  *
  * The dangerous regression class here is the forked `restart()` trap: the
  * old patch redefined `restart()` to mean barge-in while the app believed
- * it kept upstream semantics. The vendored module must therefore never
+ * it kept upstream semantics. The package must therefore never
  * export `restart` at all, and `bargeIn()` must delegate to the native
  * method without touching recording state.
  */
@@ -11,7 +11,7 @@
 const mockNativeBargeIn = jest.fn()
 const mockNativeToggleRecording = jest.fn()
 
-jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
+jest.mock('@equationalapplications/expo-two-way-audio/build/ExpoTwoWayAudioModule', () => ({
   __esModule: true,
   default: {
     bargeIn: (...a: unknown[]) => mockNativeBargeIn(...a),
@@ -19,9 +19,9 @@ jest.mock('../modules/expo-two-way-audio/src/ExpoTwoWayAudioModule', () => ({
   },
 }))
 
-import * as ExpoTwoWayAudio from '../modules/expo-two-way-audio/src'
+import * as ExpoTwoWayAudio from '@equationalapplications/expo-two-way-audio'
 
-describe('vendored expo-two-way-audio JS surface', () => {
+describe('@equationalapplications/expo-two-way-audio JS surface', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
