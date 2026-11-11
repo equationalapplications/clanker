@@ -31,7 +31,7 @@ web export pipeline, or the sitemap.
 Production `/` serves the static landing page (`landing/index.html` copied to
 `dist/index.html` by `scripts/finalize-web-export.mjs`); dev
 (`expo start --web`) and in-SPA `/` render `app/index.tsx`, which redirects to
-`/sign-in`. Accepted per the landing spec, but never written down.
+`/chat` when signed in and `/sign-in` otherwise. Accepted per the landing spec, but never written down.
 
 - `docs/superpowers/specs/2026-10-25-web-root-static-landing-design.md`: add a
   short "Dev/prod divergence at `/`" section stating the above and that the
