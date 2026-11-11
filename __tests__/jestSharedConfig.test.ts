@@ -20,6 +20,10 @@ describe('jest.shared.config', () => {
       expect(shared.isJsdomSource(src)).toBe(true)
     })
 
+    it('accepts the long environment name Jest resolves to jsdom', () => {
+      expect(shared.isJsdomSource('/** @jest-environment jest-environment-jsdom */\n')).toBe(true)
+    })
+
     it('ignores a pragma outside the first docblock', () => {
       expect(shared.isJsdomSource('/** header */\n/** @jest-environment jsdom */\n')).toBe(false)
     })
@@ -81,6 +85,43 @@ describe('jest.shared.config', () => {
         shared.jsdomSuitePattern('/r', 'a.test.ts'),
         shared.jsdomSuitePattern('/r', 'b.test.ts'),
       ])
+    })
+  })
+
+  // Wiring guard: the real jest.config.js must put every discovered jsdom suite in
+  // the dom project and keep it out of native, and leave ordinary suites to native.
+  describe('jest.config.js projects', () => {
+    type Project = {
+      displayName: string
+      testRegex?: string[]
+      testPathIgnorePatterns: string[]
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { projects } = require('../jest.config') as { projects: Project[] }
+    const root = fs.realpathSync.native(path.resolve(__dirname, '..'))
+    const dom = projects.find((p) => p.displayName === 'dom')!
+    const native = projects.find((p) => p.displayName === 'native')!
+    const compile = (patterns: string[]) =>
+      patterns.map((p) => new RegExp(p.split('<rootDir>').join(root)))
+    const domRegex = compile(dom.testRegex ?? [])
+    const nativeIgnore = compile(native.testPathIgnorePatterns)
+    const jsdomSuites = shared.findJsdomSuites(root).map((f) => path.join(root, f))
+
+    it('discovers jsdom suites in this repo', () => {
+      expect(jsdomSuites.length).toBeGreaterThan(0)
+    })
+
+    it('runs each jsdom suite in dom only', () => {
+      for (const file of jsdomSuites) {
+        expect(domRegex.some((r) => r.test(file))).toBe(true)
+        expect(nativeIgnore.some((r) => r.test(file))).toBe(true)
+      }
+    })
+
+    it('leaves a non-jsdom suite to native only', () => {
+      const file = fs.realpathSync.native(__filename)
+      expect(domRegex.some((r) => r.test(file))).toBe(false)
+      expect(nativeIgnore.some((r) => r.test(file))).toBe(false)
     })
   })
 })

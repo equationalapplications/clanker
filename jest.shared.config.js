@@ -45,8 +45,12 @@ const TRANSFORM_IGNORE_PATTERNS = [
 // so both projects share the same preset and only the environment differs.
 const ALWAYS_PRUNED = new Set(['node_modules', '.git', '.worktrees'])
 
+// Jest resolves `@jest-environment <name>` by trying `jest-environment-<name>`
+// first, so the long form selects the same environment and must classify the same.
+const JSDOM_ENVIRONMENTS = new Set(['jsdom', 'jest-environment-jsdom'])
+
 function isJsdomSource(source) {
-  return parse(extract(source))['jest-environment'] === 'jsdom'
+  return JSDOM_ENVIRONMENTS.has(parse(extract(source))['jest-environment'])
 }
 
 function findJsdomSuitesAbs(dir, out, depth) {
