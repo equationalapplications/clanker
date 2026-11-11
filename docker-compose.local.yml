@@ -24,9 +24,11 @@ services:
       - CORS_ORIGIN=http://localhost:8081,http://localhost:8082
       - CLOUD_AGENT_URL=http://localhost:8080
       - SCHEDULER_SECRET=${SCHEDULER_SECRET:-}
-    # shared/node_modules is an anonymous volume (not the host dir) so this symlink only
-    # affects the container; shared/*.ts imports (e.g. dsl-schema → zod) resolve via it.
-    command: sh -c "ln -sfn /app/cloud-agent/node_modules /app/shared/node_modules && npm run dev"
+    # shared/node_modules is an anonymous volume (not the host dir) so these symlinks only
+    # affect the container; shared/*.ts imports (e.g. dsl-schema → zod) resolve via them.
+    # The volume is a mount point, so it can't be replaced by one symlink (`ln -sfn dir
+    # mountpoint` nests the link inside it); link each top-level package into it instead.
+    command: sh -c "ln -sfn /app/cloud-agent/node_modules/* /app/shared/node_modules/ && npm run dev"
     depends_on:
       postgres_db:
         condition: service_healthy
