@@ -1,5 +1,10 @@
 # SUPERSEDED: speechmatics two-way-audio SDK 56 patch (retired 2026-10-29, clanker #857)
 
+> **Moved again (2026-11-11, clanker #925):** the vendored `modules/expo-two-way-audio` was
+> replaced by the published npm package
+> [`@equationalapplications/expo-two-way-audio`](https://github.com/equationalapplications/expo-two-way-audio)
+> (byte-identical native code). Read "vendored module" below as that package.
+
 **This document is retired.** `patches/@speechmatics+expo-two-way-audio+0.1.2.patch`
 no longer exists. The npm dependency `@speechmatics/expo-two-way-audio` was
 removed and the fork now lives in source as the vendored local Expo module
