@@ -85,6 +85,21 @@ describe('AnalyticsConsentPrompt', () => {
     expect(screen.queryByTestId('analytics-consent-prompt')).toBeNull()
   })
 
+  // The drawer keys the prompt by uid, so an account switch remounts it and re-reads storage.
+  it('re-reads storage when remounted with a new key', async () => {
+    mockHasStoredSetting.mockReturnValue(true)
+    const view = await render(<AnalyticsConsentPrompt key="uid-A" enabled />)
+    expect(screen.queryByTestId('analytics-consent-prompt')).toBeNull()
+
+    mockHasStoredSetting.mockReturnValue(false)
+    await view.rerender(
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <AnalyticsConsentPrompt key="uid-B" enabled />
+      </SafeAreaProvider>,
+    )
+    expect(screen.getByTestId('analytics-consent-prompt')).toBeTruthy()
+  })
+
   it('never shows on web, where cookie consent owns the choice', async () => {
     setOS('web')
     await render(<AnalyticsConsentPrompt enabled />)

@@ -10,12 +10,13 @@ import { signInWithGoogle, GoogleSignInResult, signOutFromGoogle } from '~/auth/
 import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/appleSignin'
 import { bootstrapSession, UserSnapshot, SubscriptionSnapshot } from '~/auth/bootstrapSession'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
-import { setCrashlyticsEnabled, setCrashlyticsUserId } from '~/services/crashlyticsService'
-import { logEvent, setAnalyticsEnabled, setUserId } from '~/services/analyticsService'
+import { setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { logEvent, setUserId } from '~/services/analyticsService'
+import { reconcileAnalyticsConsent, resetAnalyticsConsent } from '~/services/analyticsConsent'
 import { queryClient } from '~/config/queryClient'
 import { resetLowPowerSession } from '~/state/lowPowerSession'
 import { kvStorePersister } from '~/config/queryPersister'
-import { clearSetting, clearSettings } from '~/utilities/settingsStorage'
+import { clearSettings } from '~/utilities/settingsStorage'
 
 export type BootstrapRefreshReason = 'purchase' | 'restore' | 'manual' | 'terms' | 'foreground'
 
@@ -86,21 +87,6 @@ export type AuthMachineEvents =
   | { type: 'DB_USER_PATCHED_LOCAL'; updates: Partial<UserSnapshot> }
   | { type: 'PROFILE_PATCHED_LOCAL'; updates: Partial<UserSnapshot> }
 
-/**
- * Analytics consent belongs to the account that gave it. When a session ends — explicit
- * sign-out or server-side revocation — blank the stored choice and turn native collection
- * off, so the next account starts unconsented and is asked again (cold start already reads
- * '' as off). A failed bootstrap is deliberately NOT a reset: it also fires on transient
- * network failures (e.g. an offline foreground refresh), and wiping an opted-in user's
- * choice there would re-prompt them for nothing. Web consent is owned by the cookie banner,
- * so it is left alone there.
- */
-async function resetNativeAnalyticsConsent(): Promise<void> {
-  if (Platform.OS === 'web') return
-  clearSetting('analytics')
-  await Promise.all([setAnalyticsEnabled(false), setCrashlyticsEnabled(false)])
-}
-
 export const authMachine = createMachine(
   {
     id: 'authMachine',
@@ -129,7 +115,13 @@ export const authMachine = createMachine(
     on: {
       USER_FOUND: {
         target: '.bootstrapping',
-        actions: assign({ user: ({ event }) => event.user }),
+        actions: [
+          assign({ user: ({ event }) => event.user }),
+          // Analytics consent is bound to the account that gave it. Reconcile synchronously
+          // here, not at bootstrap success: the drawer (and its one-time consent prompt)
+          // mounts as soon as `context.user` is set. Idempotent; native may fire this twice.
+          ({ event }) => reconcileAnalyticsConsent(event.user.uid),
+        ],
       },
       NO_USER_FOUND: [
         {
@@ -168,19 +160,25 @@ export const authMachine = createMachine(
     states: {
       initializing: {},
       signedOut: {
-        entry: assign({
-          user: null,
-          dbUser: null,
-          subscription: null,
-          error: ({ context }) => context.error,
-          pendingRefreshReason: null,
-          activeRefreshReason: null,
-          lastRefreshReason: null,
-          lastRefreshAt: null,
-          lastUsageSnapshotAt: null,
-          identitySetupUid: null,
-          grantedTotal: 0,
-        }),
+        entry: [
+          // Suspend collection but keep the stored choice, so the same account resumes
+          // without a re-prompt after a lost session or a failed bootstrap. Explicit sign-out
+          // and server revocation forget it instead (resetAnalyticsConsent).
+          () => reconcileAnalyticsConsent(null),
+          assign({
+            user: null,
+            dbUser: null,
+            subscription: null,
+            error: ({ context }) => context.error,
+            pendingRefreshReason: null,
+            activeRefreshReason: null,
+            lastRefreshReason: null,
+            lastRefreshAt: null,
+            lastUsageSnapshotAt: null,
+            identitySetupUid: null,
+            grantedTotal: 0,
+          }),
+        ],
         on: {
           SIGN_IN: 'signingIn',
         },
@@ -438,7 +436,7 @@ export const authMachine = createMachine(
       }),
       clearSessionData: () => {
         Promise.all([
-          resetNativeAnalyticsConsent(),
+          resetAnalyticsConsent(),
           setCrashlyticsUserId(null),
           setUserId(null),
           logoutRevenueCat(),
@@ -561,7 +559,7 @@ export const authMachine = createMachine(
         await runCleanupStep('clearSettings', () => {
           clearSettings()
         })
-        await runCleanupStep('resetNativeAnalyticsConsent', () => resetNativeAnalyticsConsent())
+        await runCleanupStep('resetAnalyticsConsent', () => resetAnalyticsConsent())
         if (Platform.OS === 'ios') {
           await runCleanupStep('signOutFromApple', () => signOutFromApple())
         } else if (Platform.OS === 'android') {

@@ -16,8 +16,9 @@ type AnalyticsConsentPromptProps = {
  * Native analytics is opt-in (`setting:analytics`, off by default, and
  * `analytics_auto_collection_enabled: false` in firebase.json), and the only switch used to
  * live in Settings, so almost no installs ever reported to GA4. This asks once, after Terms,
- * while the choice is still unset. Either answer is persisted through `updateSetting`, so the
- * prompt never returns; `clearSettings()` on sign-out resets it for the next account.
+ * while the choice is still unset. Either answer is persisted through `updateSetting`, bound to
+ * the signed-in account (`analyticsConsent`), so the prompt does not return for that account;
+ * another account, or the same one after an explicit sign-out, is asked again.
  *
  * Web is excluded: there, the cookie-consent banner already owns this choice.
  */

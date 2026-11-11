@@ -56,6 +56,8 @@ const AppLayout = () => {
   const theme = useTheme()
   const termsService = useTermsMachine()
   const authService = useAuthMachine()
+  // Remount the one-time consent prompt per account so it re-reads storage after a switch.
+  const consentUid = useSelector(authService, (state) => state.context.user?.uid ?? null)
   const {
     termsAccepted,
     termsBlocking,
@@ -290,7 +292,10 @@ const AppLayout = () => {
         />
       </Drawer>
       {/* Declining Terms keeps access (issue #810), so the one-time ask follows either. */}
-      <AnalyticsConsentPrompt enabled={termsAccepted || termsDeclined} />
+      <AnalyticsConsentPrompt
+        key={consentUid ?? 'signed-out'}
+        enabled={termsAccepted || termsDeclined}
+      />
     </>
   )
 }

@@ -33,6 +33,16 @@ jest.mock('~/services/analyticsService', () => ({
   setAnalyticsEnabled: jest.fn().mockResolvedValue(undefined),
 }))
 
+const mockConsentListeners = new Set<() => void>()
+const mockSetAnalyticsChoice = jest.fn()
+jest.mock('~/services/analyticsConsent', () => ({
+  setAnalyticsChoice: (...args: unknown[]) => mockSetAnalyticsChoice(...args),
+  subscribeAnalyticsConsent: (listener: () => void) => {
+    mockConsentListeners.add(listener)
+    return () => mockConsentListeners.delete(listener)
+  },
+}))
+
 function Probe({ onReady }: { onReady: (api: ReturnType<typeof useSettings>) => void }) {
   const api = useSettings()
   React.useEffect(() => onReady(api), [api, onReady])
@@ -267,8 +277,8 @@ describe('SettingsContext', () => {
     })
   })
 
-  describe('updateSetting analytics — Crashlytics and Analytics gate', () => {
-    it('calls setCrashlyticsEnabled(true) when analytics is enabled', () => {
+  describe('analytics consent (native)', () => {
+    function mountProbe() {
       let api: any
       act(() => {
         create(
@@ -283,19 +293,56 @@ describe('SettingsContext', () => {
           </CookieConsentProvider>,
         )
       })
+      return () => api as ReturnType<typeof useSettings>
+    }
 
-      act(() => api.updateSetting('analytics', true))
-
-      expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
-      expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
+    beforeEach(() => {
+      mockConsentListeners.clear()
+      mockSetAnalyticsChoice.mockClear()
+      jest.mocked(Storage.getItemSync).mockReturnValue(null)
     })
 
-    it('calls setCrashlyticsEnabled(false) when analytics is disabled', () => {
+    it('routes the toggle through setAnalyticsChoice instead of raw writes', () => {
+      const api = mountProbe()
+      act(() => api().updateSetting('analytics', true))
+
+      expect(mockSetAnalyticsChoice).toHaveBeenCalledWith(true)
+      expect(mockStorageSetItemSync).not.toHaveBeenCalledWith('setting:analytics', '1')
+      expect(crashlyticsService.setCrashlyticsEnabled).not.toHaveBeenCalled()
+      expect(analyticsService.setAnalyticsEnabled).not.toHaveBeenCalled()
+      expect(api().settings.analytics).toBe(true)
+    })
+
+    it('flips the toggle off when consent is reset elsewhere', () => {
+      jest
+        .mocked(Storage.getItemSync)
+        .mockImplementation((key: string) => (key === 'setting:analytics' ? '1' : null))
+      const api = mountProbe()
+      expect(api().settings.analytics).toBe(true)
+
+      jest.mocked(Storage.getItemSync).mockReturnValue('')
+      act(() => mockConsentListeners.forEach((listener) => listener()))
+
+      expect(api().settings.analytics).toBe(false)
+    })
+
+    it('picks up a change made after the first render but before subscribing', () => {
+      jest
+        .mocked(Storage.getItemSync)
+        .mockImplementation((key: string) => (key === 'setting:analytics' ? '1' : null))
       let api: any
+      function ResetOnMount() {
+        React.useEffect(() => {
+          // A child effect (e.g. the auth actor reconciling) runs before the provider's effect.
+          jest.mocked(Storage.getItemSync).mockReturnValue('')
+        }, [])
+        return null
+      }
       act(() => {
         create(
           <CookieConsentProvider>
             <SettingsProvider>
+              <ResetOnMount />
               <Probe
                 onReady={(a) => {
                   api = a
@@ -306,10 +353,22 @@ describe('SettingsContext', () => {
         )
       })
 
-      act(() => api.updateSetting('analytics', false))
+      expect(api.settings.analytics).toBe(false)
+    })
 
-      expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(false)
-      expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(false)
+    it('keeps the web path unchanged (raw write + SDK toggles, no consent module)', () => {
+      ;(globalThis as any).__setJestPlatformOS('web')
+      try {
+        const api = mountProbe()
+        act(() => api().updateSetting('analytics', true))
+
+        expect(mockSetAnalyticsChoice).not.toHaveBeenCalled()
+        expect(mockStorageSetItemSync).toHaveBeenCalledWith('setting:analytics', '1')
+        expect(crashlyticsService.setCrashlyticsEnabled).toHaveBeenCalledWith(true)
+        expect(analyticsService.setAnalyticsEnabled).toHaveBeenCalledWith(true)
+      } finally {
+        ;(globalThis as any).__resetJestPlatformOS()
+      }
     })
   })
 })
