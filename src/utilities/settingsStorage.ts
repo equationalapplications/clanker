@@ -29,12 +29,17 @@ export function hasStoredSetting(key: SettingKey): boolean {
   }
 }
 
+/** Blank one setting so it reads as unset (see `hasStoredSetting`). Best-effort. */
+export function clearSetting(key: SettingKey): void {
+  try {
+    Storage.setItemSync(settingKey(key), '')
+  } catch {
+    // best-effort
+  }
+}
+
 export function clearSettings(): void {
   for (const key of SETTING_KEYS) {
-    try {
-      Storage.setItemSync(settingKey(key), '')
-    } catch {
-      // best-effort
-    }
+    clearSetting(key)
   }
 }

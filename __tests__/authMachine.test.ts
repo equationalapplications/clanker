@@ -18,6 +18,7 @@ const mockSetUserId = jest.fn().mockResolvedValue(undefined)
 const mockQueryClientClear = jest.fn()
 const mockKvStorePersisterRemoveClient = jest.fn()
 const mockClearSettings = jest.fn()
+const mockClearSetting = jest.fn()
 
 jest.mock('../src/config/firebaseConfig', () => ({
   onAuthStateChanged: mockOnAuthStateChanged,
@@ -68,6 +69,7 @@ jest.mock('../src/config/queryPersister', () => ({
 
 jest.mock('../src/utilities/settingsStorage', () => ({
   clearSettings: mockClearSettings,
+  clearSetting: mockClearSetting,
 }))
 
 const { authMachine } = require('../src/machines/authMachine')
@@ -193,6 +195,8 @@ describe('authMachine', () => {
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
     expect(mockSetCrashlyticsUserId).toHaveBeenCalledWith(null)
     expect(mockKvStorePersisterRemoveClient).toHaveBeenCalled()
+    expect(mockClearSetting).toHaveBeenCalledWith('analytics')
+    expect(mockSetAnalyticsEnabled).toHaveBeenCalledWith(false)
     actor.stop()
   })
 
@@ -233,6 +237,10 @@ describe('authMachine', () => {
 
     expect(mockQueryClientClear).toHaveBeenCalled()
     expect(mockLogoutRevenueCat).toHaveBeenCalled()
+    // A revoked session resets analytics consent like an explicit sign-out.
+    expect(mockClearSetting).toHaveBeenCalledWith('analytics')
+    expect(mockSetAnalyticsEnabled).toHaveBeenCalledWith(false)
+    expect(mockSetCrashlyticsEnabled).toHaveBeenCalledWith(false)
     actor.stop()
   })
 
