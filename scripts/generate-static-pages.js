@@ -90,7 +90,23 @@ const {
   APP_HOME_PATH,
   SIGNED_IN_HINT_KEY,
   APP_SHELL_FILE,
+  IOS_APP_STORE_ID,
+  appStoreUrl,
+  playStoreUrl,
 } = loadTsModule(path.join(ROOT, 'src/config/siteConfig'))
+
+// Safari's Smart App Banner: offers "Open"/"Get" for the iOS app on every marketing page.
+const SMART_APP_BANNER_TAG = `<meta name="apple-itunes-app" content="app-id=${IOS_APP_STORE_ID}" />`
+
+/** App Store + Google Play buttons; `campaign` tags the install source (see siteConfig.js). */
+function renderStoreButtons(HERO, campaign) {
+  return (
+    `<a class="btn btn-primary btn-store" href="${escapeHtmlAttr(appStoreUrl(campaign))}"` +
+    ` data-store="app_store">${escapeHtml(HERO.appStoreCtaLabel)}</a>\n` +
+    `          <a class="btn btn-primary btn-store" href="${escapeHtmlAttr(playStoreUrl(campaign))}"` +
+    ` data-store="google_play">${escapeHtml(HERO.playStoreCtaLabel)}</a>`
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Plain-text (config) → HTML conversion.
@@ -270,6 +286,7 @@ function renderDocPage({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${SMART_APP_BANNER_TAG}
     <title>${pageTitle}</title>
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonical}" />
@@ -474,6 +491,7 @@ const WELCOME_CSS = `
       .card-icon { font-size: 2rem; line-height: 1; }
       .bottom-cta { padding: 56px 24px; text-align: center; }
       .bottom-cta h2 { margin-bottom: 20px; }
+      .web-cta { margin: 16px 0 0; }
       footer {
         padding: 24px 16px; text-align: center; font-size: 0.875rem;
         color: var(--outline); border-top: 1px solid var(--surface-variant);
@@ -558,6 +576,7 @@ function generateLanding() {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     ${signedInRedirect}
+    ${SMART_APP_BANNER_TAG}
     <title>${escapeHtml(SITE_META.title)}</title>
     <meta name="description" content="${escapeHtmlAttr(SITE_META.description)}" />
     <meta name="keywords" content="${escapeHtmlAttr(SITE_META.keywords)}" />
@@ -596,8 +615,8 @@ function generateLanding() {
         <h1>${escapeHtml(HERO.headline)}</h1>
         <p class="lead">${escapeHtml(HERO.tagline)}</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="${HERO.signInHref}">${escapeHtml(HERO.staticPrimaryCtaLabel)}</a>
-          <a class="btn btn-outline" href="${HERO.announcement.href}">${escapeHtml(HERO.staticSecondaryCtaLabel)}</a>
+          ${renderStoreButtons(HERO, 'landing_hero')}
+          <a class="btn btn-outline" href="${HERO.signInHref}">${escapeHtml(HERO.staticWebCtaLabel)}</a>
         </div>
       </section>
 
@@ -625,7 +644,10 @@ ${featureCards}
 
       <section class="bottom-cta">
         <h2>${escapeHtml(HERO.staticBottomCtaHeading)}</h2>
-        <a class="btn btn-primary" href="${HERO.signInHref}">${escapeHtml(HERO.staticBottomCtaLabel)}</a>
+        <div class="cta-row">
+          ${renderStoreButtons(HERO, 'landing_bottom')}
+        </div>
+        <p class="web-cta"><a href="${HERO.signInHref}">${escapeHtml(HERO.staticBottomWebCtaLabel)}</a></p>
       </section>
     </main>
 
@@ -759,6 +781,10 @@ function generateLlmsTxt(pages) {
 > ${SITE_META.description}
 
 ${HERO.tagline}. Free to start on iOS, Android, and the web: ${SITE}${HERO.signInHref}
+
+- iOS App Store: ${appStoreUrl()}
+- Google Play: ${playStoreUrl()}
+
 Made by Equational Applications LLC (https://equationalapplications.com/).
 
 ## Features

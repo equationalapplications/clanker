@@ -10,12 +10,12 @@ import { signInWithGoogle, GoogleSignInResult, signOutFromGoogle } from '~/auth/
 import { signInWithApple, AppleSignInResult, signOutFromApple } from '~/auth/appleSignin'
 import { bootstrapSession, UserSnapshot, SubscriptionSnapshot } from '~/auth/bootstrapSession'
 import { loginRevenueCat, logoutRevenueCat } from '~/config/revenueCatConfig'
-import { setCrashlyticsUserId } from '~/services/crashlyticsService'
-import { logEvent, setUserId } from '~/services/analyticsService'
+import { setCrashlyticsEnabled, setCrashlyticsUserId } from '~/services/crashlyticsService'
+import { logEvent, setAnalyticsEnabled, setUserId } from '~/services/analyticsService'
 import { queryClient } from '~/config/queryClient'
 import { resetLowPowerSession } from '~/state/lowPowerSession'
 import { kvStorePersister } from '~/config/queryPersister'
-import { clearSettings } from '~/utilities/settingsStorage'
+import { clearSetting, clearSettings } from '~/utilities/settingsStorage'
 
 export type BootstrapRefreshReason = 'purchase' | 'restore' | 'manual' | 'terms' | 'foreground'
 
@@ -85,6 +85,19 @@ export type AuthMachineEvents =
     }
   | { type: 'DB_USER_PATCHED_LOCAL'; updates: Partial<UserSnapshot> }
   | { type: 'PROFILE_PATCHED_LOCAL'; updates: Partial<UserSnapshot> }
+
+/**
+ * Analytics consent belongs to the account that gave it. When a session ends — explicit
+ * sign-out, server-side revocation, or a failed bootstrap — blank the stored choice and turn
+ * native collection off, so the next account starts unconsented and is asked again (cold
+ * start already reads '' as off). Web consent is owned by the cookie banner, so it is left
+ * alone there.
+ */
+async function resetNativeAnalyticsConsent(): Promise<void> {
+  if (Platform.OS === 'web') return
+  clearSetting('analytics')
+  await Promise.all([setAnalyticsEnabled(false), setCrashlyticsEnabled(false)])
+}
 
 export const authMachine = createMachine(
   {
@@ -423,6 +436,7 @@ export const authMachine = createMachine(
       }),
       clearSessionData: () => {
         Promise.all([
+          resetNativeAnalyticsConsent(),
           setCrashlyticsUserId(null),
           setUserId(null),
           logoutRevenueCat(),
@@ -432,6 +446,7 @@ export const authMachine = createMachine(
       },
       clearFailedBootstrapSession: () => {
         Promise.all([
+          resetNativeAnalyticsConsent(),
           firebaseSignOut(),
           setCrashlyticsUserId(null),
           setUserId(null),
@@ -545,6 +560,7 @@ export const authMachine = createMachine(
         await runCleanupStep('clearSettings', () => {
           clearSettings()
         })
+        await runCleanupStep('resetNativeAnalyticsConsent', () => resetNativeAnalyticsConsent())
         if (Platform.OS === 'ios') {
           await runCleanupStep('signOutFromApple', () => signOutFromApple())
         } else if (Platform.OS === 'android') {

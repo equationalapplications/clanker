@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script>try{if(localStorage.getItem("clanker:signedIn")==='1')location.replace("/chat")}catch(e){}</script>
+    <meta name="apple-itunes-app" content="app-id=6754219831" />
     <title>Clanker AI — Personal AI Assistant with Real-Time Voice &amp; OKF Memory</title>
     <meta name="description" content="Clanker AI is a personal AI assistant with a personality you design and a memory that never forgets — real-time voice calls, document understanding, live web search, and OKF memory you own and export." />
     <meta name="keywords" content="personal AI assistant, Clanker AI, real-time voice AI, AI voice chat, Open Knowledge Format, OKF, Google OKF, AI memory, Obsidian AI, AI characters, export AI character, AI companion, voice assistant" />
@@ -109,6 +110,7 @@
       .card-icon { font-size: 2rem; line-height: 1; }
       .bottom-cta { padding: 56px 24px; text-align: center; }
       .bottom-cta h2 { margin-bottom: 20px; }
+      .web-cta { margin: 16px 0 0; }
       footer {
         padding: 24px 16px; text-align: center; font-size: 0.875rem;
         color: var(--outline); border-top: 1px solid var(--surface-variant);
@@ -129,8 +131,9 @@
         <h1>Clanker AI</h1>
         <p class="lead">A personal AI assistant you design — chat, call, and share your own AI characters</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="/sign-in?redirect=/chat">Try the App</a>
-          <a class="btn btn-outline" href="/image-generation">Explore Images in Chat</a>
+          <a class="btn btn-primary btn-store" href="https://apps.apple.com/app/id6754219831?pt=126212881&amp;ct=landing_hero&amp;mt=8" data-store="app_store">Download on the App Store</a>
+          <a class="btn btn-primary btn-store" href="https://play.google.com/store/apps/details?id=com.equationalapplications.clanker&amp;referrer=utm_source%3Dclanker-ai.com%26utm_medium%3Dlanding%26utm_campaign%3Dlanding_hero" data-store="google_play">Get it on Google Play</a>
+          <a class="btn btn-outline" href="/sign-in?redirect=/chat">Use it on the web</a>
         </div>
       </section>
 
@@ -197,7 +200,11 @@
 
       <section class="bottom-cta">
         <h2>Ready to meet your character?</h2>
-        <a class="btn btn-primary" href="/sign-in?redirect=/chat">Get started free</a>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-store" href="https://apps.apple.com/app/id6754219831?pt=126212881&amp;ct=landing_bottom&amp;mt=8" data-store="app_store">Download on the App Store</a>
+          <a class="btn btn-primary btn-store" href="https://play.google.com/store/apps/details?id=com.equationalapplications.clanker&amp;referrer=utm_source%3Dclanker-ai.com%26utm_medium%3Dlanding%26utm_campaign%3Dlanding_bottom" data-store="google_play">Get it on Google Play</a>
+        </div>
+        <p class="web-cta"><a href="/sign-in?redirect=/chat">Or start free on the web</a></p>
       </section>
     </main>
 

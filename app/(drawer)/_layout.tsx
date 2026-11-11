@@ -19,6 +19,7 @@ import {
   termsAgeAlreadyVerified,
 } from '~/utilities/termsDecline'
 import { PowerMeter } from '~/components/PowerMeter'
+import { AnalyticsConsentPrompt } from '~/components/AnalyticsConsentPrompt'
 
 const DRAWER_ROUTE_CONFIG: Record<string, { label: string; icon: string }> = {
   '(tabs)': { label: 'Chat', icon: 'chat' },
@@ -220,73 +221,77 @@ const AppLayout = () => {
   }
 
   return (
-    <Drawer
-      drawerContent={(props) => (
-        <DrawerContentScrollView {...props}>
-          <DrawerItemList {...props} />
-          {/* Declining keeps access (issue #810), so Support stays available then too. */}
-          {termsAccepted || termsDeclined ? (
-            <DrawerItem
-              label="Support"
-              icon={({ color, size }) => (
-                <Icon source="lifebuoy" color={String(color)} size={size} />
-              )}
-              onPress={() => router.push('/support' as Href)}
-            />
-          ) : null}
-        </DrawerContentScrollView>
-      )}
-      screenOptions={({ route }) => ({
-        ...(() => {
-          const routeConfig = DRAWER_ROUTE_CONFIG[route.name]
-          if (!routeConfig) {
-            return {}
-          }
+    <>
+      <Drawer
+        drawerContent={(props) => (
+          <DrawerContentScrollView {...props}>
+            <DrawerItemList {...props} />
+            {/* Declining keeps access (issue #810), so Support stays available then too. */}
+            {termsAccepted || termsDeclined ? (
+              <DrawerItem
+                label="Support"
+                icon={({ color, size }) => (
+                  <Icon source="lifebuoy" color={String(color)} size={size} />
+                )}
+                onPress={() => router.push('/support' as Href)}
+              />
+            ) : null}
+          </DrawerContentScrollView>
+        )}
+        screenOptions={({ route }) => ({
+          ...(() => {
+            const routeConfig = DRAWER_ROUTE_CONFIG[route.name]
+            if (!routeConfig) {
+              return {}
+            }
 
-          return {
-            drawerLabel: routeConfig.label,
-            title: routeConfig.label,
-            headerTitle: routeConfig.label,
-            drawerIcon: ({ color, size }: { color: ColorValue; size: number }) => (
-              <Icon source={routeConfig.icon} color={String(color)} size={size} />
-            ),
-          }
-        })(),
-        headerStyle: { backgroundColor: theme.colors.surface },
-        headerTintColor: theme.colors.onSurface,
-        drawerStyle: { backgroundColor: theme.colors.surface },
-        drawerActiveTintColor: theme.colors.primary,
-        drawerInactiveTintColor: theme.colors.onSurfaceVariant,
-        headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
-        headerRight: () => <PowerMeter />,
-      })}
-    >
-      {/* Declining keeps access (issue #810): drawer navigation stays visible while the
+            return {
+              drawerLabel: routeConfig.label,
+              title: routeConfig.label,
+              headerTitle: routeConfig.label,
+              drawerIcon: ({ color, size }: { color: ColorValue; size: number }) => (
+                <Icon source={routeConfig.icon} color={String(color)} size={size} />
+              ),
+            }
+          })(),
+          headerStyle: { backgroundColor: theme.colors.surface },
+          headerTintColor: theme.colors.onSurface,
+          drawerStyle: { backgroundColor: theme.colors.surface },
+          drawerActiveTintColor: theme.colors.primary,
+          drawerInactiveTintColor: theme.colors.onSurfaceVariant,
+          headerLeft: ({ tintColor }) => <DrawerToggleButton tintColor={tintColor} />,
+          headerRight: () => <PowerMeter />,
+        })}
+      >
+        {/* Declining keeps access (issue #810): drawer navigation stays visible while the
           decline window runs, so the user can reach Subscribe to renew and re-accept. */}
-      <Drawer.Screen
-        name="(tabs)"
-        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
-      />
-      <Drawer.Screen
-        name="profile"
-        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
-      />
-      <Drawer.Screen
-        name="settings"
-        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
-      />
-      <Drawer.Screen
-        name="accept-terms"
-        options={{
-          headerShown: false,
-          drawerItemStyle: { display: 'none' },
-        }}
-      />
-      <Drawer.Screen
-        name="subscribe"
-        options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
-      />
-    </Drawer>
+        <Drawer.Screen
+          name="(tabs)"
+          options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        />
+        <Drawer.Screen
+          name="profile"
+          options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        />
+        <Drawer.Screen
+          name="settings"
+          options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        />
+        <Drawer.Screen
+          name="accept-terms"
+          options={{
+            headerShown: false,
+            drawerItemStyle: { display: 'none' },
+          }}
+        />
+        <Drawer.Screen
+          name="subscribe"
+          options={termsAccepted || termsDeclined ? undefined : HIDDEN_DRAWER_SCREEN_OPTIONS}
+        />
+      </Drawer>
+      {/* Declining Terms keeps access (issue #810), so the one-time ask follows either. */}
+      <AnalyticsConsentPrompt enabled={termsAccepted || termsDeclined} />
+    </>
   )
 }
 

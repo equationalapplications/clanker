@@ -23,7 +23,42 @@ const SIGNED_IN_HINT_KEY = 'clanker:signedIn'
 // every non-file path to this shell.
 const APP_SHELL_FILE = 'app-shell.html'
 
+// Store listings. The landing page links to both, and the iOS id also feeds
+// Safari's Smart App Banner (`apple-itunes-app` meta tag).
+const IOS_APP_STORE_ID = '6754219831'
+const ANDROID_PACKAGE = 'com.equationalapplications.clanker'
+
+// Install-source attribution. Google Play passes `referrer` to the Play
+// Console acquisition reports. App Store Connect only attributes `ct`
+// (campaign) when the provider token `pt` is present (App Store Connect >
+// Analytics > Campaigns > Generate a Campaign Link). Empty sends plain links.
+const IOS_PROVIDER_TOKEN = '126212881'
+
+function appStoreUrl(campaign) {
+  const base = `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`
+  if (!IOS_PROVIDER_TOKEN || !campaign) return base
+  const qs = new URLSearchParams({ pt: IOS_PROVIDER_TOKEN, ct: campaign, mt: '8' })
+  return `${base}?${qs.toString()}`
+}
+
+function playStoreUrl(campaign) {
+  const qs = new URLSearchParams({ id: ANDROID_PACKAGE })
+  if (campaign) {
+    const referrer = new URLSearchParams({
+      utm_source: SITE_HOST,
+      utm_medium: 'landing',
+      utm_campaign: campaign,
+    })
+    qs.set('referrer', referrer.toString())
+  }
+  return `https://play.google.com/store/apps/details?${qs.toString()}`
+}
+
 module.exports = {
+  IOS_APP_STORE_ID,
+  ANDROID_PACKAGE,
+  appStoreUrl,
+  playStoreUrl,
   SITE_BASE,
   SITE_HOST,
   CHARACTER_SHARE_PATH_PREFIX,
