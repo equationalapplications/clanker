@@ -54,8 +54,8 @@ The spec must say:
 - what, if anything, a search of sources costs in credits. This is not
   decided.
 
-*Gate:* the engine release that ships the source store; then this
+_Gate:_ the engine release that ships the source store; then this
 repository's spec; then the engine bump.
 
-*Why here:* it waits only on the engine. It is listed now so that nobody
+_Why here:_ it waits only on the engine. It is listed now so that nobody
 builds a second document store beside the engine in the meantime.
