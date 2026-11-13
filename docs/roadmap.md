@@ -36,7 +36,8 @@ afterwards.
 
 The engine is planned to gain a source store: a document's text kept as
 it is, indexed, and searched with no model call (`expo-llm-wiki`
-`docs/ROADMAP.md`, step 4).
+`docs/ROADMAP.md`, step 4, in review as
+[equationalapplications/expo-llm-wiki#378](https://github.com/equationalapplications/expo-llm-wiki/issues/378)).
 
 This step moves the attach path to that store once it exists. An attached
 document is then findable at once, with no model call, and the facts the
