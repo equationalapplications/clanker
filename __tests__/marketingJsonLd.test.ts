@@ -9,6 +9,8 @@ const LANDING_FILE = path.join(ROOT, 'landing', 'index.html')
 // /privacy and /terms are gitignored generated output, matching
 // marketingBranding.test.ts.
 const EXCLUDED_DIRS = new Set(['privacy', 'terms'])
+// Not a marketing page: the noindex error page Firebase serves for unknown paths.
+const EXCLUDED_FILES = new Set(['404.html'])
 
 function findHtmlFiles(dir: string): string[] {
   const files: string[] = []
@@ -16,7 +18,7 @@ function findHtmlFiles(dir: string): string[] {
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       if (!EXCLUDED_DIRS.has(entry.name)) files.push(...findHtmlFiles(fullPath))
-    } else if (entry.name.endsWith('.html')) {
+    } else if (entry.name.endsWith('.html') && !EXCLUDED_FILES.has(entry.name)) {
       files.push(fullPath)
     }
   }

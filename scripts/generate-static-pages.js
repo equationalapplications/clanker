@@ -5,7 +5,7 @@
  * Generates SEO-friendly static HTML for the public legal pages (/privacy, /terms)
  * plus sitemap.xml, robots.txt and llms.txt, writing them into public/ so
  * `expo export` copies them into dist/. Firebase `cleanUrls` serves these static
- * files before the SPA catch-all rewrite (see firebase.json).
+ * files before the per-route SPA rewrites (see firebase.json).
  *
  * It also generates the marketing landing page served at `/`. That one cannot
  * live in public/ because `expo export` writes its own single-page shell to
