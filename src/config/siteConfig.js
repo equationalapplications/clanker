@@ -20,7 +20,7 @@ const SIGNED_IN_HINT_KEY = 'clanker:signedIn'
 
 // File name the Expo single-page shell is renamed to after `expo export`, so
 // the static landing page can own dist/index.html. firebase.json rewrites
-// every non-file path to this shell.
+// each app route to this shell; unknown paths get public/404.html.
 const APP_SHELL_FILE = 'app-shell.html'
 
 // Store listings. The landing page links to both, and the iOS id also feeds
