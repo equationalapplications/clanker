@@ -58,5 +58,7 @@ The spec must say:
 _Gate:_ the engine release that ships the source store; then this
 repository's spec; then the engine bump.
 
-_Why here:_ it waits only on the engine. It is listed now so that nobody
-builds a second document store beside the engine in the meantime.
+_Why here:_ its only outside dependency is the engine; the spec this
+repository writes and the engine bump are inside the step itself. It is
+listed now so that nobody builds a second document store beside the
+engine in the meantime.
