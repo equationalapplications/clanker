@@ -1,10 +1,14 @@
 # Roadmap — what gets built, in what order
 
-> **roadmap.md** · v1.0 · 2026-11-13 ·
+> **roadmap.md** · v1.1 · 2026-11-14 ·
 > This is the first roadmap for this repository. It holds one step,
 > recorded on the owner's ruling of 2026-11-13. It is not an inventory of
 > open work; that lives in the issue tracker. Changing the order is an
 > amendment: say so in the pull request, don't drift.
+>
+> v1.1 amendment (2026-11-14): step 1 records the engine's scope ruling
+> of 2026-11-14 (the store only), and its pointers to the engine are
+> brought up to date. No order change.
 
 ## How to read this file
 
@@ -12,9 +16,8 @@
 that opens it. A step with an open gate is not late; it is waiting. This
 file holds no dates for future work.
 
-**Each step carries a promise class**, the same three the SynapseTree
-and Curated Journal roadmaps use, and that the `expo-llm-wiki` roadmap
-proposes ([equationalapplications/expo-llm-wiki#378](https://github.com/equationalapplications/expo-llm-wiki/issues/378)):
+**Each step carries a promise class**, the same three the SynapseTree,
+Curated Journal and `expo-llm-wiki` roadmaps use:
 
 - **BINDING** — ruled: it will be built, in this order.
 - **PLANNED** — decided in principle; its detail waits on a spec, an open
@@ -37,21 +40,32 @@ afterwards.
 
 The engine is planned to gain a source store: a document's text kept as
 it is, indexed, and searched with no model call (`expo-llm-wiki`
-`docs/ROADMAP.md`, step 4, in review as
-[equationalapplications/expo-llm-wiki#378](https://github.com/equationalapplications/expo-llm-wiki/issues/378)).
+`docs/ROADMAP.md`, step 4, tracked as
+[equationalapplications/expo-llm-wiki#390](https://github.com/equationalapplications/expo-llm-wiki/issues/390)).
+The engine's first three steps have shipped, so the store is its next
+step.
 
 This step moves the attach path to that store once it exists. An attached
 document is then findable at once, with no model call.
+
+_Engine scope (owner ruling, 2026-11-14):_ the store only. The engine
+keeps and searches a document's text, and `ingestDocument()` does not
+change. The engine will not extract facts on its own; whether and when
+this app still calls `ingestDocument()` stays this step's spec's
+decision. The facts that call writes point to the document by its
+`sourceRef`, as today.
 
 The spec must say:
 
 - what happens to documents already ingested;
 - whether and when a model still extracts facts from an attached
   document;
-- whether the facts the librarian writes point back to the document they
-  came from (the engine's step 3,
-  [equationalapplications/expo-llm-wiki#377](https://github.com/equationalapplications/expo-llm-wiki/issues/377)),
-  and what such a pointer adds beyond the `sourceRef` facts carry today;
+- whether this app needs the engine's source pointers at all. They
+  shipped in engine 9.1.0
+  ([equationalapplications/expo-llm-wiki#377](https://github.com/equationalapplications/expo-llm-wiki/issues/377)),
+  but only on facts the `ops` librarian writes from events. Facts from
+  `ingestDocument()` carry none, and keep pointing to their document by
+  `sourceRef`;
 - which attachment types become sources, including images added through
   _Add to memory_, which reach the same `ingestDocument()` path today;
 - where sources are stored and whether they sync with the character, as
