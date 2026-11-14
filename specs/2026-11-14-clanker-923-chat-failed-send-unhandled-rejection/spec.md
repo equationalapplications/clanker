@@ -67,8 +67,13 @@ In `src/hooks/__tests__/useAIChat.test.tsx`:
 
 In `src/components/__tests__/ChatView.test.tsx`:
 
-4. **`handleSend` does not reject when the send fails** — `handleSend` resolves
-   (no throw through the component boundary) with the mocked hook send failing.
+4. ~~**`handleSend` does not reject when the send fails** — `handleSend` resolves
+   (no throw through the component boundary) with the mocked hook send failing.~~
+   **Dropped during implementation (documented in the LEDGER):** ChatView tests mock
+   `useAIChat` entirely, so a rejecting mock would still reject through `handleSend`
+   even with the real fix in place — the test would drive a redundant `catch` in
+   ChatView rather than verify the fix. The no-throw contract is owned and tested at
+   the hook boundary (test 1); `handleSend` stays catch-free by design.
 
 No production code other than the one `catch` clause changes.
 

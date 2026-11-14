@@ -531,7 +531,8 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
         await aiMessageMutation.mutateAsync(message)
       } catch {
         // `onError` owns failure reporting (bubble teardown, setError, usage
-        // snapshot, cache refetch). Swallow the re-throw here so the failure
+        // snapshot, cache refetch) and already logs it (console.error at the
+        // top of onError). Swallow the re-throw here so the failure
         // is reported once — not a second time through the global
         // unhandled-rejection handler (#923). Same no-throw contract as
         // `sendPhoto`.
