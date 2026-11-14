@@ -45,10 +45,23 @@
       }
     ],
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/app-shell.html"
-      }
+      { "source": "/sign-in", "destination": "/app-shell.html" },
+      { "source": "/accept-terms", "destination": "/app-shell.html" },
+      { "source": "/privacy", "destination": "/app-shell.html" },
+      { "source": "/terms", "destination": "/app-shell.html" },
+      { "source": "/support", "destination": "/app-shell.html" },
+      { "source": "/profile", "destination": "/app-shell.html" },
+      { "source": "/settings", "destination": "/app-shell.html" },
+      { "source": "/subscribe", "destination": "/app-shell.html" },
+      { "source": "/chat", "destination": "/app-shell.html" },
+      { "source": "/chat/**", "destination": "/app-shell.html" },
+      { "source": "/talk", "destination": "/app-shell.html" },
+      { "source": "/talk/**", "destination": "/app-shell.html" },
+      { "source": "/characters", "destination": "/app-shell.html" },
+      { "source": "/characters/**", "destination": "/app-shell.html" },
+      { "source": "/admin", "destination": "/app-shell.html" },
+      { "source": "/admin/**", "destination": "/app-shell.html" },
+      { "source": "/checkout/**", "destination": "/app-shell.html" }
     ],
     "predeploy": ["npm run predeploy"]
   },

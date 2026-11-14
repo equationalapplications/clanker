@@ -5,14 +5,15 @@
  * (an empty document titled "Clanker"). This step:
  *
  *   1. renames the shell to dist/<APP_SHELL_FILE>, which firebase.json's
- *      catch-all rewrite points at, so every app route keeps working;
+ *      per-route rewrites point at, so every app route keeps working;
  *   2. copies the generated marketing page (landing/index.html, see
  *      scripts/generate-static-pages.js) to dist/index.html so `/` is real
  *      content;
  *   3. gives the shell a descriptive <title> and a noindex robots meta, so
  *      app-only routes (/sign-in, /chat, …) stop appearing as "Clanker" in
- *      search and unknown paths are not indexed as soft 404s;
- *   4. sanity-checks the files mobile deep links depend on.
+ *      search;
+ *   4. sanity-checks the files mobile deep links depend on, and the
+ *      dist/404.html Firebase serves (with a real 404) for unknown paths.
  *
  * Fails loudly: a half-finalized dist must never be deployed.
  */
@@ -108,6 +109,15 @@ function main() {
     }
   }
   console.log('  ✓ dist/.well-known deep-link files present and valid')
+
+  // firebase.json has no catch-all rewrite, so unknown paths fall through to
+  // this file with a 404 status. Without it Firebase serves its generic page.
+  const notFound = path.join(DIST, '404.html')
+  if (!fs.existsSync(notFound)) fail('missing dist/404.html (tracked in public/404.html)')
+  if (!fs.readFileSync(notFound, 'utf8').includes('name="robots" content="noindex"')) {
+    fail('dist/404.html must carry a noindex robots meta')
+  }
+  console.log('  ✓ dist/404.html present')
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
