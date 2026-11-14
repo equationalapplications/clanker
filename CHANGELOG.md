@@ -1,3 +1,10 @@
+## [34.0.3](https://github.com/equationalapplications/clanker/compare/v34.0.2...v34.0.3) (2026-11-14)
+
+
+### Bug Fixes
+
+* **web:** return real 404s for unknown paths instead of the app shell ([8f8ecb2](https://github.com/equationalapplications/clanker/commit/8f8ecb27e9f18e0624871382571ae914112d952e))
+
 ## [34.0.2](https://github.com/equationalapplications/clanker/compare/v34.0.1...v34.0.2) (2026-11-11)
 
 
