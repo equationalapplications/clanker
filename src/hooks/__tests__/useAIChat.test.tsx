@@ -257,7 +257,8 @@ describe('useAIChat streaming id unification', () => {
     mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
 
     await act(async () => {
-      await result.current.sendMessage(userMessage).catch(() => {})
+      // #923: sendMessage resolves now — this test guards the no-throw contract.
+      await result.current.sendMessage(userMessage)
     })
 
     // No persisted row will ever arrive on failure — nothing to hand off to.

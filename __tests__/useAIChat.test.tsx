@@ -706,7 +706,8 @@ describe('useAIChat', () => {
       const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
 
       await act(async () => {
-        // #923: fail-fast now surfaces via setError instead of a thrown error.
+        // #923: the misconfig failure no longer throws out of sendMessage —
+        // asserted below via onError's observable refetch effect.
         await expect(
           hook.sendMessage({
             _id: 'msg-dev-misconfig',
@@ -719,6 +720,9 @@ describe('useAIChat', () => {
 
       expect(mockCallCloudAgent).not.toHaveBeenCalled()
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+      expect(mockInvalidateQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining(['messages']) }),
+      )
     })
 
     it('reports Cloud Agent errors through onError (roll-back preserved) — sendMessage resolves (#923)', async () => {
