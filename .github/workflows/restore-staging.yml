@@ -69,16 +69,38 @@ jobs:
                   # Belt-and-braces with the concurrency group: if staging was
                   # recreated between the check and this POST, GitHub answers 422
                   # "Reference already exists" — that is success, not a failure.
-                  if ! OUT=$(gh api -X POST repos/${{ github.repository }}/git/refs \
-                    -f ref="refs/heads/staging" -f sha="$MAIN_SHA" 2>&1); then
+                  # A THIRD outcome is the head-branch-deletion race (issue #936):
+                  # GitHub's async "delete head branch on merge" is still settling
+                  # when the POST lands ~3s after the merge, and the API answers
+                  # 422 "Reference update failed" even though the branch is truly
+                  # gone. That is transient — retry it with backoff (5 attempts,
+                  # 5/10/20/40s; worst case ~75s, comfortably after the deletion
+                  # settles). Any other error still fails the job.
+                  ATTEMPTS=5
+                  DELAY=5
+                  ATTEMPT=1
+                  while true; do
+                      if OUT=$(gh api -X POST repos/${{ github.repository }}/git/refs \
+                        -f ref="refs/heads/staging" -f sha="$MAIN_SHA" 2>&1); then
+                          echo "✅ staging restored at $MAIN_SHA (attempt $ATTEMPT)"
+                          exit 0
+                      fi
                       if echo "$OUT" | grep -q "Reference already exists"; then
                           echo "staging was recreated concurrently — nothing to do"
                           exit 0
                       fi
+                      if echo "$OUT" | grep -q "Reference update failed" && [ "$ATTEMPT" -lt "$ATTEMPTS" ]; then
+                          echo "attempt $ATTEMPT hit the head-branch-deletion race (422 Reference update failed); retrying in ${DELAY}s"
+                          echo "$OUT"
+                          sleep "$DELAY"
+                          ATTEMPT=$((ATTEMPT + 1))
+                          DELAY=$((DELAY * 2))
+                          continue
+                      fi
+                      echo "::error::staging restore failed after $ATTEMPT attempt(s)."
                       echo "$OUT"
                       exit 1
-                  fi
-                  echo "✅ staging restored at $MAIN_SHA"
+                  done
 
             - name: Report
               if: steps.check.outputs.missing == 'true'
