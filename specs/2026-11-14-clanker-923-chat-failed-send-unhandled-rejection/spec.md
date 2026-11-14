@@ -1,6 +1,6 @@
 # Spec: clanker #923 — failed chat send must not surface an unhandled rejection
 
-**Date:** 2026-11-14 · **Status:** Draft (awaiting Kurt's approval) · **Issue:** #923 ·
+**Date:** 2026-11-14 · **Status:** Approved by Kurt (2026-11-14, Discord msg 1571302973873594419) · **Issue:** #923 ·
 **Repo:** clanker · **Base:** `origin/staging` (`b22fe336`) · **Lane branch:**
 `fix/chat-failed-send-rejection`
 
