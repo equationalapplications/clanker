@@ -100,7 +100,7 @@
     "react-native-gesture-handler": "~3.3.0",
     "react-native-keyboard-controller": "1.22.7",
     "react-native-paper": "^5.15.3",
-    "react-native-purchases": "^10.9.0",
+    "react-native-purchases": "^11.0.0",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
