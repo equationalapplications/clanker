@@ -257,7 +257,8 @@ describe('useAIChat streaming id unification', () => {
     mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
 
     await act(async () => {
-      await result.current.sendMessage(userMessage).catch(() => {})
+      // #923: sendMessage resolves now — this test guards the no-throw contract.
+      await result.current.sendMessage(userMessage)
     })
 
     // No persisted row will ever arrive on failure — nothing to hand off to.
@@ -421,6 +422,47 @@ describe('useAIChat streaming id unification', () => {
     await waitFor(() => expect(result.current.streamingMessage).toBeNull())
     await retryPromise
     await expect(secondPromise).resolves.toBeUndefined()
+  })
+})
+
+describe('useAIChat failed-send reporting (#923)', () => {
+  it('sendMessage resolves after a failed turn — onError owns the reporting', async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = await renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+
+    // THE invariant (#923): the failure is reported through onError (error
+    // state below) and sendMessage itself does NOT re-throw — on base the
+    // mutateAsync re-throw escaped through handleSend into the global
+    // unhandled-rejection handler.
+    await act(async () => {
+      await expect(result.current.sendMessage(userMessage)).resolves.toBeUndefined()
+    })
+    expect(result.current.error).toBe('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+  })
+
+  it('a resolving send still clears any prior error', async () => {
+    const { Wrapper } = createWrapper()
+    const { result } = await renderHook(
+      () => useAIChat({ characterId: 'char-1', userId: 'user-1', character }),
+      { wrapper: Wrapper },
+    )
+
+    mockCallCloudAgent.mockRejectedValueOnce(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
+    await act(async () => {
+      await result.current.sendMessage(userMessage)
+    })
+    expect(result.current.error).toBe('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+
+    mockCallCloudAgent.mockResolvedValue({ reply: 'ok', toolCalls: [], usageSnapshot: null })
+    await act(async () => {
+      await expect(result.current.sendMessage(userMessage)).resolves.toBeUndefined()
+    })
+    expect(result.current.error).toBeNull()
   })
 })
 

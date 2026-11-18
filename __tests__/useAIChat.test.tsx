@@ -416,16 +416,18 @@ describe('useAIChat', () => {
 
     const hook = renderUseAIChat()
 
-    await expect(
-      act(async () => {
-        await hook.sendMessage({
+    // #923: the failure no longer escapes `sendMessage`; the optimistic-keep
+    // behaviour below is the invariant under test.
+    await act(async () => {
+      await expect(
+        hook.sendMessage({
           _id: 'msg-optimistic',
           text: 'Hello',
           createdAt: new Date('2026-04-27T00:00:00.000Z'),
           user: { _id: 'user-1' },
-        } as any)
-      }),
-    ).rejects.toThrow(failedPreconditionError)
+        } as any),
+      ).resolves.toBeUndefined()
+    })
 
     expect(mockSetQueryData).toHaveBeenCalledTimes(1)
   })
@@ -704,6 +706,8 @@ describe('useAIChat', () => {
       const hook = renderUseAIChat({ save_to_cloud: 0, cloud_id: null })
 
       await act(async () => {
+        // #923: the misconfig failure no longer throws out of sendMessage —
+        // asserted below via onError's observable refetch effect.
         await expect(
           hook.sendMessage({
             _id: 'msg-dev-misconfig',
@@ -711,14 +715,17 @@ describe('useAIChat', () => {
             createdAt: new Date('2026-06-02T00:00:00.000Z'),
             user: { _id: 'user-1' },
           } as any),
-        ).rejects.toThrow('Dev sandbox requires EXPO_PUBLIC_CLOUD_AGENT_URL')
+        ).resolves.toBeUndefined()
       })
 
       expect(mockCallCloudAgent).not.toHaveBeenCalled()
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
+      expect(mockInvalidateQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining(['messages']) }),
+      )
     })
 
-    it('propagates Cloud Agent errors so onError can roll back the optimistic update', async () => {
+    it('reports Cloud Agent errors through onError (roll-back preserved) — sendMessage resolves (#923)', async () => {
       mockCallCloudAgent.mockRejectedValue(new Error('Cloud Agent responded with 500'))
       const hook = renderUseAIChat({ save_to_cloud: 1 })
 
@@ -730,9 +737,13 @@ describe('useAIChat', () => {
             createdAt: new Date('2026-06-02T00:00:00.000Z'),
             user: { _id: 'user-1' },
           } as any),
-        ).rejects.toThrow('Cloud Agent responded with 500')
+        ).resolves.toBeUndefined()
       })
 
+      // onError ran: the failure was reported and the message list refetched.
+      expect(mockInvalidateQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining(['messages']) }),
+      )
       expect(mockSendMessageWithAIResponse).not.toHaveBeenCalled()
     })
 
@@ -796,6 +807,8 @@ describe('useAIChat', () => {
       const hook = renderUseAIChat({ save_to_cloud: 1 })
 
       await act(async () => {
+        // #923: `sendMessage` no longer re-throws after onError — it resolves
+        // with the failure reported through the hook (USAGE_SNAPSHOT below).
         await expect(
           hook.sendMessage({
             _id: 'msg-402-1',
@@ -803,7 +816,7 @@ describe('useAIChat', () => {
             createdAt: new Date('2026-06-03T00:00:00.000Z'),
             user: { _id: 'user-1' },
           } as any),
-        ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+        ).resolves.toBeUndefined()
       })
 
       expect(mockSend).toHaveBeenCalledWith(
@@ -822,6 +835,7 @@ describe('useAIChat', () => {
       const hook = renderUseAIChat({ save_to_cloud: 1 })
 
       await act(async () => {
+        // #923: resolves despite the failure — see the no-throw contract.
         await expect(
           hook.sendMessage({
             _id: 'msg-402-2',
@@ -829,7 +843,7 @@ describe('useAIChat', () => {
             createdAt: new Date('2026-06-03T00:00:00.000Z'),
             user: { _id: 'user-1' },
           } as any),
-        ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+        ).resolves.toBeUndefined()
       })
 
       expect(mockInvalidateQueries).toHaveBeenCalledWith(
@@ -837,20 +851,29 @@ describe('useAIChat', () => {
       )
     })
 
-    it('rethrows CLOUD_AGENT_INSUFFICIENT_CREDITS so mutation onError still runs', async () => {
+    it('onError still runs on CLOUD_AGENT_INSUFFICIENT_CREDITS — reported via USAGE_SNAPSHOT, sendMessage resolves (#923)', async () => {
       mockCallCloudAgent.mockRejectedValue(new Error('CLOUD_AGENT_INSUFFICIENT_CREDITS'))
       const hook = renderUseAIChat({ save_to_cloud: 1 })
 
-      await expect(
-        act(async () => {
-          await hook.sendMessage({
+      await act(async () => {
+        await expect(
+          hook.sendMessage({
             _id: 'msg-402-3',
             text: 'No credits',
             createdAt: new Date('2026-06-03T00:00:00.000Z'),
             user: { _id: 'user-1' },
-          } as any)
+          } as any),
+        ).resolves.toBeUndefined()
+      })
+
+      // onError ran: the insufficient-credits branch dispatched the snapshot.
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'USAGE_SNAPSHOT_RECEIVED',
+          source: 'cloudAgent',
+          remainingCredits: 0,
         }),
-      ).rejects.toThrow('CLOUD_AGENT_INSUFFICIENT_CREDITS')
+      )
     })
   })
 })
