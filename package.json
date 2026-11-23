@@ -60,7 +60,7 @@
     "@tanstack/react-query": "^5.105.1",
     "@tanstack/react-query-persist-client": "^5.105.1",
     "@xstate/react": "^6.1.0",
-    "dotenv": "^18.0.9",
+    "dotenv": "^18.0.10",
     "expo": "~58.0.21",
     "expo-age-range": "^58.0.2",
     "expo-apple-authentication": "~58.0.2",
