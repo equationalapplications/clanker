@@ -26,7 +26,7 @@
     "express-rate-limit": "^8.7.2",
     "firebase-admin": "^14.5.0",
     "pg": "^8.23.1",
-    "ws": "^8.22.1",
+    "ws": "^8.22.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
