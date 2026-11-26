@@ -529,6 +529,11 @@ export function useAIChat({ characterId, userId, character }: UseAIChatProps): U
       turnInFlightRef.current = true
       try {
         await aiMessageMutation.mutateAsync(message)
+      } catch {
+        // onError owns and logs failure reporting (setError, usage snapshot,
+        // refetch, console.error); this swallow only stops the mutateAsync
+        // re-throw surfacing a second time via the global unhandled-rejection
+        // handler (#923). Same no-throw contract as `sendPhoto`.
       } finally {
         turnInFlightRef.current = false
       }
